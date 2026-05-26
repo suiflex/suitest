@@ -19,6 +19,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Construct the FastAPI app. Pure factory — no side effects at import."""
+    from suitest_api.routers.capabilities import router as capabilities_router
+
     app = FastAPI(
         title="Suitest API",
         version=__version__,
@@ -34,6 +36,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Liveness probe — no DB / Redis touch."""
         return {"status": "ok", "service": "api", "version": __version__}
 
+    app.include_router(capabilities_router)
     return app
 
 

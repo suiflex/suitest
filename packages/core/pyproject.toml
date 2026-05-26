@@ -1,9 +1,11 @@
 [project]
 name = "suitest-core"
 version = "0.1.0"
-description = "Suitest core capability primitives"
+description = "Suitest shared domain logic — capability resolver, autonomy, crypto"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+  "pydantic>=2.9.0",
+]
 
 [build-system]
 requires = ["hatchling"]
