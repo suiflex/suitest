@@ -1,0 +1,82 @@
+/* Suitest — print-specific styles */
+
+/* On-screen preview of the print doc */
+@media screen {
+  html, body {
+    height: auto;
+    overflow: auto;
+    background: #050505;
+  }
+  body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-items: center;
+  }
+  .print-page {
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+    border-radius: 6px;
+  }
+}
+
+/* Each page is a landscape 1440x900 frame holding the full shell */
+.print-page {
+  width: 1440px;
+  height: 900px;
+  display: grid;
+  grid-template-columns: 224px 1fr 380px;
+  overflow: hidden;
+  background: var(--bg-base);
+  position: relative;
+}
+
+/* Stop runtime overflow that the SPA depended on */
+.print-page .content { overflow: hidden; }
+.print-page .ai-thread { overflow: hidden; }
+.print-page .tc-tree-body,
+.print-page .tc-body,
+.print-page .runs-list,
+.print-page .logs { overflow: hidden; }
+
+@media print {
+  @page {
+    size: 1440px 900px;
+    margin: 0;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-base);
+    height: auto;
+    overflow: visible;
+  }
+  body {
+    padding: 0;
+    gap: 0;
+    display: block;
+  }
+  .print-page {
+    width: 1440px;
+    height: 900px;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 0;
+    break-after: page;
+    page-break-after: always;
+  }
+  .print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  /* Force colors */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  /* Disable animations */
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
