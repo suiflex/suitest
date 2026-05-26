@@ -24,6 +24,7 @@ CLOUD_PROVIDERS: Final[frozenset[str]] = frozenset(
         "bedrock",
         "vertex",
         "deepseek",
+        "mock",
     }
 )
 ZERO_SENTINELS: Final[frozenset[str]] = frozenset({"", "none", "disabled"})
@@ -52,6 +53,17 @@ class LLMInfo(BaseModel):
     provider: str | None = None
     model: str | None = None
     base_url: str | None = None
+    is_test_provider: bool = False
+
+
+class McpProviderInfo(BaseModel):
+    """MCP provider entry in capability snapshot."""
+
+    id: str
+    name: str
+    kind: str
+    health: str = "unknown"
+    is_default: bool = False
 
 
 class EmbeddingsInfo(BaseModel):
@@ -75,12 +87,10 @@ class CapabilitySnapshot(BaseModel):
 
     tier: Tier
     llm: LLMInfo = Field(default_factory=LLMInfo)
-    llm_provider: str | None = None
     embeddings: EmbeddingsInfo = Field(default_factory=EmbeddingsInfo)
     features: dict[str, bool]
     autonomy: AutonomyInfo
-    autonomy_available: list[AutonomyLevel]
-    autonomy_default: AutonomyLevel
+    mcp_providers: list[McpProviderInfo] = Field(default_factory=list)
     version: str = "0.1.0"
 
 
@@ -144,19 +154,19 @@ def resolve_capabilities() -> CapabilitySnapshot:
     """Return a fully-populated CapabilitySnapshot from current env."""
     tier = resolve_tier()
     provider = _read_provider()
+    resolved_provider = provider if tier is not Tier.ZERO else None
     llm = LLMInfo(
-        provider=provider if tier is not Tier.ZERO else None,
+        provider=resolved_provider,
         model=os.getenv("SUITEST_LLM_MODEL") or None,
         base_url=os.getenv("SUITEST_LLM_BASE_URL") or None,
+        is_test_provider=resolved_provider == "mock",
     )
     autonomy = _autonomy_for(tier)
     return CapabilitySnapshot(
         tier=tier,
         llm=llm,
-        llm_provider=llm.provider,
         embeddings=EmbeddingsInfo(),
         features=_features_for(tier),
         autonomy=autonomy,
-        autonomy_available=autonomy.available,
-        autonomy_default=autonomy.default,
+        mcp_providers=[],
     )

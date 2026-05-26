@@ -14,7 +14,7 @@ async def test_capabilities_zero_default(
     assert response.status_code == 200
     data = response.json()
     assert data["tier"] == "ZERO"
-    assert data["llm_provider"] is None
+    assert data["llm"]["provider"] is None
     assert data["features"]["manual_tcm"] is True
     assert data["features"]["ai_generation"] is False
     assert data["autonomy"]["default"] == "manual"

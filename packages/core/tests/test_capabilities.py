@@ -38,11 +38,11 @@ def test_resolve_capabilities_zero_snapshot(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.delenv("SUITEST_LLM_PROVIDER", raising=False)
     snap = resolve_capabilities()
     assert snap.tier is Tier.ZERO
-    assert snap.llm_provider is None
+    assert snap.llm.provider is None
     assert snap.features["ai_generation"] is False
     assert snap.features["manual_tcm"] is True
-    assert snap.autonomy_available == [AutonomyLevel.MANUAL]
-    assert snap.autonomy_default is AutonomyLevel.MANUAL
+    assert snap.autonomy.available == [AutonomyLevel.MANUAL]
+    assert snap.autonomy.default is AutonomyLevel.MANUAL
 
 
 def test_capability_snapshot_serialises(monkeypatch: pytest.MonkeyPatch) -> None:
