@@ -1,0 +1,19 @@
+apiVersion: v2
+name: suitest
+description: MCP-native testing platform — OSS self-host chart
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.27.0-0"
+home: https://suitest.dev
+sources:
+  - https://github.com/suitest-dev/suitest
+maintainers:
+  - name: Suitest Maintainers
+    email: maintainers@suitest.dev
+keywords:
+  - testing
+  - tcm
+  - mcp
+  - playwright
+  - self-hosted

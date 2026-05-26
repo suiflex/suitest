@@ -1,0 +1,100 @@
+suitest:
+  tier: zero
+  autonomyDefault: manual
+
+image:
+  registry: ghcr.io/suitest-dev
+  apiRepository: suitest-api
+  runnerRepository: suitest-runner
+  webRepository: suitest-web
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+llm:
+  enabled: false
+  provider: none
+  model: ""
+  baseUrl: ""
+  apiKeySecretRef:
+    name: ""
+    key: api-key
+
+embeddings:
+  backend: none
+  model: ""
+  dim: 384
+
+api:
+  replicaCount: 2
+  service:
+    type: ClusterIP
+    port: 4000
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+web:
+  replicaCount: 2
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: suitest.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+postgres:
+  external: true
+  host: postgres
+  port: 5432
+  database: suitest
+  userSecretRef:
+    name: suitest-pg
+    key: user
+  passwordSecretRef:
+    name: suitest-pg
+    key: password
+
+redis:
+  external: true
+  url: redis://redis:6379/0
+
+s3:
+  external: true
+  endpoint: http://minio:9000
+  bucket: suitest-artifacts
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]

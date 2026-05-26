@@ -10,6 +10,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
         args: ["--unsafe"]
+        exclude: ^infra/helm/.*/templates/.*$
       - id: check-added-large-files
         args: ["--maxkb=500"]
       - id: check-merge-conflict

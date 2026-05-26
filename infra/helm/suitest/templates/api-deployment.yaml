@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "suitest.fullname" . }}-api
+  labels:
+    {{- include "suitest.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "suitest.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "suitest.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: {{ include "suitest.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: api
+          image: "{{ .Values.image.registry }}/{{ .Values.image.apiRepository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - containerPort: 4000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: {{ include "suitest.fullname" . }}-config
+            - secretRef:
+                name: {{ include "suitest.fullname" . }}-secret
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
