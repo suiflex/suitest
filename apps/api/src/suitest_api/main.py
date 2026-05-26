@@ -12,7 +12,8 @@ from suitest_api.settings import Settings, get_settings
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application startup / shutdown hooks (no-op for M0)."""
-    app.state.settings = get_settings()
+    if not getattr(app.state, "settings", None):
+        app.state.settings = get_settings()
     yield
 
 
