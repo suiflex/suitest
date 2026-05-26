@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Geist Sans";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/Geist[wght].woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/GeistMono[wght].woff2") format("woff2-variations");
+}
+
+@theme {
+  --color-base: #0a0a0a;
+  --color-elev-1: #111111;
+  --color-elev-2: #161616;
+  --color-border: #262626;
+  --color-fg-1: #fafafa;
+  --color-fg-3: #a3a3a3;
+  --color-fg-4: #737373;
+  --color-accent: #4ade80;
+  --color-red: #f87171;
+  --color-amber: #fbbf24;
+  --color-violet: #a78bfa;
+  --font-sans: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "JetBrains Mono", monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+}

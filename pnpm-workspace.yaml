@@ -1,2 +1,6 @@
 packages:
   - "apps/web"
+allowBuilds:
+  esbuild: true
+onlyBuiltDependencies:
+  - esbuild
