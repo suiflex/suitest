@@ -36,6 +36,9 @@ repos:
           - asgi-lifespan>=2.1.0
           - pytest>=8.3.0
           - pytest-asyncio>=0.24.0
+          - fastapi-users[sqlalchemy,oauth]>=14.0.0
+          - fastapi-users-db-sqlalchemy>=7.0.0
+          - httpx-oauth>=0.16.0
         args: ["--config-file=pyproject.toml"]
         files: ^(apps|packages)/.*\.py$
         exclude: ^.*/alembic/versions/.*$

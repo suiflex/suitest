@@ -10,7 +10,11 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from suitest_db.base import Base
-from suitest_db.models import Workspace  # noqa: F401  -- ensure model registry populated
+from suitest_db.models import (  # noqa: F401  -- ensure model registry populated
+    OAuthAccount,
+    User,
+    Workspace,
+)
 from suitest_db.settings import DbSettings
 
 if TYPE_CHECKING:

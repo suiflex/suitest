@@ -10,6 +10,7 @@ dependencies = [
   "cuid2>=2.0.1",
   "pydantic>=2.9.0",
   "pydantic-settings>=2.6.0",
+  "fastapi-users-db-sqlalchemy>=7.0.0",
   "suitest-core",
 ]
 

@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     api_url: str = Field(default="http://localhost:4000")
     log_level: str = Field(default="INFO")
 
+    # Auth / OAuth — required for FastAPI-Users + Google OAuth
+    auth_secret: str = Field(default="dev-secret-change-me")
+    database_url: str = Field(default="postgresql+asyncpg://suitest:suitest@localhost:5432/suitest")
+    oauth_google_client_id: str = Field(default="")
+    oauth_google_client_secret: str = Field(default="")
+
 
 def get_settings() -> Settings:
     """Return a fresh Settings instance (env-resolved)."""
