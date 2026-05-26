@@ -50,6 +50,11 @@ docker compose restart api runner
 
 Refresh browser → tier badge berubah jadi `CLOUD · anthropic:claude-sonnet-4-5`. AI panel + generate button aktif.
 
+## Manual DoD smoke
+
+See M0 plan task 11 (`docs/superpowers/plans/2026-05-26-plan-01-m0-skeleton.md`) for the
+end-to-end clone → compose → login → dashboard smoke procedure.
+
 **Untuk enable LOCAL tier dengan Ollama** (air-gapped friendly):
 
 ```bash

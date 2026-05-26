@@ -3,6 +3,7 @@
 import { Route as RootRoute } from "./routes/__root";
 import { Route as IndexRoute } from "./routes/index";
 import { Route as LoginRoute } from "./routes/login";
+import { Route as DashboardRoute } from "./routes/dashboard";
 
 declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
@@ -20,7 +21,14 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof LoginRoute;
       parentRoute: typeof RootRoute;
     };
+    "/dashboard": {
+      id: "/dashboard";
+      path: "/dashboard";
+      fullPath: "/dashboard";
+      preLoaderRoute: typeof DashboardRoute;
+      parentRoute: typeof RootRoute;
+    };
   }
 }
 
-export const routeTree = RootRoute.addChildren([IndexRoute, LoginRoute]);
+export const routeTree = RootRoute.addChildren([IndexRoute, LoginRoute, DashboardRoute]);
