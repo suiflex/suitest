@@ -85,7 +85,7 @@ Air-gapped k8s deploy validated dengan Ollama in-cluster — lihat `examples/air
 suitest/
 ├── README.md                ← kamu di sini
 ├── CLAUDE.md                ← coding rules untuk AI agent (Cursor/Claude Code)
-├── Suitest.html             ← UI mockup (read-only, referensi visual)
+├── Suitest.html             ← UI mockup (read-only, referensi visual; TEMPORARY — removed after M1b visual parity, source of truth = docs/UI_SPEC.md)
 │
 ├── docs/
 │   ├── PRODUCT.md           ← vision, personas, journeys, screen scope

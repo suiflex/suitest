@@ -22,6 +22,8 @@ Posisi: replacement untuk TestRail + Playwright (ZERO tier) yang juga melampaui 
 
 Visual reference: `Suitest.html` di root repo (mockup, **read-only**).
 
+> **Note on Suitest.html**: this is a TEMPORARY visual mockup used as design reference during M0–M1b implementation. Once UI screens reach ≥95% match with the mockup (per UI_SPEC.md § 7 acceptance), the file will be DELETED. Do not add features only documented in `Suitest.html` — they must also be in `docs/UI_SPEC.md` to be canonical.
+
 Source-of-truth pivot: [`docs/superpowers/specs/2026-05-26-suitest-oss-pivot-design.md`](./docs/superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
 
 ---
