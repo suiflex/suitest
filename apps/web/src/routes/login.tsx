@@ -2,8 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 
 function Login(): React.ReactElement {
   const apiUrl = import.meta.env["VITE_API_URL"] ?? "http://localhost:4000";
-  const handleGoogle = (): void => {
-    window.location.href = `${apiUrl}/auth/google/authorize`;
+  const onGoogle = async (): Promise<void> => {
+    const res = await fetch(`${apiUrl}/auth/google/authorize`, { credentials: "include" });
+    const data: { authorization_url: string } = await res.json();
+    window.location.href = data.authorization_url;
   };
 
   return (
@@ -15,7 +17,9 @@ function Login(): React.ReactElement {
       </p>
       <button
         type="button"
-        onClick={handleGoogle}
+        onClick={() => {
+          void onGoogle();
+        }}
         className="inline-flex items-center justify-center rounded-md border border-border bg-bg-1 px-4 py-2 font-medium hover:bg-bg-2"
       >
         Continue with Google

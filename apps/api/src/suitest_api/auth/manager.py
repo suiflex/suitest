@@ -38,16 +38,22 @@ async def get_user_manager(
     yield UserManager(user_db)
 
 
-cookie_transport = CookieTransport(cookie_name="suitest_auth", cookie_max_age=3600)
+cookie_transport = CookieTransport(
+    cookie_name="suitest_session",
+    cookie_max_age=60 * 60 * 24 * 14,  # 14 days
+    cookie_secure=False,  # set True behind HTTPS in production
+    cookie_httponly=True,
+    cookie_samesite="lax",
+)
 
 
 def get_jwt_strategy() -> JWTStrategy[User, uuid.UUID]:
-    """Return the JWT strategy used by the cookie auth backend."""
-    return JWTStrategy(secret=_settings.auth_secret, lifetime_seconds=3600)
+    """JWT strategy keyed off SUITEST_AUTH_SECRET."""
+    return JWTStrategy(secret=get_settings().auth_secret, lifetime_seconds=60 * 60 * 24 * 14)
 
 
 auth_backend = AuthenticationBackend(
-    name="cookie",
+    name="cookie-jwt",
     transport=cookie_transport,
     get_strategy=get_jwt_strategy,
 )
