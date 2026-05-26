@@ -1,0 +1,93 @@
+name: suitest
+
+x-suitest-env: &suitest-env
+  SUITEST_DATABASE_URL: ${SUITEST_DATABASE_URL}
+  SUITEST_REDIS_URL: ${SUITEST_REDIS_URL}
+  SUITEST_S3_ENDPOINT: ${SUITEST_S3_ENDPOINT}
+  SUITEST_S3_BUCKET: ${SUITEST_S3_BUCKET}
+  SUITEST_S3_ACCESS_KEY: ${SUITEST_S3_ACCESS_KEY}
+  SUITEST_S3_SECRET_KEY: ${SUITEST_S3_SECRET_KEY}
+  SUITEST_LLM_PROVIDER: ${SUITEST_LLM_PROVIDER:-}
+  SUITEST_ENCRYPTION_KEY: ${SUITEST_ENCRYPTION_KEY}
+  SUITEST_AUTH_SECRET: ${SUITEST_AUTH_SECRET}
+  SUITEST_WEB_URL: ${SUITEST_WEB_URL}
+  SUITEST_API_URL: ${SUITEST_API_URL}
+  SUITEST_OAUTH_GOOGLE_CLIENT_ID: ${SUITEST_OAUTH_GOOGLE_CLIENT_ID:-}
+  SUITEST_OAUTH_GOOGLE_CLIENT_SECRET: ${SUITEST_OAUTH_GOOGLE_CLIENT_SECRET:-}
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    profiles: ["zero", "cloud", "local", "dev"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: suitest
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-suitest}
+      POSTGRES_DB: suitest
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U suitest -d suitest"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["zero", "cloud", "local", "dev"]
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    profiles: ["zero", "cloud", "local", "dev"]
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${SUITEST_S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${SUITEST_S3_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    profiles: ["zero", "cloud", "local", "dev"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 ${SUITEST_S3_ACCESS_KEY:-minioadmin} ${SUITEST_S3_SECRET_KEY:-minioadmin} &&
+        mc mb --ignore-existing local/${SUITEST_S3_BUCKET:-suitest-artifacts} &&
+        mc anonymous set download local/${SUITEST_S3_BUCKET:-suitest-artifacts} ||
+        echo 'bucket init done';
+      "
+    restart: "no"
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+
+networks:
+  default:
+    name: suitest
