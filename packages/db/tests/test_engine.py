@@ -1,47 +1,43 @@
-"""Smoke tests for the async engine + session factory."""
+"""End-to-end: migrate → insert Workspace → query back."""
 
-from __future__ import annotations
+from collections.abc import AsyncIterator
 
 import pytest
-from sqlalchemy import text
-from suitest_db.engine import lifespan_engine, make_engine, make_session_factory
+import pytest_asyncio
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from suitest_db.engine import lifespan_engine
+from suitest_db.models import Workspace
 from suitest_db.settings import DbSettings
 
 
-def test_make_engine_uses_settings() -> None:
-    """make_engine() honours DbSettings (URL passed through to engine)."""
-    settings = DbSettings()
-    engine = make_engine(settings)
-    try:
-        # AsyncEngine wraps a sync URL object.
-        assert str(engine.url) == settings.database_url.replace(
-            "suitest:suitest", "suitest:***"
-        ) or settings.database_url in str(engine.url)
-        assert engine.pool is not None  # pool is constructed
-    finally:
-        # Synchronous dispose path — no event loop running.
-        engine.sync_engine.dispose()
-
-
-def test_make_session_factory_binds_engine() -> None:
-    """Session factory binds back to the originating engine."""
-    engine = make_engine()
-    try:
-        factory = make_session_factory(engine)
-        session = factory()
-        assert session.bind is engine
-    finally:
-        engine.sync_engine.dispose()
+@pytest_asyncio.fixture
+async def session() -> AsyncIterator[AsyncSession]:
+    """Yield a session against local dev Postgres (after compose up + alembic upgrade)."""
+    settings = DbSettings(
+        database_url="postgresql+asyncpg://suitest:suitest@localhost:5432/suitest"
+    )
+    async with lifespan_engine(settings) as (_engine, sf), sf() as s:
+        yield s
+        await s.rollback()
 
 
 @pytest.mark.asyncio
-async def test_lifespan_engine_executes_select_one() -> None:
-    """Full lifecycle: open engine -> session -> SELECT 1 -> dispose."""
-    async with lifespan_engine() as (engine, session_factory):
-        async with session_factory() as session:
-            result = await session.execute(text("SELECT 1"))
-            assert result.scalar_one() == 1
-        # engine still alive inside the context
-        assert engine is not None
-    # post-context: engine disposed. We can't easily assert disposed state
-    # publicly, but no exception means cleanup succeeded.
+async def test_workspace_insert_and_query(session: AsyncSession) -> None:
+    """Insert a workspace, commit, query back, assert fields."""
+    ws = Workspace(slug="test-engine-roundtrip", name="Engine Roundtrip")
+    session.add(ws)
+    await session.commit()
+
+    stmt = select(Workspace).where(Workspace.slug == "test-engine-roundtrip")
+    result = await session.execute(stmt)
+    fetched = result.scalar_one()
+
+    assert fetched.id is not None
+    assert len(fetched.id) == 24  # cuid2 length
+    assert fetched.name == "Engine Roundtrip"
+    assert fetched.created_at is not None
+
+    # cleanup
+    await session.delete(fetched)
+    await session.commit()
