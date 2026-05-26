@@ -8,6 +8,7 @@ members = [
     "suitest-core",
     "suitest-db",
     "suitest-monorepo",
+    "suitest-runner",
     "suitest-shared",
 ]
 
@@ -87,6 +88,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/74/cd/15777dfde1c29d96de7f18edf4cc94c385646852e7c7b0320aa91ccca583/argon2_cffi_bindings-25.1.0-cp39-abi3-win32.whl", hash = "sha256:473bcb5f82924b1becbb637b63303ec8d10e84c8d241119419897a26116515d2", size = 27180, upload-time = "2025-07-30T10:01:57.759Z" },
     { url = "https://files.pythonhosted.org/packages/e2/c6/a759ece8f1829d1f162261226fbfd2c6832b3ff7657384045286d2afa384/argon2_cffi_bindings-25.1.0-cp39-abi3-win_amd64.whl", hash = "sha256:a98cd7d17e9f7ce244c0803cad3c23a7d379c301ba618a5fa76a67d116618b98", size = 31715, upload-time = "2025-07-30T10:01:58.56Z" },
     { url = "https://files.pythonhosted.org/packages/42/b9/f8d6fa329ab25128b7e98fd83a3cb34d9db5b059a9847eddb840a0af45dd/argon2_cffi_bindings-25.1.0-cp39-abi3-win_arm64.whl", hash = "sha256:b0fdbcf513833809c882823f98dc2f931cf659d9a1429616ac3adebb49f5db94", size = 27149, upload-time = "2025-07-30T10:01:59.329Z" },
+]
+
+[[package]]
+name = "arq"
+version = "0.28.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "redis", extra = ["hiredis"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a4/81/7f9db65a89c29ba374000309b9dd95509500045df5c7e22f26c3731b7380/arq-0.28.0.tar.gz", hash = "sha256:a458188aefc2d7ee17d136f80d8fa8df1d6eba4ceebdead87e9f172d027dc311", size = 416141, upload-time = "2026-04-16T10:50:23.893Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/48/32/66b616976c5058d434ca2017979bfffd784888177b16b5038abcec93954a/arq-0.28.0-py3-none-any.whl", hash = "sha256:b1696bf5614d60f4172a2c0cbdc177e23ba03a5eb9acc29bd8181f4ea71fff94", size = 26061, upload-time = "2026-04-16T10:50:22.321Z" },
 ]
 
 [[package]]
@@ -484,6 +498,27 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/01/ee/02a2c011bdab74c6fb3c75474d40b3052059d95df7e73351460c8588d963/h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1", size = 101250, upload-time = "2025-04-24T03:35:25.427Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86", size = 37515, upload-time = "2025-04-24T03:35:24.344Z" },
+]
+
+[[package]]
+name = "hiredis"
+version = "3.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/97/d6/9bef6dc3052c168c93fbf7e6c0f2b12c45f0f741a2d30fd919096774343a/hiredis-3.3.1.tar.gz", hash = "sha256:da6f0302360e99d32bc2869772692797ebadd536e1b826d0103c72ba49d38698", size = 89101, upload-time = "2026-03-16T15:21:08.092Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b3/1d/1a7d925d886211948ab9cca44221b1d9dd4d3481d015511e98794e37d369/hiredis-3.3.1-cp312-cp312-macosx_10_15_universal2.whl", hash = "sha256:60543f3b068b16a86e99ed96b7fdae71cdc1d8abdfe9b3f82032a555e52ece7e", size = 82023, upload-time = "2026-03-16T15:19:34.157Z" },
+    { url = "https://files.pythonhosted.org/packages/13/2f/a6017fe1db47cd63a4aefc0dd21dd4dcb0c4e857bfbcfaa27329745f24a3/hiredis-3.3.1-cp312-cp312-macosx_10_15_x86_64.whl", hash = "sha256:2611bfaaadc5e8d43fb7967f9bbf1110c8beaa83aee2f2d812c76f11cfb56c6a", size = 46215, upload-time = "2026-03-16T15:19:35.068Z" },
+    { url = "https://files.pythonhosted.org/packages/77/4b/35a71d088c6934e162aa81c7e289fa3110a3aca84ab695d88dbd488c74a2/hiredis-3.3.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:8e3754ce60e1b11b0afad9a053481ff184d2ee24bea47099107156d1b84a84aa", size = 41861, upload-time = "2026-03-16T15:19:36.32Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/54/904bc723a95926977764fefd6f0d46067579bac38fffc32b806f3f2c05c0/hiredis-3.3.1-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:e89dabf436ee79b358fd970dcbed6333a36d91db73f27069ca24a02fb138a404", size = 170196, upload-time = "2026-03-16T15:19:37.274Z" },
+    { url = "https://files.pythonhosted.org/packages/1d/01/4e840cd4cb53c28578234708b08fb9ec9e41c2880acc0e269a7264e1b3af/hiredis-3.3.1-cp312-cp312-manylinux2014_ppc64le.manylinux_2_17_ppc64le.manylinux_2_28_ppc64le.whl", hash = "sha256:4f7e242eab698ad0be5a4b2ec616fa856569c57455cc67c625fd567726290e5f", size = 181808, upload-time = "2026-03-16T15:19:38.637Z" },
+    { url = "https://files.pythonhosted.org/packages/87/0d/fc845f06f8203ab76c401d4d2b97f9fb768e644b053a40f441f7dcc71f2d/hiredis-3.3.1-cp312-cp312-manylinux2014_s390x.manylinux_2_17_s390x.manylinux_2_28_s390x.whl", hash = "sha256:53148a4e21057541b6d8e493b2ea1b500037ddf34433c391970036f3cbce00e3", size = 180577, upload-time = "2026-03-16T15:19:39.749Z" },
+    { url = "https://files.pythonhosted.org/packages/52/3a/859afe2620666bf6d58eb977870c47d98af4999d473b50528b323918f3f7/hiredis-3.3.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c25132902d3eff38781e0d54f27a0942ec849e3c07dbdce83c4d92b7e43c8dce", size = 172507, upload-time = "2026-03-16T15:19:40.87Z" },
+    { url = "https://files.pythonhosted.org/packages/60/a8/004349708ad8bf0d188d46049f846d3fe2d4a7a8d0d5a6a8ba024017d8b3/hiredis-3.3.1-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:3fb6573efa15a29c12c0c0f7170b14e7c1347fe4bb39b6a15b779f46015cc929", size = 166339, upload-time = "2026-03-16T15:19:41.912Z" },
+    { url = "https://files.pythonhosted.org/packages/c3/fb/bfc6df29381830c99bfd9e97ed3b6d75d9303866a28c23d51ab8c50f63e3/hiredis-3.3.1-cp312-cp312-musllinux_1_2_ppc64le.whl", hash = "sha256:487658e1db83c1ee9fbbac6a43039ea76957767a5987ffb16b590613f9e68297", size = 176766, upload-time = "2026-03-16T15:19:42.981Z" },
+    { url = "https://files.pythonhosted.org/packages/53/e7/f54aaad4559a413ec8b1043a89567a5a1f898426e4091b9af5e0f2120371/hiredis-3.3.1-cp312-cp312-musllinux_1_2_s390x.whl", hash = "sha256:a1d190790ee39b8b7adeeb10fc4090dc4859eb4e75ed27bd8108710eef18f358", size = 170313, upload-time = "2026-03-16T15:19:44.082Z" },
+    { url = "https://files.pythonhosted.org/packages/60/51/b80394db4c74d4cba342fa4208f690a2739c16f1125c2a62ba1701b8e2b7/hiredis-3.3.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:a42c7becd4c9ec4ab5769c754eb61112777bdc6e1c1525e2077389e193b5f5aa", size = 167964, upload-time = "2026-03-16T15:19:45.237Z" },
+    { url = "https://files.pythonhosted.org/packages/47/ef/5e438d1e058be57cdc1bafc1b1ec8ab43cc890c61447e88f8b878a0e32c3/hiredis-3.3.1-cp312-cp312-win32.whl", hash = "sha256:17ec8b524055a88b80d76c177dbbbe475a25c17c5bf4b67bdbdbd0629bcae838", size = 20532, upload-time = "2026-03-16T15:19:46.233Z" },
+    { url = "https://files.pythonhosted.org/packages/e9/c6/39994b9c5646e7bf7d5e92170c07fd5f224ae9f34d95ff202f31845eb94b/hiredis-3.3.1-cp312-cp312-win_amd64.whl", hash = "sha256:0fac4af8515e6cca74fc701169ae4dc9a71a90e9319c9d21006ec9454b43aa2f", size = 22381, upload-time = "2026-03-16T15:19:47.082Z" },
 ]
 
 [[package]]
@@ -954,6 +989,23 @@ wheels = [
 ]
 
 [[package]]
+name = "redis"
+version = "5.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyjwt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6a/cf/128b1b6d7086200c9f387bd4be9b2572a30b90745ef078bd8b235042dc9f/redis-5.3.1.tar.gz", hash = "sha256:ca49577a531ea64039b5a36db3d6cd1a0c7a60c34124d46924a45b956e8cf14c", size = 4626200, upload-time = "2025-07-25T08:06:27.778Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/26/5c5fa0e83c3621db835cfc1f1d789b37e7fa99ed54423b5f519beb931aa7/redis-5.3.1-py3-none-any.whl", hash = "sha256:dc1909bd24669cc31b5f67a039700b16ec30571096c5f1f0d9d2324bff31af97", size = 272833, upload-time = "2025-07-25T08:06:26.317Z" },
+]
+
+[package.optional-dependencies]
+hiredis = [
+    { name = "hiredis" },
+]
+
+[[package]]
 name = "requests"
 version = "2.34.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1158,6 +1210,29 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=0.24.0" },
     { name = "pytest-cov", specifier = ">=5.0.0" },
     { name = "ruff", specifier = ">=0.7.0" },
+]
+
+[[package]]
+name = "suitest-runner"
+version = "0.1.0"
+source = { editable = "apps/runner" }
+dependencies = [
+    { name = "arq" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "structlog" },
+    { name = "suitest-core" },
+    { name = "suitest-shared" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "arq", specifier = ">=0.26.3" },
+    { name = "pydantic", specifier = ">=2.9.0" },
+    { name = "pydantic-settings", specifier = ">=2.6.0" },
+    { name = "structlog", specifier = ">=24.4.0" },
+    { name = "suitest-core", editable = "packages/core" },
+    { name = "suitest-shared", editable = "packages/shared" },
 ]
 
 [[package]]

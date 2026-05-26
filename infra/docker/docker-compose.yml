@@ -83,6 +83,73 @@ services:
       "
     restart: "no"
 
+  migrate:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    profiles: ["zero", "cloud", "local", "dev"]
+    environment: *suitest-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    working_dir: /app/packages/db
+    command: ["uv", "run", "--project", "/app", "alembic", "upgrade", "head"]
+    restart: "no"
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    profiles: ["zero", "cloud", "local", "dev"]
+    environment: *suitest-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+
+  runner:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.runner
+    profiles: ["zero", "cloud", "local", "dev"]
+    environment: *suitest-env
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+      args:
+        VITE_API_URL: ${SUITEST_API_URL}
+    profiles: ["zero", "cloud", "local", "dev"]
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 volumes:
   pgdata:
   redisdata:

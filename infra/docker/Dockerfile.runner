@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1.7
+
+FROM python:3.12-slim AS base
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates build-essential libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir uv==0.11.8
+
+WORKDIR /app
+COPY pyproject.toml uv.lock* ./
+COPY apps/runner/ apps/runner/
+COPY apps/api/ apps/api/
+COPY packages/ packages/
+RUN uv sync --frozen --no-dev --package suitest-runner
+
+CMD ["uv", "run", "arq", "suitest_runner.worker.WorkerSettings"]
