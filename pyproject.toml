@@ -81,7 +81,7 @@ namespace_packages = true
 exclude = "(^|/)(\\.venv|alembic/versions|node_modules|dist|build)/"
 
 [[tool.mypy.overrides]]
-module = ["alembic.*", "fastembed.*"]
+module = ["alembic.*", "fastembed.*", "cuid2.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
