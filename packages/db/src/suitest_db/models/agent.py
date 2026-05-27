@@ -45,9 +45,9 @@ class AgentSession(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(32), default="active", nullable=False)
     model_id: Mapped[str] = mapped_column(String(120), nullable=False)
     provider: Mapped[str] = mapped_column(String(64), nullable=False)  # NEW
-    # NEW — column now; FK constraint to prompt_versions added in Task 2k (both the
-    # migration and the model's ForeignKey, once prompt_versions is registered).
-    prompt_version_id: Mapped[str | None] = mapped_column(String(32))
+    # NEW — FK constraint added in the Task 2k migration (0013) once prompt_versions
+    # exists; the model ForeignKey is declared here in the same Task 2k change set.
+    prompt_version_id: Mapped[str | None] = mapped_column(ForeignKey("prompt_versions.id"))
     seed: Mapped[int | None] = mapped_column(Integer)  # NEW
     temperature: Mapped[float | None] = mapped_column(Float)  # NEW
     cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))  # NEW
