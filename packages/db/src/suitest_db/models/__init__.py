@@ -8,6 +8,7 @@ are NOT re-exported (CLAUDE.md §2.2). Import models from their own module, e.g.
 
 import suitest_db.models.case as _case  # noqa: F401
 import suitest_db.models.project as _project  # noqa: F401
+import suitest_db.models.requirement as _requirement  # noqa: F401
 import suitest_db.models.tenancy as _tenancy  # noqa: F401
 import suitest_db.models.user as _user  # noqa: F401
 import suitest_db.models.workspace as _workspace  # noqa: F401
