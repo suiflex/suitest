@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from suitest_api.auth.db import get_async_session
 from suitest_api.auth.manager import current_active_user
 from suitest_api.main import create_app
+from suitest_db.base import Base
 from suitest_db.models.tenancy import Membership
 from suitest_db.models.user import User
 from suitest_db.models.workspace import Workspace
@@ -130,6 +131,20 @@ class ApiDb:
         """Insert a Membership linking ``user_id`` to ``workspace_id``."""
         async with self.maker() as session:
             session.add(Membership(workspace_id=workspace_id, user_id=user_id, role=role))
+            await session.commit()
+
+    async def member_workspace(
+        self, user: User, *, slug: str, name: str | None = None
+    ) -> Workspace:
+        """Create a workspace + a membership for ``user`` in one call."""
+        ws = await self.seed_workspace(slug=slug, name=name or slug)
+        await self.seed_membership(workspace_id=ws.id, user_id=user.id)
+        return ws
+
+    async def add_all(self, rows: list[Base]) -> None:
+        """Persist arbitrary ORM rows (commit), for per-test fixtures."""
+        async with self.maker() as session:
+            session.add_all(rows)
             await session.commit()
 
 
