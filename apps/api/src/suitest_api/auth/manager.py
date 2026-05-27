@@ -59,3 +59,6 @@ auth_backend = AuthenticationBackend(
 
 
 fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
+
+# Convenience dependency: yields the current authenticated + active User, or 401.
+current_active_user = fastapi_users.current_user(active=True)

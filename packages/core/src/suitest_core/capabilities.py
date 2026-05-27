@@ -7,7 +7,7 @@ lifetime of the process. See docs/CAPABILITY_TIERS.md for the contract.
 from __future__ import annotations
 
 import os
-from enum import StrEnum
+from enum import Flag, StrEnum, auto
 from typing import Final
 
 from pydantic import BaseModel, Field
@@ -36,6 +36,37 @@ class Tier(StrEnum):
     ZERO = "ZERO"
     LOCAL = "LOCAL"
     CLOUD = "CLOUD"
+
+
+class TierFlag(Flag):
+    """Bitwise tier requirement, used by the ``require_tier`` service decorator.
+
+    Distinct from the ``Tier`` StrEnum: ``Tier`` is the *resolved* deployment tier
+    (one value), whereas ``TierFlag`` is a *set* of acceptable tiers a feature
+    permits. Use :func:`tier_in` to test membership.
+    """
+
+    ZERO = auto()
+    LOCAL = auto()
+    CLOUD = auto()
+    ANY = ZERO | LOCAL | CLOUD
+
+
+_TIER_TO_FLAG: Final[dict[Tier, TierFlag]] = {
+    Tier.ZERO: TierFlag.ZERO,
+    Tier.LOCAL: TierFlag.LOCAL,
+    Tier.CLOUD: TierFlag.CLOUD,
+}
+
+
+def tier_in(t: Tier, flag: TierFlag) -> bool:
+    """Return True iff the resolved ``Tier`` ``t`` is permitted by ``flag``.
+
+    Translates the ``Tier`` StrEnum to its matching ``TierFlag`` bit, then tests
+    bitwise membership. ``tier_in(Tier.ZERO, TierFlag.ANY)`` is True;
+    ``tier_in(Tier.ZERO, TierFlag.CLOUD)`` is False.
+    """
+    return _TIER_TO_FLAG[t] in flag
 
 
 class AutonomyLevel(StrEnum):
