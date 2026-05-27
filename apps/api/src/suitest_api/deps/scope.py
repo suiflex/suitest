@@ -87,3 +87,16 @@ async def get_tenant_context(
         user_id=str(user_id),
         role=membership.role,
     )
+
+
+def require_workspace_membership(
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> TenantContext:
+    """Auth + membership gate for all workspace-scoped read routers (Task 7).
+
+    Thin alias over :func:`get_tenant_context`: ``current_active_user`` (via the
+    inner dep) yields 401 when unauthenticated, the membership lookup yields 403
+    when the user is not a member of the ``X-Workspace-Id`` workspace, and a
+    missing header yields 400. Returns the resolved :class:`TenantContext`.
+    """
+    return ctx
