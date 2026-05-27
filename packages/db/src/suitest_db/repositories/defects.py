@@ -92,6 +92,35 @@ class DefectRepo(AsyncRepository[Defect, DefectCreate, DefectUpdate]):
             next_cursor = None
         return page, next_cursor
 
+    async def resolve_link_public_ids(
+        self, defect: Defect
+    ) -> tuple[str | None, str | None, str | None]:
+        """Return ``(case_public_id, run_public_id, requirement_public_id)``.
+
+        Each is ``None`` when the corresponding FK is unset. One scalar query per
+        present link — at most three, and only for set FKs.
+        """
+        from suitest_db.models.case import TestCase
+        from suitest_db.models.requirement import Requirement
+        from suitest_db.models.run import Run
+
+        case_public: str | None = None
+        run_public: str | None = None
+        req_public: str | None = None
+        if defect.test_case_id is not None:
+            case_public = await self.session.scalar(
+                select(TestCase.public_id).where(TestCase.id == defect.test_case_id)
+            )
+        if defect.run_id is not None:
+            run_public = await self.session.scalar(
+                select(Run.public_id).where(Run.id == defect.run_id)
+            )
+        if defect.requirement_id is not None:
+            req_public = await self.session.scalar(
+                select(Requirement.public_id).where(Requirement.id == defect.requirement_id)
+            )
+        return case_public, run_public, req_public
+
     async def list_by_requirement_project(self, project_id: str) -> Sequence[Defect]:
         """Defects whose ``requirement_id`` points at a requirement in the project.
 
