@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 from sqlalchemy import select
 from suitest_db.models.audit import AuditLog
-from suitest_db.models.defect import Defect
+from suitest_db.models.defect import Defect, ExternalIssue
+from suitest_db.models.requirement import Requirement
 from suitest_db.repositories.base import AsyncRepository
 from suitest_shared.domain.enums import DefectStatus, DiagnosisKind, Severity
 
@@ -90,6 +91,29 @@ class DefectRepo(AsyncRepository[Defect, DefectCreate, DefectUpdate]):
             page = rows
             next_cursor = None
         return page, next_cursor
+
+    async def list_by_requirement_project(self, project_id: str) -> Sequence[Defect]:
+        """Defects whose ``requirement_id`` points at a requirement in the project.
+
+        Used by the traceability matrix — the ``defects`` array lists every defect
+        referenced through the project's requirements.
+        """
+        stmt = (
+            select(Defect)
+            .join(Requirement, Requirement.id == Defect.requirement_id)
+            .where(Requirement.project_id == project_id)
+            .order_by(Defect.public_id.asc())
+        )
+        return (await self.session.scalars(stmt)).all()
+
+    async def get_external_issues(self, defect_id: str) -> Sequence[ExternalIssue]:
+        """External issue links (Jira/Linear/etc) for a defect."""
+        stmt = (
+            select(ExternalIssue)
+            .where(ExternalIssue.defect_id == defect_id)
+            .order_by(ExternalIssue.synced_at.asc())
+        )
+        return (await self.session.scalars(stmt)).all()
 
     async def timeline(self, defect_id: str) -> Sequence[DefectTimelineEntry]:
         """Synthesise an ascending event timeline for a defect.

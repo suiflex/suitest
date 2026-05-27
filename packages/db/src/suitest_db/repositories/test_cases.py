@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from suitest_db.models.case import CaseTag, TestCase, TestStep
+from suitest_db.models.project import Suite
 from suitest_db.repositories.base import AsyncRepository
 from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority
 
@@ -92,6 +93,16 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
         """Return a case's tag strings, ordered alphabetically for stable output."""
         stmt = select(CaseTag.tag).where(CaseTag.case_id == case_id).order_by(CaseTag.tag.asc())
         return list((await self.session.scalars(stmt)).all())
+
+    async def list_by_project(self, project_id: str) -> Sequence[TestCase]:
+        """All non-deleted cases in a project (via its suites) — for the matrix."""
+        stmt = (
+            select(TestCase)
+            .join(Suite, Suite.id == TestCase.suite_id)
+            .where(Suite.project_id == project_id, TestCase.deleted_at.is_(None))
+            .order_by(TestCase.public_id.asc())
+        )
+        return (await self.session.scalars(stmt)).all()
 
     async def list_with_steps_by_suite(self, suite_id: str) -> Sequence[TestCase]:
         stmt = (

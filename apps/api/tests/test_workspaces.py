@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from conftest import ApiDb
+    from api_harness import ApiDb
 
 
 @pytest.mark.asyncio

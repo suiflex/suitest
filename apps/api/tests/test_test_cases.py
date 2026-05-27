@@ -18,7 +18,7 @@ from suitest_shared.domain.enums import (
 )
 
 if TYPE_CHECKING:
-    from conftest import ApiDb
+    from api_harness import ApiDb
 
 
 async def _suite(api_db: ApiDb, ws_id: str, *, slug: str = "tc-proj") -> Suite:

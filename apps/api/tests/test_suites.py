@@ -10,7 +10,7 @@ from suitest_db.models.project import Project, Suite
 from suitest_shared.domain.enums import CaseSource
 
 if TYPE_CHECKING:
-    from conftest import ApiDb
+    from api_harness import ApiDb
 
 
 @pytest.mark.asyncio

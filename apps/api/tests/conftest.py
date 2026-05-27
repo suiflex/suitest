@@ -5,10 +5,11 @@ Two flavours:
 * ``client`` — a lifespan-wired ASGI client with NO database (used by the
   capability / health / auth contract tests that never touch the DB).
 * ``api_db`` — a Postgres (pgvector) testcontainer with the Alembic chain applied
-  once per session, exposing a session-maker plus ``app_for`` / ``client``
-  helpers that override ``get_async_session`` + ``current_active_user`` so the
-  Task 7 read endpoints can be driven end-to-end against a real DB with a seeded,
-  authenticated user, alongside thin ``seed_*`` helpers.
+  once per session, yielding an :class:`~api_harness.ApiDb` whose ``app_for`` /
+  ``client`` helpers override ``get_async_session`` + ``current_active_user`` so the
+  Task 7 read endpoints can be driven end-to-end against a real DB. The harness
+  class lives in ``api_harness`` (not here) so tests can import it for type hints
+  without a ``conftest`` module-name collision on mypy's path.
 """
 
 from __future__ import annotations
@@ -16,35 +17,20 @@ from __future__ import annotations
 import asyncio
 import base64
 import os
-import uuid
-from collections.abc import AsyncIterator, Iterator, Sequence
-from contextlib import asynccontextmanager
-from dataclasses import dataclass
+import sys
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
-import fastapi_users.db as _fastapi_users_db  # noqa: F401  -- warm-up, see below
+# Make ``api_harness`` (this directory) importable under --import-mode=importlib,
+# which does NOT add test dirs to sys.path. Done before the import below.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 import pytest
 import pytest_asyncio
+from api_harness import ApiDb
 from asgi_lifespan import LifespanManager
-from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from suitest_api.auth.db import get_async_session
-from suitest_api.auth.manager import current_active_user
 from suitest_api.main import create_app
-from suitest_db.base import Base
-from suitest_db.models.tenancy import Membership
-from suitest_db.models.user import User
-from suitest_db.models.workspace import Workspace
-from suitest_shared.domain.enums import Role
-
-# NOTE on the bare ``import fastapi_users.db`` above: ``fastapi_users.db`` populates
-# its SQLAlchemy base classes inside a ``try/except ImportError`` block. When
-# ``suitest_db.models.user`` is the *first* module to trigger that import (which
-# happens via the ``suitest_db.models`` registry barrel during pytest collection),
-# a partial-init cascade makes the inner import raise and get silently swallowed,
-# leaving the names absent. Importing ``fastapi_users.db`` up front — sorted into
-# the third-party block ahead of every ``suitest_*`` import — warms it first.
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _DB_PKG_ROOT = _REPO_ROOT / "packages" / "db"
@@ -58,94 +44,6 @@ async def client() -> AsyncIterator[AsyncClient]:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
             yield c
-
-
-@dataclass
-class ApiDb:
-    """Test harness for DB-backed endpoint tests.
-
-    Holds the session-maker over the testcontainer and exposes ``app_for`` (build
-    an app with the session + current-user dependencies overridden) plus thin
-    ``seed_*`` helpers. Tests consume this via the ``api_db`` fixture only — no
-    cross-module import is needed, which keeps ``--import-mode=importlib`` happy
-    (there is no ``tests/__init__.py``).
-    """
-
-    maker: async_sessionmaker[AsyncSession]
-
-    def app_for(self, user: User | None) -> FastAPI:
-        """Build an app overriding the session + (optionally) the current user.
-
-        Passing ``user=None`` leaves ``current_active_user`` un-overridden so the
-        real FastAPI-Users dependency runs and unauthenticated requests get 401.
-        """
-        app = create_app()
-
-        async def _override_session() -> AsyncIterator[AsyncSession]:
-            async with self.maker() as session:
-                yield session
-
-        app.dependency_overrides[get_async_session] = _override_session
-        if user is not None:
-            app.dependency_overrides[current_active_user] = lambda: user
-        return app
-
-    @asynccontextmanager
-    async def client(self, user: User | None) -> AsyncIterator[AsyncClient]:
-        """Yield a lifespan-wired httpx client bound to ``app_for(user)``."""
-        app = self.app_for(user)
-        async with LifespanManager(app):
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as c:
-                yield c
-
-    async def seed_user(self, *, email: str, name: str = "Test User") -> User:
-        """Insert a User row and return it (detached; usable as an auth override)."""
-        async with self.maker() as session:
-            user = User(
-                id=uuid.uuid4(),
-                email=email,
-                hashed_password="x",  # test fixture placeholder, not a real credential
-                is_active=True,
-                is_superuser=False,
-                is_verified=True,
-                name=name,
-            )
-            session.add(user)
-            await session.commit()
-            await session.refresh(user)
-        return user
-
-    async def seed_workspace(self, *, slug: str, name: str) -> Workspace:
-        """Insert a Workspace row and return it (detached)."""
-        async with self.maker() as session:
-            ws = Workspace(slug=slug, name=name)
-            session.add(ws)
-            await session.commit()
-            await session.refresh(ws)
-        return ws
-
-    async def seed_membership(
-        self, *, workspace_id: str, user_id: uuid.UUID, role: Role = Role.QA
-    ) -> None:
-        """Insert a Membership linking ``user_id`` to ``workspace_id``."""
-        async with self.maker() as session:
-            session.add(Membership(workspace_id=workspace_id, user_id=user_id, role=role))
-            await session.commit()
-
-    async def member_workspace(
-        self, user: User, *, slug: str, name: str | None = None
-    ) -> Workspace:
-        """Create a workspace + a membership for ``user`` in one call."""
-        ws = await self.seed_workspace(slug=slug, name=name or slug)
-        await self.seed_membership(workspace_id=ws.id, user_id=user.id)
-        return ws
-
-    async def add_all(self, rows: Sequence[Base]) -> None:
-        """Persist arbitrary ORM rows (commit), for per-test fixtures."""
-        async with self.maker() as session:
-            session.add_all(rows)
-            await session.commit()
 
 
 @pytest.fixture(scope="session")
@@ -193,11 +91,21 @@ def _database_url() -> Iterator[str]:
 
 @pytest_asyncio.fixture
 async def api_db(_database_url: str) -> AsyncIterator[ApiDb]:
-    """Yield an :class:`ApiDb` bound to a fresh engine over the container."""
-    from sqlalchemy import NullPool
-    from sqlalchemy.ext.asyncio import create_async_engine
+    """Yield an :class:`ApiDb` bound to a fresh engine over the container.
+
+    Truncates every table (except the Alembic version bookkeeping) up front so each
+    test starts from an empty DB — the testcontainer + schema are reused across the
+    whole session, but per-test data is isolated, which keeps globally-unique
+    columns like ``test_cases.public_id`` from colliding across tests.
+    """
+    from sqlalchemy import NullPool, text
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from suitest_db.base import Base
 
     engine = create_async_engine(_database_url, future=True, poolclass=NullPool)
+    table_names = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
+    async with engine.begin() as conn:
+        await conn.execute(text(f"TRUNCATE {table_names} RESTART IDENTITY CASCADE"))
     maker = async_sessionmaker(engine, expire_on_commit=False)
     try:
         yield ApiDb(maker=maker)

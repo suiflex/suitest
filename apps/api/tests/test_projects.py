@@ -8,7 +8,7 @@ import pytest
 from suitest_db.models.project import Project
 
 if TYPE_CHECKING:
-    from conftest import ApiDb
+    from api_harness import ApiDb
 
 
 @pytest.mark.asyncio
