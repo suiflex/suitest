@@ -7,6 +7,7 @@ are NOT re-exported (CLAUDE.md §2.2). Import models from their own module, e.g.
 """
 
 import suitest_db.models.agent as _agent  # noqa: F401
+import suitest_db.models.audit as _audit  # noqa: F401
 import suitest_db.models.case as _case  # noqa: F401
 import suitest_db.models.defect as _defect  # noqa: F401
 import suitest_db.models.document as _document  # noqa: F401
