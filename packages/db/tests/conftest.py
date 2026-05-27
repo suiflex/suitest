@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import os
+import sys
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
@@ -32,6 +33,14 @@ from sqlalchemy.ext.asyncio import (
 from testcontainers.postgres import PostgresContainer
 
 _DB_PKG_ROOT = Path(__file__).resolve().parent.parent  # packages/db
+
+# ``--import-mode=importlib`` does not put the tests dir on ``sys.path``, so the
+# shared ``factories`` module (sibling to this conftest) is not importable by
+# default. Add this directory explicitly so ``from factories import ...`` works
+# from any test subpackage without a tests/__init__.py.
+_TESTS_DIR = str(Path(__file__).resolve().parent)
+if _TESTS_DIR not in sys.path:
+    sys.path.insert(0, _TESTS_DIR)
 
 
 @pytest.fixture(scope="session", autouse=True)
