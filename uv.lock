@@ -4,9 +4,11 @@ requires-python = "==3.12.*"
 
 [manifest]
 members = [
+    "suitest-agent",
     "suitest-api",
     "suitest-core",
     "suitest-db",
+    "suitest-mcp",
     "suitest-monorepo",
     "suitest-runner",
     "suitest-shared",
@@ -1102,6 +1104,11 @@ wheels = [
 ]
 
 [[package]]
+name = "suitest-agent"
+version = "0.1.0"
+source = { editable = "packages/agent" }
+
+[[package]]
 name = "suitest-api"
 version = "0.1.0"
 source = { editable = "apps/api" }
@@ -1180,6 +1187,11 @@ requires-dist = [
     { name = "testcontainers", extras = ["postgres"], marker = "extra == 'test'", specifier = ">=4.8.0" },
 ]
 provides-extras = ["test"]
+
+[[package]]
+name = "suitest-mcp"
+version = "0.1.0"
+source = { editable = "packages/mcp" }
 
 [[package]]
 name = "suitest-monorepo"

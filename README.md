@@ -35,7 +35,7 @@ docker compose up -d
 open http://localhost:3000
 ```
 
-Login dengan email default (`maya@nusantararetail.local` / `admin123` di seed) atau Google OAuth. Default tier = **ZERO**.
+Login via Google OAuth — set `SUITEST_OAUTH_GOOGLE_CLIENT_ID` / `SUITEST_OAUTH_GOOGLE_CLIENT_SECRET` di `.env` sebelum `docker compose up`. M0 belum punya seed user; demo workspace (Nusantara Retail) + seed data datang di M1a. Default tier = **ZERO**.
 
 **Untuk enable AI** (CLOUD tier dengan Anthropic):
 
