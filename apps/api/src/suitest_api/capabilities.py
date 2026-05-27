@@ -131,10 +131,14 @@ def build_workspace_overlay(
 
     if active_llm_config is not None:
         tier = _provider_to_tier(active_llm_config.provider)
+        # CAPABILITY_TIERS §11.2: workspace DB config wins over env. base_url lives in
+        # config_json (DATA_MODEL §4.1); only fall back to env base_url when absent.
+        config_base_url = active_llm_config.config_json.get("base_url")
+        overlaid_base_url = config_base_url if isinstance(config_base_url, str) else None
         llm = LLMSection(
             provider=active_llm_config.provider,
             model=active_llm_config.model or None,
-            base_url=base.llm.base_url,
+            base_url=overlaid_base_url if overlaid_base_url else base.llm.base_url,
             is_test_provider=active_llm_config.provider.strip().lower() == "mock",
         )
     elif workspace_capability is not None:

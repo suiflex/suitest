@@ -22,6 +22,7 @@ from httpx import ASGITransport, AsyncClient
 from suitest_api.auth.db import get_async_session
 from suitest_api.main import create_app
 from suitest_core.capabilities import ConfigError
+from suitest_db.models.llm_config import LLMConfig
 from suitest_db.models.workspace import Workspace
 from suitest_db.models.workspace_capability import WorkspaceCapability
 from suitest_shared.domain.enums import AutonomyLevel, Tier
@@ -368,6 +369,75 @@ async def test_capabilities_workspace_overlay(_overlay_session_maker: object) ->
     assert data["tier"] == "CLOUD"
     assert data["features"]["ai_generation"] is True
     assert data["autonomy"]["default"] == "assist"
+
+    async with maker() as cleanup:
+        ws = await cleanup.get(Workspace, ws_id)
+        if ws is not None:
+            await cleanup.delete(ws)
+            await cleanup.commit()
+
+
+@pytest.mark.asyncio
+async def test_capabilities_workspace_overlay_local_base_url_from_config(
+    _overlay_session_maker: object,
+) -> None:
+    """Active LLMConfig (LOCAL) overlay reads base_url/model from config_json, not env.
+
+    Regression for CAPABILITY_TIERS §11.2: a per-workspace Ollama base_url stored in
+    ``LLMConfig.config_json`` must win over the env base (ZERO → base_url None).
+    """
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    assert isinstance(_overlay_session_maker, async_sessionmaker)
+    maker: async_sessionmaker[AsyncSession] = _overlay_session_maker
+
+    async with maker() as seed:
+        workspace = Workspace(slug="ws-local-overlay", name="Local Overlay WS")
+        seed.add(workspace)
+        await seed.flush()
+        seed.add(
+            WorkspaceCapability(
+                workspace_id=workspace.id,
+                tier=Tier.LOCAL,
+                autonomy_level=AutonomyLevel.ASSIST,
+                features_json={},
+            )
+        )
+        seed.add(
+            LLMConfig(
+                workspace_id=workspace.id,
+                provider="ollama",
+                model="llama3.1",
+                config_json={"base_url": "http://ws-ollama:11434"},
+                is_active=True,
+            )
+        )
+        await seed.commit()
+        ws_id = workspace.id
+
+    app = create_app()
+
+    async def _override_session() -> AsyncIterator[AsyncSession]:
+        async with maker() as s:
+            yield s
+
+    app.dependency_overrides[get_async_session] = _override_session
+    try:
+        async with LifespanManager(app):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as c:
+                response = await c.get("/capabilities", headers={"X-Workspace-Id": ws_id})
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tier"] == "LOCAL"
+    llm = data["llm"]
+    assert isinstance(llm, dict)
+    assert llm["provider"] == "ollama"
+    assert llm["model"] == "llama3.1"
+    assert llm["base_url"] == "http://ws-ollama:11434"
 
     async with maker() as cleanup:
         ws = await cleanup.get(Workspace, ws_id)
