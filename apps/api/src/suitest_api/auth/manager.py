@@ -11,7 +11,7 @@ from fastapi_users.authentication import (
     JWTStrategy,
 )
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
-from suitest_db.models import User
+from suitest_db.models.user import User
 
 from suitest_api.auth.db import get_user_db
 from suitest_api.settings import get_settings

@@ -6,15 +6,11 @@ import asyncio
 from logging.config import fileConfig
 from typing import TYPE_CHECKING
 
+import suitest_db.models  # noqa: F401  -- side-effect import populates model registry
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from suitest_db.base import Base
-from suitest_db.models import (  # noqa: F401  -- ensure model registry populated
-    OAuthAccount,
-    User,
-    Workspace,
-)
 from suitest_db.settings import DbSettings
 
 if TYPE_CHECKING:

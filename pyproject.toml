@@ -56,10 +56,26 @@ select = [
   "SIM",    # simplify
   "TCH",    # type-checking-imports
 ]
-ignore = ["E501"]  # line length handled by formatter
+# RUF101: newer ruff redirects TCH00x → TC00x, but the pinned pre-commit ruff
+# (0.7.4) only recognises the legacy TCH00x codes. Ignore the redirect nag so the
+# same noqa codes satisfy both the pre-commit hook and a newer local ruff.
+ignore = ["E501", "RUF101"]  # E501: line length handled by formatter
+
+[tool.ruff.lint.flake8-type-checking]
+# SQLAlchemy 2 (Mapped[...]) and Pydantic v2 evaluate annotations at runtime even
+# with `from __future__ import annotations`, so imports used only in annotations on
+# these base classes must stay at module scope (not moved into a TYPE_CHECKING block).
+runtime-evaluated-base-classes = [
+  "suitest_db.base.Base",
+  "sqlalchemy.orm.DeclarativeBase",
+  "pydantic.BaseModel",
+  "suitest_shared.domain.base.DomainModel",
+]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**/*.py" = ["B018"]
+# Tests annotate fixtures/params with runtime types (AsyncSession, Iterator); moving
+# those into TYPE_CHECKING blocks adds noise without benefit in test modules.
+"**/tests/**/*.py" = ["B018", "TCH001", "TCH002", "TCH003"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -82,7 +98,7 @@ namespace_packages = true
 exclude = "(^|/)(\\.venv|alembic/versions|node_modules|dist|build)/"
 
 [[tool.mypy.overrides]]
-module = ["alembic.*", "fastembed.*", "cuid2.*"]
+module = ["alembic.*", "fastembed.*", "cuid2.*", "pgvector.*", "testcontainers.*"]
 ignore_missing_imports = true
 
 # FastAPI-Users base annotates user_id as raw UUID_ID in its TYPE_CHECKING branch;

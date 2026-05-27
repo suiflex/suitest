@@ -41,6 +41,7 @@ repos:
           - fastapi-users-db-sqlalchemy>=7.0.0
           - httpx-oauth>=0.16.0
           - arq>=0.26.3
+          - cryptography>=42
         args: ["--config-file=pyproject.toml"]
         files: ^(apps|packages)/.*\.py$
         exclude: ^.*/alembic/versions/.*$

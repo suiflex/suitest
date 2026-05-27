@@ -3,7 +3,10 @@ name = "suitest-shared"
 version = "0.1.0"
 description = "Suitest shared cross-cutting utilities"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+  "pydantic>=2.9.0",
+  "suitest-core",
+]
 
 [build-system]
 requires = ["hatchling"]

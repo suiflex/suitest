@@ -11,7 +11,9 @@ dependencies = [
   "pydantic>=2.9.0",
   "pydantic-settings>=2.6.0",
   "fastapi-users-db-sqlalchemy>=7.0.0",
+  "pgvector>=0.3.0",
   "suitest-core",
+  "suitest-shared",
 ]
 
 [project.optional-dependencies]

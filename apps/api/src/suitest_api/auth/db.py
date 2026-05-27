@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator
 from fastapi import Depends
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from suitest_db.models import OAuthAccount, User
+from suitest_db.models.user import OAuthAccount, User
 
 from suitest_api.settings import get_settings
 
