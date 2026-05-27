@@ -5,6 +5,8 @@ description = "Suitest shared domain logic — capability resolver, autonomy, cr
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "pydantic>=2.9.0",
+  "cryptography>=42",
+  "sqlalchemy>=2.0.36",
 ]
 
 [build-system]
