@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from sqlalchemy import select
+from suitest_db.models.case import TestCase
 from suitest_db.models.run import Artifact, Run, RunStep
 from suitest_db.repositories.base import AsyncRepository
 from suitest_shared.domain.enums import RunStatus, RunTrigger, StepOutcome, Tier
@@ -98,6 +99,16 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
     async def get_steps(self, run_id: str) -> Sequence[RunStep]:
         stmt = select(RunStep).where(RunStep.run_id == run_id).order_by(RunStep.step_order.asc())
         return (await self.session.scalars(stmt)).all()
+
+    async def get_steps_with_case_public_id(self, run_id: str) -> Sequence[tuple[RunStep, str]]:
+        """Run steps in ``step_order`` paired with each step's case ``public_id``."""
+        stmt = (
+            select(RunStep, TestCase.public_id)
+            .join(TestCase, TestCase.id == RunStep.case_id)
+            .where(RunStep.run_id == run_id)
+            .order_by(RunStep.step_order.asc())
+        )
+        return [(step, public_id) for step, public_id in (await self.session.execute(stmt)).all()]
 
     async def get_artifacts(self, run_id: str) -> Sequence[Artifact]:
         stmt = (
