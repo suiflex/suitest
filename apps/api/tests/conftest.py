@@ -17,7 +17,7 @@ import asyncio
 import base64
 import os
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -141,7 +141,7 @@ class ApiDb:
         await self.seed_membership(workspace_id=ws.id, user_id=user.id)
         return ws
 
-    async def add_all(self, rows: list[Base]) -> None:
+    async def add_all(self, rows: Sequence[Base]) -> None:
         """Persist arbitrary ORM rows (commit), for per-test fixtures."""
         async with self.maker() as session:
             session.add_all(rows)

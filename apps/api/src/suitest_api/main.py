@@ -37,6 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from suitest_api.routers.capabilities import router as capabilities_router
     from suitest_api.routers.projects import router as projects_router
     from suitest_api.routers.suites import router as suites_router
+    from suitest_api.routers.test_cases import router as test_cases_router
     from suitest_api.routers.workspaces import router as workspaces_router
 
     resolved = settings or get_settings()
@@ -74,6 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(workspaces_router)
     app.include_router(projects_router)
     app.include_router(suites_router)
+    app.include_router(test_cases_router)
     return app
 
 

@@ -88,6 +88,11 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
         stmt = select(TestStep).where(TestStep.case_id == case_id).order_by(TestStep.order.asc())
         return (await self.session.scalars(stmt)).all()
 
+    async def get_tags(self, case_id: str) -> list[str]:
+        """Return a case's tag strings, ordered alphabetically for stable output."""
+        stmt = select(CaseTag.tag).where(CaseTag.case_id == case_id).order_by(CaseTag.tag.asc())
+        return list((await self.session.scalars(stmt)).all())
+
     async def list_with_steps_by_suite(self, suite_id: str) -> Sequence[TestCase]:
         stmt = (
             select(TestCase)
