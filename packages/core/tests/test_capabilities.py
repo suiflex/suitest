@@ -3,9 +3,11 @@
 import pytest
 from suitest_core.capabilities import (
     AutonomyLevel,
+    ConfigError,
     Tier,
     TierFlag,
     resolve_capabilities,
+    resolve_embeddings,
     resolve_tier,
     tier_in,
 )
@@ -24,15 +26,69 @@ def test_resolve_tier_explicit_none(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_resolve_tier_ollama_is_local(monkeypatch: pytest.MonkeyPatch) -> None:
-    """`ollama` → LOCAL tier."""
+    """`ollama` + base_url → LOCAL tier."""
     monkeypatch.setenv("SUITEST_LLM_PROVIDER", "ollama")
+    monkeypatch.setenv("SUITEST_LLM_BASE_URL", "http://localhost:11434")
     assert resolve_tier() is Tier.LOCAL
 
 
+def test_resolve_tier_local_without_base_url_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """LOCAL provider without SUITEST_LLM_BASE_URL → ConfigError (strict, Task 5)."""
+    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "ollama")
+    monkeypatch.delenv("SUITEST_LLM_BASE_URL", raising=False)
+    with pytest.raises(ConfigError):
+        resolve_tier()
+
+
 def test_resolve_tier_anthropic_is_cloud(monkeypatch: pytest.MonkeyPatch) -> None:
-    """`anthropic` → CLOUD tier."""
+    """`anthropic` + api_key → CLOUD tier."""
     monkeypatch.setenv("SUITEST_LLM_PROVIDER", "anthropic")
+    monkeypatch.setenv("SUITEST_LLM_API_KEY", "sk-x")
     assert resolve_tier() is Tier.CLOUD
+
+
+def test_resolve_tier_cloud_without_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Key-requiring CLOUD provider without SUITEST_LLM_API_KEY → ConfigError."""
+    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "anthropic")
+    monkeypatch.delenv("SUITEST_LLM_API_KEY", raising=False)
+    with pytest.raises(ConfigError):
+        resolve_tier()
+
+
+def test_resolve_tier_bedrock_no_key_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`bedrock` uses IAM, so no SUITEST_LLM_API_KEY required → CLOUD."""
+    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "bedrock")
+    monkeypatch.delenv("SUITEST_LLM_API_KEY", raising=False)
+    assert resolve_tier() is Tier.CLOUD
+
+
+def test_resolve_tier_unknown_provider_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unknown provider → ConfigError (strict, Task 5)."""
+    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "totally-made-up")
+    with pytest.raises(ConfigError):
+        resolve_tier()
+
+
+def test_resolve_embeddings_backends(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each embeddings backend resolves to its documented dim (§3)."""
+    monkeypatch.delenv("SUITEST_EMBEDDINGS_MODEL", raising=False)
+    monkeypatch.delenv("SUITEST_EMBEDDINGS_BACKEND", raising=False)
+    assert resolve_embeddings().enabled is False
+
+    monkeypatch.setenv("SUITEST_EMBEDDINGS_BACKEND", "fastembed")
+    cfg = resolve_embeddings()
+    assert cfg.enabled is True
+    assert cfg.dim == 384
+
+    monkeypatch.setenv("SUITEST_EMBEDDINGS_BACKEND", "openai")
+    assert resolve_embeddings().dim == 1536
+
+    monkeypatch.setenv("SUITEST_EMBEDDINGS_BACKEND", "cohere")
+    assert resolve_embeddings().dim == 1024
+
+    monkeypatch.setenv("SUITEST_EMBEDDINGS_BACKEND", "bogus")
+    with pytest.raises(ConfigError):
+        resolve_embeddings()
 
 
 def test_resolve_capabilities_zero_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:

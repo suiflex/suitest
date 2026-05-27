@@ -82,6 +82,7 @@ runtime-evaluated-base-classes = [
 # constructors annotate injected repos with runtime types that we deliberately import
 # eagerly so the wiring is greppable; TYPE_CHECKING-only churn buys nothing here.
 "apps/api/src/suitest_api/deps/*.py" = ["B008", "TCH001", "TCH002", "TCH003"]
+"apps/api/src/suitest_api/routers/*.py" = ["B008", "TCH001", "TCH002", "TCH003"]
 "apps/api/src/suitest_api/services/*.py" = ["TCH001", "TCH002", "TCH003"]
 
 [tool.ruff.format]

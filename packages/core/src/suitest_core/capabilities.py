@@ -30,6 +30,21 @@ CLOUD_PROVIDERS: Final[frozenset[str]] = frozenset(
 ZERO_SENTINELS: Final[frozenset[str]] = frozenset({"", "none", "disabled"})
 
 
+class ConfigError(Exception):
+    """Raised when env capability config is internally inconsistent.
+
+    e.g. a LOCAL provider with no ``SUITEST_LLM_BASE_URL``, or a key-requiring
+    CLOUD provider with no ``SUITEST_LLM_API_KEY``. Surfaced at process startup so
+    a misconfigured deployment fails fast (the app does not boot) rather than
+    silently degrading to a wrong tier.
+    """
+
+
+# CLOUD providers that authenticate via IAM / service-account / canned creds and
+# therefore do NOT require SUITEST_LLM_API_KEY.
+_KEYLESS_CLOUD_PROVIDERS: Final[frozenset[str]] = frozenset({"bedrock", "vertex", "mock"})
+
+
 class Tier(StrEnum):
     """Capability tier resolved from env."""
 
@@ -130,25 +145,85 @@ def _read_provider() -> str:
     return raw.strip().lower()
 
 
-def resolve_tier() -> Tier:
-    """Pure function: env → Tier. Does not raise for missing keys at M0 (relaxed).
+class EmbeddingsConfig(BaseModel):
+    """Resolved embeddings backend config (independent of the LLM tier).
 
-    M0 does NOT validate `SUITEST_LLM_API_KEY` or `SUITEST_LLM_BASE_URL` presence —
-    that validation lands in M3 when LiteLLM wiring goes live. This stub only
-    maps provider strings to tiers.
+    ``dim`` is the vector dimension fixed at Alembic migration time and used to
+    size ``document_chunk.embedding``. See docs/CAPABILITY_TIERS.md §5.
+    """
+
+    enabled: bool = False
+    backend: str = "none"
+    model: str | None = None
+    dim: int | None = None
+
+
+def resolve_tier() -> Tier:
+    """Pure function: env → :class:`Tier`, strict per docs/CAPABILITY_TIERS.md §3.
+
+    Raises :class:`ConfigError` when the provider is set but its required companion
+    env var is missing (LOCAL needs ``SUITEST_LLM_BASE_URL``; key-requiring CLOUD
+    providers need ``SUITEST_LLM_API_KEY``) or when the provider is unknown. No
+    provider (or ``none`` / ``disabled``) resolves to ZERO and never raises, so the
+    default boot stays clean.
     """
     provider = _read_provider()
     if provider in ZERO_SENTINELS:
         return Tier.ZERO
+
     if provider in LOCAL_PROVIDERS:
+        if not os.getenv("SUITEST_LLM_BASE_URL"):
+            raise ConfigError("LOCAL tier requires SUITEST_LLM_BASE_URL")
         return Tier.LOCAL
+
     if provider in CLOUD_PROVIDERS:
+        if provider not in _KEYLESS_CLOUD_PROVIDERS and not os.getenv("SUITEST_LLM_API_KEY"):
+            raise ConfigError(f"CLOUD provider {provider} requires SUITEST_LLM_API_KEY")
         return Tier.CLOUD
-    # Unknown provider in M0 → treat as ZERO + log; strict validation comes in M3.
-    return Tier.ZERO
+
+    raise ConfigError(f"Unknown SUITEST_LLM_PROVIDER: {provider}")
 
 
-def _features_for(tier: Tier) -> dict[str, bool]:
+def resolve_embeddings() -> EmbeddingsConfig:
+    """Resolve ``SUITEST_EMBEDDINGS_BACKEND`` → :class:`EmbeddingsConfig` (§3).
+
+    Backends: ``none`` (disabled), ``fastembed`` (dim 384), ``openai`` (dim 1536),
+    ``cohere`` (dim 1024). Unknown backend raises :class:`ConfigError`.
+    """
+    backend = (os.getenv("SUITEST_EMBEDDINGS_BACKEND") or "none").strip().lower()
+    if backend == "none":
+        return EmbeddingsConfig(enabled=False)
+    if backend == "fastembed":
+        return EmbeddingsConfig(
+            enabled=True,
+            backend="fastembed",
+            model=os.getenv("SUITEST_EMBEDDINGS_MODEL") or "BAAI/bge-small-en-v1.5",
+            dim=384,
+        )
+    if backend == "openai":
+        return EmbeddingsConfig(
+            enabled=True,
+            backend="openai",
+            model=os.getenv("SUITEST_EMBEDDINGS_MODEL") or "text-embedding-3-small",
+            dim=1536,
+        )
+    if backend == "cohere":
+        return EmbeddingsConfig(
+            enabled=True,
+            backend="cohere",
+            model=os.getenv("SUITEST_EMBEDDINGS_MODEL") or "embed-english-v3.0",
+            dim=1024,
+        )
+    raise ConfigError(f"Unknown SUITEST_EMBEDDINGS_BACKEND: {backend}")
+
+
+def compute_features(tier: Tier, embeddings: EmbeddingsConfig) -> dict[str, bool]:
+    """Map (tier, embeddings) → the 13 feature flags (docs/CAPABILITY_TIERS.md §10).
+
+    ZERO disables every ``ai_*`` flag and ``auto_defect_filing_ai``; LOCAL/CLOUD
+    enable them. ``semantic_search`` tracks ``embeddings.enabled`` at any tier;
+    ``fts_search`` and ``auto_defect_filing_rule`` are always on.
+    """
     ai_on = tier is not Tier.ZERO
     return {
         "manual_tcm": True,
@@ -160,14 +235,15 @@ def _features_for(tier: Tier) -> dict[str, bool]:
         "ai_execution_agentic": ai_on,
         "ai_diagnose": ai_on,
         "ai_conversation": ai_on,
-        "semantic_search": False,  # depends on embeddings backend, see M4
+        "semantic_search": embeddings.enabled,
         "fts_search": True,
         "auto_defect_filing_ai": ai_on,
         "auto_defect_filing_rule": True,
     }
 
 
-def _autonomy_for(tier: Tier) -> AutonomyInfo:
+def compute_autonomy(tier: Tier) -> AutonomyInfo:
+    """Autonomy availability + default for ``tier`` (docs/CAPABILITY_TIERS.md §10)."""
     if tier is Tier.ZERO:
         return AutonomyInfo(available=[AutonomyLevel.MANUAL], default=AutonomyLevel.MANUAL)
     return AutonomyInfo(
@@ -182,22 +258,34 @@ def _autonomy_for(tier: Tier) -> AutonomyInfo:
 
 
 def resolve_capabilities() -> CapabilitySnapshot:
-    """Return a fully-populated CapabilitySnapshot from current env."""
+    """Return a fully-populated :class:`CapabilitySnapshot` from current env.
+
+    Retained for the service layer (``CapabilityService``), which works with the
+    lightweight snapshot + workspace overlay. The HTTP ``/capabilities`` response
+    uses the richer ``suitest_shared`` ``Capabilities`` schema assembled from the
+    same primitives (:func:`resolve_tier`, :func:`resolve_embeddings`,
+    :func:`compute_features`, :func:`compute_autonomy`).
+    """
     tier = resolve_tier()
     provider = _read_provider()
     resolved_provider = provider if tier is not Tier.ZERO else None
+    embeddings_cfg = resolve_embeddings()
     llm = LLMInfo(
         provider=resolved_provider,
         model=os.getenv("SUITEST_LLM_MODEL") or None,
         base_url=os.getenv("SUITEST_LLM_BASE_URL") or None,
         is_test_provider=resolved_provider == "mock",
     )
-    autonomy = _autonomy_for(tier)
     return CapabilitySnapshot(
         tier=tier,
         llm=llm,
-        embeddings=EmbeddingsInfo(),
-        features=_features_for(tier),
-        autonomy=autonomy,
+        embeddings=EmbeddingsInfo(
+            enabled=embeddings_cfg.enabled,
+            backend=embeddings_cfg.backend,
+            model=embeddings_cfg.model,
+            dim=embeddings_cfg.dim,
+        ),
+        features=compute_features(tier, embeddings_cfg),
+        autonomy=compute_autonomy(tier),
         mcp_providers=[],
     )
