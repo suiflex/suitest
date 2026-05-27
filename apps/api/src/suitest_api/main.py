@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from suitest_api import __version__
 from suitest_api.capabilities import build_base_capabilities
+from suitest_api.middleware.audit import AuditContextMiddleware
 from suitest_api.settings import Settings, get_settings
 
 
@@ -53,6 +54,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Binds the per-request audit attribution (ip/ua/workspace) so the global
+    # SQLAlchemy after_flush listener can write AuditLog rows. Added after CORS so
+    # CORS stays the outermost layer; both run before any route handler.
+    app.add_middleware(AuditContextMiddleware)
 
     @app.get("/health", tags=["meta"])
     async def health() -> dict[str, str]:
