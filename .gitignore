@@ -54,6 +54,9 @@ Thumbs.db
 
 # Build artifacts
 apps/web/dist/
+# Vite dev-server transient JS compilation artifacts
+apps/web/src/**/*.js
+apps/web/src/**/*.js.map
 apps/web/coverage/
 apps/api/.coverage
 apps/runner/.coverage

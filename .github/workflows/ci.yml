@@ -24,7 +24,7 @@ jobs:
           enable-cache: true
 
       - name: Sync dependencies
-        run: uv sync --all-extras --dev
+        run: uv sync --all-extras --dev --all-packages
 
       - name: Ruff check
         run: uv run ruff check apps packages
@@ -82,10 +82,11 @@ jobs:
           enable-cache: true
 
       - name: Sync dependencies
-        run: uv sync --all-extras --dev
+        run: uv sync --all-extras --dev --all-packages
 
       - name: Run database migrations
         run: uv run alembic upgrade head
+        working-directory: packages/db
 
       - name: Run pytest
         run: uv run pytest
