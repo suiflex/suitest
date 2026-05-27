@@ -11,7 +11,6 @@ from fastapi_users.authentication import (
     JWTStrategy,
 )
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
-from httpx_oauth.clients.google import GoogleOAuth2
 from suitest_db.models import User
 
 from suitest_api.auth.db import get_user_db
@@ -56,12 +55,6 @@ auth_backend = AuthenticationBackend(
     name="cookie-jwt",
     transport=cookie_transport,
     get_strategy=get_jwt_strategy,
-)
-
-
-google_oauth_client = GoogleOAuth2(
-    _settings.oauth_google_client_id,
-    _settings.oauth_google_client_secret,
 )
 
 

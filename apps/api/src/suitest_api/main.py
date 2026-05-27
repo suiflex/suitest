@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from suitest_api import __version__
 from suitest_api.settings import Settings, get_settings
@@ -22,6 +23,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from suitest_api.auth.router import router as auth_router
     from suitest_api.routers.capabilities import router as capabilities_router
 
+    resolved = settings or get_settings()
+
     app = FastAPI(
         title="Suitest API",
         version=__version__,
@@ -31,6 +34,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     if settings is not None:
         app.state.settings = settings
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[resolved.web_url],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.get("/health", tags=["meta"])
     async def health() -> dict[str, str]:
