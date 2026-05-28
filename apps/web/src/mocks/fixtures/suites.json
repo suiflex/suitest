@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "id": "ste_smoke",
+      "project_id": "prj_demo",
+      "name": "Smoke",
+      "description": "Smoke suite — runs on every push.",
+      "order": 0,
+      "case_count": 2,
+      "created_at": "2026-05-01T08:00:00Z",
+      "updated_at": "2026-05-01T08:00:00Z"
+    },
+    {
+      "id": "ste_regression",
+      "project_id": "prj_demo",
+      "name": "Regression",
+      "description": "Full regression suite.",
+      "order": 1,
+      "case_count": 1,
+      "created_at": "2026-05-01T08:00:00Z",
+      "updated_at": "2026-05-01T08:00:00Z"
+    }
+  ],
+  "meta": { "limit": 50, "nextCursor": null }
+}

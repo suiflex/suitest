@@ -13,6 +13,7 @@ import kpis from "./fixtures/kpis.json";
 import passRate from "./fixtures/pass-rate.json";
 import readiness from "./fixtures/readiness.json";
 import runs from "./fixtures/runs.json";
+import suites from "./fixtures/suites.json";
 import traceability from "./fixtures/traceability.json";
 
 // Base URL the axios client uses. Keep handlers thin — per-screen tests
@@ -55,9 +56,50 @@ export const handlers: HttpHandler[] = [
 
   // Test cases
   http.get(`${BASE}/test-cases`, () => HttpResponse.json(cases)),
-  http.get(`${BASE}/test-cases/:caseId`, ({ params }) =>
-    HttpResponse.json({ id: params["caseId"], public_id: params["caseId"], title: "Fixture case" }),
-  ),
+  http.get(`${BASE}/test-cases/:caseId`, ({ params }) => {
+    const publicId = String(params["caseId"]);
+    return HttpResponse.json({
+      id: `case_${publicId}`,
+      public_id: publicId,
+      name: "Checkout flow rejects expired cards",
+      description: "Verify expired card path returns a friendly error.",
+      preconditions: "User signed in with no saved payment method.",
+      priority: "P1",
+      status: "ACTIVE",
+      source: "MANUAL",
+      suite_id: "ste_smoke",
+      owner_id: null,
+      tags: ["checkout", "billing"],
+      steps: [
+        {
+          id: "stp_01",
+          case_id: `case_${publicId}`,
+          order: 1,
+          action: "Navigate to /checkout",
+          expected: "Checkout page loads",
+          executable: true,
+          mcp_provider: "playwright-mcp",
+          target_kind: "FE_WEB",
+          code: null,
+          data: null,
+        },
+        {
+          id: "stp_02",
+          case_id: `case_${publicId}`,
+          order: 2,
+          action: "Enter card 4000 0000 0000 0002 (expired)",
+          expected: "Form shows 'expired card' error",
+          executable: true,
+          mcp_provider: "playwright-mcp",
+          target_kind: "FE_WEB",
+          code: "await page.fill('#card', '4000000000000002')",
+          data: null,
+        },
+      ],
+      created_at: "2026-05-01T08:00:00Z",
+      updated_at: "2026-05-25T14:30:00Z",
+    });
+  }),
   http.get(`${BASE}/test-cases/:caseId/steps`, () => HttpResponse.json({ items: [] })),
 
   // Defects
@@ -96,7 +138,7 @@ export const handlers: HttpHandler[] = [
   http.get(`${BASE}/requirements/:requirementId`, ({ params }) =>
     HttpResponse.json({ id: params["requirementId"], title: "Fixture requirement" }),
   ),
-  http.get(`${BASE}/suites`, () => HttpResponse.json({ items: [] })),
+  http.get(`${BASE}/suites`, () => HttpResponse.json(suites)),
   http.get(`${BASE}/suites/:suiteId`, ({ params }) =>
     HttpResponse.json({ id: params["suiteId"], name: "Fixture suite" }),
   ),
