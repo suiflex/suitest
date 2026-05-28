@@ -54,6 +54,7 @@ Thumbs.db
 
 # Build artifacts
 apps/web/dist/
+apps/web/storybook-static/
 # Vite dev-server transient JS compilation artifacts
 apps/web/src/**/*.js
 apps/web/src/**/*.js.map

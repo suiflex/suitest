@@ -7,7 +7,17 @@ import reactRefresh from "eslint-plugin-react-refresh";
 const __dirname = new URL(".", import.meta.url).pathname;
 
 export default [
-  { ignores: ["dist", "node_modules", "*.config.ts", "*.config.js", "src/routeTree.gen.ts"] },
+  {
+    ignores: [
+      "dist",
+      "node_modules",
+      "storybook-static",
+      ".storybook",
+      "*.config.ts",
+      "*.config.js",
+      "src/routeTree.gen.ts",
+    ],
+  },
   {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
