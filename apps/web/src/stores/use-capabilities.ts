@@ -12,43 +12,94 @@ export interface LLMInfo {
   is_test_provider: boolean;
 }
 
+export interface EmbeddingsInfo {
+  enabled: boolean;
+  backend: string;
+  model: string | null;
+  dim: number | null;
+}
+
 export interface McpProviderInfo {
   id: string;
   name: string;
   kind: string;
   health: string;
-  is_default: boolean;
+  isDefault: boolean;
+}
+
+/**
+ * 13 capability flags returned by the backend `/capabilities` endpoint.
+ * Mirrors `FeaturesSection` in `packages/shared/.../schemas/capabilities.py`
+ * (CAPABILITY_TIERS.md § 10).
+ */
+export interface CapabilityFeatures {
+  manual_tcm: boolean;
+  deterministic_runner: boolean;
+  deterministic_generator_openapi: boolean;
+  deterministic_generator_recorder: boolean;
+  deterministic_generator_crawler: boolean;
+  ai_generation: boolean;
+  ai_execution_agentic: boolean;
+  ai_diagnose: boolean;
+  ai_conversation: boolean;
+  semantic_search: boolean;
+  fts_search: boolean;
+  auto_defect_filing_ai: boolean;
+  auto_defect_filing_rule: boolean;
 }
 
 export interface Capabilities {
   tier: Tier;
   llm: LLMInfo;
-  embeddings: { enabled: boolean; backend: string; model: string | null; dim: number | null };
-  features: Record<string, boolean>;
+  embeddings: EmbeddingsInfo;
+  features: CapabilityFeatures;
   autonomy: { available: AutonomyLevel[]; default: AutonomyLevel };
-  mcp_providers: McpProviderInfo[];
+  mcpProviders?: McpProviderInfo[];
   version: string;
+  build?: string | null;
 }
 
+/**
+ * Feature keys understood by `useFeatureEnabled` and `<Gated>`.
+ *
+ * Direct keys map 1:1 to `Capabilities.features.*`. Derived keys are computed
+ * from other fields:
+ *   - `ai_panel`         = any AI feature enabled (ai_generation || ai_conversation)
+ *   - `autonomy_assist`  = `autonomy.available.includes("assist")`
+ *   - `autonomy_semi_auto` = `autonomy.available.includes("semi_auto")`
+ *   - `autonomy_auto`    = `autonomy.available.includes("auto")`
+ */
+export type FeatureKey =
+  | keyof CapabilityFeatures
+  | "ai_panel"
+  | "autonomy_assist"
+  | "autonomy_semi_auto"
+  | "autonomy_auto";
+
 interface CapabilitiesState {
-  data: Capabilities | null;
-  isLoading: boolean;
+  capabilities: Capabilities | null;
+  loading: boolean;
   error: string | null;
   fetch: () => Promise<void>;
+  setCapabilities: (c: Capabilities) => void;
 }
 
 export const useCapabilities = create<CapabilitiesState>((set) => ({
-  data: null,
-  isLoading: false,
+  capabilities: null,
+  loading: true,
   error: null,
   fetch: async () => {
-    set({ isLoading: true, error: null });
+    set({ loading: true, error: null });
     try {
-      const response = await api.get<Capabilities>("/capabilities");
-      set({ data: response.data, isLoading: false });
+      // The backend mounts `/capabilities` at the application root, NOT under
+      // `/api/v1`. The shared axios client uses `baseURL: ".../api/v1"`, so we
+      // override `baseURL` to empty for this one call to escape the prefix.
+      const response = await api.get<Capabilities>("/capabilities", { baseURL: "" });
+      set({ capabilities: response.data, loading: false });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load capabilities";
-      set({ error: message, isLoading: false });
+      set({ error: message, loading: false });
     }
   },
+  setCapabilities: (c) => set({ capabilities: c, loading: false, error: null }),
 }));
