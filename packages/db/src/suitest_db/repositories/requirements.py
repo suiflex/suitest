@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from suitest_db.models.case import TestCase
 from suitest_db.models.defect import Defect
 from suitest_db.models.requirement import Requirement, RequirementLink
+from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.base import AsyncRepository
 
 if TYPE_CHECKING:
@@ -18,8 +19,10 @@ if TYPE_CHECKING:
 
 class RequirementCreate(BaseModel):
     project_id: str
-    public_id: str
     title: str
+    # Optional: filled by the ``before_insert`` listener
+    # (suitest_db.public_id) from the per-workspace ``REQ`` sequence.
+    public_id: str | None = None
     description: str | None = None
     source: str | None = None
     external_url: str | None = None
@@ -34,6 +37,19 @@ class RequirementUpdate(BaseModel):
 
 class RequirementRepo(AsyncRepository[Requirement, RequirementCreate, RequirementUpdate]):
     model = Requirement
+
+    async def create(  # type: ignore[override]
+        self, dto: RequirementCreate, *, workspace_id: str
+    ) -> Requirement:
+        """Create a requirement, deferring ``public_id`` to the ``before_insert`` listener.
+
+        See :meth:`TestCaseRepo.create` for the rationale on the LSP override.
+        """
+        row = Requirement(**dto.model_dump(exclude_unset=True))
+        set_workspace_id(row, workspace_id)
+        self.session.add(row)
+        await self.session.flush()
+        return row
 
     async def list_by_project(self, project_id: str) -> Sequence[Requirement]:
         stmt = (

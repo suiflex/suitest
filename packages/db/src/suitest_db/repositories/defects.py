@@ -13,6 +13,7 @@ from suitest_db.models.case import TestCase
 from suitest_db.models.defect import Defect, ExternalIssue
 from suitest_db.models.requirement import Requirement
 from suitest_db.models.run import Run
+from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.base import AsyncRepository
 from suitest_shared.domain.enums import DefectStatus, DiagnosisKind, Severity
 
@@ -21,11 +22,13 @@ if TYPE_CHECKING:
 
 
 class DefectCreate(BaseModel):
-    public_id: str
     workspace_id: str
     title: str
     severity: Severity
     created_by: str
+    # Optional: filled by the ``before_insert`` listener
+    # (suitest_db.public_id) from the per-workspace ``SUIT`` sequence.
+    public_id: str | None = None
     description: str | None = None
     status: DefectStatus = DefectStatus.OPEN
     component: str | None = None
@@ -55,6 +58,20 @@ class DefectTimelineEntry(BaseModel):
 
 class DefectRepo(AsyncRepository[Defect, DefectCreate, DefectUpdate]):
     model = Defect
+
+    async def create(self, dto: DefectCreate) -> Defect:
+        """Create a defect, deferring ``public_id`` to the ``before_insert`` listener.
+
+        Workspace context lives on the DTO itself (``Defect.workspace_id`` is a
+        mapped column, unlike the other three entities) — but the listener
+        reads it from the transient attr, so we still attach it explicitly.
+        See :meth:`TestCaseRepo.create` for the rationale on the LSP override.
+        """
+        row = Defect(**dto.model_dump(exclude_unset=True))
+        set_workspace_id(row, dto.workspace_id)
+        self.session.add(row)
+        await self.session.flush()
+        return row
 
     async def list_by_workspace(
         self,

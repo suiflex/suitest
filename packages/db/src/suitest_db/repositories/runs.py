@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import extract, func, select
 from suitest_db.models.case import TestCase
 from suitest_db.models.run import Artifact, Run, RunStep
+from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.base import AsyncRepository
 from suitest_shared.domain.enums import RunStatus, RunTrigger, StepOutcome, Tier
 
@@ -17,11 +18,13 @@ if TYPE_CHECKING:
 
 
 class RunCreate(BaseModel):
-    public_id: str
     project_id: str
     name: str
     trigger: RunTrigger
     tier_at_runtime: Tier
+    # Optional: filled by the ``before_insert`` listener
+    # (suitest_db.public_id) from the per-workspace ``R`` sequence.
+    public_id: str | None = None
     branch: str | None = None
     commit_sha: str | None = None
     env: str = "staging"
@@ -40,6 +43,19 @@ class RunUpdate(BaseModel):
 
 class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
     model = Run
+
+    async def create(  # type: ignore[override]
+        self, dto: RunCreate, *, workspace_id: str
+    ) -> Run:
+        """Create a run, deferring ``public_id`` to the ``before_insert`` listener.
+
+        See :meth:`TestCaseRepo.create` for the rationale on the LSP override.
+        """
+        row = Run(**dto.model_dump(exclude_unset=True))
+        set_workspace_id(row, workspace_id)
+        self.session.add(row)
+        await self.session.flush()
+        return row
 
     async def list_by_project(
         self,

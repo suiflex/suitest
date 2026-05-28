@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.project import Suite
+from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.base import AsyncRepository
 from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority
 
@@ -21,9 +22,12 @@ class TestCaseCreate(BaseModel):
     __test__ = False  # not a pytest test class (name starts with "Test")
 
     suite_id: str
-    public_id: str
     name: str
     source: CaseSource
+    # Optional: the ``before_insert`` listener (suitest_db.public_id) fills this
+    # from the per-workspace ``TC`` sequence. Callers may still pin a value for
+    # seeders / migrations — the listener is idempotent when public_id is set.
+    public_id: str | None = None
     description: str | None = None
     preconditions: str | None = None
     status: CaseStatus = CaseStatus.ACTIVE
@@ -43,6 +47,23 @@ class TestCaseUpdate(BaseModel):
 class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
     __test__ = False  # not a pytest test class (name starts with "Test")
     model = TestCase
+
+    async def create(  # type: ignore[override]
+        self, dto: TestCaseCreate, *, workspace_id: str
+    ) -> TestCase:
+        """Create a test case, deferring ``public_id`` to the ``before_insert`` listener.
+
+        ``workspace_id`` is required (and stashed as a transient attr on the
+        instance) so the listener can pick the right ``pubid_<ws>_TC`` sequence.
+        Signature intentionally diverges from :class:`AsyncRepository.create`
+        (LSP override) — the base lacks the workspace context this generator
+        needs.
+        """
+        row = TestCase(**dto.model_dump(exclude_unset=True))
+        set_workspace_id(row, workspace_id)
+        self.session.add(row)
+        await self.session.flush()
+        return row
 
     async def list_by_suite_filtered(
         self,
