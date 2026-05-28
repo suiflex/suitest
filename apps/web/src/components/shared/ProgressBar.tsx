@@ -52,6 +52,7 @@ export function ProgressBar({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(pct)}
+        aria-label={label ?? `Progress ${Math.round(pct).toString()}%`}
         className="h-1 w-full overflow-hidden rounded bg-bg-elev-3"
       >
         <div

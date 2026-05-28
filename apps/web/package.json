@@ -71,6 +71,7 @@
     "@typescript-eslint/parser": "^8.13.0",
     "@vitejs/plugin-react": "^4.3.3",
     "@vitest/ui": "^4.1.7",
+    "axe-core": "^4.11.4",
     "eslint": "^9.14.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.37.2",
@@ -86,7 +87,8 @@
     "tailwindcss": "^4.3.0",
     "typescript": "^5.6.3",
     "vite": "^6.0.1",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "vitest-axe": "^0.1.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
