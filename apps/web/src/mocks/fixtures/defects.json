@@ -18,8 +18,8 @@
       "public_id": "DEF-202",
       "workspace_id": "ws_demo",
       "title": "Search pagination flakes under load",
-      "severity": "MED",
-      "status": "TRIAGED",
+      "severity": "MEDIUM",
+      "status": "IN_PROGRESS",
       "component": "search",
       "assignee_id": null,
       "agent_diagnosis_kind": "FLAKE",
@@ -27,5 +27,5 @@
       "updated_at": "2026-05-26T09:00:00Z"
     }
   ],
-  "next_cursor": null
+  "meta": { "limit": 50, "nextCursor": null }
 }
