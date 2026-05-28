@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { AlertTriangle, Plug } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { IntegrationsSkeleton } from "@/components/integrations/skeleton";
 import { DisabledTooltip } from "@/components/shared/DisabledTooltip";
@@ -274,10 +275,11 @@ function IntegrationsError({ reset }: { reset: () => void }): React.ReactElement
 }
 
 function Integrations(): React.ReactElement {
+  const { t } = useTranslation();
   return (
     <section className="flex flex-col gap-4" data-testid="integrations-screen">
       <header>
-        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">Integrations</h2>
+        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">{t("integrations.title")}</h2>
       </header>
       <ErrorBoundary fallback={({ reset }) => <IntegrationsError reset={reset} />}>
         <Suspense fallback={<IntegrationsSkeleton />}>

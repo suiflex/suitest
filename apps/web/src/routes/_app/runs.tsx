@@ -12,6 +12,7 @@ import {
   Square,
 } from "lucide-react";
 import { Suspense, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Gated } from "@/components/gating/Gated";
 import { RunsSkeleton } from "@/components/runs/skeleton";
@@ -511,10 +512,11 @@ function RunsError({ reset }: { reset: () => void }): React.ReactElement {
 }
 
 function RunsScreen(): React.ReactElement {
+  const { t } = useTranslation();
   return (
     <section className="flex flex-col gap-4" data-testid="runs-screen">
       <header>
-        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">Test Runs</h2>
+        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">{t("runs.title")}</h2>
       </header>
       <ErrorBoundary fallback={({ reset }) => <RunsError reset={reset} />}>
         <Suspense fallback={<RunsSkeleton />}>

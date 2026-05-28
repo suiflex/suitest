@@ -9,6 +9,7 @@ import {
   ListChecks,
 } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { CasesSkeleton } from "@/components/cases/skeleton";
 import { DisabledPlaceholder } from "@/components/gating/DisabledPlaceholder";
@@ -54,6 +55,7 @@ function CasesHeader({
   counts: Record<Tab, number>;
   showAiTab: boolean;
 }): React.ReactElement {
+  const { t } = useTranslation();
   const tabs: Array<{ id: Tab; label: string; show?: boolean }> = [
     { id: "all", label: "All" },
     { id: "manual", label: "Manual" },
@@ -61,29 +63,29 @@ function CasesHeader({
     { id: "mcp", label: "MCP" },
     { id: "failing", label: "Failing" },
   ];
-  const visible = tabs.filter((t) => t.show !== false);
+  const visible = tabs.filter((tab) => tab.show !== false);
 
   return (
     <header className="flex items-center justify-between gap-4" data-testid="cases-header">
       <div className="flex items-center gap-4">
-        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">Test Cases</h2>
+        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">{t("cases.title")}</h2>
         <nav className="flex items-center gap-1" data-testid="cases-tabs">
-          {visible.map((t) => (
+          {visible.map((tab) => (
             <button
-              key={t.id}
+              key={tab.id}
               type="button"
-              data-testid={`cases-tab-${t.id}`}
-              data-active={active === t.id ? "true" : "false"}
+              data-testid={`cases-tab-${tab.id}`}
+              data-active={active === tab.id ? "true" : "false"}
               onClick={() => {
-                setActive(t.id);
+                setActive(tab.id);
               }}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12.5px] text-fg-3 hover:bg-bg-elev-2",
-                active === t.id && "bg-bg-elev-2 text-fg-1",
+                active === tab.id && "bg-bg-elev-2 text-fg-1",
               )}
             >
-              {t.label}
-              <span className="font-mono text-[10.5px] text-fg-5">{counts[t.id]}</span>
+              {tab.label}
+              <span className="font-mono text-[10.5px] text-fg-5">{counts[tab.id]}</span>
             </button>
           ))}
         </nav>

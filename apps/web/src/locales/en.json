@@ -1,0 +1,11 @@
+{
+  "dashboard.title": "Dashboard",
+  "inbox.title": "Inbox",
+  "cases.title": "Test Cases",
+  "runs.title": "Test Runs",
+  "defects.title": "Defects",
+  "analytics.title": "Analytics",
+  "trace.title": "Traceability",
+  "integrations.title": "Integrations",
+  "docs.title": "Docs & specs"
+}

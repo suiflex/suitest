@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, Flame } from "lucide-react";
 import { Suspense } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AnalyticsSkeleton } from "@/components/analytics/skeleton";
 import { Heatmap } from "@/components/analytics/Heatmap";
@@ -151,10 +152,11 @@ function AnalyticsError({ reset }: { reset: () => void }): React.ReactElement {
 }
 
 function Analytics(): React.ReactElement {
+  const { t } = useTranslation();
   return (
     <section className="flex flex-col gap-4" data-testid="analytics-screen">
       <header>
-        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">Analytics</h2>
+        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">{t("analytics.title")}</h2>
       </header>
       <ErrorBoundary fallback={({ reset }) => <AnalyticsError reset={reset} />}>
         <Suspense fallback={<AnalyticsSkeleton />}>

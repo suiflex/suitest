@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { AlertTriangle, Bug, ExternalLink } from "lucide-react";
 import { Suspense } from "react";
+import { useTranslation } from "react-i18next";
 
 import { DefectsSkeleton } from "@/components/defects/skeleton";
 import { Gated } from "@/components/gating/Gated";
@@ -182,10 +183,11 @@ function DefectsList(): React.ReactElement {
 }
 
 function DefectsHeader(): React.ReactElement {
+  const { t } = useTranslation();
   return (
     <header className="flex items-center justify-between" data-testid="defects-header">
       <div className="flex items-center gap-2.5">
-        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">Defects</h2>
+        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">{t("defects.title")}</h2>
         <Suspense fallback={null}>
           <OpenCountBadge />
         </Suspense>

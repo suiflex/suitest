@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Suspense } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Gated } from "@/components/gating/Gated";
 import { InboxSkeleton } from "@/components/inbox/skeleton";
@@ -125,10 +126,11 @@ function UnreadBadge(): React.ReactElement | null {
 }
 
 function InboxHeader(): React.ReactElement {
+  const { t } = useTranslation();
   return (
     <header className="flex items-center justify-between" data-testid="inbox-header">
       <div className="flex items-center gap-2.5">
-        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">Inbox</h2>
+        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">{t("inbox.title")}</h2>
         <Suspense fallback={null}>
           <UnreadBadge />
         </Suspense>

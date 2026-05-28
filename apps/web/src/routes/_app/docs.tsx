@@ -10,6 +10,7 @@ import {
   Plus,
 } from "lucide-react";
 import { Suspense } from "react";
+import { useTranslation } from "react-i18next";
 
 import { DocsSkeleton } from "@/components/docs/skeleton";
 import { DisabledTooltip } from "@/components/shared/DisabledTooltip";
@@ -121,9 +122,10 @@ function DocsBody(): React.ReactElement {
 }
 
 function DocsHeader(): React.ReactElement {
+  const { t } = useTranslation();
   return (
     <header className="flex items-center justify-between" data-testid="docs-header">
-      <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">Docs & specs</h2>
+      <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">{t("docs.title")}</h2>
       <DisabledTooltip reason="Source CRUD ships in M2">
         <Button type="button" size="sm" disabled>
           <Plus className="h-3.5 w-3.5" aria-hidden="true" />

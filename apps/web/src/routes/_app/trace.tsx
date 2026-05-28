@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangle, Bug, FileText, ListTree, Sparkles } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { TraceSkeleton } from "@/components/trace/skeleton";
 import { DisabledTooltip } from "@/components/shared/DisabledTooltip";
@@ -211,10 +212,11 @@ function TraceError({ reset }: { reset: () => void }): React.ReactElement {
 }
 
 function Trace(): React.ReactElement {
+  const { t } = useTranslation();
   return (
     <section className="flex flex-col gap-4" data-testid="trace-screen">
       <header>
-        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">Traceability</h2>
+        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">{t("trace.title")}</h2>
       </header>
       <ErrorBoundary fallback={({ reset }) => <TraceError reset={reset} />}>
         <Suspense fallback={<TraceSkeleton />}>

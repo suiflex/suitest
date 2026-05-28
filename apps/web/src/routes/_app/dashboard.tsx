@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { Suspense } from "react";
+import { useTranslation } from "react-i18next";
 
 import { DashboardSkeleton } from "@/components/dashboard/skeleton";
 import { PassRateChart } from "@/components/dashboard/PassRateChart";
@@ -280,12 +281,13 @@ function ReadinessCard(): React.ReactElement {
 
 function DashboardHeader(): React.ReactElement {
   const { data: user } = useCurrentUser();
+  const { t } = useTranslation();
   const firstName = user?.name?.split(" ")[0] ?? user?.email?.split("@")[0] ?? "there";
   return (
     <header className="flex items-start justify-between gap-4" data-testid="dashboard-header">
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2.5">
-          <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">Dashboard</h2>
+          <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">{t("dashboard.title")}</h2>
           <StatusBadge status="pass" label="All systems healthy" />
         </div>
         <p className="text-[12.5px] text-fg-3">

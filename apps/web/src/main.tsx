@@ -3,6 +3,10 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+// Side-effect import: initialises i18next + react-i18next before any
+// component mounts (the <RouterProvider /> below renders title-translated
+// pages on first paint). Must precede the routeTree import.
+import "./i18n";
 import { routeTree } from "./routeTree.gen";
 import "@fontsource/geist-sans/400.css";
 import "@fontsource/geist-sans/500.css";
