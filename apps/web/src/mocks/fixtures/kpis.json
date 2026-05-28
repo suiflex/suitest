@@ -1,7 +1,6 @@
 {
   "passRate": 0.92,
-  "totalRuns": 1284,
-  "avgDuration": 12.4,
-  "flakyCount": 7,
-  "openDefects": 3
+  "runCount": 84,
+  "avgDurationMs": 12400,
+  "defectsOpen": 3
 }

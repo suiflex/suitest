@@ -102,4 +102,28 @@ export const handlers: HttpHandler[] = [
 
   // Auth
   http.get(`${BASE}/auth/me`, () => HttpResponse.json({ id: "u_demo", email: "demo@suitest.dev" })),
+
+  // ----------------------------------------------------------------------
+  // M1a stubs — endpoints referenced by the M1b screens but not yet served
+  // by the real backend. Tests can override these via `server.use(...)`.
+  // ----------------------------------------------------------------------
+  // /audit-logs — M1a has the table but no public endpoint.
+  http.get(`${BASE}/audit-logs`, () => HttpResponse.json({ items: [] })),
+  // /inbox — M1b feature; backend lands in M2.
+  http.get(`${BASE}/inbox`, () => HttpResponse.json({ items: [] })),
+  // /runs/summary — derived view; backend ships later.
+  http.get(`${BASE}/runs/summary`, () =>
+    HttpResponse.json({
+      activeNow: 0,
+      today: 0,
+      passed: 0,
+      failed: 0,
+      avgDurationMs: 0,
+      queue: 0,
+    }),
+  ),
+  // /runs/:id/network — M1b stub; HAR-driven view lands later.
+  http.get(`${BASE}/runs/:runId/network`, () => HttpResponse.json({ items: [] })),
+  // /mcp/providers — discovery endpoint comes in M2; ZERO bundled providers.
+  http.get(`${BASE}/mcp/providers`, () => HttpResponse.json({ items: [] })),
 ];

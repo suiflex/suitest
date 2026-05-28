@@ -3,25 +3,54 @@
     {
       "id": "run_01",
       "public_id": "RUN-1001",
-      "test_case_public_id": "TC-101",
-      "suite_id": "ste_smoke",
+      "project_id": "prj_demo",
+      "name": "Checkout flow rejects expired cards",
+      "branch": "main",
+      "commit_sha": "abcd123",
+      "env": "staging",
       "status": "PASS",
-      "trigger": "manual",
+      "trigger": "MANUAL",
+      "tier_at_runtime": "ZERO",
       "started_at": "2026-05-27T10:00:00Z",
       "completed_at": "2026-05-27T10:01:14Z",
-      "duration_ms": 74000
+      "duration_ms": 74000,
+      "created_at": "2026-05-27T10:00:00Z",
+      "updated_at": "2026-05-27T10:01:14Z"
     },
     {
       "id": "run_02",
       "public_id": "RUN-1002",
-      "test_case_public_id": "TC-204",
-      "suite_id": "ste_regression",
+      "project_id": "prj_demo",
+      "name": "Search returns paginated results",
+      "branch": "feat/search",
+      "commit_sha": "deadbee",
+      "env": "ci",
       "status": "FAIL",
-      "trigger": "ci",
+      "trigger": "CI_PUSH",
+      "tier_at_runtime": "ZERO",
       "started_at": "2026-05-27T11:12:00Z",
       "completed_at": "2026-05-27T11:13:40Z",
-      "duration_ms": 100000
+      "duration_ms": 100000,
+      "created_at": "2026-05-27T11:12:00Z",
+      "updated_at": "2026-05-27T11:13:40Z"
+    },
+    {
+      "id": "run_03",
+      "public_id": "RUN-1003",
+      "project_id": "prj_demo",
+      "name": "Login redirects after SSO callback",
+      "branch": "main",
+      "commit_sha": "1234abc",
+      "env": "staging",
+      "status": "RUNNING",
+      "trigger": "SCHEDULED",
+      "tier_at_runtime": "ZERO",
+      "started_at": "2026-05-27T12:00:00Z",
+      "completed_at": null,
+      "duration_ms": null,
+      "created_at": "2026-05-27T12:00:00Z",
+      "updated_at": "2026-05-27T12:00:00Z"
     }
   ],
-  "next_cursor": null
+  "meta": { "limit": 50, "nextCursor": null }
 }
