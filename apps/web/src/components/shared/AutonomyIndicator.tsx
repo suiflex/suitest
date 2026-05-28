@@ -22,7 +22,7 @@ const LEVEL_TONE: Record<AutonomyLevel, string> = {
  */
 export function AutonomyIndicator(): React.ReactElement {
   const level: AutonomyLevel =
-    useCapabilities((s) => s.capabilities?.autonomy.default) ?? "manual";
+    useCapabilities((s) => s.capabilities?.autonomy?.default) ?? "manual";
 
   return (
     <a

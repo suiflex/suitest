@@ -14,7 +14,14 @@ export default defineConfig({
     host: "0.0.0.0",
     strictPort: true,
     proxy: {
+      // Backend mounts these paths at the application root (NOT under /api/v1).
+      // Add all root-mounted paths here so dev requests are forwarded to the
+      // FastAPI server instead of falling through to Vite's SPA index.html.
       "/api": "http://localhost:4000",
+      "/capabilities": "http://localhost:4000",
+      "/health": "http://localhost:4000",
+      "/metrics": "http://localhost:4000",
+      "/openapi.json": "http://localhost:4000",
       "/ws": { target: "ws://localhost:4000", ws: true },
     },
   },

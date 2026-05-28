@@ -23,8 +23,11 @@ const TIER_TONE: Record<Tier, string> = {
 export function TierBadge(): React.ReactElement {
   const capabilities = useCapabilities((s) => s.capabilities);
   const tier: Tier = capabilities?.tier ?? "ZERO";
-  const provider = capabilities?.llm.provider ?? null;
-  const model = capabilities?.llm.model ?? null;
+  // Defense-in-depth: use deep optional chaining so malformed/partial responses
+  // (e.g. HTML when Vite proxy is misconfigured, mock fixtures missing fields)
+  // don't crash the topbar. Falls back to "ZERO" via the tier default above.
+  const provider = capabilities?.llm?.provider ?? null;
+  const model = capabilities?.llm?.model ?? null;
   const providerModel = provider && model ? `${provider}:${model}` : provider;
   const label = tier === "ZERO" || !providerModel ? tier : `${tier} · ${providerModel}`;
 

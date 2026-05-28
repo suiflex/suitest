@@ -38,21 +38,24 @@ export function useFeatureEnabled(feature: FeatureKey): boolean {
     const caps = state.capabilities;
     if (!caps) return false;
 
+    // Defense-in-depth: if `features` / `autonomy` are missing (malformed
+    // response, partial mock, etc.), degrade to "feature disabled" instead of
+    // throwing. ZERO is the safe default.
     if (DIRECT_FEATURE_KEYS.has(feature)) {
-      return Boolean(caps.features[feature as keyof CapabilityFeatures]);
+      return Boolean(caps.features?.[feature as keyof CapabilityFeatures]);
     }
 
     if (feature === "ai_panel") {
-      return caps.features.ai_conversation || caps.features.ai_generation;
+      return Boolean(caps.features?.ai_conversation || caps.features?.ai_generation);
     }
     if (feature === "autonomy_assist") {
-      return caps.autonomy.available.includes("assist");
+      return caps.autonomy?.available?.includes("assist") ?? false;
     }
     if (feature === "autonomy_semi_auto") {
-      return caps.autonomy.available.includes("semi_auto");
+      return caps.autonomy?.available?.includes("semi_auto") ?? false;
     }
     if (feature === "autonomy_auto") {
-      return caps.autonomy.available.includes("auto");
+      return caps.autonomy?.available?.includes("auto") ?? false;
     }
     return false;
   });

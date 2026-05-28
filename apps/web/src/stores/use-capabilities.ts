@@ -95,7 +95,18 @@ export const useCapabilities = create<CapabilitiesState>((set) => ({
       // `/api/v1`. The shared axios client uses `baseURL: ".../api/v1"`, so we
       // override `baseURL` to empty for this one call to escape the prefix.
       const response = await api.get<Capabilities>("/capabilities", { baseURL: "" });
-      set({ capabilities: response.data, loading: false });
+      const data = response.data as unknown;
+      // Guard: if the Vite proxy is misconfigured the SPA fallback may return
+      // `index.html` (a string), or a mock fixture may return a partial body.
+      // Reject anything that doesn't look like a capability snapshot so the
+      // failure surfaces as a visible error state rather than a downstream
+      // "Cannot read properties of undefined" crash in TierBadge / Gated.
+      if (!data || typeof data !== "object" || !("tier" in data)) {
+        throw new Error(
+          "Invalid capabilities response (expected JSON object with a `tier` field)",
+        );
+      }
+      set({ capabilities: data as Capabilities, loading: false });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load capabilities";
       set({ error: message, loading: false });

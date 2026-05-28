@@ -94,4 +94,23 @@ describe("useCapabilities", () => {
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
   });
+
+  it("rejects malformed response (missing tier field)", async () => {
+    // Regression: when the Vite dev proxy doesn't route /capabilities to the
+    // backend, the SPA fallback can return index.html, or a partial fixture
+    // can omit fields. The store must NOT hydrate garbage shapes — it should
+    // surface a visible error so downstream consumers (TierBadge, Gated)
+    // don't crash on undefined nested fields.
+    server.use(
+      http.get("http://localhost/capabilities", () => HttpResponse.json({ foo: "bar" })),
+    );
+
+    await useCapabilities.getState().fetch();
+
+    const state = useCapabilities.getState();
+    expect(state.capabilities).toBeNull();
+    expect(state.loading).toBe(false);
+    expect(state.error).toBeTruthy();
+    expect(state.error).toMatch(/Invalid capabilities response/i);
+  });
 });

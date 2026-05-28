@@ -22,7 +22,7 @@ function AiPanelInner(): React.ReactElement {
   const capabilities = useCapabilities((s) => s.capabilities);
   const provider = capabilities?.llm?.provider ?? "unknown";
   const model = capabilities?.llm?.model ?? "—";
-  const autonomy = capabilities?.autonomy.default ?? "manual";
+  const autonomy = capabilities?.autonomy?.default ?? "manual";
 
   return (
     <aside

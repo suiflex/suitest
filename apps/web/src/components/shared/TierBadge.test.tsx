@@ -104,4 +104,15 @@ describe("<TierBadge>", () => {
     render(<TierBadge />);
     expect(screen.getByTestId("tier-badge")).toHaveAttribute("data-tier", "ZERO");
   });
+
+  it("renders ZERO fallback when capabilities.llm is undefined (malformed response)", () => {
+    // Regression: a misconfigured Vite proxy or a mock fixture missing fields
+    // can leave `capabilities` non-null but `.llm` undefined. Previously this
+    // crashed with "Cannot read properties of undefined (reading 'provider')".
+    setCaps({ tier: "ZERO" } as unknown as Capabilities);
+    render(<TierBadge />);
+    const badge = screen.getByTestId("tier-badge");
+    expect(badge).toHaveAttribute("data-tier", "ZERO");
+    expect(badge).toHaveTextContent("ZERO");
+  });
 });
