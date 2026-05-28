@@ -1,7 +1,7 @@
 {
   "items": [
-    { "testCaseId": "TC-101", "title": "Checkout flow rejects expired cards", "flakeRate": 0.18, "lastFailedAt": "2026-05-27T10:14:00Z" },
-    { "testCaseId": "TC-204", "title": "Search returns paginated results", "flakeRate": 0.12, "lastFailedAt": "2026-05-26T18:02:00Z" },
-    { "testCaseId": "TC-318", "title": "Login redirects after SSO callback", "flakeRate": 0.09, "lastFailedAt": "2026-05-25T22:31:00Z" }
+    { "caseId": "case_01", "publicId": "TC-101", "flakeRate": 0.18, "sampleSize": 28 },
+    { "caseId": "case_02", "publicId": "TC-204", "flakeRate": 0.12, "sampleSize": 31 },
+    { "caseId": "case_03", "publicId": "TC-318", "flakeRate": 0.09, "sampleSize": 22 }
   ]
 }
