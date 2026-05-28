@@ -36,14 +36,101 @@ export const handlers: HttpHandler[] = [
   http.get(`${BASE}/analytics/heatmap`, () => HttpResponse.json(heatmap)),
   http.get(`${BASE}/analytics/readiness`, () => HttpResponse.json(readiness)),
 
-  // Runs
-  http.get(`${BASE}/runs`, () => HttpResponse.json(runs)),
-  http.get(`${BASE}/runs/:runId`, ({ params }) =>
-    HttpResponse.json({ id: params["runId"], status: "PASS" }),
+  // Runs — /summary must come before the /:runId param matcher.
+  http.get(`${BASE}/runs/summary`, () =>
+    HttpResponse.json({
+      activeNow: 1,
+      today: 24,
+      passed: 22,
+      failed: 2,
+      avgDurationMs: 84000,
+      queue: 3,
+    }),
   ),
-  http.get(`${BASE}/runs/:runId/steps`, () => HttpResponse.json({ items: [] })),
-  http.get(`${BASE}/runs/:runId/logs`, () => HttpResponse.json({ items: [] })),
-  http.get(`${BASE}/runs/:runId/artifacts`, () => HttpResponse.json({ items: [] })),
+  http.get(`${BASE}/runs`, () => HttpResponse.json(runs)),
+  http.get(`${BASE}/runs/:runId`, ({ params }) => {
+    const publicId = String(params["runId"]);
+    return HttpResponse.json({
+      id: `run_${publicId}`,
+      public_id: publicId,
+      project_id: "prj_demo",
+      name: "Checkout flow rejects expired cards",
+      branch: "main",
+      commit_sha: "abcd123",
+      env: "staging",
+      status: "FAIL",
+      trigger: "MANUAL",
+      tier_at_runtime: "ZERO",
+      started_at: "2026-05-27T10:00:00Z",
+      completed_at: "2026-05-27T10:01:14Z",
+      duration_ms: 74000,
+      summary: { total_steps: 4, passed_steps: 3, failed_steps: 1, duration_ms: 74000 },
+      created_at: "2026-05-27T10:00:00Z",
+      updated_at: "2026-05-27T10:01:14Z",
+    });
+  }),
+  http.get(`${BASE}/runs/:runId/steps`, ({ params }) =>
+    HttpResponse.json({
+      items: [
+        {
+          id: "rs_01",
+          run_id: `run_${String(params["runId"])}`,
+          case_id: "case_01",
+          case_public_id: "TC-101",
+          step_order: 1,
+          outcome: "PASS",
+          started_at: "2026-05-27T10:00:00Z",
+          completed_at: "2026-05-27T10:00:10Z",
+          duration_ms: 10000,
+          error_message: null,
+        },
+        {
+          id: "rs_02",
+          run_id: `run_${String(params["runId"])}`,
+          case_id: "case_01",
+          case_public_id: "TC-101",
+          step_order: 2,
+          outcome: "FAIL",
+          started_at: "2026-05-27T10:00:10Z",
+          completed_at: "2026-05-27T10:00:30Z",
+          duration_ms: 20000,
+          error_message: "AssertionError: expected 200 got 500",
+        },
+      ],
+    }),
+  ),
+  http.get(`${BASE}/runs/:runId/logs`, () =>
+    HttpResponse.json({
+      lines: [
+        "2026-05-27T10:00:00Z [INFO] Starting run",
+        "2026-05-27T10:00:10Z [PASS] Step 1: Navigate /checkout",
+        "2026-05-27T10:00:30Z [FAIL] Step 2: AssertionError 500",
+      ],
+      nextCursor: null,
+    }),
+  ),
+  http.get(`${BASE}/runs/:runId/artifacts`, () =>
+    HttpResponse.json({
+      items: [
+        {
+          id: "art_01",
+          run_step_id: "rs_02",
+          kind: "SCREENSHOT",
+          mime_type: "image/png",
+          size_bytes: 102400,
+          created_at: "2026-05-27T10:00:30Z",
+        },
+        {
+          id: "art_02",
+          run_step_id: "rs_02",
+          kind: "HAR",
+          mime_type: "application/json",
+          size_bytes: 51200,
+          created_at: "2026-05-27T10:00:30Z",
+        },
+      ],
+    }),
+  ),
   http.get(`${BASE}/runs/:runId/artifacts/:artifactId`, ({ params }) =>
     HttpResponse.json({
       artifact_id: params["artifactId"],
@@ -155,17 +242,6 @@ export const handlers: HttpHandler[] = [
   // /inbox — M1b feature; backend lands in M2. Seeded from a static fixture so
   // unit tests can override per-test via `server.use(...)` for empty/error.
   http.get(`${BASE}/inbox`, () => HttpResponse.json(inbox)),
-  // /runs/summary — derived view; backend ships later.
-  http.get(`${BASE}/runs/summary`, () =>
-    HttpResponse.json({
-      activeNow: 0,
-      today: 0,
-      passed: 0,
-      failed: 0,
-      avgDurationMs: 0,
-      queue: 0,
-    }),
-  ),
   // /runs/:id/network — M1b stub; HAR-driven view lands later.
   http.get(`${BASE}/runs/:runId/network`, () => HttpResponse.json({ items: [] })),
   // /mcp/providers — discovery endpoint comes in M2; ZERO bundled providers.
