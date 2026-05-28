@@ -21,6 +21,12 @@ import sys
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
+# Disable OpenTelemetry exporter by default in tests — the BatchSpanProcessor
+# would otherwise spin up a background thread trying to flush to localhost:4318
+# (no collector in CI). Individual observability tests can opt back in by clearing
+# this env var before constructing the app.
+os.environ.setdefault("SUITEST_OTEL_DISABLED", "true")
+
 # Make ``api_harness`` (this directory) importable under --import-mode=importlib,
 # which does NOT add test dirs to sys.path. Done before the import below.
 sys.path.insert(0, str(Path(__file__).resolve().parent))

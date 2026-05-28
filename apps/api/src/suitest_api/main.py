@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from suitest_api import __version__
 from suitest_api.capabilities import build_base_capabilities
 from suitest_api.middleware.audit import AuditContextMiddleware
+from suitest_api.middleware.observability import SpanAttributesMiddleware
+from suitest_api.observability import setup_observability
 from suitest_api.settings import Settings, get_settings
 
 
@@ -65,9 +67,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # ORDER MATTERS — Starlette wraps `add_middleware` calls inside-out: the last
+    # call becomes the OUTERMOST layer. Request flow we want:
+    #   OTel (FastAPIInstrumentor) → AuditContextMiddleware
+    #     → SpanAttributesMiddleware → CORS → handler.
+    # SpanAttributesMiddleware must run AFTER AuditContextMiddleware populates the
+    # ContextVar, AND inside the OTel span so set_attributes lands on the right span.
+    # So we add SpanAttributesMiddleware first (innermost-of-the-two), then Audit,
+    # then setup_observability() runs LAST so FastAPIInstrumentor sits outermost.
+    app.add_middleware(SpanAttributesMiddleware, fastapi_app=app)
     # Binds the per-request audit attribution (ip/ua/workspace) so the global
-    # SQLAlchemy after_flush listener can write AuditLog rows. Added after CORS so
-    # CORS stays the outermost layer; both run before any route handler.
+    # SQLAlchemy after_flush listener can write AuditLog rows.
     app.add_middleware(AuditContextMiddleware)
 
     @app.get("/health", tags=["meta"])
@@ -89,6 +99,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(integrations_router)
     app.include_router(documents_router)
     app.include_router(analytics_router)
+
+    # Observability is wired LAST so:
+    #   1. FastAPIInstrumentor becomes the outermost middleware (sees every request).
+    #   2. Prometheus `/metrics` route is appended after all real routes (clean
+    #      route order in the router).
+    # Skipped automatically when SUITEST_OTEL_DISABLED=true; idempotent via
+    # `app.state.otel_setup` guard.
+    from suitest_api.auth.db import engine as auth_engine
+
+    setup_observability(app, engine=auth_engine)
     return app
 
 
