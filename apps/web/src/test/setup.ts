@@ -12,6 +12,38 @@ if (globalThis.window !== undefined) {
   globalThis.scroll = vi.fn();
 }
 
+// jsdom doesn't ship a ResizeObserver implementation, but Radix UI primitives
+// (used by shadcn) call into it from Popover/Dialog. Provide a no-op stub so
+// shell tests can mount Tooltip/CommandDialog without explosions.
+class ResizeObserverStub {
+  observe(): void {
+    // no-op
+  }
+  unobserve(): void {
+    // no-op
+  }
+  disconnect(): void {
+    // no-op
+  }
+}
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
+}
+
+// jsdom also lacks PointerEvent setup used by Radix Dialog focus traps.
+if (typeof globalThis.HTMLElement !== "undefined") {
+  const proto = globalThis.HTMLElement.prototype as unknown as Record<string, unknown>;
+  if (!("hasPointerCapture" in proto)) {
+    proto["hasPointerCapture"] = () => false;
+  }
+  if (!("releasePointerCapture" in proto)) {
+    proto["releasePointerCapture"] = () => undefined;
+  }
+  if (!("scrollIntoView" in proto)) {
+    proto["scrollIntoView"] = () => undefined;
+  }
+}
+
 beforeAll(() => {
   server.listen({ onUnhandledRequest: "error" });
 });

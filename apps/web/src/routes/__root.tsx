@@ -12,6 +12,17 @@ export interface RouterContext {
   queryClient: QueryClient;
 }
 
+/**
+ * Augment TanStack's `StaticDataRouteOption` so routes can declare typed
+ * metadata (e.g. `title` for Topbar breadcrumbs).
+ */
+declare module "@tanstack/react-router" {
+  interface StaticDataRouteOption {
+    /** Display label used by Topbar breadcrumbs. */
+    title?: string;
+  }
+}
+
 function RootLayout(): React.ReactElement {
   // Boot capabilities once on root mount so `<Gated>` / `<TierBadge>` have
   // data ready before any feature surface renders. Task 5 will swap this for
