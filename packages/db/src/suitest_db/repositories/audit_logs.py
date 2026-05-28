@@ -64,6 +64,28 @@ class AuditLogRepo(AsyncRepository[AuditLog, AuditLogCreate, AuditLogUpdate]):
             next_cursor = None
         return page, next_cursor
 
+    async def list_by_workspace_filtered(
+        self,
+        *,
+        workspace_id: str,
+        action_prefix: str | None = None,
+        limit: int = 20,
+    ) -> Sequence[AuditLog]:
+        """List audit rows for a workspace, optionally filtered by ``action`` prefix.
+
+        Used by the Dashboard agent activity feed (``GET /audit-logs?action=agent.*``).
+        Trailing ``.*`` / ``*`` wildcards are stripped before the ``LIKE`` lookup so
+        callers can pass the canonical glob form. Ordered newest-first; no cursor —
+        this is a small bounded read (limit ≤ 100), pagination lands when needed.
+        """
+        stmt = select(AuditLog).where(AuditLog.workspace_id == workspace_id)
+        if action_prefix:
+            normalized = action_prefix.rstrip("*").rstrip(".")
+            if normalized:
+                stmt = stmt.where(AuditLog.action.like(f"{normalized}%"))
+        stmt = stmt.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).limit(limit)
+        return (await self.session.scalars(stmt)).all()
+
     async def append(
         self,
         *,

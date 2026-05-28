@@ -25,6 +25,8 @@ from suitest_api.schemas.run import (
     RunDetail,
     RunListItem,
     RunLogPage,
+    RunNetworkResponse,
+    RunsSummary,
     RunStepPublic,
     RunSummary,
 )
@@ -67,6 +69,29 @@ async def list_runs(
     return Page[RunListItem](
         items=[RunListItem.model_validate(r) for r in rows],
         meta=PageMeta(next_cursor=encode_next(next_keyset), limit=limit),
+    )
+
+
+@router.get("/runs/summary", response_model=RunsSummary)
+async def get_runs_summary(
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+) -> RunsSummary:
+    """Aggregated counters for the Runs dashboard summary bar (docs/API.md §3.5).
+
+    Counts are workspace-scoped (joined via ``projects``). ``failed`` folds
+    ``FAIL`` + ``ERROR`` together to match the Runs UI's binary outcome card.
+    Static endpoint declared BEFORE the dynamic ``/runs/{run_id}`` route below
+    so FastAPI's path matcher doesn't try to treat ``summary`` as a run id.
+    """
+    counts = await RunRepo(session).summary_for_workspace(ctx.workspace_id)
+    return RunsSummary(
+        active=counts.get(RunStatus.RUNNING.value, 0),
+        today=counts.get("today", 0),
+        passed=counts.get(RunStatus.PASS.value, 0),
+        failed=counts.get(RunStatus.FAIL.value, 0) + counts.get(RunStatus.ERROR.value, 0),
+        avg_duration_ms=counts.get("avg_duration_ms", 0),
+        queued=counts.get(RunStatus.QUEUED.value, 0),
     )
 
 
@@ -204,3 +229,20 @@ async def get_artifact_signed_url(
         scheme=signed.scheme,
         expires_at=signed.expires_at,
     )
+
+
+@router.get("/runs/{run_id}/network", response_model=RunNetworkResponse)
+async def get_run_network(
+    run_id: str,
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+) -> RunNetworkResponse:
+    """Network events captured during the run (M1b stub).
+
+    Validates run-in-workspace scope (404 cross-workspace) and returns an empty
+    page — HAR-driven event extraction lands with the runner in M1c. Frontend
+    Network tab already renders the empty state today, so wiring this stub now
+    means the screen stops 404-ing in real dev.
+    """
+    await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
+    return RunNetworkResponse(items=[])

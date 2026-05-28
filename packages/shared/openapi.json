@@ -87,6 +87,66 @@
         "title": "ArtifactSignedUrl",
         "type": "object"
       },
+      "AuditLogEntry": {
+        "description": "One audit row exposed in the Dashboard agent activity feed.",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "resourceId": {
+            "title": "Resourceid",
+            "type": "string"
+          },
+          "resourceType": {
+            "title": "Resourcetype",
+            "type": "string"
+          },
+          "userId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Userid"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "resourceType",
+          "resourceId",
+          "createdAt"
+        ],
+        "title": "AuditLogEntry",
+        "type": "object"
+      },
+      "AuditLogResponse": {
+        "description": "``GET /audit-logs`` envelope \u2014 small bounded list, no cursor.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditLogEntry"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "AuditLogResponse",
+        "type": "object"
+      },
       "AutonomyLevel": {
         "description": "Workspace autonomy dial. ZERO tier is locked to MANUAL.",
         "enum": [
@@ -206,7 +266,7 @@
           },
           "mcpProviders": {
             "items": {
-              "$ref": "#/components/schemas/McpProviderPublic"
+              "$ref": "#/components/schemas/suitest_shared__schemas__capabilities__McpProviderPublic"
             },
             "title": "Mcpproviders",
             "type": "array"
@@ -966,6 +1026,77 @@
         "title": "HeatmapCell",
         "type": "object"
       },
+      "InboxItem": {
+        "description": "One notification card in the Inbox feed.",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "createdAt": {
+            "title": "Createdat",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "DEPLOY_GATE_FAIL",
+              "MANUAL_RUN_FAIL",
+              "MCP_HEALTH",
+              "FLAKY_PROMOTION",
+              "AGENT_GENERATION",
+              "AGENT_DIAGNOSIS"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "status": {
+            "default": "unread",
+            "enum": [
+              "unread",
+              "read",
+              "dismissed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "body",
+          "createdAt"
+        ],
+        "title": "InboxItem",
+        "type": "object"
+      },
+      "InboxResponse": {
+        "description": "``GET /inbox`` envelope \u2014 items list + unread badge counter.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InboxItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "unreadCount": {
+            "default": 0,
+            "title": "Unreadcount",
+            "type": "integer"
+          }
+        },
+        "title": "InboxResponse",
+        "type": "object"
+      },
       "IntegrationDetail": {
         "description": "Detail \u2014 adds visible ``config`` and the redacted ``secrets`` block.",
         "properties": {
@@ -1285,38 +1416,18 @@
         "title": "MatrixRequirement",
         "type": "object"
       },
-      "McpProviderPublic": {
-        "description": "Public MCP provider entry \u2014 same shape as ``GET /mcp/providers`` rows.",
+      "McpProvidersResponse": {
+        "description": "``GET /mcp/providers`` envelope (read-only in M1b).",
         "properties": {
-          "health": {
-            "default": "unknown",
-            "title": "Health",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "isDefault": {
-            "default": false,
-            "title": "Isdefault",
-            "type": "boolean"
-          },
-          "kind": {
-            "title": "Kind",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/suitest_api__routers__mcp_providers__McpProviderPublic"
+            },
+            "title": "Items",
+            "type": "array"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "kind"
-        ],
-        "title": "McpProviderPublic",
+        "title": "McpProvidersResponse",
         "type": "object"
       },
       "MeResponse": {
@@ -1383,6 +1494,41 @@
           "workspace"
         ],
         "title": "MembershipPublic",
+        "type": "object"
+      },
+      "NetworkEvent": {
+        "description": "One network event captured during a run (HAR-derived, M1c).",
+        "properties": {
+          "durationMs": {
+            "title": "Durationms",
+            "type": "integer"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "title": "Startedat",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "method",
+          "path",
+          "status",
+          "durationMs",
+          "startedAt"
+        ],
+        "title": "NetworkEvent",
         "type": "object"
       },
       "OAuth2AuthorizeResponse": {
@@ -2130,6 +2276,20 @@
         "title": "RunLogPage",
         "type": "object"
       },
+      "RunNetworkResponse": {
+        "description": "``GET /runs/:id/network`` \u2014 bounded network event list (M1b stub).",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NetworkEvent"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "RunNetworkResponse",
+        "type": "object"
+      },
       "RunStatus": {
         "enum": [
           "QUEUED",
@@ -2272,6 +2432,48 @@
         ],
         "title": "RunTrigger",
         "type": "string"
+      },
+      "RunsSummary": {
+        "description": "``GET /runs/summary`` \u2014 counters for the Runs dashboard summary bar.\n\nField aliases are camelCase to match the M1b frontend client.\n``failed`` folds ``FAIL`` + ``ERROR``; ``avg_duration_ms`` is a workspace-wide\nweighted mean across non-null durations.",
+        "properties": {
+          "active": {
+            "description": "Runs currently in RUNNING state",
+            "title": "Active",
+            "type": "integer"
+          },
+          "avgDurationMs": {
+            "title": "Avgdurationms",
+            "type": "integer"
+          },
+          "failed": {
+            "description": "FAIL + ERROR",
+            "title": "Failed",
+            "type": "integer"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "integer"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "today": {
+            "description": "Runs created since 00:00 UTC",
+            "title": "Today",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active",
+          "today",
+          "passed",
+          "failed",
+          "avgDurationMs",
+          "queued"
+        ],
+        "title": "RunsSummary",
+        "type": "object"
       },
       "SecretsHint": {
         "description": "Redacted secret marker + last-4 hint (no full secret ever).",
@@ -2984,6 +3186,96 @@
         ],
         "title": "WorkspacePublic",
         "type": "object"
+      },
+      "suitest_api__routers__mcp_providers__McpProviderPublic": {
+        "description": "One MCP provider row \u2014 name + transport + health only (no secrets).",
+        "properties": {
+          "endpoint": {
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "healthStatus": {
+            "default": "unknown",
+            "title": "Healthstatus",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "isBundled": {
+            "default": false,
+            "title": "Isbundled",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "lastHealthAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lasthealthat"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "transport": {
+            "title": "Transport",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "transport",
+          "endpoint"
+        ],
+        "title": "McpProviderPublic",
+        "type": "object"
+      },
+      "suitest_shared__schemas__capabilities__McpProviderPublic": {
+        "description": "Public MCP provider entry \u2014 same shape as ``GET /mcp/providers`` rows.",
+        "properties": {
+          "health": {
+            "default": "unknown",
+            "title": "Health",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "isDefault": {
+            "default": false,
+            "title": "Isdefault",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ],
+        "title": "McpProviderPublic",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -3429,6 +3721,91 @@
         "summary": "Analytics Readiness",
         "tags": [
           "analytics"
+        ]
+      }
+    },
+    "/api/v1/audit-logs": {
+      "get": {
+        "description": "List audit log entries for the workspace, optionally filtered by action prefix.",
+        "operationId": "list_audit_logs_api_v1_audit_logs_get",
+        "parameters": [
+          {
+            "description": "Action prefix filter (e.g. 'agent.*')",
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Action prefix filter (e.g. 'agent.*')",
+              "title": "Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLogResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Audit Logs",
+        "tags": [
+          "audit"
         ]
       }
     },
@@ -3902,6 +4279,71 @@
         ]
       }
     },
+    "/api/v1/inbox": {
+      "get": {
+        "description": "List inbox items for the active workspace (empty stub in M1a).",
+        "operationId": "list_inbox_api_v1_inbox_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Inbox",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
     "/api/v1/integrations": {
       "get": {
         "description": "List the workspace's integrations (optionally filtered by kind).",
@@ -4038,6 +4480,61 @@
         "summary": "Get Integration",
         "tags": [
           "integrations"
+        ]
+      }
+    },
+    "/api/v1/mcp/providers": {
+      "get": {
+        "description": "List MCP providers for the workspace (read-only in M1b; CRUD in M2).",
+        "operationId": "list_mcp_providers_api_v1_mcp_providers_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpProvidersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Mcp Providers",
+        "tags": [
+          "mcp"
         ]
       }
     },
@@ -4484,6 +4981,61 @@
         ]
       }
     },
+    "/api/v1/runs/summary": {
+      "get": {
+        "description": "Aggregated counters for the Runs dashboard summary bar (docs/API.md \u00a73.5).\n\nCounts are workspace-scoped (joined via ``projects``). ``failed`` folds\n``FAIL`` + ``ERROR`` together to match the Runs UI's binary outcome card.\nStatic endpoint declared BEFORE the dynamic ``/runs/{run_id}`` route below\nso FastAPI's path matcher doesn't try to treat ``summary`` as a run id.",
+        "operationId": "get_runs_summary_api_v1_runs_summary_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunsSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Get Runs Summary",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/v1/runs/{run_id}": {
       "get": {
         "description": "Return a run with a step-outcome summary; 404 when cross-workspace.",
@@ -4764,6 +5316,70 @@
           }
         ],
         "summary": "Get Run Logs",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{run_id}/network": {
+      "get": {
+        "description": "Network events captured during the run (M1b stub).\n\nValidates run-in-workspace scope (404 cross-workspace) and returns an empty\npage \u2014 HAR-driven event extraction lands with the runner in M1c. Frontend\nNetwork tab already renders the empty state today, so wiring this stub now\nmeans the screen stops 404-ing in real dev.",
+        "operationId": "get_run_network_api_v1_runs__run_id__network_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunNetworkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Get Run Network",
         "tags": [
           "runs"
         ]

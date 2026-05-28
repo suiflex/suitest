@@ -40,11 +40,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Construct the FastAPI app. Pure factory — no side effects at import."""
     from suitest_api.auth.router import router as auth_router
     from suitest_api.routers.analytics import router as analytics_router
+    from suitest_api.routers.audit_logs import router as audit_logs_router
     from suitest_api.routers.auth_me import router as auth_me_router
     from suitest_api.routers.capabilities import router as capabilities_router
     from suitest_api.routers.defects import router as defects_router
     from suitest_api.routers.documents import router as documents_router
+    from suitest_api.routers.inbox import router as inbox_router
     from suitest_api.routers.integrations import router as integrations_router
+    from suitest_api.routers.mcp_providers import router as mcp_providers_router
     from suitest_api.routers.projects import router as projects_router
     from suitest_api.routers.requirements import requirements_router, traceability_router
     from suitest_api.routers.runs import router as runs_router
@@ -126,6 +129,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(integrations_router)
     app.include_router(documents_router)
     app.include_router(analytics_router)
+    app.include_router(audit_logs_router)
+    app.include_router(inbox_router)
+    app.include_router(mcp_providers_router)
 
     # Observability is wired BEFORE CORS so:
     #   1. FastAPIInstrumentor sees every non-preflight request (CORS short-circuits

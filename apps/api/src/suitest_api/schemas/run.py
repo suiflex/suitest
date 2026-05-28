@@ -100,3 +100,39 @@ class ArtifactSignedUrl(BaseModel):
     kind: ArtifactKind
     scheme: str  # "s3" | "file"
     expires_at: datetime = Field(alias="expiresAt")
+
+
+class RunsSummary(BaseModel):
+    """``GET /runs/summary`` — counters for the Runs dashboard summary bar.
+
+    Field aliases are camelCase to match the M1b frontend client.
+    ``failed`` folds ``FAIL`` + ``ERROR``; ``avg_duration_ms`` is a workspace-wide
+    weighted mean across non-null durations.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    active: int = Field(description="Runs currently in RUNNING state")
+    today: int = Field(description="Runs created since 00:00 UTC")
+    passed: int
+    failed: int = Field(description="FAIL + ERROR")
+    avg_duration_ms: int = Field(alias="avgDurationMs")
+    queued: int
+
+
+class NetworkEvent(BaseModel):
+    """One network event captured during a run (HAR-derived, M1c)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    method: str
+    path: str
+    status: int
+    duration_ms: int = Field(alias="durationMs")
+    started_at: datetime = Field(alias="startedAt")
+
+
+class RunNetworkResponse(BaseModel):
+    """``GET /runs/:id/network`` — bounded network event list (M1b stub)."""
+
+    items: list[NetworkEvent] = Field(default_factory=list)

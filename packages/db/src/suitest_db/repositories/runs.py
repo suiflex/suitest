@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from sqlalchemy import extract, func, select
 from suitest_db.models.case import TestCase
+from suitest_db.models.project import Project
 from suitest_db.models.run import Artifact, Run, RunStep
 from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.base import AsyncRepository
@@ -162,3 +163,45 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
             .order_by(Artifact.created_at.asc(), Artifact.id.asc())
         )
         return (await self.session.scalars(stmt)).all()
+
+    async def summary_for_workspace(self, workspace_id: str) -> dict[str, int]:
+        """Aggregated counters for the Runs summary bar (docs/API.md §3.5).
+
+        Returns a dict keyed by ``RunStatus`` value (e.g. ``"PASS"``) plus the
+        synthetic keys ``"avg_duration_ms"`` and ``"today"``. Single grouped
+        aggregate query for per-status counts + avg duration; second query
+        scopes the per-day count. Both queries join ``projects`` to enforce
+        the workspace scope (runs only have ``project_id``).
+        """
+        per_status_stmt = (
+            select(
+                Run.status,
+                func.count().label("n"),
+                func.avg(Run.duration_ms).label("avg_ms"),
+            )
+            .join(Project, Project.id == Run.project_id)
+            .where(Project.workspace_id == workspace_id)
+            .group_by(Run.status)
+        )
+        result = await self.session.execute(per_status_stmt)
+        counts: dict[str, int] = {}
+        total_ms = 0
+        total_n = 0
+        for row in result.all():
+            status_value = row.status.value if hasattr(row.status, "value") else str(row.status)
+            counts[status_value] = int(row.n)
+            if row.avg_ms is not None:
+                total_ms += int(float(row.avg_ms) * int(row.n))
+                total_n += int(row.n)
+        counts["avg_duration_ms"] = total_ms // total_n if total_n else 0
+
+        today_start = datetime.now(tz=UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_stmt = (
+            select(func.count())
+            .select_from(Run)
+            .join(Project, Project.id == Run.project_id)
+            .where(Project.workspace_id == workspace_id, Run.created_at >= today_start)
+        )
+        today_count = await self.session.scalar(today_stmt)
+        counts["today"] = int(today_count or 0)
+        return counts
