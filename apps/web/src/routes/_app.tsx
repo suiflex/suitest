@@ -1,8 +1,11 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
-import { TierBadge } from "@/components/tier-badge";
-import { api } from "@/lib/api-client";
+import { AiPanel } from "@/components/shell/AiPanel";
+import { Sidebar } from "@/components/shell/Sidebar";
+import { Topbar } from "@/components/shell/Topbar";
 import type { CurrentUser } from "@/hooks/use-current-user";
+import { api } from "@/lib/api-client";
+import { useCapabilities } from "@/stores/use-capabilities";
 
 /**
  * Pathless protected layout. Every authenticated route nests under this so
@@ -31,20 +34,31 @@ export const Route = createFileRoute("/_app")({
   component: AppLayout,
 });
 
+/**
+ * Three-column shell:
+ *   [Sidebar 224px] [Topbar + Outlet] [AiPanel 380px]
+ *
+ * The right rail collapses in ZERO tier (no LLM features) and on viewports
+ * narrower than 1280px (Tailwind `xl:`). M1b ships the desktop layout only;
+ * the responsive sheet/drawer fallback lands with the real agent in M3.
+ */
 function AppLayout(): React.ReactElement {
-  // M1b: brand header + outlet only. Task 5 will replace this with the real
-  // Sidebar / Topbar / AiPanel shell.
+  const tier = useCapabilities((s) => s.capabilities?.tier);
+  const cols =
+    tier === "ZERO"
+      ? "grid-cols-[224px_1fr]"
+      : "grid-cols-[224px_1fr] xl:grid-cols-[224px_1fr_380px]";
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
-        <h1 className="font-mono text-lg font-semibold tracking-tight">
-          suitest
-        </h1>
-        <TierBadge />
-      </header>
-      <main className="flex-1 px-6 py-8">
-        <Outlet />
-      </main>
+    <div className={`grid ${cols} min-h-screen`} data-testid="app-shell">
+      <Sidebar />
+      <div className="flex min-w-0 flex-col">
+        <Topbar />
+        <main className="flex-1 overflow-y-auto px-6 py-6">
+          <Outlet />
+        </main>
+      </div>
+      {tier !== "ZERO" ? <AiPanel /> : null}
     </div>
   );
 }
