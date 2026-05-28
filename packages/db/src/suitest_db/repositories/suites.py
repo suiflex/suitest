@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from suitest_db.models.case import TestCase
 from suitest_db.models.project import Suite
+from suitest_db.models.requirement import RequirementLink
 from suitest_db.repositories.base import AsyncRepository
 
 if TYPE_CHECKING:
@@ -47,6 +48,25 @@ class SuiteRepo(AsyncRepository[Suite, SuiteCreate, SuiteUpdate]):
             return {}
         stmt = (
             select(TestCase.suite_id, func.count(TestCase.id))
+            .where(TestCase.suite_id.in_(suite_ids), TestCase.deleted_at.is_(None))
+            .group_by(TestCase.suite_id)
+        )
+        counts: dict[str, int] = {}
+        for suite_id, count in (await self.session.execute(stmt)).all():
+            counts[suite_id] = count
+        return counts
+
+    async def covered_case_counts(self, suite_ids: Sequence[str]) -> dict[str, int]:
+        """Map suite id → count of its cases linked to at least one requirement.
+
+        A case is "covered" when a ``RequirementLink`` references it; we count
+        distinct linked cases per suite (one grouped query).
+        """
+        if not suite_ids:
+            return {}
+        stmt = (
+            select(TestCase.suite_id, func.count(func.distinct(TestCase.id)))
+            .join(RequirementLink, RequirementLink.case_id == TestCase.id)
             .where(TestCase.suite_id.in_(suite_ids), TestCase.deleted_at.is_(None))
             .group_by(TestCase.suite_id)
         )

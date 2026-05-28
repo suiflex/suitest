@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import extract, func, select
 from suitest_db.models.case import TestCase
 from suitest_db.models.run import Artifact, Run, RunStep
 from suitest_db.repositories.base import AsyncRepository
@@ -95,6 +95,34 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
             1 for s in steps if s.outcome in (StepOutcome.FAIL, StepOutcome.ERROR)
         )
         return run
+
+    async def list_since(self, project_id: str, since: datetime) -> Sequence[Run]:
+        """All runs for a project created at/after ``since`` (analytics windows)."""
+        stmt = (
+            select(Run)
+            .where(Run.project_id == project_id, Run.created_at >= since)
+            .order_by(Run.created_at.asc())
+        )
+        return (await self.session.scalars(stmt)).all()
+
+    async def heatmap_cells(
+        self, project_id: str, since: datetime
+    ) -> Sequence[tuple[datetime, int, int]]:
+        """Run counts grouped by ``(day, hour)`` since ``since`` (docs/API.md §3.8).
+
+        Returns rows of ``(day_truncated, hour_of_day, count)``; the day is the
+        ``date_trunc('day', created_at)`` timestamp and hour is 0-23.
+        """
+        day = func.date_trunc("day", Run.created_at).label("day")
+        hour = extract("hour", Run.created_at).label("hour")
+        stmt = (
+            select(day, hour, func.count(Run.id))
+            .where(Run.project_id == project_id, Run.created_at >= since)
+            .group_by(day, hour)
+            .order_by(day.asc(), hour.asc())
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(d, int(h), int(count)) for d, h, count in rows]
 
     async def get_steps(self, run_id: str) -> Sequence[RunStep]:
         stmt = select(RunStep).where(RunStep.run_id == run_id).order_by(RunStep.step_order.asc())

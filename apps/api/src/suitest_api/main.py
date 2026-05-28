@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Construct the FastAPI app. Pure factory — no side effects at import."""
     from suitest_api.auth.router import router as auth_router
+    from suitest_api.routers.analytics import router as analytics_router
     from suitest_api.routers.auth_me import router as auth_me_router
     from suitest_api.routers.capabilities import router as capabilities_router
     from suitest_api.routers.defects import router as defects_router
@@ -87,6 +88,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(defects_router)
     app.include_router(integrations_router)
     app.include_router(documents_router)
+    app.include_router(analytics_router)
     return app
 
 

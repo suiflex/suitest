@@ -7,10 +7,12 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from suitest_db.models.audit import AuditLog
+from suitest_db.models.case import TestCase
 from suitest_db.models.defect import Defect, ExternalIssue
 from suitest_db.models.requirement import Requirement
+from suitest_db.models.run import Run
 from suitest_db.repositories.base import AsyncRepository
 from suitest_shared.domain.enums import DefectStatus, DiagnosisKind, Severity
 
@@ -92,6 +94,33 @@ class DefectRepo(AsyncRepository[Defect, DefectCreate, DefectUpdate]):
             next_cursor = None
         return page, next_cursor
 
+    async def count_open(self, workspace_id: str, *, severity: Severity | None = None) -> int:
+        """Count OPEN defects in a workspace, optionally filtered by severity."""
+        stmt = (
+            select(func.count())
+            .select_from(Defect)
+            .where(Defect.workspace_id == workspace_id, Defect.status == DefectStatus.OPEN)
+        )
+        if severity is not None:
+            stmt = stmt.where(Defect.severity == severity)
+        result = await self.session.scalar(stmt)
+        return result or 0
+
+    async def list_open_by_severity(
+        self, workspace_id: str, severity: Severity
+    ) -> Sequence[Defect]:
+        """OPEN defects of a given severity (readiness blocker list)."""
+        stmt = (
+            select(Defect)
+            .where(
+                Defect.workspace_id == workspace_id,
+                Defect.status == DefectStatus.OPEN,
+                Defect.severity == severity,
+            )
+            .order_by(Defect.public_id.asc())
+        )
+        return (await self.session.scalars(stmt)).all()
+
     async def resolve_link_public_ids(
         self, defect: Defect
     ) -> tuple[str | None, str | None, str | None]:
@@ -100,10 +129,6 @@ class DefectRepo(AsyncRepository[Defect, DefectCreate, DefectUpdate]):
         Each is ``None`` when the corresponding FK is unset. One scalar query per
         present link — at most three, and only for set FKs.
         """
-        from suitest_db.models.case import TestCase
-        from suitest_db.models.requirement import Requirement
-        from suitest_db.models.run import Run
-
         case_public: str | None = None
         run_public: str | None = None
         req_public: str | None = None
