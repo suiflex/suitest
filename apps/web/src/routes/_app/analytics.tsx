@@ -31,7 +31,7 @@ function GaugesRow(): React.ReactElement {
 
   return (
     <section
-      className="grid grid-cols-3 gap-4 rounded-md border border-border bg-bg-elev-1 p-4"
+      className="grid grid-cols-3 gap-4 rounded-md border border-border bg-bg-elev-1 p-[14px]"
       data-testid="analytics-gauges"
     >
       <GaugeBlock title="Release readiness" value={readiness.score} sub="Deterministic" />
@@ -65,7 +65,7 @@ function TrendCard(): React.ReactElement {
   const { data } = useAnalyticsPassRate("14d");
   return (
     <section
-      className="rounded-md border border-border bg-bg-elev-1 p-4"
+      className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
       data-testid="analytics-trend"
     >
       <header className="mb-3">
@@ -81,7 +81,7 @@ function FlakyCard(): React.ReactElement {
   const { data } = useAnalyticsFlaky(5);
   return (
     <section
-      className="rounded-md border border-border bg-bg-elev-1 p-4"
+      className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
       data-testid="analytics-flaky"
     >
       <header className="mb-3 flex items-center justify-between">
@@ -115,7 +115,7 @@ function HeatmapCard(): React.ReactElement {
   const { data } = useAnalyticsHeatmap(14);
   return (
     <section
-      className="rounded-md border border-border bg-bg-elev-1 p-4"
+      className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
       data-testid="analytics-heatmap-card"
     >
       <header className="mb-3">

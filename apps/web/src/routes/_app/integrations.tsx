@@ -79,7 +79,7 @@ function IntegrationCard({ item }: { item: Integration }): React.ReactElement {
     <article
       data-testid="integration-card"
       data-kind={item.kind}
-      className="flex flex-col gap-2 rounded-md border border-border bg-bg-elev-1 p-4"
+      className="flex flex-col gap-2 rounded-md border border-border bg-bg-elev-1 p-[14px]"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -117,7 +117,7 @@ function McpProviderCard({ provider }: { provider: McpProvider }): React.ReactEl
     <article
       data-testid="mcp-card"
       data-provider-id={provider.id}
-      className="flex flex-col gap-2 rounded-md border border-border bg-bg-elev-1 p-4"
+      className="flex flex-col gap-2 rounded-md border border-border bg-bg-elev-1 p-[14px]"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

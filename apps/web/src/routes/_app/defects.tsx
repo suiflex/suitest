@@ -57,7 +57,7 @@ function DefectCard({ defect }: { defect: Defect }): React.ReactElement {
     <article
       data-testid="defect-card"
       data-defect-id={defect.public_id}
-      className="flex flex-col gap-3 rounded-md border border-border bg-bg-elev-1 p-4"
+      className="flex flex-col gap-3 rounded-md border border-border bg-bg-elev-1 p-[14px]"
     >
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">

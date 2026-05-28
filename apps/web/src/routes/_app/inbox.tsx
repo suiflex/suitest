@@ -42,7 +42,7 @@ function NotificationCard({ item }: { item: InboxItem }): React.ReactElement {
       data-testid="inbox-card"
       data-kind={item.kind}
       data-read={item.read ? "true" : "false"}
-      className="flex items-start gap-3 rounded-md border border-border bg-bg-elev-1 p-4"
+      className="flex items-start gap-3 rounded-md border border-border bg-bg-elev-1 p-[14px]"
     >
       <span
         className={`mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-bg-elev-2 ${meta.tone}`}

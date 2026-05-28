@@ -78,7 +78,7 @@ function SummaryBar(): React.ReactElement {
   const { data } = useRunsSummary();
   return (
     <section
-      className="grid grid-cols-6 gap-3 rounded-md border border-border bg-bg-elev-1 p-4"
+      className="grid grid-cols-6 gap-3 rounded-md border border-border bg-bg-elev-1 p-[14px]"
       data-testid="runs-summary"
     >
       <Counter label="Active now" value={data.activeNow.toString()} accent />
@@ -218,7 +218,7 @@ function LogsPanel({ runId }: { runId: string }): React.ReactElement {
   return (
     <pre
       data-testid="run-logs"
-      className="max-h-[480px] overflow-auto rounded-md bg-[#060606] p-[14px] font-mono text-[11.5px] leading-relaxed text-fg-2"
+      className="max-h-[480px] overflow-auto rounded-md bg-[#060606] p-[14px] font-mono text-[11.5px] leading-relaxed text-fg-1"
     >
       {lines.map((line, i) => (
         <div key={i}>{line}</div>
@@ -490,7 +490,7 @@ function RunsBody(): React.ReactElement {
           />
         </aside>
         <section
-          className="rounded-md border border-border bg-bg-elev-1 p-4"
+          className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
           data-testid="runs-right-pane"
         >
           <RunDetailPanel runId={selected} />

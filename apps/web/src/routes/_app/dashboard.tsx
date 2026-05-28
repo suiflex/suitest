@@ -69,7 +69,7 @@ function PassRateCard(): React.ReactElement {
   const { data } = useDashboardPassRate("11d");
   return (
     <section
-      className="rounded-md border border-border bg-bg-elev-1 p-4"
+      className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
       data-testid="dashboard-pass-rate"
     >
       <header className="mb-3 flex items-center justify-between">
@@ -89,7 +89,7 @@ function CoverageCard(): React.ReactElement {
   const suites = data.bySuite ?? [];
   return (
     <section
-      className="rounded-md border border-border bg-bg-elev-1 p-4"
+      className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
       data-testid="dashboard-coverage"
     >
       <header className="mb-3 flex items-center justify-between">
@@ -152,7 +152,7 @@ function RecentRunsCard(): React.ReactElement {
 
   return (
     <section
-      className="rounded-md border border-border bg-bg-elev-1 p-4"
+      className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
       data-testid="dashboard-recent-runs"
     >
       <header className="mb-3 flex items-center justify-between">
@@ -202,7 +202,7 @@ function AgentActivityCard(): React.ReactElement {
   const items = data.items ?? [];
   return (
     <section
-      className="rounded-md border border-border bg-bg-elev-1 p-4"
+      className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
       data-testid="dashboard-agent-activity"
     >
       <header className="mb-3 flex items-center justify-between">
@@ -237,7 +237,7 @@ function ReadinessCard(): React.ReactElement {
   const blockers = data.blockers ?? [];
   return (
     <section
-      className="rounded-md border border-border bg-bg-elev-1 p-4"
+      className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
       data-testid="dashboard-readiness"
     >
       <header className="mb-3 flex items-center justify-between">

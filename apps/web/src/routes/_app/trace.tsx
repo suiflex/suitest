@@ -30,7 +30,7 @@ function CalloutBar({ matrix }: { matrix: Matrix }): React.ReactElement {
 
   return (
     <div
-      className="flex items-center justify-between gap-3 rounded-md border border-border bg-bg-elev-1 p-4"
+      className="flex items-center justify-between gap-3 rounded-md border border-border bg-bg-elev-1 p-[14px]"
       data-testid="trace-callout"
     >
       <div className="flex items-center gap-3">

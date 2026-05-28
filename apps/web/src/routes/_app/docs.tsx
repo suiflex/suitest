@@ -70,7 +70,7 @@ function DocCard({ doc }: { doc: Doc }): React.ReactElement {
     <article
       data-testid="doc-card"
       data-doc-id={doc.id}
-      className="flex flex-col gap-2 rounded-md border border-border bg-bg-elev-1 p-4"
+      className="flex flex-col gap-2 rounded-md border border-border bg-bg-elev-1 p-[14px]"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
