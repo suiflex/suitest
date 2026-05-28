@@ -1,0 +1,11 @@
+{
+  "score": 0.84,
+  "blockers": [
+    { "kind": "FAILING_GATING_SUITE", "label": "Smoke @ main is red", "severity": "HIGH" }
+  ],
+  "checks": [
+    { "name": "Gating suite green", "status": "FAIL" },
+    { "name": "Critical defects closed", "status": "PASS" },
+    { "name": "Coverage > 80%", "status": "PASS" }
+  ]
+}

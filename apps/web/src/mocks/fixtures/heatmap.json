@@ -1,0 +1,8 @@
+{
+  "cells": [
+    { "day": "2026-05-21", "hour": 9, "passRate": 0.94, "runs": 12 },
+    { "day": "2026-05-21", "hour": 14, "passRate": 0.88, "runs": 18 },
+    { "day": "2026-05-22", "hour": 10, "passRate": 0.91, "runs": 14 },
+    { "day": "2026-05-22", "hour": 16, "passRate": 0.96, "runs": 21 }
+  ]
+}

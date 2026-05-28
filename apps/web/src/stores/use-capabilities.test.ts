@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { apiClient } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { useCapabilities } from "@/stores/use-capabilities";
 
 describe("useCapabilities", () => {
@@ -22,7 +22,7 @@ describe("useCapabilities", () => {
       mcp_providers: [],
       version: "0.1.0",
     };
-    vi.spyOn(apiClient, "get").mockResolvedValueOnce({ data: payload } as never);
+    vi.spyOn(api, "get").mockResolvedValueOnce({ data: payload } as never);
 
     await useCapabilities.getState().fetch();
 
@@ -34,7 +34,7 @@ describe("useCapabilities", () => {
   });
 
   it("records error message on failure", async () => {
-    vi.spyOn(apiClient, "get").mockRejectedValueOnce(new Error("network down"));
+    vi.spyOn(api, "get").mockRejectedValueOnce(new Error("network down"));
 
     await useCapabilities.getState().fetch();
 

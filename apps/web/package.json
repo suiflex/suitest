@@ -11,7 +11,8 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "api:types": "openapi-typescript ../../packages/shared/openapi.json -o src/lib/api-types.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

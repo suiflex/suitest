@@ -1,0 +1,12 @@
+{
+  "bySuite": [
+    { "suiteId": "ste_smoke", "name": "Smoke", "total": 50, "covered": 48, "coverage": 0.96 },
+    { "suiteId": "ste_regression", "name": "Regression", "total": 320, "covered": 280, "coverage": 0.875 },
+    { "suiteId": "ste_e2e", "name": "E2E", "total": 88, "covered": 76, "coverage": 0.864 }
+  ],
+  "byRequirement": [
+    { "requirementId": "REQ-001", "total": 8, "covered": 7 },
+    { "requirementId": "REQ-002", "total": 12, "covered": 10 },
+    { "requirementId": "REQ-003", "total": 5, "covered": 5 }
+  ]
+}

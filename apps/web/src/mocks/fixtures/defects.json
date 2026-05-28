@@ -1,0 +1,31 @@
+{
+  "items": [
+    {
+      "id": "def_01",
+      "public_id": "DEF-201",
+      "workspace_id": "ws_demo",
+      "title": "Checkout returns 500 on expired token refresh",
+      "severity": "HIGH",
+      "status": "OPEN",
+      "component": "checkout",
+      "assignee_id": null,
+      "agent_diagnosis_kind": "REGRESSION",
+      "created_at": "2026-05-25T11:00:00Z",
+      "updated_at": "2026-05-27T09:00:00Z"
+    },
+    {
+      "id": "def_02",
+      "public_id": "DEF-202",
+      "workspace_id": "ws_demo",
+      "title": "Search pagination flakes under load",
+      "severity": "MED",
+      "status": "TRIAGED",
+      "component": "search",
+      "assignee_id": null,
+      "agent_diagnosis_kind": "FLAKE",
+      "created_at": "2026-05-24T11:00:00Z",
+      "updated_at": "2026-05-26T09:00:00Z"
+    }
+  ],
+  "next_cursor": null
+}

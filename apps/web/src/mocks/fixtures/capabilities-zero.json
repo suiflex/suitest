@@ -1,0 +1,35 @@
+{
+  "tier": "ZERO",
+  "llm": {
+    "provider": null,
+    "model": null,
+    "base_url": null,
+    "is_test_provider": false
+  },
+  "embeddings": {
+    "enabled": false,
+    "backend": "none",
+    "model": null,
+    "dim": null
+  },
+  "features": {
+    "manual_tcm": true,
+    "deterministic_runs": true,
+    "ai_generation": false,
+    "ai_diagnosis": false,
+    "ai_translation": false,
+    "ai_conversation": false,
+    "ai_panel": false,
+    "autonomy_assist": false,
+    "autonomy_semi_auto": false,
+    "autonomy_auto": false,
+    "embeddings_semantic": false
+  },
+  "autonomy": {
+    "available": ["manual"],
+    "default": "manual"
+  },
+  "mcpProviders": [],
+  "version": "0.1.0",
+  "build": null
+}

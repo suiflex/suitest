@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { apiClient } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 
 export type Tier = "ZERO" | "LOCAL" | "CLOUD";
 export type AutonomyLevel = "manual" | "assist" | "semi_auto" | "auto";
@@ -44,7 +44,7 @@ export const useCapabilities = create<CapabilitiesState>((set) => ({
   fetch: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await apiClient.get<Capabilities>("/capabilities");
+      const response = await api.get<Capabilities>("/capabilities");
       set({ data: response.data, isLoading: false });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load capabilities";

@@ -1,0 +1,27 @@
+{
+  "items": [
+    {
+      "id": "case_01",
+      "public_id": "TC-101",
+      "title": "Checkout flow rejects expired cards",
+      "status": "ACTIVE",
+      "source": "MANUAL",
+      "suite_id": "ste_smoke",
+      "owner_id": null,
+      "created_at": "2026-05-01T08:00:00Z",
+      "updated_at": "2026-05-25T14:30:00Z"
+    },
+    {
+      "id": "case_02",
+      "public_id": "TC-204",
+      "title": "Search returns paginated results",
+      "status": "ACTIVE",
+      "source": "AI",
+      "suite_id": "ste_regression",
+      "owner_id": null,
+      "created_at": "2026-05-02T08:00:00Z",
+      "updated_at": "2026-05-26T09:15:00Z"
+    }
+  ],
+  "next_cursor": null
+}

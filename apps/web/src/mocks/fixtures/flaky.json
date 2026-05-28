@@ -1,0 +1,7 @@
+{
+  "items": [
+    { "testCaseId": "TC-101", "title": "Checkout flow rejects expired cards", "flakeRate": 0.18, "lastFailedAt": "2026-05-27T10:14:00Z" },
+    { "testCaseId": "TC-204", "title": "Search returns paginated results", "flakeRate": 0.12, "lastFailedAt": "2026-05-26T18:02:00Z" },
+    { "testCaseId": "TC-318", "title": "Login redirects after SSO callback", "flakeRate": 0.09, "lastFailedAt": "2026-05-25T22:31:00Z" }
+  ]
+}

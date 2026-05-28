@@ -1,0 +1,43 @@
+{
+  "tier": "CLOUD",
+  "llm": {
+    "provider": "anthropic",
+    "model": "claude-opus-4-7",
+    "base_url": null,
+    "is_test_provider": false
+  },
+  "embeddings": {
+    "enabled": true,
+    "backend": "openai",
+    "model": "text-embedding-3-small",
+    "dim": 1536
+  },
+  "features": {
+    "manual_tcm": true,
+    "deterministic_runs": true,
+    "ai_generation": true,
+    "ai_diagnosis": true,
+    "ai_translation": true,
+    "ai_conversation": true,
+    "ai_panel": true,
+    "autonomy_assist": true,
+    "autonomy_semi_auto": true,
+    "autonomy_auto": true,
+    "embeddings_semantic": true
+  },
+  "autonomy": {
+    "available": ["manual", "assist", "semi_auto", "auto"],
+    "default": "assist"
+  },
+  "mcpProviders": [
+    {
+      "id": "playwright-mcp",
+      "name": "Playwright MCP",
+      "kind": "FE_WEB",
+      "health": "healthy",
+      "is_default": true
+    }
+  ],
+  "version": "0.1.0",
+  "build": "dev"
+}

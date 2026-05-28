@@ -1,0 +1,27 @@
+{
+  "items": [
+    {
+      "id": "run_01",
+      "public_id": "RUN-1001",
+      "test_case_public_id": "TC-101",
+      "suite_id": "ste_smoke",
+      "status": "PASS",
+      "trigger": "manual",
+      "started_at": "2026-05-27T10:00:00Z",
+      "completed_at": "2026-05-27T10:01:14Z",
+      "duration_ms": 74000
+    },
+    {
+      "id": "run_02",
+      "public_id": "RUN-1002",
+      "test_case_public_id": "TC-204",
+      "suite_id": "ste_regression",
+      "status": "FAIL",
+      "trigger": "ci",
+      "started_at": "2026-05-27T11:12:00Z",
+      "completed_at": "2026-05-27T11:13:40Z",
+      "duration_ms": 100000
+    }
+  ],
+  "next_cursor": null
+}

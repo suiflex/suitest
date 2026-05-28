@@ -1,0 +1,22 @@
+{
+  "rows": [
+    {
+      "requirementId": "REQ-001",
+      "title": "Checkout shall reject expired cards",
+      "cases": [
+        { "publicId": "TC-101", "status": "ACTIVE", "lastRunStatus": "PASS" }
+      ],
+      "defects": []
+    },
+    {
+      "requirementId": "REQ-002",
+      "title": "Search shall paginate large result sets",
+      "cases": [
+        { "publicId": "TC-204", "status": "ACTIVE", "lastRunStatus": "FAIL" }
+      ],
+      "defects": [
+        { "publicId": "DEF-202", "severity": "MED", "status": "TRIAGED" }
+      ]
+    }
+  ]
+}
