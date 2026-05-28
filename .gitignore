@@ -62,6 +62,10 @@ apps/web/coverage/
 # TanStack Router plugin tmp / build logs
 apps/web/.tanstack/
 apps/web/tailwindcss-*.log
+# Playwright E2E outputs (Task 13)
+apps/web/playwright-report/
+apps/web/test-results/
+apps/web/blob-report/
 apps/api/.coverage
 apps/runner/.coverage
 
