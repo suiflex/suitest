@@ -63,11 +63,18 @@ async def test_get_with_summary(session: AsyncSession) -> None:
     await make_run_step(session, run=run, case=case, step_order=3, outcome=StepOutcome.FAIL)
     await make_run_step(session, run=run, case=case, step_order=4, outcome=StepOutcome.ERROR)
 
-    summary = await repo.get_with_summary(run.id)
-    assert summary is not None
+    result = await repo.get_with_summary(run.id)
+    assert result is not None
+    fetched_run, summary = result
+    assert fetched_run.id == run.id
     assert summary.total_steps == 4
     assert summary.passed_steps == 2
     assert summary.failed_steps == 2
+    # Read path must not mutate the tracked ORM instance — denorm counters on
+    # ``Run`` stay at their stored values (0 here) until the runner flushes.
+    assert fetched_run.total_steps == 0
+    assert fetched_run.passed_steps == 0
+    assert fetched_run.failed_steps == 0
 
 
 @pytest.mark.asyncio

@@ -11,6 +11,7 @@ from suitest_api.services import run_service
 from suitest_api.services.run_service import RunArtifactSignedUrlService, RunService
 from suitest_db.models.project import Project
 from suitest_db.models.run import Artifact, Run
+from suitest_db.repositories.runs import RunSummary
 from suitest_shared.domain.enums import ArtifactKind, Role, RunStatus, RunTrigger, Tier
 
 _NOW = datetime(2026, 5, 28, tzinfo=UTC)
@@ -78,7 +79,10 @@ async def test_run_scopes_by_workspace() -> None:
 @pytest.mark.asyncio
 async def test_run_get_404_when_cross_workspace() -> None:
     repo = AsyncMock()
-    repo.get_with_summary.return_value = _run()
+    repo.get_with_summary.return_value = (
+        _run(),
+        RunSummary(total_steps=3, passed_steps=3, failed_steps=0, duration_ms=None),
+    )
     project_repo = AsyncMock()
     project_repo.get_by_id.return_value = _project("ws_OTHER")
     svc = RunService(_ctx("ws_1"), repo, project_repo)

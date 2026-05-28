@@ -42,6 +42,20 @@ class RunUpdate(BaseModel):
     failed_steps: int | None = None
 
 
+class RunSummary(BaseModel):
+    """Step-outcome counters derived from live ``run_steps`` rows.
+
+    Returned alongside the ``Run`` row by :meth:`RunRepo.get_with_summary` so
+    the read path stays mutation-free — the denormalised counters on the ORM
+    instance are left untouched and only the recomputed values flow out.
+    """
+
+    total_steps: int
+    passed_steps: int
+    failed_steps: int
+    duration_ms: int | None = None
+
+
 class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
     model = Run
 
@@ -93,12 +107,16 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
             next_cursor = None
         return page, next_cursor
 
-    async def get_with_summary(self, run_id: str) -> Run | None:
-        """Return a run with ``total/passed/failed_steps`` refreshed from RunSteps.
+    async def get_with_summary(self, run_id: str) -> tuple[Run, RunSummary] | None:
+        """Return ``(run, summary)`` with counters derived from live RunSteps.
 
         The denormalised counters on ``Run`` are authoritative once a run completes,
         but for in-flight runs we recompute from the live ``run_steps`` rows so the
-        summary is always consistent with the actual step outcomes.
+        summary is always consistent with the actual step outcomes. To avoid
+        mutating tracked ORM state on a read path (which is fragile — any flush
+        in the request lifecycle would persist the recompute), counters are
+        returned in a separate :class:`RunSummary` dataclass and the ``Run``
+        instance is left untouched.
         """
         run = await self.get_by_id(run_id)
         if run is None:
@@ -106,12 +124,15 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
         steps = list(
             (await self.session.scalars(select(RunStep).where(RunStep.run_id == run_id))).all()
         )
-        run.total_steps = len(steps)
-        run.passed_steps = sum(1 for s in steps if s.outcome == StepOutcome.PASS)
-        run.failed_steps = sum(
-            1 for s in steps if s.outcome in (StepOutcome.FAIL, StepOutcome.ERROR)
+        summary = RunSummary(
+            total_steps=len(steps),
+            passed_steps=sum(1 for s in steps if s.outcome == StepOutcome.PASS),
+            failed_steps=sum(
+                1 for s in steps if s.outcome in (StepOutcome.FAIL, StepOutcome.ERROR)
+            ),
+            duration_ms=run.duration_ms,
         )
-        return run
+        return run, summary
 
     async def list_since(self, project_id: str, since: datetime) -> Sequence[Run]:
         """All runs for a project created at/after ``since`` (analytics windows)."""

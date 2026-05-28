@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 from dataclasses import dataclass
+from datetime import date, datetime
+from enum import Enum
 
 from sqlalchemy import event
 from sqlalchemy.orm import Session
@@ -67,13 +69,33 @@ AUDITED_TABLES: frozenset[str] = frozenset(
 )
 
 
+def _serialize_for_diff(value: object) -> object:
+    """JSON-safe representation for a single audit diff value.
+
+    ``metadata_json`` lands in a ``JSONB`` column via psycopg's default encoder,
+    which can't handle ``datetime``/``date`` or arbitrary objects. We normalise
+    here so the listener doesn't blow up the surrounding transaction the moment
+    a tracked attribute happens to be a timestamp (most rows have at least one).
+    StrEnum / IntEnum values flow through their ``.value`` so the JSON output is
+    the wire-friendly string the rest of the API already uses.
+    """
+    if value is None or isinstance(value, str | int | float | bool):
+        return value
+    if isinstance(value, datetime | date):
+        return value.isoformat()
+    if isinstance(value, Enum):
+        return value.value
+    return str(value)  # last-resort stringification for unexpected types
+
+
 def _diff(target: object, mapper_attrs: list[str]) -> dict[str, list[object]]:
     """Return ``{attr: [old, new]}`` for every column attribute that changed.
 
     Uses :func:`sqlalchemy.orm.attributes.get_history`; an attribute counts as
     changed when its history reports a non-empty ``deleted`` (old) or ``added``
-    (new) bucket. ``old``/``new`` are unwrapped from their single-element lists so
-    the diff serialises cleanly to JSON.
+    (new) bucket. ``old``/``new`` are unwrapped from their single-element lists
+    and passed through :func:`_serialize_for_diff` so the resulting dict serialises
+    cleanly into the ``metadata_json`` ``JSONB`` column.
     """
     changes: dict[str, list[object]] = {}
     for attr in mapper_attrs:
@@ -82,7 +104,7 @@ def _diff(target: object, mapper_attrs: list[str]) -> dict[str, list[object]]:
             continue
         old = history.deleted[0] if history.deleted else None
         new = history.added[0] if history.added else None
-        changes[attr] = [old, new]
+        changes[attr] = [_serialize_for_diff(old), _serialize_for_diff(new)]
     return changes
 
 

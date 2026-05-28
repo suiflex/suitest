@@ -50,10 +50,22 @@ class RunService:
 
     @require_tier(TierFlag.ANY)
     async def get_by_id(self, run_id: str) -> RunOut | None:
-        row = await self._repo.get_with_summary(run_id)
-        if row is None or not await self._project_in_scope(row.project_id):
+        pair = await self._repo.get_with_summary(run_id)
+        if pair is None:
             return None
-        return RunOut.model_validate(row)
+        run, summary = pair
+        if not await self._project_in_scope(run.project_id):
+            return None
+        # RunOut consumes the recomputed counters from the summary dataclass
+        # rather than the (now untouched) ORM denorm columns so in-flight runs
+        # still reflect the live step outcomes.
+        return RunOut.model_validate(run).model_copy(
+            update={
+                "total_steps": summary.total_steps,
+                "passed_steps": summary.passed_steps,
+                "failed_steps": summary.failed_steps,
+            },
+        )
 
 
 def _presign(object_url: str, *, expires_in: int) -> str:

@@ -103,8 +103,11 @@ async def get_run(
 ) -> RunDetail:
     """Return a run with a step-outcome summary; 404 when cross-workspace."""
     repo = RunRepo(session)
-    run = await repo.get_with_summary(run_id)
-    if run is None or not await _project_in_scope(session, run.project_id, ctx.workspace_id):
+    pair = await repo.get_with_summary(run_id)
+    if pair is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
+    run, summary = pair
+    if not await _project_in_scope(session, run.project_id, ctx.workspace_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
     return RunDetail(
         id=run.id,
@@ -123,10 +126,10 @@ async def get_run(
         created_at=run.created_at,
         updated_at=run.updated_at,
         summary=RunSummary(
-            total_steps=run.total_steps,
-            passed_steps=run.passed_steps,
-            failed_steps=run.failed_steps,
-            duration_ms=run.duration_ms,
+            total_steps=summary.total_steps,
+            passed_steps=summary.passed_steps,
+            failed_steps=summary.failed_steps,
+            duration_ms=summary.duration_ms,
         ),
     )
 

@@ -11,12 +11,14 @@ never leaks context into the next.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
 from factories import (
     make_defect,
     make_project,
+    make_run,
     make_suite,
     make_test_case,
     make_user,
@@ -118,6 +120,36 @@ async def test_audit_listener_update_captures_changes(
     rows = list(result)
     assert len(rows) == 1
     assert rows[0].metadata_json == {"changes": {"status": ["OPEN", "IN_PROGRESS"]}}
+
+
+@pytest.mark.asyncio
+async def test_audit_diff_serializes_datetime(
+    session: AsyncSession, workspace: Workspace, bound_ctx: AuditContext
+) -> None:
+    """Updating a datetime column must produce ISO strings, not raw datetimes.
+
+    ``metadata_json`` lands in a ``JSONB`` column — psycopg's default encoder
+    can't serialise ``datetime`` instances, so without :func:`_serialize_for_diff`
+    the surrounding flush would blow up. We assert the recorded diff stores the
+    ISO 8601 string the audit reader can render directly.
+    """
+    project = await make_project(session, workspace=workspace)
+    run = await make_run(session, project=project)
+    # Drop the insert audit row so we assert only on the update below.
+    await session.flush()
+
+    started_at = datetime(2026, 5, 28, 12, 0, 0, tzinfo=UTC)
+    run.started_at = started_at
+    await session.flush()
+
+    result = await session.scalars(
+        select(AuditLog).where(AuditLog.resource_id == run.public_id, AuditLog.action == "update")
+    )
+    rows = list(result)
+    assert len(rows) == 1
+    assert rows[0].metadata_json is not None
+    changes = rows[0].metadata_json["changes"]
+    assert changes["started_at"] == [None, started_at.isoformat()]
 
 
 @pytest.mark.asyncio
