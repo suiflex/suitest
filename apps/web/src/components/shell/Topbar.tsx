@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import { TierBadge } from "@/components/tier-badge";
+import { TierBadge } from "@/components/shared/TierBadge";
 import { Button } from "@/components/ui/button";
 import {
   CommandDialog,
