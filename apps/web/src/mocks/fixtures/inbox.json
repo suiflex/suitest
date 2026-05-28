@@ -1,0 +1,32 @@
+{
+  "unread": 2,
+  "items": [
+    {
+      "id": "nf_01",
+      "kind": "GATING_FAIL",
+      "title": "Gating suite failed on main",
+      "body": "Smoke @ main reported 2 failing steps. Last run RUN-1002.",
+      "ref": "RUN-1002",
+      "createdAt": "2026-05-27T11:13:40Z",
+      "read": false
+    },
+    {
+      "id": "nf_02",
+      "kind": "FLAKY_PROMOTION",
+      "title": "Test promoted to flaky",
+      "body": "TC-204 outcome variance crossed 20% over the last 30 runs.",
+      "ref": "TC-204",
+      "createdAt": "2026-05-26T10:00:00Z",
+      "read": false
+    },
+    {
+      "id": "nf_03",
+      "kind": "AGENT_DEFECT_FILED",
+      "title": "Agent filed a defect",
+      "body": "DEF-201 auto-filed for RUN-1002 with REGRESSION confidence High.",
+      "ref": "DEF-201",
+      "createdAt": "2026-05-26T09:00:00Z",
+      "read": true
+    }
+  ]
+}

@@ -7,6 +7,7 @@ import defects from "./fixtures/defects.json";
 import docs from "./fixtures/docs.json";
 import flaky from "./fixtures/flaky.json";
 import heatmap from "./fixtures/heatmap.json";
+import inbox from "./fixtures/inbox.json";
 import integrations from "./fixtures/integrations.json";
 import kpis from "./fixtures/kpis.json";
 import passRate from "./fixtures/pass-rate.json";
@@ -109,8 +110,9 @@ export const handlers: HttpHandler[] = [
   // ----------------------------------------------------------------------
   // /audit-logs — M1a has the table but no public endpoint.
   http.get(`${BASE}/audit-logs`, () => HttpResponse.json({ items: [] })),
-  // /inbox — M1b feature; backend lands in M2.
-  http.get(`${BASE}/inbox`, () => HttpResponse.json({ items: [] })),
+  // /inbox — M1b feature; backend lands in M2. Seeded from a static fixture so
+  // unit tests can override per-test via `server.use(...)` for empty/error.
+  http.get(`${BASE}/inbox`, () => HttpResponse.json(inbox)),
   // /runs/summary — derived view; backend ships later.
   http.get(`${BASE}/runs/summary`, () =>
     HttpResponse.json({
