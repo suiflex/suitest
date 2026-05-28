@@ -6,8 +6,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import select
-from suitest_db.models.document import Document
+from sqlalchemy import func, select
+from suitest_db.models.document import Document, DocumentChunk
 from suitest_db.repositories.base import AsyncRepository
 from suitest_shared.domain.enums import DocumentKind
 
@@ -63,3 +63,17 @@ class DocumentRepo(AsyncRepository[Document, DocumentCreate, DocumentUpdate]):
             page = rows
             next_cursor = None
         return page, next_cursor
+
+    async def chunk_counts(self, document_ids: Sequence[str]) -> dict[str, int]:
+        """Map each document id → its number of chunks (one grouped query)."""
+        if not document_ids:
+            return {}
+        stmt = (
+            select(DocumentChunk.document_id, func.count(DocumentChunk.id))
+            .where(DocumentChunk.document_id.in_(document_ids))
+            .group_by(DocumentChunk.document_id)
+        )
+        counts: dict[str, int] = {}
+        for doc_id, count in (await self.session.execute(stmt)).all():
+            counts[doc_id] = count
+        return counts
