@@ -13,6 +13,14 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppInboxRouteImport } from './routes/_app/inbox'
+import { Route as AppCasesRouteImport } from './routes/_app/cases'
+import { Route as AppRunsRouteImport } from './routes/_app/runs'
+import { Route as AppDefectsRouteImport } from './routes/_app/defects'
+import { Route as AppAnalyticsRouteImport } from './routes/_app/analytics'
+import { Route as AppTraceRouteImport } from './routes/_app/trace'
+import { Route as AppIntegrationsRouteImport } from './routes/_app/integrations'
+import { Route as AppDocsRouteImport } from './routes/_app/docs'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -33,16 +41,72 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppInboxRoute = AppInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCasesRoute = AppCasesRouteImport.update({
+  id: '/cases',
+  path: '/cases',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRunsRoute = AppRunsRouteImport.update({
+  id: '/runs',
+  path: '/runs',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDefectsRoute = AppDefectsRouteImport.update({
+  id: '/defects',
+  path: '/defects',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTraceRoute = AppTraceRouteImport.update({
+  id: '/trace',
+  path: '/trace',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIntegrationsRoute = AppIntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDocsRoute = AppDocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof AppDashboardRoute
+  '/inbox': typeof AppInboxRoute
+  '/cases': typeof AppCasesRoute
+  '/runs': typeof AppRunsRoute
+  '/defects': typeof AppDefectsRoute
+  '/analytics': typeof AppAnalyticsRoute
+  '/trace': typeof AppTraceRoute
+  '/integrations': typeof AppIntegrationsRoute
+  '/docs': typeof AppDocsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof AppDashboardRoute
+  '/inbox': typeof AppInboxRoute
+  '/cases': typeof AppCasesRoute
+  '/runs': typeof AppRunsRoute
+  '/defects': typeof AppDefectsRoute
+  '/analytics': typeof AppAnalyticsRoute
+  '/trace': typeof AppTraceRoute
+  '/integrations': typeof AppIntegrationsRoute
+  '/docs': typeof AppDocsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -50,13 +114,56 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/inbox': typeof AppInboxRoute
+  '/_app/cases': typeof AppCasesRoute
+  '/_app/runs': typeof AppRunsRoute
+  '/_app/defects': typeof AppDefectsRoute
+  '/_app/analytics': typeof AppAnalyticsRoute
+  '/_app/trace': typeof AppTraceRoute
+  '/_app/integrations': typeof AppIntegrationsRoute
+  '/_app/docs': typeof AppDocsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/dashboard'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/dashboard'
+    | '/inbox'
+    | '/cases'
+    | '/runs'
+    | '/defects'
+    | '/analytics'
+    | '/trace'
+    | '/integrations'
+    | '/docs'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/dashboard'
-  id: '__root__' | '/' | '/_app' | '/login' | '/_app/dashboard'
+  to:
+    | '/'
+    | '/login'
+    | '/dashboard'
+    | '/inbox'
+    | '/cases'
+    | '/runs'
+    | '/defects'
+    | '/analytics'
+    | '/trace'
+    | '/integrations'
+    | '/docs'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/login'
+    | '/_app/dashboard'
+    | '/_app/inbox'
+    | '/_app/cases'
+    | '/_app/runs'
+    | '/_app/defects'
+    | '/_app/analytics'
+    | '/_app/trace'
+    | '/_app/integrations'
+    | '/_app/docs'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,15 +202,87 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/inbox': {
+      id: '/_app/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof AppInboxRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cases': {
+      id: '/_app/cases'
+      path: '/cases'
+      fullPath: '/cases'
+      preLoaderRoute: typeof AppCasesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/runs': {
+      id: '/_app/runs'
+      path: '/runs'
+      fullPath: '/runs'
+      preLoaderRoute: typeof AppRunsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/defects': {
+      id: '/_app/defects'
+      path: '/defects'
+      fullPath: '/defects'
+      preLoaderRoute: typeof AppDefectsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/analytics': {
+      id: '/_app/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AppAnalyticsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/trace': {
+      id: '/_app/trace'
+      path: '/trace'
+      fullPath: '/trace'
+      preLoaderRoute: typeof AppTraceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/integrations': {
+      id: '/_app/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof AppIntegrationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/docs': {
+      id: '/_app/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof AppDocsRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
+  AppInboxRoute: typeof AppInboxRoute
+  AppCasesRoute: typeof AppCasesRoute
+  AppRunsRoute: typeof AppRunsRoute
+  AppDefectsRoute: typeof AppDefectsRoute
+  AppAnalyticsRoute: typeof AppAnalyticsRoute
+  AppTraceRoute: typeof AppTraceRoute
+  AppIntegrationsRoute: typeof AppIntegrationsRoute
+  AppDocsRoute: typeof AppDocsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
+  AppInboxRoute: AppInboxRoute,
+  AppCasesRoute: AppCasesRoute,
+  AppRunsRoute: AppRunsRoute,
+  AppDefectsRoute: AppDefectsRoute,
+  AppAnalyticsRoute: AppAnalyticsRoute,
+  AppTraceRoute: AppTraceRoute,
+  AppIntegrationsRoute: AppIntegrationsRoute,
+  AppDocsRoute: AppDocsRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

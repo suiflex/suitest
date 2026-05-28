@@ -48,6 +48,21 @@ body {
   font-size: 13px;
 }
 
+/* Slow pulse used by live indicators (e.g. Sidebar "Test Runs" dot). */
+@keyframes suitest-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.suitest-pulse {
+  animation: suitest-pulse 2s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -19,4 +19,7 @@ function Dashboard(): React.ReactElement {
   );
 }
 
-export const Route = createFileRoute("/_app/dashboard")({ component: Dashboard });
+export const Route = createFileRoute("/_app/dashboard")({
+  component: Dashboard,
+  staticData: { title: "Dashboard" },
+});
