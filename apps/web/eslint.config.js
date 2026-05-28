@@ -37,4 +37,11 @@ export default [
     },
     settings: { react: { version: "19.0" } },
   },
+  {
+    // shadcn/ui primitives export CVA variants alongside components — exempt them
+    files: ["src/components/ui/**/*.{ts,tsx}"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
 ];

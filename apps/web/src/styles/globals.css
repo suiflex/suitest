@@ -1,35 +1,40 @@
 @import "tailwindcss";
 
-@font-face {
-  font-family: "Geist Sans";
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url("/fonts/Geist[wght].woff2") format("woff2-variations");
-}
-
-@font-face {
-  font-family: "Geist Mono";
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url("/fonts/GeistMono[wght].woff2") format("woff2-variations");
-}
-
 @theme {
-  --color-base: #0a0a0a;
-  --color-elev-1: #111111;
-  --color-elev-2: #161616;
+  --color-bg-base: #0a0a0a;
+  --color-bg-elev-1: #111111;
+  --color-bg-elev-2: #161616;
+  --color-bg-elev-3: #1c1c1c;
+  --color-bg-hover: #1f1f1f;
+
+  --color-border-subtle: #1c1c1c;
   --color-border: #262626;
+  --color-border-strong: #333333;
+
   --color-fg-1: #fafafa;
   --color-fg-3: #a3a3a3;
   --color-fg-4: #737373;
+  --color-fg-5: #525252;
+
   --color-accent: #4ade80;
+  --color-accent-fg: #052e16;
+
   --color-red: #f87171;
   --color-amber: #fbbf24;
+  --color-blue: #60a5fa;
   --color-violet: #a78bfa;
-  --font-sans: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, "JetBrains Mono", monospace;
+
+  --radius: 6px;
+  --radius-lg: 8px;
+
+  --font-sans: "Geist Sans", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+}
+
+:root {
+  color-scheme: dark;
+  background-color: var(--color-bg-base);
+  color: var(--color-fg-1);
 }
 
 html,
@@ -40,4 +45,14 @@ body,
 
 body {
   font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
 }
