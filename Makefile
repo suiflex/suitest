@@ -1,4 +1,12 @@
 SHELL := /bin/bash
+
+# Auto-load .env for native dev targets (dev-api, dev-runner, migrate, seed, ...).
+# Docker targets ignore this — compose injects its own env.
+ifneq (,$(wildcard .env))
+include .env
+export
+endif
+
 .PHONY: help install lint typecheck test clean docker-up docker-down \
         dev-api dev-web dev-runner dev migrate pre-commit build-web check-all ci
 
