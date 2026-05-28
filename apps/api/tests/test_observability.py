@@ -137,9 +137,9 @@ async def test_span_attributes_set(monkeypatch: pytest.MonkeyPatch) -> None:
     # Find the span that carries our custom attributes (the outer HTTP server
     # span — siblings like asgi.send carry only protocol metadata).
     workspace_spans = [s for s in spans if (s.attributes or {}).get("workspace.id")]
-    assert (
-        workspace_spans
-    ), f"no span carried workspace.id; got: {[(s.name, dict(s.attributes or {})) for s in spans]}"
+    assert workspace_spans, (
+        f"no span carried workspace.id; got: {[(s.name, dict(s.attributes or {})) for s in spans]}"
+    )
     attrs = dict(workspace_spans[0].attributes or {})
     assert attrs.get("workspace.id") == "ws_observ"
     # capabilities.tier should match whatever resolve_tier returned (ZERO in

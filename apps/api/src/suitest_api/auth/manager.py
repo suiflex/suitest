@@ -40,7 +40,10 @@ async def get_user_manager(
 cookie_transport = CookieTransport(
     cookie_name="suitest_session",
     cookie_max_age=60 * 60 * 24 * 14,  # 14 days
-    cookie_secure=False,  # set True behind HTTPS in production
+    # Env-driven (``SUITEST_COOKIE_SECURE``): default False for dev over plain
+    # HTTP; production behind HTTPS MUST flip this to True so the session cookie
+    # is never sent in cleartext. See settings.cookie_secure for the contract.
+    cookie_secure=_settings.cookie_secure,
     cookie_httponly=True,
     cookie_samesite="lax",
 )

@@ -76,35 +76,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.add_exception_handler(RateLimitExceeded, _ratelimit_exceeded)
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[resolved.web_url],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-    # ORDER MATTERS — Starlette wraps `add_middleware` calls inside-out: the last
-    # call becomes the OUTERMOST layer. Request flow we want:
-    #   OTel (FastAPIInstrumentor) → SlowAPIMiddleware → AuditContextMiddleware
-    #     → SpanAttributesMiddleware → CORS → handler.
-    # SpanAttributesMiddleware must run AFTER AuditContextMiddleware populates the
-    # ContextVar, AND inside the OTel span so set_attributes lands on the right span.
-    # So we add SpanAttributesMiddleware first (innermost-of-the-two), then Audit,
-    # then SlowAPIMiddleware (so 429s short-circuit before the handler runs but
-    # still get traced by OTel), then setup_observability() runs LAST so
-    # FastAPIInstrumentor sits outermost.
+    # ORDER MATTERS — Starlette wraps ``add_middleware`` calls inside-out: the
+    # last call becomes the OUTERMOST layer. Target request flow:
+    #   CORS → FastAPIInstrumentor (OTel) → SlowAPIMiddleware
+    #     → AuditContextMiddleware → SpanAttributesMiddleware → handler.
+    #
+    # SpanAttributesMiddleware must run AFTER AuditContextMiddleware populates
+    # the ContextVar, AND inside the OTel span so ``set_attributes`` lands on the
+    # right span — so we add SpanAttributesMiddleware first (innermost), then
+    # AuditContextMiddleware, then SlowAPIMiddleware. ``setup_observability()``
+    # below installs the FastAPI instrumentor. ``CORSMiddleware`` is added LAST
+    # (outermost) so OPTIONS preflights short-circuit before the rate limiter
+    # sees them (Issue I2).
     app.add_middleware(SpanAttributesMiddleware, fastapi_app=app)
     # Binds the per-request audit attribution (ip/ua/workspace) so the global
     # SQLAlchemy after_flush listener can write AuditLog rows.
     app.add_middleware(AuditContextMiddleware)
     # Enforces per-audience rate limits (docs/API.md §5). Reads app.state.limiter,
-    # short-circuits with 429 + Retry-After when the bucket is exhausted.
+    # short-circuits with 429 + Retry-After when the bucket is exhausted. Exempt
+    # routes (``/health``, ``/metrics``, ``/openapi.json``, ``/docs``,
+    # ``/capabilities/health``) are wired via :func:`_exempt_anonymous_routes`
+    # below — see :mod:`suitest_api.middleware.ratelimit` for the contract.
     app.add_middleware(SlowAPIMiddleware)
 
     @app.get("/health", tags=["meta"])
     async def health() -> dict[str, str]:
         """Liveness probe — no DB / Redis touch."""
         return {"status": "ok", "service": "api", "version": __version__}
+
+    # Exempt the liveness probe from the rate limiter so Kubernetes probes /
+    # uptime monitors don't share the anonymous IP bucket with public traffic
+    # (Issue I1). We register the handler name directly rather than using
+    # ``@limiter.exempt`` as a decorator — same effect (slowapi's exempt
+    # decorator's only side effect is ``_exempt_routes.add(name)``) but keeps
+    # the handler's typed signature intact for mypy strict.
+    app.state.limiter._exempt_routes.add(f"{health.__module__}.{health.__name__}")
 
     app.include_router(capabilities_router)
     app.include_router(auth_router)
@@ -121,8 +127,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(documents_router)
     app.include_router(analytics_router)
 
-    # Observability is wired LAST so:
-    #   1. FastAPIInstrumentor becomes the outermost middleware (sees every request).
+    # Observability is wired BEFORE CORS so:
+    #   1. FastAPIInstrumentor sees every non-preflight request (CORS short-circuits
+    #      OPTIONS before tracing — acceptable, preflights carry no app payload).
     #   2. Prometheus `/metrics` route is appended after all real routes (clean
     #      route order in the router).
     # Skipped automatically when SUITEST_OTEL_DISABLED=true; idempotent via
@@ -130,7 +137,65 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from suitest_api.auth.db import engine as auth_engine
 
     setup_observability(app, engine=auth_engine)
+
+    # Exempt anonymous / probe routes (``/openapi.json``, ``/docs``,
+    # ``/metrics``, ``/capabilities/health``) AFTER ``setup_observability`` so
+    # the ``/metrics`` route exists. ``/health`` is already exempted via the
+    # ``@limiter.exempt`` decorator on its inline handler above.
+    _exempt_anonymous_routes(app)
+
+    # CORS is added LAST so it becomes the OUTERMOST middleware (Starlette LIFO).
+    # OPTIONS preflights then short-circuit before SlowAPIMiddleware sees them —
+    # otherwise every preflight would burn one slot in the anonymous IP bucket
+    # (Issue I2).
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[resolved.web_url],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     return app
 
 
-app = create_app()
+def _exempt_anonymous_routes(app: FastAPI) -> None:
+    """Mark library-registered anonymous routes as rate-limit exempt (Issue I1).
+
+    ``slowapi``'s :meth:`Limiter.exempt` decorator works by adding the handler's
+    ``<module>.<qualname>`` to ``Limiter._exempt_routes``; the middleware then
+    skips any request whose resolved handler matches that set. We can't decorate
+    handlers registered by libraries (FastAPI's auto-generated ``/openapi.json`` +
+    ``/docs``, Prometheus's ``/metrics``), so we walk ``app.routes`` post-wiring
+    and insert their handler names directly.
+
+    Endpoints exempted:
+      * ``/openapi.json`` — ~75KB; would otherwise burn the anonymous bucket on
+        every docs / SDK regen.
+      * ``/docs`` — Swagger UI shell; same DoS surface as ``/openapi.json``.
+      * ``/metrics`` — Prometheus scrape target; scrapers (every 15-30s) share
+        the anonymous IP bucket with public traffic without this.
+      * ``/capabilities/health`` — public k8s readiness probe; defined in
+        :mod:`suitest_api.routers.capabilities` whose router is shared across
+        ``create_app`` calls, so we exempt it here (per-app) rather than at
+        import time.
+    """
+    exempt_paths = {"/openapi.json", "/docs", "/metrics", "/capabilities/health"}
+    limiter = app.state.limiter
+    for route in app.routes:
+        path = getattr(route, "path", None)
+        if path not in exempt_paths:
+            continue
+        endpoint = getattr(route, "endpoint", None)
+        if endpoint is None:
+            continue
+        name = f"{endpoint.__module__}.{endpoint.__name__}"
+        limiter._exempt_routes.add(name)
+
+
+# Intentionally NO module-level ``app = create_app()``.
+# Importing this module must be side-effect free: a module-level instance would
+# (a) trigger OTel BatchSpanProcessor / Prometheus collector registration on
+# every import (tooling like ``scripts/export-openapi.py`` would double-instrument
+# the process), and (b) leak a background thread per import in dev/test runs.
+# Production / dev uvicorn invocations use ``--factory suitest_api.main:create_app``
+# (see ``apps/api/src/suitest_api/__main__.py`` and the API Dockerfile CMD).

@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     oauth_google_client_id: str = Field(default="")
     oauth_google_client_secret: str = Field(default="")
 
+    # Session cookie security. ``False`` for local dev over plain HTTP; production
+    # behind HTTPS MUST set ``SUITEST_COOKIE_SECURE=true`` so the cookie is only
+    # sent over TLS. Read by :mod:`suitest_api.auth.manager` when constructing
+    # the FastAPI-Users :class:`CookieTransport`.
+    cookie_secure: bool = Field(default=False)
+
 
 def get_settings() -> Settings:
     """Return a fresh Settings instance (env-resolved)."""

@@ -71,7 +71,7 @@ test-web: ## Vitest (frontend tests)
 ##@ Dev servers
 
 dev-api: ## Start FastAPI dev server (port 4000, hot-reload)
-	uv run uvicorn suitest_api.main:app --host 0.0.0.0 --port 4000 --reload
+	uv run uvicorn --factory suitest_api.main:create_app --host 0.0.0.0 --port 4000 --reload
 
 dev-api-docs: ## Open API docs in browser
 	open http://localhost:4000/docs

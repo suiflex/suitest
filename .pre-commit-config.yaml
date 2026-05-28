@@ -17,7 +17,12 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.7.4
+    # Keep this version in sync with the ruff version uv resolves from
+    # pyproject.toml's dev-dependencies (currently 0.15.x). The pre-commit
+    # formatter and ``uv run ruff format --check`` (the CI gate) MUST agree on
+    # multi-line assert layout, otherwise the hook will revert CI-formatted
+    # code on each commit. See Issue C1 in the M1a review notes.
+    rev: v0.15.14
     hooks:
       - id: ruff
         args: ["--fix"]

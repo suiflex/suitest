@@ -23,6 +23,22 @@ Per-route overrides (planned, see docs/API.md §5):
 - Generation routes (M3 future) — ``@limiter.limit("20/minute")`` keyed by
   workspace.
 
+Anonymous-route exemptions (Issue I1):
+
+Health / probe / docs endpoints share the anonymous IP bucket with public
+traffic. To keep Prometheus scrapers + k8s liveness probes from burning the
+budget for legitimate anonymous users, the following routes are
+**always exempt** from the rate limiter:
+
+- ``/health`` — liveness probe (handler decorated with ``@limiter.exempt``).
+- ``/capabilities/health`` — public health probe (same).
+- ``/openapi.json`` — schema doc (~75KB); exempted in :func:`suitest_api.main._exempt_anonymous_routes`
+  by inserting the FastAPI-auto-registered handler name into
+  ``Limiter._exempt_routes`` post-wiring.
+- ``/docs`` — Swagger UI shell; same mechanism as ``/openapi.json``.
+- ``/metrics`` — Prometheus exposition; same mechanism (Prometheus's
+  ``instrumentator.expose`` registers the handler we cannot decorate).
+
 Storage backend: Redis when ``SUITEST_REDIS_URL`` is set (matches docker-compose
 in M0), in-process ``memory://`` fallback otherwise so dev/tests without Redis
 still work. ``headers_enabled=True`` so the standard ``Retry-After`` /

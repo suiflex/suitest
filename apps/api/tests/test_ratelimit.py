@@ -16,6 +16,10 @@ every test patches :func:`suitest_api.middleware.ratelimit.build_limiter` BEFORE
 ``memory://`` storage is used throughout — fakeredis is available for future
 Redis-specific tests but slowapi treats both backends identically through the
 ``limits`` library, so the in-process memory store is the natural fit here.
+
+Tests use ``GET /capabilities`` (not ``/health``) as the probe endpoint because
+the liveness probe is rate-limit-exempt (Issue I1) — ``/capabilities`` is the
+nearest no-auth, no-DB endpoint still subject to the limiter.
 """
 
 from __future__ import annotations
@@ -100,7 +104,7 @@ async def test_ratelimit_under_threshold_passes(
     transport = await make_app()
     async with _new_client(transport) as client:
         for _ in range(100):
-            response = await client.get("/health")
+            response = await client.get("/capabilities")
             assert response.status_code == 200, response.text
 
 
@@ -115,11 +119,11 @@ async def test_ratelimit_over_threshold_429(
     async with _new_client(transport) as client:
         # First 5 requests fit inside the bucket.
         for _ in range(5):
-            ok = await client.get("/health")
+            ok = await client.get("/capabilities")
             assert ok.status_code == 200, ok.text
 
         # 6th request trips the limit.
-        blocked = await client.get("/health")
+        blocked = await client.get("/capabilities")
         assert blocked.status_code == 429, blocked.text
         header_keys = {h.lower() for h in blocked.headers}
         assert "retry-after" in header_keys, dict(blocked.headers)
@@ -139,16 +143,16 @@ async def test_ratelimit_different_users_separate_buckets(
 
     async with _new_client(transport, cookies=cookies_a) as client_a:
         for _ in range(3):
-            ok = await client_a.get("/health")
+            ok = await client_a.get("/capabilities")
             assert ok.status_code == 200, ok.text
-        blocked = await client_a.get("/health")
+        blocked = await client_a.get("/capabilities")
         assert blocked.status_code == 429, blocked.text
 
     # User B starts from a clean bucket — different cookie hashes to a different
     # ``_audience_key`` ("user:<sha256(cookie)[:16]>") so the limit is independent.
     async with _new_client(transport, cookies=cookies_b) as client_b:
         for _ in range(3):
-            ok = await client_b.get("/health")
+            ok = await client_b.get("/capabilities")
             assert ok.status_code == 200, ok.text
 
 
@@ -172,14 +176,70 @@ async def test_ratelimit_bearer_higher_threshold(
     # Cookie audience: burn the budget.
     async with _new_client(transport, cookies={"suitest_session": "browser-x"}) as cookie_client:
         for _ in range(2):
-            ok = await cookie_client.get("/health")
+            ok = await cookie_client.get("/capabilities")
             assert ok.status_code == 200, ok.text
-        blocked = await cookie_client.get("/health")
+        blocked = await cookie_client.get("/capabilities")
         assert blocked.status_code == 429, blocked.text
 
     # Bearer audience: ``token:<hash>`` bucket is independent of the user bucket.
     bearer_headers = {"Authorization": "Bearer suit_carlos_sdk_token"}
     async with _new_client(transport, headers=bearer_headers) as bearer_client:
         for _ in range(2):
-            ok = await bearer_client.get("/health")
+            ok = await bearer_client.get("/capabilities")
             assert ok.status_code == 200, ok.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "exempt_path",
+    ["/health", "/capabilities/health", "/metrics", "/openapi.json", "/docs"],
+    ids=["health", "capabilities-health", "metrics", "openapi", "docs"],
+)
+async def test_ratelimit_exempts_anonymous_routes(
+    monkeypatch: pytest.MonkeyPatch,
+    make_app: Callable[[], Awaitable[ASGITransport]],
+    exempt_path: str,
+) -> None:
+    """Probe / docs / metrics routes must NOT consume the anonymous bucket (Issue I1).
+
+    Install a tight 3/minute limiter, then hammer the exempt path well past
+    that budget — every response must return a non-429 status (200 for the
+    handlers; 200 for ``/openapi.json``; 200 for ``/docs``). Sharing the
+    anonymous bucket with Prometheus scrapers + k8s probes would otherwise
+    DoS legitimate anonymous callers.
+    """
+    _install_tight_limiter(monkeypatch, limit="3/minute")
+    transport = await make_app()
+    async with _new_client(transport) as client:
+        for _ in range(20):  # well past the 3/minute cap
+            resp = await client.get(exempt_path)
+            assert resp.status_code != 429, (
+                f"{exempt_path} should be exempt but returned 429 (headers={dict(resp.headers)})"
+            )
+            assert resp.status_code < 500, f"{exempt_path} unexpected {resp.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_cors_preflight_not_rate_limited(
+    monkeypatch: pytest.MonkeyPatch,
+    make_app: Callable[[], Awaitable[ASGITransport]],
+) -> None:
+    """OPTIONS preflights must short-circuit at CORS, before the limiter (Issue I2).
+
+    With CORS as the outermost middleware, OPTIONS responses are produced by
+    Starlette's ``CORSMiddleware`` without ever invoking the rate limiter; the
+    anonymous IP bucket therefore stays intact for real requests. We blast a
+    tight 2/minute limiter with 20 preflights and verify every response carries
+    the standard ACAO header (i.e. CORS handled it) and never returns 429.
+    """
+    _install_tight_limiter(monkeypatch, limit="2/minute")
+    transport = await make_app()
+    preflight_headers = {
+        "Origin": "http://localhost:3000",
+        "Access-Control-Request-Method": "GET",
+    }
+    async with _new_client(transport) as client:
+        for _ in range(20):
+            resp = await client.options("/capabilities", headers=preflight_headers)
+            assert resp.status_code != 429, dict(resp.headers)
+            assert resp.headers.get("access-control-allow-origin") == "http://localhost:3000"
