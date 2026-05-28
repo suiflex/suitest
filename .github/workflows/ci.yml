@@ -98,6 +98,12 @@ jobs:
         run: uv run alembic upgrade head
         working-directory: packages/db
 
+      - name: Export OpenAPI
+        run: env -u VIRTUAL_ENV uv run python scripts/export-openapi.py /tmp/openapi.json
+
+      - name: Diff committed snapshot
+        run: diff -u packages/shared/openapi.json /tmp/openapi.json
+
       - name: Run pytest
         run: uv run pytest
 
