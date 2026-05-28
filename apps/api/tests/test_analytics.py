@@ -290,3 +290,49 @@ async def test_analytics_invalid_period_400(api_db: ApiDb) -> None:
             headers={"X-Workspace-Id": ws.id},
         )
     assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_analytics_kpis_404_cross_workspace(api_db: ApiDb) -> None:
+    """Member of workspace A passing a workspace-B projectId gets 404, not data."""
+    user = await api_db.seed_user(email="an-xws-kpi@example.com")
+    ws_a = await api_db.member_workspace(user, slug="an-xws-a")
+    # Foreign workspace B: user is NOT a member. Seed a project that lives in B.
+    ws_b = await api_db.seed_workspace(slug="an-xws-b", name="B")
+    foreign_proj = await _project(api_db, ws_b.id, slug="an-xws-foreign")
+    async with api_db.client(user) as c:
+        resp = await c.get(
+            f"/api/v1/analytics/kpis?projectId={foreign_proj.id}",
+            headers={"X-Workspace-Id": ws_a.id},
+        )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_analytics_readiness_404_cross_workspace(api_db: ApiDb) -> None:
+    """Readiness must also refuse a foreign-workspace projectId with 404."""
+    user = await api_db.seed_user(email="an-xws-rdy@example.com")
+    ws_a = await api_db.member_workspace(user, slug="an-xws-rdy-a")
+    ws_b = await api_db.seed_workspace(slug="an-xws-rdy-b", name="B")
+    foreign_proj = await _project(api_db, ws_b.id, slug="an-xws-rdy-foreign")
+    async with api_db.client(user) as c:
+        resp = await c.get(
+            f"/api/v1/analytics/readiness?projectId={foreign_proj.id}",
+            headers={"X-Workspace-Id": ws_a.id},
+        )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_analytics_coverage_404_cross_workspace(api_db: ApiDb) -> None:
+    """Coverage must also refuse a foreign-workspace projectId with 404."""
+    user = await api_db.seed_user(email="an-xws-cov@example.com")
+    ws_a = await api_db.member_workspace(user, slug="an-xws-cov-a")
+    ws_b = await api_db.seed_workspace(slug="an-xws-cov-b", name="B")
+    foreign_proj = await _project(api_db, ws_b.id, slug="an-xws-cov-foreign")
+    async with api_db.client(user) as c:
+        resp = await c.get(
+            f"/api/v1/analytics/coverage?projectId={foreign_proj.id}",
+            headers={"X-Workspace-Id": ws_a.id},
+        )
+    assert resp.status_code == 404

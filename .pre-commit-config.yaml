@@ -44,7 +44,15 @@ repos:
           - cryptography>=42
         args: ["--config-file=pyproject.toml"]
         files: ^(apps|packages)/.*\.py$
-        exclude: ^.*/alembic/versions/.*$
+        # mirrors-mypy passes the staged files in a single invocation. With
+        # pytest's importlib import mode there is no `tests/__init__.py`, so the
+        # two per-package `conftest.py` files both resolve to the top-level
+        # module `conftest`. If a commit stages both at once, mypy aborts with
+        # "Duplicate module named conftest". Exclude packages/db/tests/conftest.py
+        # from the per-file hook to keep that case from breaking; both conftests
+        # are still fully type-checked by the authoritative `mypy apps`/`mypy
+        # packages` split in CI (.github/workflows/ci.yml).
+        exclude: ^(.*/alembic/versions/.*|packages/db/tests/conftest\.py)$
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.21.2

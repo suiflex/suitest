@@ -148,3 +148,37 @@ async def test_traceability_matrix_empty_project(api_db: ApiDb) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert data == {"requirements": [], "cases": [], "defects": []}
+
+
+@pytest.mark.asyncio
+async def test_requirements_list_404_cross_workspace(api_db: ApiDb) -> None:
+    """Member of workspace A passing a workspace-B projectId gets 404, not its requirements."""
+    user = await api_db.seed_user(email="req-xws-list@example.com")
+    ws_a = await api_db.member_workspace(user, slug="req-xws-a")
+    # Foreign workspace B: user is NOT a member. Seed a project + requirement in B.
+    ws_b = await api_db.seed_workspace(slug="req-xws-b", name="B")
+    foreign_proj = await _project(api_db, ws_b.id, slug="req-xws-foreign")
+    await api_db.add_all(
+        [Requirement(project_id=foreign_proj.id, public_id="REQ-XWS", title="secret")]
+    )
+    async with api_db.client(user) as c:
+        resp = await c.get(
+            f"/api/v1/requirements?projectId={foreign_proj.id}",
+            headers={"X-Workspace-Id": ws_a.id},
+        )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_traceability_matrix_404_cross_workspace(api_db: ApiDb) -> None:
+    """Traceability matrix must refuse a foreign-workspace projectId with 404."""
+    user = await api_db.seed_user(email="matrix-xws@example.com")
+    ws_a = await api_db.member_workspace(user, slug="matrix-xws-a")
+    ws_b = await api_db.seed_workspace(slug="matrix-xws-b", name="B")
+    foreign_proj = await _project(api_db, ws_b.id, slug="matrix-xws-foreign")
+    async with api_db.client(user) as c:
+        resp = await c.get(
+            f"/api/v1/traceability/matrix?projectId={foreign_proj.id}",
+            headers={"X-Workspace-Id": ws_a.id},
+        )
+    assert resp.status_code == 404
