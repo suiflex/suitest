@@ -1,26 +1,41 @@
-import { Outlet, createRootRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import type { QueryClient } from "@tanstack/react-query";
+import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
+import { Suspense, useEffect } from "react";
 
-import { TierBadge } from "@/components/tier-badge";
 import { useCapabilities } from "@/stores/use-capabilities";
 
+/**
+ * Router context contract. `main.tsx` provides the QueryClient; `_app.tsx`
+ * (and other route loaders) read it from `beforeLoad`/`loader` arguments.
+ */
+export interface RouterContext {
+  queryClient: QueryClient;
+}
+
 function RootLayout(): React.ReactElement {
+  // Boot capabilities once on root mount so `<Gated>` / `<TierBadge>` have
+  // data ready before any feature surface renders. Task 5 will swap this for
+  // a Suspense `<CapabilityBoot>` when the shell is wired.
   const fetch = useCapabilities((s) => s.fetch);
   useEffect(() => {
     void fetch();
   }, [fetch]);
 
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
-        <h1 className="font-mono text-lg font-semibold tracking-tight">Suitest</h1>
-        <TierBadge />
-      </header>
-      <main className="flex-1 px-6 py-8">
-        <Outlet />
-      </main>
+    <Suspense fallback={<RootFallback />}>
+      <Outlet />
+    </Suspense>
+  );
+}
+
+function RootFallback(): React.ReactElement {
+  return (
+    <div className="flex min-h-screen items-center justify-center text-fg-3">
+      <span className="font-mono text-xs">Loading…</span>
     </div>
   );
 }
 
-export const Route = createRootRoute({ component: RootLayout });
+export const Route = createRootRouteWithContext<RouterContext>()({
+  component: RootLayout,
+});

@@ -1,20 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { useCapabilities } from "@/stores/use-capabilities";
-
-function Home(): React.ReactElement {
-  const { capabilities, loading, error } = useCapabilities();
-  if (loading) return <p className="text-fg-3">Loading capabilities…</p>;
-  if (error) return <p className="text-red">Error: {error}</p>;
-  if (!capabilities) return <p className="text-fg-4">Awaiting capabilities…</p>;
-  return (
-    <section className="space-y-4">
-      <h2 className="text-2xl font-semibold">Welcome to Suitest</h2>
-      <p className="text-fg-3">
-        Running in <span className="font-mono text-fg-1">{capabilities.tier}</span> tier.
-      </p>
-    </section>
-  );
-}
-
-export const Route = createFileRoute("/")({ component: Home });
+/**
+ * Root index just bounces into the dashboard. The `_app` guard handles auth;
+ * unauthenticated users will be redirected to /login from there.
+ */
+export const Route = createFileRoute("/")({
+  beforeLoad: () => {
+    throw redirect({ to: "/dashboard" });
+  },
+});

@@ -58,6 +58,9 @@ apps/web/dist/
 apps/web/src/**/*.js
 apps/web/src/**/*.js.map
 apps/web/coverage/
+# TanStack Router plugin tmp / build logs
+apps/web/.tanstack/
+apps/web/tailwindcss-*.log
 apps/api/.coverage
 apps/runner/.coverage
 
