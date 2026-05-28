@@ -1,4 +1,8 @@
 import "@testing-library/jest-dom/vitest";
+// Initialize i18next once for the whole test run so route components that
+// call `useTranslation()` resolve keys instead of emitting NO_I18NEXT_INSTANCE
+// warnings (and missing-resource fallbacks).
+import "../i18n";
 
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 
