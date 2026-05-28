@@ -1,22 +1,30 @@
 {
-  "rows": [
+  "requirements": [
     {
-      "requirementId": "REQ-001",
+      "id": "REQ-001",
       "title": "Checkout shall reject expired cards",
-      "cases": [
-        { "publicId": "TC-101", "status": "ACTIVE", "lastRunStatus": "PASS" }
-      ],
+      "tests": ["TC-101"],
       "defects": []
     },
     {
-      "requirementId": "REQ-002",
+      "id": "REQ-002",
       "title": "Search shall paginate large result sets",
-      "cases": [
-        { "publicId": "TC-204", "status": "ACTIVE", "lastRunStatus": "FAIL" }
-      ],
-      "defects": [
-        { "publicId": "DEF-202", "severity": "MED", "status": "TRIAGED" }
-      ]
+      "tests": ["TC-204"],
+      "defects": ["DEF-202"]
+    },
+    {
+      "id": "REQ-003",
+      "title": "Login redirects after SSO callback",
+      "tests": ["TC-318"],
+      "defects": []
     }
+  ],
+  "cases": [
+    { "id": "TC-101", "name": "Checkout flow rejects expired cards", "source": "MANUAL", "status": "ACTIVE" },
+    { "id": "TC-204", "name": "Search returns paginated results", "source": "AI", "status": "ACTIVE" },
+    { "id": "TC-318", "name": "Login redirects after SSO callback", "source": "MCP", "status": "ACTIVE" }
+  ],
+  "defects": [
+    { "id": "DEF-202", "title": "Search pagination flakes under load", "severity": "MEDIUM", "status": "IN_PROGRESS" }
   ]
 }
