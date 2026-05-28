@@ -1,0 +1,31 @@
+{
+  "items": [
+    {
+      "id": "playwright-mcp",
+      "name": "Playwright MCP",
+      "kind": "FE_WEB",
+      "transport": "stdio",
+      "bundled": true,
+      "health": "healthy",
+      "last_checked_at": "2026-05-29T08:00:00Z"
+    },
+    {
+      "id": "api-http-mcp",
+      "name": "HTTP API MCP",
+      "kind": "BE_REST",
+      "transport": "stdio",
+      "bundled": true,
+      "health": "healthy",
+      "last_checked_at": "2026-05-29T08:00:00Z"
+    },
+    {
+      "id": "postgres-mcp",
+      "name": "Postgres MCP",
+      "kind": "DATA",
+      "transport": "stdio",
+      "bundled": true,
+      "health": "degraded",
+      "last_checked_at": "2026-05-29T08:00:00Z"
+    }
+  ]
+}

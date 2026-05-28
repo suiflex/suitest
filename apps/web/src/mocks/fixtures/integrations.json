@@ -2,22 +2,37 @@
   "items": [
     {
       "id": "int_01",
+      "workspace_id": "ws_demo",
       "kind": "JIRA",
       "name": "Acme Jira",
-      "status": "CONNECTED",
-      "health": "healthy",
+      "status": "connected",
+      "has_secrets": true,
+      "last_synced_at": "2026-05-27T10:00:00Z",
       "created_at": "2026-05-10T10:00:00Z",
       "updated_at": "2026-05-27T10:00:00Z"
     },
     {
       "id": "int_02",
+      "workspace_id": "ws_demo",
       "kind": "GITHUB",
       "name": "Acme GitHub",
-      "status": "CONNECTED",
-      "health": "healthy",
+      "status": "connected",
+      "has_secrets": true,
+      "last_synced_at": "2026-05-27T10:00:00Z",
       "created_at": "2026-05-11T10:00:00Z",
       "updated_at": "2026-05-27T10:00:00Z"
+    },
+    {
+      "id": "int_03",
+      "workspace_id": "ws_demo",
+      "kind": "SLACK",
+      "name": "Engineering Slack",
+      "status": "disconnected",
+      "has_secrets": false,
+      "last_synced_at": null,
+      "created_at": "2026-05-15T10:00:00Z",
+      "updated_at": "2026-05-15T10:00:00Z"
     }
   ],
-  "next_cursor": null
+  "meta": { "limit": 50, "nextCursor": null }
 }

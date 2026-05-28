@@ -10,6 +10,7 @@ import heatmap from "./fixtures/heatmap.json";
 import inbox from "./fixtures/inbox.json";
 import integrations from "./fixtures/integrations.json";
 import kpis from "./fixtures/kpis.json";
+import mcpProviders from "./fixtures/mcp-providers.json";
 import passRate from "./fixtures/pass-rate.json";
 import readiness from "./fixtures/readiness.json";
 import runs from "./fixtures/runs.json";
@@ -244,6 +245,7 @@ export const handlers: HttpHandler[] = [
   http.get(`${BASE}/inbox`, () => HttpResponse.json(inbox)),
   // /runs/:id/network — M1b stub; HAR-driven view lands later.
   http.get(`${BASE}/runs/:runId/network`, () => HttpResponse.json({ items: [] })),
-  // /mcp/providers — discovery endpoint comes in M2; ZERO bundled providers.
-  http.get(`${BASE}/mcp/providers`, () => HttpResponse.json({ items: [] })),
+  // /mcp/providers — discovery endpoint comes in M2; serve the bundled list
+  // so the Integrations screen renders without an extra empty branch.
+  http.get(`${BASE}/mcp/providers`, () => HttpResponse.json(mcpProviders)),
 ];
