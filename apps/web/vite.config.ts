@@ -18,6 +18,7 @@ export default defineConfig({
       // Add all root-mounted paths here so dev requests are forwarded to the
       // FastAPI server instead of falling through to Vite's SPA index.html.
       "/api": "http://localhost:4000",
+      "/auth": "http://localhost:4000",
       "/capabilities": "http://localhost:4000",
       "/health": "http://localhost:4000",
       "/metrics": "http://localhost:4000",

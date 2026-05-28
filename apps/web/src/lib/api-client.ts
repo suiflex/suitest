@@ -1,6 +1,7 @@
 import axios, { type AxiosError, type AxiosInstance } from "axios";
 
 import type { paths } from "@/lib/api-types";
+import { useActiveWorkspace } from "@/stores/use-active-workspace";
 
 export class ApiError extends Error {
   constructor(
@@ -33,13 +34,36 @@ function createClient(): AxiosInstance {
     ...(isTestEnv ? { adapter: "http" as const } : {}),
   });
 
+  // Request interceptor — attach the `X-Workspace-Id` header.
+  //
+  // The M1a backend's `require_workspace_membership` dep returns 400 when the
+  // header is missing on every authenticated endpoint. We read from the
+  // persisted active-workspace store synchronously (no React) so every
+  // outbound axios call carries the header transparently.
+  inst.interceptors.request.use((config) => {
+    const wsId = useActiveWorkspace.getState().workspaceId;
+    if (wsId && config.headers) {
+      config.headers["X-Workspace-Id"] = wsId;
+    }
+    return config;
+  });
+
   inst.interceptors.response.use(
     (response) => response,
     (err: AxiosError<ApiErrorBody>) => {
       const status = err.response?.status ?? 0;
       const code = err.response?.data?.code ?? "UNKNOWN";
       const message = err.response?.data?.message ?? err.message;
-      if (status === 401 && typeof window !== "undefined") {
+      // Only navigate to /login on 401 when the user is NOT already on the
+      // login page. Without this guard the `_app.beforeLoad` 401 from
+      // `/auth/me` would cause a full reload + double-redirect loop during
+      // the brief render of `<Login>` while TanStack Router is still
+      // resolving its own router-level redirect.
+      if (
+        status === 401 &&
+        typeof window !== "undefined" &&
+        !window.location.pathname.startsWith("/login")
+      ) {
         const next = encodeURIComponent(window.location.pathname);
         window.location.assign(`/login?next=${next}`);
       }

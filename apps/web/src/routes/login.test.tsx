@@ -80,7 +80,10 @@ describe("<LoginRoute>", () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
     const calledUrl = fetchSpy.mock.calls[0]?.[0] ?? "";
-    expect(calledUrl).toContain("/api/v1/auth/google/authorize");
+    // Backend mounts the OAuth router at the application root, NOT under
+    // `/api/v1` (verified in packages/shared/openapi.json).
+    expect(calledUrl).toContain("/auth/google/authorize");
+    expect(calledUrl).not.toContain("/api/v1/auth/google/authorize");
     expect(calledUrl).toContain("next=%2Fdashboard");
 
     await waitFor(() => {

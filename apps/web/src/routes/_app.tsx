@@ -3,8 +3,9 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { AiPanel } from "@/components/shell/AiPanel";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { Topbar } from "@/components/shell/Topbar";
-import type { CurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser, type CurrentUser } from "@/hooks/use-current-user";
 import { api } from "@/lib/api-client";
+import { useActiveWorkspace } from "@/stores/use-active-workspace";
 import { useCapabilities } from "@/stores/use-capabilities";
 
 /**
@@ -16,14 +17,37 @@ import { useCapabilities } from "@/stores/use-capabilities";
  * NOTE: `api-client` already redirects on 401 in its response interceptor —
  * this guard is belt-and-suspenders, and also ensures router state stays in
  * sync (the interceptor mutates `window.location` outside React).
+ *
+ * The guard also performs two boot-time side effects:
+ *
+ *   1. Seeds the active workspace from the first membership when no
+ *      selection is persisted — this is what makes the `X-Workspace-Id`
+ *      header non-empty on subsequent requests.
+ *
+ *   2. Awaits the capabilities fetch so descendant surfaces (TierBadge,
+ *      Gated, AiPanel rail) render with the real tier on first paint
+ *      instead of flashing ZERO and snapping to CLOUD.
  */
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context, location }) => {
     try {
-      await context.queryClient.ensureQueryData({
+      const me = await context.queryClient.ensureQueryData<CurrentUser>({
         queryKey: ["auth", "me"],
         queryFn: async () => (await api.get<CurrentUser>("/auth/me")).data,
       });
+      // Seed active workspace if the user hasn't picked one yet.
+      const ws = useActiveWorkspace.getState();
+      if (ws.workspaceId === null && me.memberships.length > 0) {
+        const first = me.memberships[0];
+        if (first) {
+          ws.setWorkspaceId(first.workspace_id);
+        }
+      }
+      // Capabilities boot — block render until we know the tier so the
+      // shell doesn't flash ZERO → CLOUD on first paint.
+      if (useCapabilities.getState().capabilities === null) {
+        await useCapabilities.getState().fetch();
+      }
     } catch {
       throw redirect({
         to: "/login",
@@ -49,9 +73,27 @@ function AppLayout(): React.ReactElement {
       ? "grid-cols-[224px_1fr]"
       : "grid-cols-[224px_1fr] xl:grid-cols-[224px_1fr_380px]";
 
+  const { data: user } = useCurrentUser();
+  const activeWorkspaceId = useActiveWorkspace((s) => s.workspaceId);
+  const memberships = user.memberships;
+  const activeMembership =
+    memberships.find((m) => m.workspace_id === activeWorkspaceId) ?? memberships[0];
+  const workspaceName = activeMembership?.workspace.name;
+  const workspaces = memberships.map((m) => ({
+    id: m.workspace.id,
+    name: m.workspace.name,
+  }));
+  const userName = user.name ?? user.email.split("@")[0] ?? "Account";
+  const userRole = activeMembership?.role;
+
   return (
     <div className={`grid ${cols} min-h-screen`} data-testid="app-shell">
-      <Sidebar />
+      <Sidebar
+        {...(workspaceName !== undefined ? { workspaceName } : {})}
+        userName={userName}
+        {...(userRole !== undefined ? { userRole } : {})}
+        {...(workspaces.length > 0 ? { workspaces } : {})}
+      />
       <div className="flex min-w-0 flex-col">
         <Topbar />
         <main className="flex-1 overflow-y-auto px-6 py-6">

@@ -14,17 +14,17 @@ interface AuthorizeResponse {
  * full-redirect the browser. After Google's callback the API sets the
  * session cookie and redirects to `next` (default `/dashboard`).
  *
- * Plan 4.4 mentions `window.location.assign('/api/v1/...')` directly, but the
- * current M1a backend returns JSON; using a direct assign would render the
- * raw JSON to the user. Documented discrepancy — revisit once the API
- * switches to a 302 response.
+ * The backend mounts the OAuth router at the application root (NOT under
+ * `/api/v1`) — confirmed in `packages/shared/openapi.json` and
+ * `apps/api/src/suitest_api/auth/router.py`. The Vite dev proxy forwards
+ * `/auth/*` to the backend (see `apps/web/vite.config.ts`).
  */
 function Login(): React.ReactElement {
   const search = Route.useSearch();
   const nextPath = search.next ?? "/dashboard";
 
   const onGoogle = async (): Promise<void> => {
-    const url = `/api/v1/auth/google/authorize?next=${encodeURIComponent(nextPath)}`;
+    const url = `/auth/google/authorize?next=${encodeURIComponent(nextPath)}`;
     const res = await fetch(url, { credentials: "include" });
     if (!res.ok) {
       // Server didn't return the authorize URL — surface a friendly hint.

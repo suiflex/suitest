@@ -232,7 +232,28 @@ export const handlers: HttpHandler[] = [
   ),
 
   // Auth
-  http.get(`${BASE}/auth/me`, () => HttpResponse.json({ id: "u_demo", email: "demo@suitest.dev" })),
+  // Shape mirrors `MeResponse` in packages/shared/openapi.json — the real
+  // backend returns the user plus every workspace membership they hold so
+  // the Sidebar workspace picker and `useActiveWorkspace` seeder have data.
+  http.get(`${BASE}/auth/me`, () =>
+    HttpResponse.json({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      email: "maya@nusantararetail.local",
+      name: "Maya Putri",
+      avatar_url: null,
+      memberships: [
+        {
+          workspace_id: "ws_1",
+          role: "OWNER",
+          workspace: {
+            id: "ws_1",
+            slug: "nusantara-retail",
+            name: "Nusantara Retail",
+          },
+        },
+      ],
+    }),
+  ),
 
   // ----------------------------------------------------------------------
   // M1a stubs — endpoints referenced by the M1b screens but not yet served
