@@ -4,13 +4,17 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from suitest_api import __version__
 from suitest_api.capabilities import build_base_capabilities
 from suitest_api.middleware.audit import AuditContextMiddleware
 from suitest_api.middleware.observability import SpanAttributesMiddleware
+from suitest_api.middleware.ratelimit import build_limiter
 from suitest_api.observability import setup_observability
 from suitest_api.settings import Settings, get_settings
 
@@ -60,6 +64,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if settings is not None:
         app.state.settings = settings
 
+    # Rate limiter: per-audience buckets (Bearer / cookie / IP) with default 600/min.
+    # Stashed on app.state for SlowAPIMiddleware + the 429 handler to pick up.
+    # See suitest_api.middleware.ratelimit for the audience key contract.
+    app.state.limiter = build_limiter()
+
+    def _ratelimit_exceeded(request: Request, exc: Exception) -> Response:
+        """Adapt slowapi's typed handler to Starlette's ``(Request, Exception)`` shape."""
+        assert isinstance(exc, RateLimitExceeded)  # narrows for mypy strict
+        return _rate_limit_exceeded_handler(request, exc)
+
+    app.add_exception_handler(RateLimitExceeded, _ratelimit_exceeded)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[resolved.web_url],
@@ -69,16 +85,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     # ORDER MATTERS — Starlette wraps `add_middleware` calls inside-out: the last
     # call becomes the OUTERMOST layer. Request flow we want:
-    #   OTel (FastAPIInstrumentor) → AuditContextMiddleware
+    #   OTel (FastAPIInstrumentor) → SlowAPIMiddleware → AuditContextMiddleware
     #     → SpanAttributesMiddleware → CORS → handler.
     # SpanAttributesMiddleware must run AFTER AuditContextMiddleware populates the
     # ContextVar, AND inside the OTel span so set_attributes lands on the right span.
     # So we add SpanAttributesMiddleware first (innermost-of-the-two), then Audit,
-    # then setup_observability() runs LAST so FastAPIInstrumentor sits outermost.
+    # then SlowAPIMiddleware (so 429s short-circuit before the handler runs but
+    # still get traced by OTel), then setup_observability() runs LAST so
+    # FastAPIInstrumentor sits outermost.
     app.add_middleware(SpanAttributesMiddleware, fastapi_app=app)
     # Binds the per-request audit attribution (ip/ua/workspace) so the global
     # SQLAlchemy after_flush listener can write AuditLog rows.
     app.add_middleware(AuditContextMiddleware)
+    # Enforces per-audience rate limits (docs/API.md §5). Reads app.state.limiter,
+    # short-circuits with 429 + Retry-After when the bucket is exhausted.
+    app.add_middleware(SlowAPIMiddleware)
 
     @app.get("/health", tags=["meta"])
     async def health() -> dict[str, str]:

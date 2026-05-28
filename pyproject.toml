@@ -26,6 +26,7 @@ dev-dependencies = [
   "asgi-lifespan>=2.1.0",
   "pre-commit>=4.0.0",
   "aiosqlite>=0.20.0",
+  "fakeredis>=2.26.0",
 ]
 
 [tool.uv.sources]

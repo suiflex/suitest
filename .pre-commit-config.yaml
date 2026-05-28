@@ -51,6 +51,7 @@ repos:
           - opentelemetry-instrumentation-httpx>=0.50b0
           - opentelemetry-instrumentation-asyncpg>=0.50b0
           - prometheus-fastapi-instrumentator>=7.0.0
+          - slowapi>=0.1.9
         args: ["--config-file=pyproject.toml"]
         files: ^(apps|packages)/.*\.py$
         # mirrors-mypy passes the staged files in a single invocation. With

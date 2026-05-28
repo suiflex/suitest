@@ -24,6 +24,7 @@ dependencies = [
   "suitest-core",
   "suitest-db",
   "suitest-shared",
+  "slowapi>=0.1.9",
 ]
 
 [build-system]
