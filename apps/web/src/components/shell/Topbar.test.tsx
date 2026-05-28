@@ -133,22 +133,21 @@ describe("<Topbar>", () => {
     // shadcn CommandDialog mounts dialog content only when open.
     expect(screen.queryByPlaceholderText(/Type a command/i)).toBeNull();
 
-    await act(async () => {
-      window.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "k", metaKey: true }),
-      );
-    });
+    // userEvent.keyboard routes the event through the JSDOM input pipeline
+    // (vs. raw dispatchEvent) so the global keydown listener observes a
+    // properly-built KeyboardEvent without racing the act() flush. Fixes a
+    // flake where the synthetic event landed before the listener attached
+    // when the test ran inside the full suite.
+    const user = userEvent.setup();
+    await user.keyboard("{Meta>}k{/Meta}");
 
     expect(await screen.findByPlaceholderText(/Type a command/i)).toBeInTheDocument();
   });
 
   it("opens the command palette on Ctrl+K keydown", async () => {
     await renderTopbar("/dashboard");
-    await act(async () => {
-      window.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "k", ctrlKey: true }),
-      );
-    });
+    const user = userEvent.setup();
+    await user.keyboard("{Control>}k{/Control}");
     expect(await screen.findByPlaceholderText(/Type a command/i)).toBeInTheDocument();
   });
 
