@@ -1,6 +1,6 @@
 [project]
 name = "suitest-monorepo"
-version = "0.1.0"
+version = "0.4.0"
 description = "Suitest OSS monorepo root"
 requires-python = ">=3.12,<3.13"
 
