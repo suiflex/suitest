@@ -57,6 +57,10 @@ repos:
           - opentelemetry-instrumentation-asyncpg>=0.50b0
           - prometheus-fastapi-instrumentator>=7.0.0
           - slowapi>=0.1.9
+          - mcp>=1.0.0
+          - websockets>=12
+          - redis[hiredis]>=5.0
+          - anyio>=4.3
         args: ["--config-file=pyproject.toml"]
         files: ^(apps|packages)/.*\.py$
         # mirrors-mypy passes the staged files in a single invocation. With
