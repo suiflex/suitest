@@ -1902,26 +1902,55 @@ dev = [
 
 [[package]]
 name = "suitest-runner"
-version = "0.1.0"
+version = "0.4.0"
 source = { editable = "apps/runner" }
 dependencies = [
     { name = "arq" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-sdk" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "redis", extra = ["hiredis"] },
+    { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "structlog" },
     { name = "suitest-core" },
+    { name = "suitest-db" },
+    { name = "suitest-mcp" },
     { name = "suitest-shared" },
+]
+
+[package.optional-dependencies]
+test = [
+    { name = "aiosqlite" },
+    { name = "fakeredis" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-mock" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "arq", specifier = ">=0.26.3" },
-    { name = "pydantic", specifier = ">=2.9.0" },
-    { name = "pydantic-settings", specifier = ">=2.6.0" },
-    { name = "structlog", specifier = ">=24.4.0" },
+    { name = "aiosqlite", marker = "extra == 'test'", specifier = ">=0.20" },
+    { name = "arq", specifier = ">=0.26" },
+    { name = "fakeredis", marker = "extra == 'test'", specifier = ">=2.26" },
+    { name = "opentelemetry-api", specifier = ">=1.25" },
+    { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.25" },
+    { name = "opentelemetry-sdk", specifier = ">=1.25" },
+    { name = "pydantic", specifier = ">=2.7" },
+    { name = "pydantic-settings", specifier = ">=2.4" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.2" },
+    { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.23" },
+    { name = "pytest-mock", marker = "extra == 'test'", specifier = ">=3.14" },
+    { name = "redis", extras = ["hiredis"], specifier = ">=5.0" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
+    { name = "structlog", specifier = ">=24.1" },
     { name = "suitest-core", editable = "packages/core" },
+    { name = "suitest-db", editable = "packages/db" },
+    { name = "suitest-mcp", editable = "packages/mcp" },
     { name = "suitest-shared", editable = "packages/shared" },
 ]
+provides-extras = ["test"]
 
 [[package]]
 name = "suitest-shared"

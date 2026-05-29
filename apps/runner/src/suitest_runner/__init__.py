@@ -1,3 +1,3 @@
-"""Suitest ARQ worker (M0 placeholder)."""
+"""Suitest runner — ARQ worker for test case execution."""
 
-__version__ = "0.1.0"
+__version__ = "0.4.0"
