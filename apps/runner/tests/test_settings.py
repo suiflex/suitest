@@ -23,7 +23,8 @@ def test_defaults_when_no_env() -> None:
     assert settings.redis_url == "redis://localhost:6379/0"
     assert settings.database_url.startswith("postgresql+asyncpg://")
     assert settings.max_jobs_concurrent == 4
-    assert settings.job_timeout_seconds == 300
+    assert settings.max_retries == 2
+    assert settings.job_timeout_seconds == 1800
     assert settings.mcp_max_sessions_per_workspace == 16
     assert settings.mcp_queue_timeout_seconds == 30.0
     assert settings.queue_name == "suitest:runs"
@@ -35,12 +36,21 @@ def test_prefixed_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SUITEST_RUNNER_REDIS_URL", "redis://h:1/2")
     monkeypatch.setenv("SUITEST_RUNNER_MAX_JOBS_CONCURRENT", "8")
     monkeypatch.setenv("SUITEST_RUNNER_JOB_TIMEOUT_SECONDS", "600")
+    monkeypatch.setenv("SUITEST_RUNNER_MAX_RETRIES", "5")
     monkeypatch.setenv("SUITEST_RUNNER_QUEUE_NAME", "suitest:runs:custom")
     settings = RunnerSettings()
     assert settings.redis_url == "redis://h:1/2"
     assert settings.max_jobs_concurrent == 8
     assert settings.job_timeout_seconds == 600
+    assert settings.max_retries == 5
     assert settings.queue_name == "suitest:runs:custom"
+
+
+@pytest.mark.usefixtures("clean_runner_env")
+def test_concurrency_alias_overrides_max_jobs(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``SUITEST_RUNNER_CONCURRENCY`` is the canonical alias for max_jobs_concurrent."""
+    monkeypatch.setenv("SUITEST_RUNNER_CONCURRENCY", "12")
+    assert RunnerSettings().max_jobs_concurrent == 12
 
 
 @pytest.mark.usefixtures("clean_runner_env")
@@ -65,6 +75,13 @@ def test_mcp_workspace_cap_reads_shared_env(monkeypatch: pytest.MonkeyPatch) -> 
     with the pool's own resolver (see :mod:`suitest_mcp.pool`)."""
     monkeypatch.setenv("SUITEST_MCP_MAX_SESSIONS_PER_WORKSPACE", "32")
     assert RunnerSettings().mcp_max_sessions_per_workspace == 32
+
+
+@pytest.mark.usefixtures("clean_runner_env")
+def test_mcp_queue_timeout_reads_shared_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``SUITEST_MCP_QUEUE_TIMEOUT_SECONDS`` (unprefixed) flows into the worker."""
+    monkeypatch.setenv("SUITEST_MCP_QUEUE_TIMEOUT_SECONDS", "5.5")
+    assert RunnerSettings().mcp_queue_timeout_seconds == pytest.approx(5.5)
 
 
 @pytest.mark.usefixtures("clean_runner_env")

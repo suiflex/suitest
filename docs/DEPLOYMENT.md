@@ -514,6 +514,20 @@ Drill **wajib quarterly** untuk production.
 
 Catatan: LLM cost scales linearly with run volume in CLOUD tier — set budget guard di Settings → LLM (v1.x).
 
+### 4.5 Concurrency & MCP pool tuning
+
+Five env vars drive the runner's parallelism and the MCP layer's fair-queue backpressure. Set them per replica via Helm `values.yaml` or per process via `.env`.
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `SUITEST_RUNNER_CONCURRENCY` | `4` | Number of ARQ jobs the runner executes in parallel per worker process. Scale horizontally by increasing runner replicas; scale vertically by raising this. Aliased by the legacy `SUITEST_RUNNER_MAX_JOBS_CONCURRENT`. |
+| `SUITEST_RUNNER_MAX_RETRIES` | `2` | Per-job ARQ retry budget. ARQ re-enqueues a coroutine up to this many times on transient failure before marking the job failed. |
+| `SUITEST_RUNNER_JOB_TIMEOUT_SECONDS` | `1800` | Hard wall-clock budget for one `run_test_case` invocation. Long E2E suites set this higher; per-step timeouts are enforced separately at the MCP provider level (`call_timeout_seconds`). |
+| `SUITEST_MCP_MAX_SESSIONS_PER_WORKSPACE` | `16` | Per-workspace ceiling on concurrent MCP sessions across all providers. Enforced via a fair FIFO `asyncio.Condition` queue (see [MCP_PLUGINS.md § 8](./MCP_PLUGINS.md)). |
+| `SUITEST_MCP_QUEUE_TIMEOUT_SECONDS` | `30` | How long an MCP acquire may wait for a workspace slot before raising `McpPoolExhausted` (surfaced as step error `reason=POOL_EXHAUSTED`). |
+
+Rule of thumb: per replica, `SUITEST_RUNNER_CONCURRENCY × average_steps_per_run` should not exceed `SUITEST_MCP_MAX_SESSIONS_PER_WORKSPACE` when all runs target the same workspace, or the queue will routinely back up. Multi-tenant deployments are fine with much higher concurrency because the cap is *per-workspace*.
+
 ---
 
 ## 5. Tier-specific environment matrix

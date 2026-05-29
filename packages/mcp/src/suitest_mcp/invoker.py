@@ -28,6 +28,7 @@ re-raised verbatim. The runner translates them into ``run_step`` status.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import time
@@ -42,6 +43,7 @@ from suitest_mcp.errors import McpToolFailed, McpToolTimeout
 from suitest_mcp.routing import resolve_provider
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
     from contextlib import AbstractAsyncContextManager
 
     from redis.asyncio import Redis as AsyncRedis
@@ -51,6 +53,7 @@ if TYPE_CHECKING:
     from suitest_mcp.models import McpProviderConfig, McpToolResult
     from suitest_mcp.pool import McpPool
     from suitest_mcp.registry import McpRegistry
+    from suitest_mcp.workspace_cap import WorkspacePoolCap
 
 
 log = structlog.get_logger(__name__)
@@ -116,12 +119,18 @@ class McpInvoker:
         health: HealthMonitor | None,
         redis_client: AsyncRedis,
         audit_session_factory: _AuditSessionFactory,
+        workspace_cap: WorkspacePoolCap | None = None,
     ) -> None:
         self.registry = registry
         self.pool = pool
         self.health = health
         self.redis = redis_client
         self.audit_session_factory = audit_session_factory
+        # Task 21: optional workspace-level fair-queue cap layered ABOVE the
+        # per-provider pool. When set, every invoke() reserves a workspace
+        # slot before touching the pool. ``None`` (default) preserves
+        # existing test fixtures + the legacy soft cap inside McpPool.
+        self.workspace_cap = workspace_cap
 
     async def invoke(
         self,
@@ -166,7 +175,13 @@ class McpInvoker:
             span.set_attribute("suitest.step_id", ctx.step_id or "")
 
             try:
-                async with self.pool.acquire(provider) as sess:
+                # Task 21: workspace fair-queue cap wraps the per-provider
+                # pool. When ``workspace_cap`` is None we fall through to the
+                # legacy code path so existing fixtures keep working.
+                async with (
+                    self._workspace_slot(ctx.workspace_id),
+                    self.pool.acquire(provider) as sess,
+                ):
                     result = await sess.call_tool(
                         tool, arguments, timeout_seconds=provider.call_timeout_seconds
                     )
@@ -185,6 +200,22 @@ class McpInvoker:
 
         await self._finalize(ctx, provider, tool, arg_hash, "ok", result.duration_ms, None)
         return result
+
+    @contextlib.asynccontextmanager
+    async def _workspace_slot(self, workspace_id: str) -> AsyncIterator[None]:
+        """Reserve a workspace slot, or fall through when no cap is wired.
+
+        Splitting this out keeps the ``invoke()`` hot path a single
+        ``async with`` regardless of whether the cap is wired in.
+        """
+        if self.workspace_cap is None:
+            yield
+            return
+        async with self.workspace_cap.reserve(
+            workspace_id,
+            timeout=self.workspace_cap.queue_timeout_seconds,
+        ):
+            yield
 
     async def _publish(self, ctx: InvokeContext, event_name: str, data: dict[str, object]) -> None:
         """Publish one event on ``run:<run_id>`` (skipped when no run binds the call).

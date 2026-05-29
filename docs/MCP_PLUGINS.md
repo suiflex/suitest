@@ -331,13 +331,15 @@ Per-provider tunables (set in `mcp_providers.config_json.pool`):
 Workspace-wide cap (defaults set per Helm values / `.env`):
 
 ```
-SUITEST_MCP_WORKSPACE_MAX_SESSIONS=16
-SUITEST_MCP_GLOBAL_MAX_SESSIONS=128
+SUITEST_MCP_MAX_SESSIONS_PER_WORKSPACE=16
+SUITEST_MCP_QUEUE_TIMEOUT_SECONDS=30
 ```
 
-When the cap is reached, new invocations block on a fair queue (FIFO with priority for interactive UI invokes). Timeouts after `SUITEST_MCP_QUEUE_TIMEOUT=30s` with `MCP_POOL_EXHAUSTED` error.
+When the workspace cap is reached, new invocations block on a fair FIFO queue serialised by an `asyncio.Condition` (see `packages/mcp/src/suitest_mcp/workspace_cap.py`). Waiters that exceed `SUITEST_MCP_QUEUE_TIMEOUT_SECONDS` are raised as `McpPoolExhausted` (code `MCP_POOL_EXHAUSTED`) and surfaced by the runner as a step error with `reason=POOL_EXHAUSTED`.
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for Helm value overrides.
+The cap is enforced *above* the per-provider pool — cross-provider bursts inside one workspace (e.g. seed pg → call api → drive browser) count against a single ceiling, so a runaway suite can't pin every provider's pool at the same time.
+
+See [DEPLOYMENT.md § 4.5](./DEPLOYMENT.md) for the full concurrency env matrix and Helm overrides.
 
 ---
 

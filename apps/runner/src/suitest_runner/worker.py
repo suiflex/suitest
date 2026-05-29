@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from suitest_mcp.invoker import McpInvoker
 from suitest_mcp.pool import McpPool
 from suitest_mcp.registry import McpRegistry
+from suitest_mcp.workspace_cap import WorkspacePoolCap
 
 from suitest_runner.jobs.run_test_case import run_test_case
 from suitest_runner.observability import setup_observability
@@ -55,6 +56,14 @@ async def startup(ctx: dict[str, object]) -> None:
         queue_timeout_seconds=settings.mcp_queue_timeout_seconds,
         workspace_cap=settings.mcp_max_sessions_per_workspace,
     )
+    # Task 21: fair-queue cap layered above the per-provider pool. The cap
+    # serialises waiters via asyncio.Condition (FIFO) so cross-provider bursts
+    # in one workspace can't blow past the configured ceiling. ``queue_timeout``
+    # is canonicalised on the cap so the invoker reads one source of truth.
+    workspace_cap = WorkspacePoolCap(
+        max_per_workspace=settings.mcp_max_sessions_per_workspace,
+        queue_timeout_seconds=settings.mcp_queue_timeout_seconds,
+    )
     # health=None for now — Task 21 wires the live HealthMonitor that the
     # invoker consults to skip DOWN providers. Until then every routable
     # provider is treated as healthy.
@@ -64,6 +73,7 @@ async def startup(ctx: dict[str, object]) -> None:
         health=None,
         redis_client=redis_client,
         audit_session_factory=session_factory,
+        workspace_cap=workspace_cap,
     )
     ctx["settings"] = settings
     ctx["engine"] = engine
@@ -71,10 +81,15 @@ async def startup(ctx: dict[str, object]) -> None:
     ctx["redis"] = redis_client
     ctx["registry"] = registry
     ctx["pool"] = pool
+    ctx["workspace_cap"] = workspace_cap
     ctx["invoker"] = invoker
     log.info(
         "runner.started",
         concurrency=settings.max_jobs_concurrent,
+        max_retries=settings.max_retries,
+        job_timeout_seconds=settings.job_timeout_seconds,
+        mcp_workspace_cap=settings.mcp_max_sessions_per_workspace,
+        mcp_queue_timeout=settings.mcp_queue_timeout_seconds,
         queue=settings.queue_name,
     )
 
@@ -121,6 +136,7 @@ class WorkerSettings:
     functions = [run_test_case]  # noqa: RUF012 — ARQ reads this as a class attribute
     queue_name: str = "suitest:runs"
     max_jobs: int = _settings.max_jobs_concurrent
+    max_tries: int = _settings.max_retries + 1
     job_timeout: int = _settings.job_timeout_seconds
     keep_result: int = _settings.keep_result_seconds
     redis_settings: RedisSettings = RedisSettings.from_dsn(_settings.redis_url)

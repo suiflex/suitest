@@ -42,10 +42,26 @@ class RunnerSettings(BaseSettings):
     )
 
     # Concurrency: how many jobs ARQ runs in parallel per worker process.
-    max_jobs_concurrent: int = Field(default=4, ge=1)
+    # ``SUITEST_RUNNER_CONCURRENCY`` is the canonical knob (Task 21). The legacy
+    # ``SUITEST_RUNNER_MAX_JOBS_CONCURRENT`` env name remains a valid alias so
+    # existing deployments don't break on upgrade.
+    max_jobs_concurrent: int = Field(
+        default=4,
+        ge=1,
+        validation_alias=AliasChoices(
+            "SUITEST_RUNNER_CONCURRENCY",
+            "SUITEST_RUNNER_MAX_JOBS_CONCURRENT",
+        ),
+    )
+
+    # Per-job ARQ retry budget. ARQ re-enqueues the coroutine up to this many
+    # times on transient failure before the job is marked failed.
+    max_retries: int = Field(default=2, ge=0)
 
     # Per-job wall clock. ARQ kills the coroutine when the budget is exhausted.
-    job_timeout_seconds: int = Field(default=300, ge=1)
+    # Default raised to 1800s (30min) for end-to-end suites; per-step timeouts
+    # are enforced at the MCP provider level (``call_timeout_seconds``).
+    job_timeout_seconds: int = Field(default=1800, ge=1)
 
     # Workspace-wide MCP session cap. Read from SUITEST_MCP_MAX_SESSIONS_PER_WORKSPACE
     # so the worker + suitest_mcp.pool see the same value without a second env var.
@@ -59,7 +75,17 @@ class RunnerSettings(BaseSettings):
     )
 
     # MCP pool queue budget: how long an acquire() may wait for a free slot.
-    mcp_queue_timeout_seconds: float = Field(default=30.0, gt=0.0)
+    # Honors the unprefixed ``SUITEST_MCP_QUEUE_TIMEOUT_SECONDS`` so the runner
+    # and the cap layer share one source of truth (mirroring the
+    # ``mcp_max_sessions_per_workspace`` alias above).
+    mcp_queue_timeout_seconds: float = Field(
+        default=30.0,
+        gt=0.0,
+        validation_alias=AliasChoices(
+            "SUITEST_RUNNER_MCP_QUEUE_TIMEOUT_SECONDS",
+            "SUITEST_MCP_QUEUE_TIMEOUT_SECONDS",
+        ),
+    )
 
     # ARQ queue name + result retention.
     queue_name: str = Field(default="suitest:runs")
