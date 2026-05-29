@@ -1,3 +1,3 @@
-"""Suitest MCP client + registry (M0 stub — full impl in M1c)."""
+"""Suitest MCP layer — generic client, registry, pool, routing, health."""
 
-__version__ = "0.1.0"
+__version__ = "0.4.0"
