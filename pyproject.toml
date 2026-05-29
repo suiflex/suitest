@@ -107,7 +107,7 @@ namespace_packages = true
 exclude = "(^|/)(\\.venv|alembic/versions|node_modules|dist|build)/"
 
 [[tool.mypy.overrides]]
-module = ["alembic.*", "fastembed.*", "cuid2.*", "pgvector.*", "testcontainers.*"]
+module = ["alembic.*", "fastembed.*", "cuid2.*", "pgvector.*", "testcontainers.*", "jsonpath_ng.*", "respx.*", "fakeredis.*"]
 ignore_missing_imports = true
 
 # FastAPI-Users base annotates user_id as raw UUID_ID in its TYPE_CHECKING branch;
@@ -115,6 +115,18 @@ ignore_missing_imports = true
 # warning under certain mypy configurations (e.g. pre-commit's --ignore-missing-imports).
 [[tool.mypy.overrides]]
 module = ["suitest_db.models.user"]
+warn_unused_ignores = false
+
+# The ARQ worker's WorkerSettings subclasses ``arq.typing.WorkerSettingsBase``
+# whose ``on_startup``/``on_shutdown`` slots are typed against the
+# ``StartupShutdown`` Protocol (``dict[Any, Any]``). Our hooks use the tighter
+# ``dict[str, object]`` to honor CLAUDE.md's "no Any" rule, so we silence the
+# resulting assignment mismatch with ``# type: ignore[assignment]``. Under
+# pre-commit's ``--ignore-missing-imports``, the base resolves to ``Any`` and
+# the ignore comments become "unused" — disable that warning here so both
+# strict and pre-commit mypy passes agree.
+[[tool.mypy.overrides]]
+module = ["suitest_runner.worker"]
 warn_unused_ignores = false
 
 [tool.pytest.ini_options]

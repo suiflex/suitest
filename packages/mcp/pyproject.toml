@@ -15,6 +15,7 @@ dependencies = [
   "redis[hiredis]>=5.0",
   "psycopg[binary]>=3.2",
   "psycopg-pool>=3.2",
+  "jsonpath-ng>=1.6",
   "suitest-shared",
   "suitest-db",
   "suitest-core",
@@ -25,6 +26,7 @@ test = [
   "pytest>=8.2",
   "pytest-asyncio>=0.23",
   "pytest-mock>=3.14",
+  "respx>=0.21",
   "testcontainers[postgres,redis,minio]>=4.5",
 ]
 
