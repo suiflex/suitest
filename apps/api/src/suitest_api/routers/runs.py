@@ -307,3 +307,74 @@ async def create_run(
     await session.commit()
     await session.refresh(run)
     return RunPublic.model_validate(run)
+
+
+# Statuses that ``POST /runs/:id/cancel`` will transition to CANCELLED. Any
+# other status (PASS / FAIL / ERROR / CANCELLED) is terminal and returns 409.
+_CANCELLABLE_STATUSES: frozenset[RunStatus] = frozenset({RunStatus.QUEUED, RunStatus.RUNNING})
+
+
+@router.post("/runs/{run_id}/cancel", response_model=RunPublic)
+async def cancel_run(
+    run_id: str,
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+    arq: ArqRedis = Depends(get_arq),
+) -> RunPublic:
+    """Transition a QUEUED / RUNNING run to CANCELLED and best-effort abort the ARQ job.
+
+    The DB transition is authoritative — even if ARQ is unreachable, the run
+    row flips to CANCELLED so the UI no longer shows it as live. We then try
+    to abort the in-flight job (no-op if the job already completed / never
+    started). Returns 409 when the run is already in a terminal state.
+    """
+    svc = _build_run_service(session, ctx)
+    run = await svc.get(run_id)
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
+    if run.status not in _CANCELLABLE_STATUSES:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="run not cancellable")
+    metadata = run.metadata_json or {}
+    job_id_raw = metadata.get("arq_job_id") if isinstance(metadata, dict) else None
+    if isinstance(job_id_raw, str):
+        try:
+            from arq.jobs import Job as ArqJob
+
+            await ArqJob(job_id_raw, arq, _queue_name=_RUNS_QUEUE).abort()
+        except Exception:
+            pass
+    updated = await svc.update_status(run_id, RunStatus.CANCELLED)
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
+    await session.commit()
+    await session.refresh(updated)
+    return RunPublic.model_validate(updated)
+
+
+@router.post("/runs/{run_id}/rerun", response_model=RunPublic, status_code=status.HTTP_202_ACCEPTED)
+async def rerun_run(
+    run_id: str,
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+    arq: ArqRedis = Depends(get_arq),
+) -> RunPublic:
+    """Clone the source run's selection into a fresh QUEUED row + enqueue the ARQ job.
+
+    A rerun reuses the original selection + routing override (so the runner
+    fans out identically) but re-resolves the workspace tier so a tier change
+    between the two runs is honored. Returns 202 like the create endpoint.
+    """
+    svc = _build_run_service(session, ctx)
+    src = await svc.get(run_id)
+    if src is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
+    try:
+        new_run = await svc.clone_for_rerun(src, user_id=ctx.user_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    job = await arq.enqueue_job("run_test_case", new_run.id, _queue_name=_RUNS_QUEUE)
+    if job is not None:
+        await svc.attach_arq_job_id(new_run.id, job.job_id)
+    await session.commit()
+    await session.refresh(new_run)
+    return RunPublic.model_validate(new_run)
