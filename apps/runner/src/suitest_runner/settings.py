@@ -65,6 +65,31 @@ class RunnerSettings(BaseSettings):
     queue_name: str = Field(default="suitest:runs")
     keep_result_seconds: int = Field(default=3600, ge=0)
 
+    # S3 / MinIO target for artifact upload. Defaults point at a local MinIO
+    # (the docker-compose dev stack). Production deploys override the endpoint
+    # with the real bucket URL. Credentials default to the well-known MinIO
+    # dev defaults — production MUST override via env.
+    s3_endpoint: str = Field(
+        default="http://localhost:9000",
+        validation_alias=AliasChoices("SUITEST_RUNNER_S3_ENDPOINT", "SUITEST_S3_ENDPOINT"),
+    )
+    s3_bucket: str = Field(
+        default="suitest-artifacts",
+        validation_alias=AliasChoices("SUITEST_RUNNER_S3_BUCKET", "SUITEST_S3_BUCKET"),
+    )
+    s3_access_key: str = Field(
+        default="minioadmin",
+        validation_alias=AliasChoices("SUITEST_RUNNER_S3_ACCESS_KEY", "SUITEST_S3_ACCESS_KEY"),
+    )
+    s3_secret_key: str = Field(
+        default="minioadmin",
+        validation_alias=AliasChoices("SUITEST_RUNNER_S3_SECRET_KEY", "SUITEST_S3_SECRET_KEY"),
+    )
+    s3_region: str = Field(
+        default="us-east-1",
+        validation_alias=AliasChoices("SUITEST_RUNNER_S3_REGION", "SUITEST_S3_REGION"),
+    )
+
 
 def get_settings() -> RunnerSettings:
     """Return a fresh RunnerSettings instance (env-resolved)."""

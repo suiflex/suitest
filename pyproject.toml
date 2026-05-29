@@ -107,7 +107,7 @@ namespace_packages = true
 exclude = "(^|/)(\\.venv|alembic/versions|node_modules|dist|build)/"
 
 [[tool.mypy.overrides]]
-module = ["alembic.*", "fastembed.*", "cuid2.*", "pgvector.*", "testcontainers.*", "jsonpath_ng.*", "respx.*", "fakeredis.*"]
+module = ["alembic.*", "fastembed.*", "cuid2.*", "pgvector.*", "testcontainers.*", "jsonpath_ng.*", "respx.*", "fakeredis.*", "aioboto3.*", "botocore.*", "moto.*", "boto3.*"]
 ignore_missing_imports = true
 
 # FastAPI-Users base annotates user_id as raw UUID_ID in its TYPE_CHECKING branch;

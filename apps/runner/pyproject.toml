@@ -7,6 +7,7 @@ dependencies = [
   "arq>=0.26",
   "redis[hiredis]>=5.0",
   "sqlalchemy[asyncio]>=2.0",
+  "aioboto3>=12.4",
   "opentelemetry-api>=1.25",
   "opentelemetry-sdk>=1.25",
   "opentelemetry-exporter-otlp-proto-http>=1.25",
@@ -26,6 +27,7 @@ test = [
   "pytest-asyncio>=0.23",
   "pytest-mock>=3.14",
   "aiosqlite>=0.20",
+  "moto[s3]>=5.0",
 ]
 
 [build-system]
