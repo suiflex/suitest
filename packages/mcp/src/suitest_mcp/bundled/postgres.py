@@ -97,9 +97,7 @@ def _resolve_dsn(provider: McpProviderConfig) -> str:
     """
     dsn = provider.config_json.get("dsn") or provider.endpoint or ""
     if not dsn or dsn.startswith("in-process://"):
-        raise RuntimeError(
-            f"postgres-mcp provider {provider.name!r} requires config_json.dsn"
-        )
+        raise RuntimeError(f"postgres-mcp provider {provider.name!r} requires config_json.dsn")
     return dsn
 
 
@@ -295,9 +293,7 @@ class PostgresBundledServer:
     async def list_tools(self) -> list[Tool]:
         return _tool_schemas()
 
-    async def call_tool(
-        self, name: str, arguments: dict[str, Any]
-    ) -> list[TextContent]:
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
         pool = await _get_pool(self._provider)
         async with pool.connection() as conn:
             if name == "db.query":
@@ -332,11 +328,7 @@ class PostgresBundledServer:
                 cols = [c.name for c in cur.description]
                 rows = [dict(zip(cols, row, strict=False)) for row in await cur.fetchall()]
                 return [TextContent(type="text", text=json.dumps(rows, default=str))]
-            return [
-                TextContent(
-                    type="text", text=json.dumps({"affected": cur.rowcount})
-                )
-            ]
+            return [TextContent(type="text", text=json.dumps({"affected": cur.rowcount}))]
 
     async def _tool_exec(
         self, conn: psycopg.AsyncConnection[Any], args: dict[str, Any]
@@ -345,11 +337,7 @@ class PostgresBundledServer:
         params = args.get("params") or []
         async with conn.cursor() as cur:
             await cur.execute(sql_text, params)
-            return [
-                TextContent(
-                    type="text", text=json.dumps({"affected": cur.rowcount})
-                )
-            ]
+            return [TextContent(type="text", text=json.dumps({"affected": cur.rowcount}))]
 
     async def _tool_insert(
         self, conn: psycopg.AsyncConnection[Any], args: dict[str, Any]
@@ -359,11 +347,7 @@ class PostgresBundledServer:
         stmt, params = _build_insert(table, row)
         async with conn.cursor() as cur:
             await cur.execute(stmt, params)
-            return [
-                TextContent(
-                    type="text", text=json.dumps({"affected": cur.rowcount})
-                )
-            ]
+            return [TextContent(type="text", text=json.dumps({"affected": cur.rowcount}))]
 
     async def _tool_delete(
         self, conn: psycopg.AsyncConnection[Any], args: dict[str, Any]
@@ -373,11 +357,7 @@ class PostgresBundledServer:
         stmt, params = _build_delete(table, where)
         async with conn.cursor() as cur:
             await cur.execute(stmt, params)
-            return [
-                TextContent(
-                    type="text", text=json.dumps({"affected": cur.rowcount})
-                )
-            ]
+            return [TextContent(type="text", text=json.dumps({"affected": cur.rowcount}))]
 
     async def _tool_assert_row_exists(
         self, conn: psycopg.AsyncConnection[Any], args: dict[str, Any]
@@ -386,9 +366,7 @@ class PostgresBundledServer:
         where = self._require_dict(args, "where")
         count = await self._fetch_count(conn, table, where)
         if count < 1:
-            raise AssertionError(
-                f"db.assert_row_exists: no rows in {table!r} matching {where!r}"
-            )
+            raise AssertionError(f"db.assert_row_exists: no rows in {table!r} matching {where!r}")
         return [TextContent(type="text", text=json.dumps({"ok": True, "count": count}))]
 
     async def _tool_assert_row_count(

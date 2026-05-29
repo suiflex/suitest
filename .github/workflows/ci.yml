@@ -33,17 +33,23 @@ jobs:
         run: uv run ruff format --check apps packages
 
       - name: Mypy
-        # Type-check `apps` and `packages` in separate invocations. Tests use
-        # pytest's `--import-mode=importlib`, so the per-package `conftest.py`
-        # files have no `tests/__init__.py` and both resolve to the top-level
-        # module name `conftest`. A single `mypy apps packages` run therefore
-        # aborts with "Duplicate module named conftest". Splitting the run keeps
-        # full type coverage (src + tests) while ensuring each invocation sees at
-        # most one `conftest` (there is exactly one under `apps/` and one under
-        # `packages/`). Do not collapse these back into one command.
+        # Type-check each package/app in a separate invocation. Tests use
+        # pytest's `--import-mode=importlib`, so per-package `conftest.py`
+        # files have no `tests/__init__.py` and all resolve to the top-level
+        # module name `conftest`. A single `mypy apps packages` (or even
+        # `mypy packages` covering both `packages/db/tests/conftest.py` and
+        # `packages/mcp/tests/conftest.py`) aborts with "Duplicate module named
+        # conftest". Splitting per package keeps full type coverage (src +
+        # tests) while ensuring each invocation sees at most one `conftest`.
+        # Do not collapse these back into broader commands.
         run: |
-          uv run mypy apps
-          uv run mypy packages
+          uv run mypy apps/api
+          uv run mypy apps/runner
+          uv run mypy packages/agent
+          uv run mypy packages/core
+          uv run mypy packages/db
+          uv run mypy packages/mcp
+          uv run mypy packages/shared
 
   python-test:
     name: Python tests (pytest)

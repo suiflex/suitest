@@ -12,6 +12,10 @@ endif
 
 PY_PACKAGES := apps/api apps/runner packages/core packages/db packages/shared
 PY_SRC := apps packages
+# Mypy must run per-package because per-package `tests/conftest.py` files all
+# resolve to the top-level module name `conftest` under pytest's importlib mode
+# (see CI workflow note). Keep this list in sync with `.github/workflows/ci.yml`.
+PY_MYPY_TARGETS := apps/api apps/runner packages/agent packages/core packages/db packages/mcp packages/shared
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make <target>\n\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  %-20s %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
@@ -36,8 +40,8 @@ lint-fix: ## Ruff auto-fix + format
 	uv run ruff check --fix $(PY_SRC)
 	uv run ruff format $(PY_SRC)
 
-typecheck: ## Mypy strict check
-	uv run mypy $(PY_SRC)
+typecheck: ## Mypy strict check (per-package to avoid duplicate conftest)
+	@set -e; for t in $(PY_MYPY_TARGETS); do echo "--- mypy $$t ---"; uv run mypy $$t; done
 
 test: ## Run all Python tests
 	uv run pytest -v
