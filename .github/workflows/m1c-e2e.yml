@@ -1,0 +1,95 @@
+name: M1c E2E
+
+# DoD smoke test for milestone M1c (plan §Task 22). Boots the full Suitest
+# docker-compose stack (postgres + redis + minio + api + runner + e2e-nginx)
+# and exercises the create-run → WS subscribe → assert-events → fetch-artifact
+# loop end-to-end. Soft-fail today (``continue-on-error: true``) — promoted to
+# a hard gate at M2 once the runner image cold-boot time is profiled.
+
+on:
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "apps/runner/**"
+      - "packages/mcp/**"
+      - "packages/db/**"
+      - "tests/e2e/**"
+      - "infra/docker/**"
+      - ".github/workflows/m1c-e2e.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: docker-compose smoke
+    runs-on: ubuntu-latest
+    continue-on-error: true  # M1c soft fail; promote to hard at M2
+
+    env:
+      # Match infra/docker/docker-compose.yml `x-suitest-env` block exactly so
+      # the api/runner containers boot without missing-env errors.
+      SUITEST_DATABASE_URL: postgresql+asyncpg://suitest:suitest@postgres:5432/suitest
+      SUITEST_REDIS_URL: redis://redis:6379/0
+      SUITEST_S3_ENDPOINT: http://minio:9000
+      SUITEST_S3_BUCKET: suitest-artifacts
+      SUITEST_S3_ACCESS_KEY: minioadmin
+      SUITEST_S3_SECRET_KEY: minioadmin
+      SUITEST_ENCRYPTION_KEY: Y2ktZW5jcnlwdGlvbi1rZXktMzItYnl0ZS1iYXNlNjQ= # gitleaks:allow  pragma: allowlist secret -- CI dummy
+      SUITEST_AUTH_SECRET: ci-secret-32-characters-minimum-for-jwt
+      SUITEST_WEB_URL: http://localhost:3000
+      SUITEST_API_URL: http://localhost:4000
+      SUITEST_OAUTH_GOOGLE_CLIENT_ID: ci-client-id
+      SUITEST_OAUTH_GOOGLE_CLIENT_SECRET: ci-client-secret
+      # Smoke test overrides — point the host-side test runner at the
+      # compose-published ports.
+      SUITEST_E2E_API_URL: http://localhost:4000
+      SUITEST_E2E_WS_URL: ws://localhost:4000
+      SUITEST_E2E_NGINX_URL: http://e2e-nginx:80
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev --all-packages
+
+      - name: Bring up docker-compose stack (zero + e2e profiles)
+        working-directory: infra/docker
+        run: |
+          docker compose --profile zero --profile e2e up -d --wait
+          docker compose ps
+
+      - name: Wait for api health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:4000/health > /dev/null; then
+              echo "api healthy"; exit 0
+            fi
+            echo "waiting for api ($i/30)"; sleep 2
+          done
+          echo "api never became healthy"; exit 1
+
+      - name: Run E2E smoke
+        run: uv run pytest tests/e2e -m e2e -q
+
+      - name: Dump compose logs on failure
+        if: failure()
+        working-directory: infra/docker
+        run: |
+          docker compose logs --tail=200 api || true
+          docker compose logs --tail=200 runner || true
+          docker compose logs --tail=50 postgres || true
+          docker compose logs --tail=50 minio || true
+
+      - name: Tear down
+        if: always()
+        working-directory: infra/docker
+        run: docker compose --profile zero --profile e2e down -v

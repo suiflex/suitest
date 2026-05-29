@@ -77,11 +77,11 @@ Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md
 
 #### Runner dengan MCP (deterministic only)
 
-- [ ] **M1-16** `packages/mcp` registry + client + connection pool
-- [ ] **M1-17** Bundled MCP providers (minimum 3 untuk v1.0 M1): `playwright-mcp`, `api-http-mcp`, `postgres-mcp`
-- [ ] **M1-18** ARQ worker (`apps/runner`) pull run jobs, dispatch per-step ke MCP yang benar berdasarkan `step.mcp_provider`
-- [ ] **M1-19** WebSocket log streaming + screenshot capture per step + MinIO artifact upload
-- [ ] **M1-20** Run cancel + rerun + scheduled runs (cron via ARQ)
+- [x] **M1-16** `packages/mcp` registry + client + connection pool
+- [x] **M1-17** Bundled MCP providers (minimum 3 untuk v1.0 M1): `playwright-mcp`, `api-http-mcp`, `postgres-mcp`
+- [x] **M1-18** ARQ worker (`apps/runner`) pull run jobs, dispatch per-step ke MCP yang benar berdasarkan `step.mcp_provider`
+- [x] **M1-19** WebSocket log streaming + screenshot capture per step + MinIO artifact upload
+- [x] **M1-20** Run cancel + rerun (scheduled cron runs deferred to M1d)
 
 #### Defect (no AI)
 

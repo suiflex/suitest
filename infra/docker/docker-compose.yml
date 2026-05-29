@@ -150,6 +150,25 @@ services:
       timeout: 5s
       retries: 3
 
+  # E2E-only static page server. Serves tests/e2e/fixtures/test-page/index.html
+  # so the M1c smoke (playwright-mcp Navigate → Screenshot → Click) has a
+  # deterministic local target without depending on the public internet.
+  # Activated only by the ``e2e`` profile so default ``docker compose up``
+  # (zero/cloud/local/dev profiles) does not pull / start it.
+  e2e-nginx:
+    image: nginx:alpine
+    profiles: ["e2e"]
+    restart: "no"
+    ports:
+      - "8090:80"
+    volumes:
+      - ../../tests/e2e/fixtures/test-page:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
   pgdata:
   redisdata:

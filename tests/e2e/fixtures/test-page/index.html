@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Suitest E2E Test Page</title>
+    <style>
+      body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #fafafa; padding: 32px; }
+      h1#hero { font-size: 28px; }
+      input, button { padding: 8px 12px; margin: 8px 0; font-size: 14px; }
+      #q { width: 280px; }
+    </style>
+  </head>
+  <body>
+    <h1 id="hero">Hello Suitest</h1>
+    <p>Static fixture page served by the docker-compose <code>e2e-nginx</code> service for M1c smoke E2E.</p>
+    <input id="q" type="text" placeholder="type something" />
+    <button id="go" type="button" onclick="document.getElementById('result').textContent = 'clicked';">Go</button>
+    <div id="result"></div>
+  </body>
+</html>

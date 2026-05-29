@@ -190,14 +190,14 @@ class McpHandshakeFailed(McpError):     code = "MCP_HANDSHAKE_FAILED"
 
 ### Steps
 
-- [ ] **1.1** Create `pyproject.toml`; add to root uv workspace members
-- [ ] **1.2** Create directory skeleton (empty docstring per file, no barrels)
-- [ ] **1.3** Write `models.py` and `errors.py`
-- [ ] **1.4** `uv sync`; verify `import suitest_mcp.models` succeeds
-- [ ] **1.5** `tests/test_models.py` instantiating each model with valid + invalid input
-- [ ] **1.6** `uv run pytest packages/mcp/tests -q` green
-- [ ] **1.7** `uv run mypy packages/mcp/src` clean
-- [ ] **1.8** Commit: `feat(mcp): scaffold packages/mcp with pyproject + models + errors`
+- [x] **1.1** Create `pyproject.toml`; add to root uv workspace members
+- [x] **1.2** Create directory skeleton (empty docstring per file, no barrels)
+- [x] **1.3** Write `models.py` and `errors.py`
+- [x] **1.4** `uv sync`; verify `import suitest_mcp.models` succeeds
+- [x] **1.5** `tests/test_models.py` instantiating each model with valid + invalid input
+- [x] **1.6** `uv run pytest packages/mcp/tests -q` green
+- [x] **1.7** `uv run mypy packages/mcp/src` clean
+- [x] **1.8** Commit: `feat(mcp): scaffold packages/mcp with pyproject + models + errors`
 
 ---
 
@@ -376,12 +376,12 @@ async def test_call_tool_timeout(mock_mcp_server):
 
 ### Steps
 
-- [ ] **2.1** Write `client.py` (open_session + McpSession.call_tool)
-- [ ] **2.2** Write `tests/mcp_server_mock.py` + `tests/conftest.py` fixture
-- [ ] **2.3** Write `tests/test_client.py` (4 cases)
-- [ ] **2.4** Tests green; verify OTel span `mcp.invoke` emitted via in-memory exporter
-- [ ] **2.5** mypy strict pass
-- [ ] **2.6** Commit: `feat(mcp): generic async client with stdio/sse/ws/in-process transports`
+- [x] **2.1** Write `client.py` (open_session + McpSession.call_tool)
+- [x] **2.2** Write `tests/mcp_server_mock.py` + `tests/conftest.py` fixture
+- [x] **2.3** Write `tests/test_client.py` (4 cases)
+- [x] **2.4** Tests green; verify OTel span `mcp.invoke` emitted via in-memory exporter
+- [x] **2.5** mypy strict pass
+- [x] **2.6** Commit: `feat(mcp): generic async client with stdio/sse/ws/in-process transports`
 
 ---
 
@@ -523,11 +523,11 @@ async def test_pool_recycles_on_exception(mock_mcp_server):
 
 ### Steps
 
-- [ ] **3.1** Write `pool.py`
-- [ ] **3.2** Write `tests/test_pool.py` (4 cases)
-- [ ] **3.3** Tests red → impl → green
-- [ ] **3.4** mypy strict pass
-- [ ] **3.5** Commit: `feat(mcp): connection pool with LRU + TTL + per-provider cap`
+- [x] **3.1** Write `pool.py`
+- [x] **3.2** Write `tests/test_pool.py` (4 cases)
+- [x] **3.3** Tests red → impl → green
+- [x] **3.4** mypy strict pass
+- [x] **3.5** Commit: `feat(mcp): connection pool with LRU + TTL + per-provider cap`
 
 ---
 
@@ -644,12 +644,12 @@ Test matrix: registry returns bundled provider; default FE_WEB routes to playwri
 
 ### Steps
 
-- [ ] **4.1** Write `providers/builtin_specs.py`
-- [ ] **4.2** Write `registry.py` using existing M1a `McpProviderRepository`
-- [ ] **4.3** Write `routing.py`
-- [ ] **4.4** Write `tests/test_registry_routing.py` (6 cases enumerated above)
-- [ ] **4.5** Tests green; mypy strict pass
-- [ ] **4.6** Commit: `feat(mcp): registry + routing with workspace overrides + fallback`
+- [x] **4.1** Write `providers/builtin_specs.py`
+- [x] **4.2** Write `registry.py` using existing M1a `McpProviderRepository`
+- [x] **4.3** Write `routing.py`
+- [x] **4.4** Write `tests/test_registry_routing.py` (6 cases enumerated above)
+- [x] **4.5** Tests green; mypy strict pass
+- [x] **4.6** Commit: `feat(mcp): registry + routing with workspace overrides + fallback`
 
 ---
 
@@ -762,12 +762,12 @@ Probe returns OK against mock server; probe returns DOWN against `/bin/false` sp
 
 ### Steps
 
-- [ ] **5.1** Write `health.py`
-- [ ] **5.2** Add `fake_redis` (in-memory pub/sub stub) and `db_session_factory` fixtures to `tests/conftest.py`
-- [ ] **5.3** Verify M1a `McpProviderRepository.update_health(id, status, checked_at)` exists; add migration column `last_health_at` if missing
-- [ ] **5.4** Write tests (4 cases)
-- [ ] **5.5** Tests green; mypy strict pass
-- [ ] **5.6** Commit: `feat(mcp): health monitor with 60s probe + redis pubsub + auto-disable`
+- [x] **5.1** Write `health.py`
+- [x] **5.2** Add `fake_redis` (in-memory pub/sub stub) and `db_session_factory` fixtures to `tests/conftest.py`
+- [x] **5.3** Verify M1a `McpProviderRepository.update_health(id, status, checked_at)` exists; add migration column `last_health_at` if missing
+- [x] **5.4** Write tests (4 cases)
+- [x] **5.5** Tests green; mypy strict pass
+- [x] **5.6** Commit: `feat(mcp): health monitor with 60s probe + redis pubsub + auto-disable`
 
 ---
 
@@ -899,11 +899,11 @@ Cases: GET returns 200 + payload; `http.assert_status` matches; `http.assert_jso
 
 ### Steps
 
-- [ ] **6.1** Add `jsonpath-ng` to `packages/mcp/pyproject.toml`
-- [ ] **6.2** Write `in_process_runtime.py` + `bundled/api_http.py`
-- [ ] **6.3** Write integration tests against testcontainers httpbin (4 cases)
-- [ ] **6.4** Tests green; mypy strict pass
-- [ ] **6.5** Commit: `feat(mcp): bundled api-http-mcp with request + status/jsonpath/header assertions`
+- [x] **6.1** Add `jsonpath-ng` to `packages/mcp/pyproject.toml`
+- [x] **6.2** Write `in_process_runtime.py` + `bundled/api_http.py`
+- [x] **6.3** Write integration tests against testcontainers httpbin (4 cases)
+- [x] **6.4** Tests green; mypy strict pass
+- [x] **6.5** Commit: `feat(mcp): bundled api-http-mcp with request + status/jsonpath/header assertions`
 
 ---
 
@@ -971,7 +971,7 @@ def test_page_url():
         yield f"http://{c.get_container_host_ip()}:{c.get_exposed_port(80)}/test_page.html"
 
 
-def _cfg(): 
+def _cfg():
     spec = next(s for s in BUILTIN_SPECS if s.name == "playwright-mcp")
     return spec.model_copy(update={"workspace_id": "ws"})
 
@@ -989,11 +989,11 @@ async def test_playwright_navigate_screenshot_dom(test_page_url):
 
 ### Steps
 
-- [ ] **7.1** Write `bundled/playwright.py` metadata
-- [ ] **7.2** Add HTML fixture
-- [ ] **7.3** Write integration test (marked `@pytest.mark.integration`, skipped by default unless `--integration`)
-- [ ] **7.4** Update `docs/DEPLOYMENT.md` with Docker bundling instructions (`npm install @playwright/mcp` + `npx playwright install`)
-- [ ] **7.5** Commit: `feat(mcp): bundled playwright-mcp metadata + integration smoke`
+- [x] **7.1** Write `bundled/playwright.py` metadata
+- [x] **7.2** Add HTML fixture
+- [x] **7.3** Write integration test (marked `@pytest.mark.integration`, skipped by default unless `--integration`)
+- [x] **7.4** Update `docs/DEPLOYMENT.md` with Docker bundling instructions (`npm install @playwright/mcp` + `npx playwright install`)
+- [x] **7.5** Commit: `feat(mcp): bundled playwright-mcp metadata + integration smoke`
 
 ---
 
@@ -1111,11 +1111,11 @@ Cases: `db.exec` CREATE + `db.insert` + `db.query` round-trip; `db.assert_row_ex
 
 ### Steps
 
-- [ ] **8.1** Add `psycopg[binary]`, `psycopg-pool` to `packages/mcp/pyproject.toml`
-- [ ] **8.2** Write `bundled/postgres.py`
-- [ ] **8.3** Write integration tests (3 cases)
-- [ ] **8.4** Tests green; mypy strict pass
-- [ ] **8.5** Commit: `feat(mcp): bundled postgres-mcp in-process with query/assert tools`
+- [x] **8.1** Add `psycopg[binary]`, `psycopg-pool` to `packages/mcp/pyproject.toml`
+- [x] **8.2** Write `bundled/postgres.py`
+- [x] **8.3** Write integration tests (3 cases)
+- [x] **8.4** Tests green; mypy strict pass
+- [x] **8.5** Commit: `feat(mcp): bundled postgres-mcp in-process with query/assert tools`
 
 ---
 
@@ -1250,11 +1250,11 @@ async def test_invoker_emits_start_end_and_returns(mock_mcp_server, fake_redis, 
 
 ### Steps
 
-- [ ] **9.1** Write `invoker.py`
-- [ ] **9.2** Ensure `packages/db/audit.py::write_audit` exists (from M1a); add minimal version if missing
-- [ ] **9.3** Write `tests/test_invoker.py`
-- [ ] **9.4** Tests green; mypy strict pass
-- [ ] **9.5** Commit: `feat(mcp): invoker orchestrating pool + routing + audit + redis events`
+- [x] **9.1** Write `invoker.py`
+- [x] **9.2** Ensure `packages/db/audit.py::write_audit` exists (from M1a); add minimal version if missing
+- [x] **9.3** Write `tests/test_invoker.py`
+- [x] **9.4** Tests green; mypy strict pass
+- [x] **9.5** Commit: `feat(mcp): invoker orchestrating pool + routing + audit + redis events`
 
 ---
 
@@ -1406,12 +1406,12 @@ async def test_worker_enqueue(redis_url):
 
 ### Steps
 
-- [ ] **10.1** Create `apps/runner/pyproject.toml` + register in root uv workspace
-- [ ] **10.2** Write `settings.py`, `worker.py`, `__main__.py`, `jobs/run_test_case.py` stub
-- [ ] **10.3** Write `tests/test_worker_boot.py`
-- [ ] **10.4** `uv run python -m suitest_runner` boots cleanly in dev compose
-- [ ] **10.5** mypy strict pass
-- [ ] **10.6** Commit: `feat(runner): scaffold ARQ worker with startup/shutdown lifecycle`
+- [x] **10.1** Create `apps/runner/pyproject.toml` + register in root uv workspace
+- [x] **10.2** Write `settings.py`, `worker.py`, `__main__.py`, `jobs/run_test_case.py` stub
+- [x] **10.3** Write `tests/test_worker_boot.py`
+- [x] **10.4** `uv run python -m suitest_runner` boots cleanly in dev compose
+- [x] **10.5** mypy strict pass
+- [x] **10.6** Commit: `feat(runner): scaffold ARQ worker with startup/shutdown lifecycle`
 
 ---
 
@@ -1555,10 +1555,10 @@ async def test_invalid_json_marks_error():
 
 ### Steps
 
-- [ ] **11.1** Write `executors/step_executor.py`
-- [ ] **11.2** Write `tests/test_step_executor.py` (4 cases)
-- [ ] **11.3** Tests green; mypy strict pass
-- [ ] **11.4** Commit: `feat(runner): step executor with code parse + outcome decision tree`
+- [x] **11.1** Write `executors/step_executor.py`
+- [x] **11.2** Write `tests/test_step_executor.py` (4 cases)
+- [x] **11.3** Tests green; mypy strict pass
+- [x] **11.4** Commit: `feat(runner): step executor with code parse + outcome decision tree`
 
 ---
 
@@ -1723,11 +1723,11 @@ async def test_missing_run_returns_error(stub_ctx_empty):
 
 ### Steps
 
-- [ ] **12.1** Verify (or add) M1a repo helpers `RunRepository.get_with_selection/update_status`, `RunStepRepository.create`, `WorkspaceCapabilityRepository.get`
-- [ ] **12.2** Write full `jobs/run_test_case.py`
-- [ ] **12.3** Write fixtures + tests (4 cases)
-- [ ] **12.4** Tests green; mypy strict pass
-- [ ] **12.5** Commit: `feat(runner): run orchestrator with per-step execution + event stream + aggregation`
+- [x] **12.1** Verify (or add) M1a repo helpers `RunRepository.get_with_selection/update_status`, `RunStepRepository.create`, `WorkspaceCapabilityRepository.get`
+- [x] **12.2** Write full `jobs/run_test_case.py`
+- [x] **12.3** Write fixtures + tests (4 cases)
+- [x] **12.4** Tests green; mypy strict pass
+- [x] **12.5** Commit: `feat(runner): run orchestrator with per-step execution + event stream + aggregation`
 
 ---
 
@@ -1799,12 +1799,12 @@ async def test_upload_round_trip(moto_s3_setup, db_session):
 
 ### Steps
 
-- [ ] **13.1** Write `apps/runner/src/suitest_runner/artifacts.py`
-- [ ] **13.2** Add `moto[s3]` to runner test deps
-- [ ] **13.3** Verify M1a `ArtifactRepository.create()` exists; add if missing
-- [ ] **13.4** Write tests with moto-mocked S3
-- [ ] **13.5** Tests green
-- [ ] **13.6** Commit: `feat(runner): artifact pipeline uploads to S3/MinIO + persists DB rows`
+- [x] **13.1** Write `apps/runner/src/suitest_runner/artifacts.py`
+- [x] **13.2** Add `moto[s3]` to runner test deps
+- [x] **13.3** Verify M1a `ArtifactRepository.create()` exists; add if missing
+- [x] **13.4** Write tests with moto-mocked S3
+- [x] **13.5** Tests green
+- [x] **13.6** Commit: `feat(runner): artifact pipeline uploads to S3/MinIO + persists DB rows`
 
 ---
 
@@ -1969,13 +1969,13 @@ async def test_unauthorized_token_closes(app):
 
 ### Steps
 
-- [ ] **14.1** Write `ws/manager.py`
-- [ ] **14.2** Write `routers/ws.py`; register in `apps/api/src/suitest_api/main.py`; wire `WsConnectionManager` lifecycle to FastAPI lifespan
-- [ ] **14.3** Add `current_user_from_ws_token` to `apps/api/src/suitest_api/deps/auth.py`
-- [ ] **14.4** Add `httpx-ws` to api test deps
-- [ ] **14.5** Write `tests/test_ws_gateway.py` (2 cases)
-- [ ] **14.6** mypy strict pass
-- [ ] **14.7** Commit: `feat(api): websocket gateway with auth + run room subscriptions + heartbeat`
+- [x] **14.1** Write `ws/manager.py`
+- [x] **14.2** Write `routers/ws.py`; register in `apps/api/src/suitest_api/main.py`; wire `WsConnectionManager` lifecycle to FastAPI lifespan
+- [x] **14.3** Add `current_user_from_ws_token` to `apps/api/src/suitest_api/deps/auth.py`
+- [x] **14.4** Add `httpx-ws` to api test deps
+- [x] **14.5** Write `tests/test_ws_gateway.py` (2 cases)
+- [x] **14.6** mypy strict pass
+- [x] **14.7** Commit: `feat(api): websocket gateway with auth + run room subscriptions + heartbeat`
 
 ---
 
@@ -2112,11 +2112,11 @@ Cases: 202 + record returned and tier=ZERO; unknown project → 400; unknown MCP
 
 ### Steps
 
-- [ ] **15.1** Write `schemas/runs.py` and `routers/runs.py`
-- [ ] **15.2** Extend `RunService.create_run` + `attach_arq_job_id`
-- [ ] **15.3** Write tests (4 cases)
-- [ ] **15.4** Tests green; mypy strict pass
-- [ ] **15.5** Commit: `feat(api): POST /runs validates selection + MCP routing + enqueues ARQ job`
+- [x] **15.1** Write `schemas/runs.py` and `routers/runs.py`
+- [x] **15.2** Extend `RunService.create_run` + `attach_arq_job_id`
+- [x] **15.3** Write tests (4 cases)
+- [x] **15.4** Tests green; mypy strict pass
+- [x] **15.5** Commit: `feat(api): POST /runs validates selection + MCP routing + enqueues ARQ job`
 
 ---
 
@@ -2161,10 +2161,10 @@ Cancel QUEUED run → 200 + status CANCELLED; cancel COMPLETED run → 409; reru
 
 ### Steps
 
-- [ ] **16.1** Implement cancel + rerun endpoints
-- [ ] **16.2** Extend `RunService` with `clone_for_rerun`, `update_status`, `get`
-- [ ] **16.3** Write tests
-- [ ] **16.4** Commit: `feat(api): POST /runs/:id/cancel + /rerun`
+- [x] **16.1** Implement cancel + rerun endpoints
+- [x] **16.2** Extend `RunService` with `clone_for_rerun`, `update_status`, `get`
+- [x] **16.3** Write tests
+- [x] **16.4** Commit: `feat(api): POST /runs/:id/cancel + /rerun`
 
 > Note: scheduled cron runs (ARQ cron) deferred to M1d — out of scope for M1c.
 
@@ -2252,12 +2252,12 @@ async def test_logs_paginate_500(api_client, run_with_500_logs):
 
 ### Steps
 
-- [ ] **17.1** Write alembic migration for `run_step_logs`
-- [ ] **17.2** Write `RunStepLog` ORM + `RunStepLogRepository.append/list_after`
-- [ ] **17.3** Modify Task 12 orchestrator to write-through logs (with per-run seq counter from Redis)
-- [ ] **17.4** Implement `GET /runs/:id/logs`
-- [ ] **17.5** Write pagination test
-- [ ] **17.6** Commit: `feat(api): persisted run logs with cursor pagination + run_step_logs migration`
+- [x] **17.1** Write alembic migration for `run_step_logs`
+- [x] **17.2** Write `RunStepLog` ORM + `RunStepLogRepository.append/list_after`
+- [x] **17.3** Modify Task 12 orchestrator to write-through logs (with per-run seq counter from Redis)
+- [x] **17.4** Implement `GET /runs/:id/logs`
+- [x] **17.5** Write pagination test
+- [x] **17.6** Commit: `feat(api): persisted run logs with cursor pagination + run_step_logs migration`
 
 ---
 
@@ -2302,9 +2302,9 @@ async def test_signed_url_fetches(api_client, run_with_artifact, moto_s3):
 
 ### Steps
 
-- [ ] **18.1** Implement endpoint with audit log
-- [ ] **18.2** Write test against moto-mocked S3
-- [ ] **18.3** Commit: `feat(api): GET /runs/:id/artifacts/:id returns presigned S3 URL`
+- [x] **18.1** Implement endpoint with audit log
+- [x] **18.2** Write test against moto-mocked S3
+- [x] **18.3** Commit: `feat(api): GET /runs/:id/artifacts/:id returns presigned S3 URL`
 
 ---
 
@@ -2407,11 +2407,11 @@ describe("RunDetailPage", () => {
 
 ### Steps
 
-- [ ] **19.1** Extend `ws-client.ts` with typed `useRunStream`
-- [ ] **19.2** Implement `RunDetailPage` + sub-components (`RunSummaryCard`, `StepTable`, `LogPane`, `BrowserPreview`)
-- [ ] **19.3** Add `MockWs` test helper at `apps/web/src/test/mock-ws.ts`
-- [ ] **19.4** Write vitest tests (log append, auto-scroll respect)
-- [ ] **19.5** Commit: `feat(web): wire run detail to live WS stream + artifact preview`
+- [x] **19.1** Extend `ws-client.ts` with typed `useRunStream`
+- [x] **19.2** Implement `RunDetailPage` + sub-components (`RunSummaryCard`, `StepTable`, `LogPane`, `BrowserPreview`)
+- [x] **19.3** Add `MockWs` test helper at `apps/web/src/test/mock-ws.ts`
+- [x] **19.4** Write vitest tests (log append, auto-scroll respect)
+- [x] **19.5** Commit: `feat(web): wire run detail to live WS stream + artifact preview`
 
 ---
 
@@ -2475,10 +2475,10 @@ it("updates health pill on WS event", async () => {
 
 ### Steps
 
-- [ ] **20.1** Implement `McpServersPanel`, `HealthPill`, `ProviderModal`
-- [ ] **20.2** Wire into `integrations.tsx` tab
-- [ ] **20.3** Write vitest tests
-- [ ] **20.4** Commit: `feat(web): MCP provider browser with health pill + tool list modal`
+- [x] **20.1** Implement `McpServersPanel`, `HealthPill`, `ProviderModal`
+- [x] **20.2** Wire into `integrations.tsx` tab
+- [x] **20.3** Write vitest tests
+- [x] **20.4** Commit: `feat(web): MCP provider browser with health pill + tool list modal`
 
 ---
 
@@ -2545,12 +2545,12 @@ async def test_stress_8_parallel_runs_throttled(stub_ctx_8_runs):
 
 ### Steps
 
-- [ ] **21.1** Add env vars to `.env.example` and `RunnerSettings`
-- [ ] **21.2** Implement `WorkspacePoolCap`
-- [ ] **21.3** Wire into invoker
-- [ ] **21.4** Write stress test
-- [ ] **21.5** Update `docs/DEPLOYMENT.md` + `docs/MCP_PLUGINS.md` §8 with env var names (cross-check)
-- [ ] **21.6** Commit: `feat(mcp): workspace-level session cap with fair queue + stress test`
+- [x] **21.1** Add env vars to `.env.example` and `RunnerSettings`
+- [x] **21.2** Implement `WorkspacePoolCap`
+- [x] **21.3** Wire into invoker
+- [x] **21.4** Write stress test
+- [x] **21.5** Update `docs/DEPLOYMENT.md` + `docs/MCP_PLUGINS.md` §8 with env var names (cross-check)
+- [x] **21.6** Commit: `feat(mcp): workspace-level session cap with fair queue + stress test`
 
 ---
 
@@ -2649,11 +2649,11 @@ jobs:
 
 ### Steps
 
-- [ ] **22.1** Author E2E smoke test
-- [ ] **22.2** Add CI workflow stub running against full docker-compose stack
-- [ ] **22.3** Verify all 22 tasks' tests pass in CI
-- [ ] **22.4** Tag `v0.4.0-m1c`; push tag
-- [ ] **22.5** Commit: `chore: tag v0.4.0-m1c — M1c DoD complete`
+- [x] **22.1** Author E2E smoke test
+- [x] **22.2** Add CI workflow stub running against full docker-compose stack
+- [x] **22.3** Verify all 22 tasks' tests pass in CI
+- [x] **22.4** Tag `v0.4.0-m1c`; push tag
+- [x] **22.5** Commit: `chore: tag v0.4.0-m1c — M1c DoD complete`
 
 ---
 
@@ -2661,17 +2661,17 @@ jobs:
 
 A green check on every box below:
 
-- [ ] All 22 tasks committed individually with conventional-commit messages
-- [ ] `pytest` green: `packages/mcp`, `apps/runner`, `apps/api`
-- [ ] `vitest` green: `apps/web`
-- [ ] `mypy --strict packages apps` returns 0 errors
-- [ ] `ruff check` + `ruff format --check` clean
-- [ ] Acceptance criteria M1-16 through M1-20 from ROADMAP.md all checked
-- [ ] E2E smoke green: create case → run → WS events received → artifacts viewable
-- [ ] No LLM call anywhere in M1c-touched code — verify with `grep -r 'litellm\|openai\|anthropic' apps/runner apps/api packages/mcp` (zero hits expected)
-- [ ] `docs/DEPLOYMENT.md` updated: Playwright npm install + browser install RUN lines; runner env vars; MinIO bucket bootstrap
-- [ ] `docs/MCP_PLUGINS.md` §8 env var names match Task 21 reality
-- [ ] `v0.4.0-m1c` tag pushed
+- [x] All 22 tasks committed individually with conventional-commit messages
+- [x] `pytest` green: `packages/mcp`, `apps/runner`, `apps/api`
+- [x] `vitest` green: `apps/web`
+- [x] `mypy --strict packages apps` returns 0 errors
+- [x] `ruff check` + `ruff format --check` clean
+- [x] Acceptance criteria M1-16 through M1-20 from ROADMAP.md all checked
+- [x] E2E smoke green: create case → run → WS events received → artifacts viewable
+- [x] No LLM call anywhere in M1c-touched code — verify with `grep -r 'litellm\|openai\|anthropic' apps/runner apps/api packages/mcp` (zero hits expected)
+- [x] `docs/DEPLOYMENT.md` updated: Playwright npm install + browser install RUN lines; runner env vars; MinIO bucket bootstrap
+- [x] `docs/MCP_PLUGINS.md` §8 env var names match Task 21 reality
+- [x] `v0.4.0-m1c` tag pushed
 
 ## Cross-reference checklist
 
