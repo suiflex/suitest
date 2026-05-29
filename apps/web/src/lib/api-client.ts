@@ -1,6 +1,6 @@
 import axios, { type AxiosError, type AxiosInstance } from "axios";
 
-import type { paths } from "@/lib/api-types";
+import type { components, paths } from "@/lib/api-types";
 import { useActiveWorkspace } from "@/stores/use-active-workspace";
 
 export class ApiError extends Error {
@@ -77,3 +77,88 @@ function createClient(): AxiosInstance {
 
 export const api: AxiosInstance = createClient();
 export type Paths = paths;
+
+// ---------------------------------------------------------------------------
+// Typed REST helpers — thin wrappers around `api.get`. Screens that don't
+// need the full `useQuery` lifecycle (e.g. one-shot signed-URL fetches) call
+// these directly. Each helper returns the OpenAPI-generated body shape.
+// ---------------------------------------------------------------------------
+
+type RunDetail = components["schemas"]["RunDetail"];
+type RunStepPublic = components["schemas"]["RunStepPublic"];
+type ArtifactPublic = components["schemas"]["ArtifactPublic"];
+type ArtifactSignedUrl = components["schemas"]["ArtifactSignedUrl"];
+
+/** ``GET /runs/:id`` — full run detail incl. computed summary. */
+export async function fetchRun(runId: string): Promise<RunDetail> {
+  const res = await api.get<RunDetail>(`/runs/${runId}`);
+  return res.data;
+}
+
+/** ``GET /runs/:id/steps`` — every recorded step (no pagination in M1c). */
+export async function fetchRunSteps(runId: string): Promise<{ items: RunStepPublic[] }> {
+  const res = await api.get<{ items: RunStepPublic[] }>(`/runs/${runId}/steps`);
+  return res.data;
+}
+
+/** ``GET /runs/:id/artifacts`` — list of artifacts captured during the run. */
+export async function fetchRunArtifacts(runId: string): Promise<{ items: ArtifactPublic[] }> {
+  const res = await api.get<{ items: ArtifactPublic[] }>(`/runs/${runId}/artifacts`);
+  return res.data;
+}
+
+/** ``GET /runs/:id/artifacts/:artifactId`` — presigned S3 URL + metadata. */
+export async function fetchRunSignedUrl(
+  runId: string,
+  artifactId: string,
+): Promise<ArtifactSignedUrl> {
+  const res = await api.get<ArtifactSignedUrl>(`/runs/${runId}/artifacts/${artifactId}`);
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
+// MCP provider browser (Integrations screen, M1c task 20).
+// ---------------------------------------------------------------------------
+
+/** Summary row returned by ``GET /mcp/providers`` (one entry per provider). */
+export interface McpProviderSummary {
+  id: string;
+  name: string;
+  kind: string;
+  transport: string;
+  endpoint?: string;
+  healthStatus: "ok" | "degraded" | "down" | "unknown";
+  lastHealthAt?: string | null;
+  isBundled?: boolean;
+  tools?: { name: string }[];
+}
+
+/**
+ * Detail returned by ``GET /mcp/providers/:id``. The tool list comes from the
+ * discovery endpoint on the MCP server itself (cached server-side). M1c
+ * surfaces it read-only; the "try it" form lands in M2.
+ */
+export interface McpProviderTool {
+  name: string;
+  description?: string;
+  argSchema?: Record<string, unknown> | null;
+}
+
+export interface McpProviderDetail extends McpProviderSummary {
+  tools: McpProviderTool[];
+}
+
+/** Backwards-compat envelope — backend returns `{ items: [...] }`. */
+interface McpProvidersEnvelope {
+  items: McpProviderSummary[];
+}
+
+export async function fetchMcpProviders(): Promise<McpProviderSummary[]> {
+  const res = await api.get<McpProvidersEnvelope>("/mcp/providers");
+  return res.data.items;
+}
+
+export async function fetchMcpProvider(id: string): Promise<McpProviderDetail> {
+  const res = await api.get<McpProviderDetail>(`/mcp/providers/${id}`);
+  return res.data;
+}
