@@ -5,6 +5,7 @@ import { Suspense, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { IntegrationsSkeleton } from "@/components/integrations/skeleton";
+import { McpServersPanel } from "@/components/mcp/McpServersPanel";
 import { DisabledTooltip } from "@/components/shared/DisabledTooltip";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
@@ -185,6 +186,11 @@ function IntegrationsBody(): React.ReactElement {
   }, [integrations, mcp]);
 
   const showMcp = active === "all" || active === "mcp";
+  // The dedicated MCP tab now uses the live `McpServersPanel` (M1c task 20).
+  // The "All" tab keeps the legacy card grid so other categories still render
+  // alongside the MCP summary without duplicating the panel.
+  const showMcpPanel = active === "mcp";
+  const showMcpGrid = active === "all";
   const filteredIntegrations = useMemo(() => {
     if (active === "all") return integrations.items;
     if (active === "mcp") return [] as Integration[];
@@ -241,7 +247,7 @@ function IntegrationsBody(): React.ReactElement {
               ))}
             </section>
           )}
-          {showMcp && (
+          {showMcpGrid && (
             <section className="flex flex-col gap-3" data-testid="mcp-section">
               <header className="flex items-center justify-between">
                 <h3 className="text-[13px] font-semibold text-fg-1">MCP Servers</h3>
@@ -256,6 +262,11 @@ function IntegrationsBody(): React.ReactElement {
                   <McpProviderCard key={p.id} provider={p} />
                 ))}
               </div>
+            </section>
+          )}
+          {showMcpPanel && (
+            <section className="flex flex-col gap-3" data-testid="mcp-section">
+              <McpServersPanel />
             </section>
           )}
         </div>
