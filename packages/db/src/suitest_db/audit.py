@@ -23,10 +23,24 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
+from typing import Protocol
 
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import get_history
+
+
+class _AuditWriteSession(Protocol):
+    """Subset of :class:`~sqlalchemy.ext.asyncio.AsyncSession` that :func:`write_audit` needs.
+
+    Declared as a Protocol so the MCP invoker (and other callers that drive
+    their own session-shaped objects in tests) can pass recording stubs
+    without inheriting SQLAlchemy. The real :class:`AsyncSession` satisfies
+    this Protocol structurally — both ``add`` and (optionally) ``commit``
+    match.
+    """
+
+    def add(self, instance: object) -> None: ...
 
 
 @dataclass
@@ -158,3 +172,40 @@ def _after_flush(session: Session, flush_context: object) -> None:
             _record(session, obj, "update")
     for obj in session.deleted:
         _record(session, obj, "delete")
+
+
+async def write_audit(
+    session: _AuditWriteSession,
+    *,
+    workspace_id: str,
+    user_id: str | None,
+    action: str,
+    resource_type: str,
+    resource_id: str,
+    metadata: dict[str, object] | None = None,
+) -> None:
+    """Append one ``AuditLog`` row explicitly (out-of-band of the flush listener).
+
+    The :func:`_after_flush` listener records mutations against tables in
+    :data:`AUDITED_TABLES`. Side-effect events that don't correspond to a
+    domain-table mutation — e.g. ``mcp.invoke`` from the MCP invoker, login
+    attempts from the auth service — need an explicit append. This helper is
+    the canonical way to do that: the caller owns the session + commit so the
+    audit row participates in the surrounding transaction.
+
+    ``resource_type`` is free-form (e.g. ``"mcp_provider"``, ``"session"``) and
+    intentionally NOT restricted to :data:`AUDITED_TABLES` — those are domain
+    tables the listener watches, while side-effect events log against logical
+    resource categories that may have no underlying mutable row.
+    """
+    from suitest_db.models.audit import AuditLog  # late import to avoid cycle
+
+    row = AuditLog(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        action=action,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        metadata_json=metadata,
+    )
+    session.add(row)
