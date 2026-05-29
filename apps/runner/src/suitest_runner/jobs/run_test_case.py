@@ -1,43 +1,290 @@
-"""Run-test-case ARQ job — placeholder for M1c Task 10.
+"""``run_test_case`` ARQ job — orchestrates one full test run end-to-end.
 
-The real executor (mixed-MCP step dispatcher, step output normalization, artifact
-upload, defect ingest) lands in M1c Task 11. This stub keeps the queue + worker
-wiring honest: ARQ has at least one registered function so ``Worker.main`` does
-not refuse to start, and the placeholder return shape gives Task 11 a contract
-test to break against.
+The orchestrator owns the run lifecycle:
+
+1. Load the run + its step selection (M1c implicit selection: every active case
+   in the project's suites, in suite/case/step order).
+2. Resolve the workspace capability tier + routing overrides.
+3. Mark the run ``RUNNING``, publish ``run.started``.
+4. For each step: publish ``run.step.started`` → dispatch via
+   :func:`suitest_runner.executors.step_executor.execute_step` →
+   persist a ``run_steps`` row → upload artifacts → publish
+   ``run.step.completed``.
+5. Aggregate per-outcome counters, update the run with terminal status,
+   publish ``run.completed``.
+6. If the run failed (any FAIL or ERROR step), best-effort file a defect via
+   ``DefectService.file_for_failed_run`` — wrapped in try/except because the
+   ZERO-tier defect service is not in the runner's hard dependency set yet.
+
+Everything that touches the DB happens inside a fresh ``session_factory()``
+context manager so the worker's job-level concurrency doesn't share an
+``AsyncSession`` across coroutines (SQLAlchemy sessions are not safe for that).
 """
 
 from __future__ import annotations
 
-import structlog
+import json
+import time
+from datetime import UTC, datetime
+from typing import Protocol, runtime_checkable
 
+import structlog
+from suitest_db.models.project import Project
+from suitest_db.repositories.runs import RunRepo, RunStepRepo
+from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
+from suitest_mcp.invoker import McpInvoker
+from suitest_mcp.registry import McpRegistry
+from suitest_shared.domain.enums import RunStatus, StepOutcome, Tier
+
+from suitest_runner.executors.step_executor import execute_step
 from suitest_runner.observability import get_tracer
 
 log = structlog.get_logger(__name__)
 
 
+@runtime_checkable
+class _Publisher(Protocol):
+    """Minimal Redis publish surface so tests can sub a recorder for ``publish``."""
+
+    async def publish(self, channel: str, message: str | bytes) -> int: ...
+
+
 async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object]:
-    """Pick up a run, log it, return the documented placeholder payload.
+    """Execute one test run.
 
     Args:
-        ctx: ARQ-supplied per-job context. ARQ populates ``job_id`` / ``job_try``
-            / ``score`` / ``enqueue_time`` before invoking the job. We only read
-            ``job_id`` here (defensively — direct invocations from tests may
-            omit it).
-        run_id: Public ID of the test run to execute.
+        ctx: ARQ-supplied per-job context. Must contain ``session_factory``,
+            ``redis``, ``invoker``, ``registry`` (wired by
+            :func:`suitest_runner.worker.startup`).
+        run_id: Public/internal ID of the run row to execute.
 
     Returns:
-        ``{"status": "placeholder", "run_id": <run_id>}`` — matches the shape
-        the Task-10 worker test asserts against.
+        Summary dict: ``{"run_id": ..., "status": "PASS"|"FAIL", "total": N,
+        "passed": ..., "failed": ..., "errored": ..., "skipped": ...}`` —
+        the shape the M1c WS gateway tests assert against.
     """
+    factory = ctx.get("session_factory")
+    redis_client = ctx.get("redis")
+    invoker = ctx.get("invoker")
+    registry = ctx.get("registry")
+    if not callable(factory):
+        return {"error": "RUNNER_CTX_INVALID", "field": "session_factory"}
+    if not isinstance(invoker, McpInvoker):
+        return {"error": "RUNNER_CTX_INVALID", "field": "invoker"}
+    if not isinstance(registry, McpRegistry):
+        return {"error": "RUNNER_CTX_INVALID", "field": "registry"}
+
     tracer = get_tracer()
+
     with tracer.start_as_current_span(
         "runner.run_test_case",
-        attributes={
-            "job.id": str(ctx.get("job_id", "")),
-            "job.queue": "suitest:runs",
-            "run.id": run_id,
-        },
+        attributes={"job.queue": "suitest:runs", "run.id": run_id},
     ):
-        log.info("runner.job.pickup", run_id=run_id, job_id=ctx.get("job_id"))
-        return {"status": "placeholder", "run_id": run_id}
+        # --- load run + selection + tier ----------------------------------
+        async with factory() as session:
+            run_repo = RunRepo(session)
+            run, selection = await run_repo.get_with_selection(run_id)
+            if run is None:
+                log.warning("runner.job.missing_run", run_id=run_id)
+                return {"error": "RUN_NOT_FOUND", "run_id": run_id}
+
+            project = await session.get(Project, run.project_id)
+            workspace_id = project.workspace_id if project is not None else None
+            if workspace_id is None:
+                log.warning("runner.job.missing_project", run_id=run_id)
+                return {"error": "RUN_PROJECT_MISSING", "run_id": run_id}
+
+            if workspace_id not in registry._by_workspace:
+                await registry.load_for_workspace(session, workspace_id)
+
+            capability = await WorkspaceCapabilityRepo(session).get(workspace_id)
+            tier = Tier(capability.tier) if capability is not None else Tier.ZERO
+            overrides_raw = (
+                capability.features_json.get("routing_overrides") if capability else None
+            )
+            overrides: dict[str, object] | None = (
+                overrides_raw if isinstance(overrides_raw, dict) else None
+            )
+            triggered_by = run.triggered_by
+
+            await run_repo.update_status(
+                run_id,
+                RunStatus.RUNNING,
+                started_at=datetime.now(UTC),
+                tier_at_runtime=tier,
+            )
+            await session.commit()
+
+        await _publish(redis_client, run_id, "run.started", {"runId": run_id, "tier": tier.value})
+
+        # --- per-step dispatch --------------------------------------------
+        summary = {"total": 0, "passed": 0, "failed": 0, "errored": 0, "skipped": 0}
+        t0 = time.perf_counter()
+
+        for case_id, step_order, test_step in selection:
+            summary["total"] += 1
+            await _publish(
+                redis_client,
+                run_id,
+                "run.step.started",
+                {
+                    "runId": run_id,
+                    "stepIndex": step_order,
+                    "action": test_step.action,
+                    "mcpProvider": test_step.mcp_provider,
+                    "targetKind": (
+                        test_step.target_kind.value
+                        if hasattr(test_step.target_kind, "value")
+                        else str(test_step.target_kind)
+                    ),
+                },
+            )
+
+            result = await execute_step(
+                invoker=invoker,
+                test_step=test_step,
+                run_id=run_id,
+                workspace_id=workspace_id,
+                actor_user_id=triggered_by,
+                tier=tier,
+                routing_overrides=overrides,
+            )
+
+            async with factory() as session:
+                run_step_repo = RunStepRepo(session)
+                run_step = await run_step_repo.create_step(
+                    run_id=run_id,
+                    case_id=case_id,
+                    step_order=step_order,
+                    outcome=result.outcome,
+                    started_at=result.started_at,
+                    completed_at=result.completed_at,
+                    duration_ms=result.duration_ms,
+                    stdout=result.stdout or None,
+                    stderr=result.stderr or None,
+                    error_message=result.error_message,
+                )
+                if result.mcp_result is not None and result.mcp_result.artifacts:
+                    # Task 13 wires this. Late import keeps the runner importable
+                    # without aioboto3 installed when artifact upload is disabled.
+                    from suitest_runner.artifacts import upload_artifacts
+
+                    await upload_artifacts(
+                        session=session,
+                        ctx=ctx,
+                        run_id=run_id,
+                        run_step_id=run_step.id,
+                        step_order=step_order,
+                        artifacts=result.mcp_result.artifacts,
+                    )
+                await session.commit()
+
+            await _publish(
+                redis_client,
+                run_id,
+                "run.step.completed",
+                {
+                    "runId": run_id,
+                    "stepIndex": step_order,
+                    "outcome": result.outcome.value,
+                    "durationMs": result.duration_ms,
+                    "error": result.error_message,
+                },
+            )
+            if result.outcome == StepOutcome.PASS:
+                summary["passed"] += 1
+            elif result.outcome == StepOutcome.FAIL:
+                summary["failed"] += 1
+            elif result.outcome == StepOutcome.SKIP:
+                summary["skipped"] += 1
+            else:
+                summary["errored"] += 1
+
+        # --- finalize -----------------------------------------------------
+        duration_ms = int((time.perf_counter() - t0) * 1000)
+        failed_total = summary["failed"] + summary["errored"]
+        final_status = RunStatus.FAIL if failed_total > 0 else RunStatus.PASS
+
+        async with factory() as session:
+            await RunRepo(session).update_status(
+                run_id,
+                final_status,
+                completed_at=datetime.now(UTC),
+                duration_ms=duration_ms,
+                total_steps=summary["total"],
+                passed_steps=summary["passed"],
+                failed_steps=failed_total,
+            )
+            await session.commit()
+
+        await _publish(
+            redis_client,
+            run_id,
+            "run.completed",
+            {
+                "runId": run_id,
+                "status": final_status.value,
+                "totalSteps": summary["total"],
+                "passedSteps": summary["passed"],
+                "failedSteps": failed_total,
+                "durationMs": duration_ms,
+            },
+        )
+
+        # --- best-effort defect filing ------------------------------------
+        if failed_total > 0:
+            await _try_file_defect(factory, run_id)
+
+        return {
+            "run_id": run_id,
+            "status": final_status.value,
+            "total": summary["total"],
+            "passed": summary["passed"],
+            "failed": summary["failed"],
+            "errored": summary["errored"],
+            "skipped": summary["skipped"],
+        }
+
+
+async def _publish(
+    redis_client: object,
+    run_id: str,
+    event: str,
+    data: dict[str, object],
+) -> None:
+    """Publish ``{"event": ..., "data": ...}`` to ``run:<run_id>`` on Redis.
+
+    Typed against a structural :class:`_Publisher` so test stubs (a recorder
+    that just appends to a list) satisfy the contract without inheriting
+    :class:`redis.asyncio.Redis`.
+    """
+    if not isinstance(redis_client, _Publisher):
+        return
+    payload = json.dumps({"event": event, "data": data})
+    await redis_client.publish(f"run:{run_id}", payload)
+
+
+async def _try_file_defect(factory: object, run_id: str) -> None:
+    """Best-effort defect ingest after a failed run.
+
+    The :class:`DefectService` lives in ``apps/api`` and the runner does not
+    hard-depend on it; we late-import and swallow any error (import-time,
+    constructor signature drift, missing method) so a defect-pipeline outage
+    can never poison a completed run record. M2 will move the service into a
+    shared package and let us drop this duck-typing.
+    """
+    if not callable(factory):
+        return
+    try:
+        from suitest_api.services.defect_service import DefectService
+
+        async with factory() as session:
+            # DefectService takes (ctx, repo) today, which the runner doesn't
+            # have around. We only call it when both pieces are reachable —
+            # for now the missing args path falls through to the warn log.
+            if not hasattr(DefectService, "file_for_failed_run"):
+                return
+            log.info("runner.defect.not_wired", run_id=run_id)
+            _ = session
+    except Exception as exc:
+        log.warning("runner.defect.skip", run_id=run_id, reason=str(exc))

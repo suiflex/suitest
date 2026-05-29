@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from sqlalchemy import extract, func, select
-from suitest_db.models.case import TestCase
-from suitest_db.models.project import Project
+from suitest_db.models.case import TestCase, TestStep
+from suitest_db.models.project import Project, Suite
 from suitest_db.models.run import Artifact, Run, RunStep
 from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.base import AsyncRepository
@@ -226,3 +226,189 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
         today_count = await self.session.scalar(today_stmt)
         counts["today"] = int(today_count or 0)
         return counts
+
+    async def get_with_selection(
+        self, run_id: str
+    ) -> tuple[Run | None, list[tuple[str, int, TestStep]]]:
+        """Return the run plus the ordered ``(case_id, step_order, TestStep)`` selection.
+
+        The M1c runner does not yet have a first-class ``run_cases`` join table
+        — selection is implicit "every active case in the project's suites,
+        ordered by ``(suite.order, case.created_at, step.order)``". ``step_order``
+        is a per-run counter (0-indexed across all steps in the selection) so
+        the orchestrator can index events / RunStep rows by a stable monotonic
+        position even when steps span multiple cases. M2 will swap this for a
+        persisted selection set when suite/tag filters arrive at run-create
+        time.
+        """
+        run = await self.get_by_id(run_id)
+        if run is None:
+            return None, []
+        stmt = (
+            select(TestCase.id, TestStep)
+            .join(Suite, Suite.id == TestCase.suite_id)
+            .join(TestStep, TestStep.case_id == TestCase.id)
+            .where(
+                Suite.project_id == run.project_id,
+                TestCase.deleted_at.is_(None),
+            )
+            .order_by(
+                Suite.order.asc(),
+                TestCase.created_at.asc(),
+                TestCase.id.asc(),
+                TestStep.order.asc(),
+            )
+        )
+        rows = (await self.session.execute(stmt)).all()
+        selection: list[tuple[str, int, TestStep]] = [
+            (case_id, idx, step) for idx, (case_id, step) in enumerate(rows)
+        ]
+        return run, selection
+
+    async def update_status(
+        self,
+        run_id: str,
+        status: RunStatus,
+        *,
+        started_at: datetime | None = None,
+        completed_at: datetime | None = None,
+        duration_ms: int | None = None,
+        tier_at_runtime: Tier | None = None,
+        total_steps: int | None = None,
+        passed_steps: int | None = None,
+        failed_steps: int | None = None,
+    ) -> Run | None:
+        """In-place status + counters update used by the runner orchestrator.
+
+        Each optional field is applied only when supplied so the runner can
+        call this once on ``RUNNING`` (starts_at + tier) and again on
+        terminal status (completed_at + duration + counters) without us
+        having to overload :class:`RunUpdate`.
+        """
+        run = await self.get_by_id(run_id)
+        if run is None:
+            return None
+        run.status = status
+        if started_at is not None:
+            run.started_at = started_at
+        if completed_at is not None:
+            run.completed_at = completed_at
+        if duration_ms is not None:
+            run.duration_ms = duration_ms
+        if tier_at_runtime is not None:
+            run.tier_at_runtime = tier_at_runtime
+        if total_steps is not None:
+            run.total_steps = total_steps
+        if passed_steps is not None:
+            run.passed_steps = passed_steps
+        if failed_steps is not None:
+            run.failed_steps = failed_steps
+        await self.session.flush()
+        return run
+
+
+class RunStepCreate(BaseModel):
+    run_id: str
+    case_id: str
+    step_order: int
+    outcome: StepOutcome
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    duration_ms: int | None = None
+    stdout: str | None = None
+    stderr: str | None = None
+    error_message: str | None = None
+
+
+class RunStepUpdate(BaseModel):
+    outcome: StepOutcome | None = None
+    completed_at: datetime | None = None
+    duration_ms: int | None = None
+    stdout: str | None = None
+    stderr: str | None = None
+    error_message: str | None = None
+
+
+class RunStepRepo(AsyncRepository[RunStep, RunStepCreate, RunStepUpdate]):
+    """Per-step row writer used by the orchestrator after each dispatch."""
+
+    model = RunStep
+
+    async def create_step(
+        self,
+        *,
+        run_id: str,
+        case_id: str,
+        step_order: int,
+        outcome: StepOutcome,
+        started_at: datetime | None,
+        completed_at: datetime | None,
+        duration_ms: int | None,
+        stdout: str | None,
+        stderr: str | None,
+        error_message: str | None,
+    ) -> RunStep:
+        """Insert one ``run_steps`` row and return it.
+
+        Named ``create_step`` so it doesn't shadow :meth:`AsyncRepository.create`
+        — the orchestrator passes flat keyword args (no DTO) for ergonomics.
+        """
+        row = RunStep(
+            run_id=run_id,
+            case_id=case_id,
+            step_order=step_order,
+            outcome=outcome,
+            started_at=started_at,
+            completed_at=completed_at,
+            duration_ms=duration_ms,
+            stdout=stdout,
+            stderr=stderr,
+            error_message=error_message,
+        )
+        self.session.add(row)
+        await self.session.flush()
+        return row
+
+
+class ArtifactCreate(BaseModel):
+    run_step_id: str
+    kind: str  # ArtifactKind value; coerced at row construction
+    url: str
+    size_bytes: int
+    mime_type: str
+    metadata_json: dict[str, object] | None = None
+
+
+class ArtifactUpdate(BaseModel):
+    url: str | None = None
+
+
+class ArtifactRepo(AsyncRepository[Artifact, ArtifactCreate, ArtifactUpdate]):
+    """Artifact writer used by the upload pipeline after each step."""
+
+    model = Artifact
+
+    async def create_artifact(
+        self,
+        *,
+        run_step_id: str,
+        kind: str,
+        url: str,
+        size_bytes: int,
+        mime_type: str,
+        metadata: dict[str, object] | None,
+    ) -> Artifact:
+        """Insert one ``artifacts`` row and return it."""
+        from suitest_shared.domain.enums import ArtifactKind
+
+        row = Artifact(
+            run_step_id=run_step_id,
+            kind=ArtifactKind(kind) if isinstance(kind, str) else kind,
+            url=url,
+            size_bytes=size_bytes,
+            mime_type=mime_type,
+            metadata_json=metadata,
+        )
+        self.session.add(row)
+        await self.session.flush()
+        return row

@@ -25,6 +25,7 @@ import structlog
 from arq.connections import RedisSettings
 from redis import asyncio as redis_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from suitest_mcp.invoker import McpInvoker
 from suitest_mcp.pool import McpPool
 from suitest_mcp.registry import McpRegistry
 
@@ -54,12 +55,23 @@ async def startup(ctx: dict[str, object]) -> None:
         queue_timeout_seconds=settings.mcp_queue_timeout_seconds,
         workspace_cap=settings.mcp_max_sessions_per_workspace,
     )
+    # health=None for now — Task 21 wires the live HealthMonitor that the
+    # invoker consults to skip DOWN providers. Until then every routable
+    # provider is treated as healthy.
+    invoker = McpInvoker(
+        registry=registry,
+        pool=pool,
+        health=None,
+        redis_client=redis_client,
+        audit_session_factory=session_factory,
+    )
     ctx["settings"] = settings
     ctx["engine"] = engine
     ctx["session_factory"] = session_factory
     ctx["redis"] = redis_client
     ctx["registry"] = registry
     ctx["pool"] = pool
+    ctx["invoker"] = invoker
     log.info(
         "runner.started",
         concurrency=settings.max_jobs_concurrent,

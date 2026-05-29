@@ -44,18 +44,15 @@ def test_worker_redis_settings_dsn() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_test_case_placeholder_shape() -> None:
-    """Placeholder returns ``{"status": "placeholder", "run_id": <id>}``."""
+async def test_run_test_case_rejects_bare_ctx() -> None:
+    """The real orchestrator (M1c Task 12) reports a structured error when ARQ
+    hasn't populated the required ``session_factory`` / ``invoker`` / ``registry``
+    keys — the worker still drains the message instead of crashing the loop."""
     ctx: dict[str, object] = {"job_id": "j-1"}
     result = await run_test_case(ctx, "r-123")
-    assert result == {"status": "placeholder", "run_id": "r-123"}
-
-
-@pytest.mark.asyncio
-async def test_run_test_case_handles_missing_job_id() -> None:
-    """The job must not blow up when ARQ hasn't populated ``job_id`` yet."""
-    result = await run_test_case({}, "r-no-job-id")
-    assert result["run_id"] == "r-no-job-id"
+    assert isinstance(result, dict)
+    assert result.get("error") == "RUNNER_CTX_INVALID"
+    assert result.get("field") == "session_factory"
 
 
 @pytest.mark.asyncio
@@ -77,6 +74,7 @@ async def test_startup_populates_ctx(monkeypatch: pytest.MonkeyPatch) -> None:
         assert "redis" in ctx
         assert "registry" in ctx
         assert "pool" in ctx
+        assert "invoker" in ctx
         settings = ctx["settings"]
         assert isinstance(settings, RunnerSettings)
         assert settings.database_url == "sqlite+aiosqlite:///:memory:"
@@ -141,6 +139,12 @@ async def test_enqueue_and_run_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
         await worker.close()
 
     result = await job.result(timeout=2.0)
-    assert result == {"status": "placeholder", "run_id": "r-smoke"}
+    # With the Task 12 orchestrator the worker's ``ctx`` here is empty (the
+    # Worker.__init__ in this smoke test bypasses ``WorkerSettings.on_startup``)
+    # so the job reports the structured RUNNER_CTX_INVALID error rather than
+    # crashing. The shape proves enqueue → drain → result still wires through.
+    assert isinstance(result, dict)
+    assert result.get("error") == "RUNNER_CTX_INVALID"
+    assert result.get("field") == "session_factory"
 
     await arq_pool.aclose()
