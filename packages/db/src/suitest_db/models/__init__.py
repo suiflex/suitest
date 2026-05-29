@@ -21,6 +21,7 @@ import suitest_db.models.project as _project  # noqa: F401
 import suitest_db.models.prompt_version as _prompt_version  # noqa: F401
 import suitest_db.models.requirement as _requirement  # noqa: F401
 import suitest_db.models.run as _run  # noqa: F401
+import suitest_db.models.run_step_log as _run_step_log  # noqa: F401
 import suitest_db.models.tenancy as _tenancy  # noqa: F401
 import suitest_db.models.user as _user  # noqa: F401
 import suitest_db.models.workspace as _workspace  # noqa: F401

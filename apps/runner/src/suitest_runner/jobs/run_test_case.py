@@ -30,6 +30,7 @@ from typing import Protocol, runtime_checkable
 
 import structlog
 from suitest_db.models.project import Project
+from suitest_db.repositories.run_step_logs import RunStepLogRepo
 from suitest_db.repositories.runs import RunRepo, RunStepRepo
 from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
 from suitest_mcp.invoker import McpInvoker
@@ -47,6 +48,13 @@ class _Publisher(Protocol):
     """Minimal Redis publish surface so tests can sub a recorder for ``publish``."""
 
     async def publish(self, channel: str, message: str | bytes) -> int: ...
+
+
+@runtime_checkable
+class _LogseqIncrementer(Protocol):
+    """Redis ``INCR`` surface used to mint the per-run monotonic ``seq`` counter."""
+
+    async def incr(self, name: str) -> int: ...
 
 
 async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object]:
@@ -115,7 +123,13 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
             )
             await session.commit()
 
-        await _publish(redis_client, run_id, "run.started", {"runId": run_id, "tier": tier.value})
+        await _publish(
+            redis_client,
+            run_id,
+            "run.started",
+            {"runId": run_id, "tier": tier.value},
+            factory=factory,
+        )
 
         # --- per-step dispatch --------------------------------------------
         summary = {"total": 0, "passed": 0, "failed": 0, "errored": 0, "skipped": 0}
@@ -138,6 +152,7 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                         else str(test_step.target_kind)
                     ),
                 },
+                factory=factory,
             )
 
             result = await execute_step(
@@ -190,6 +205,8 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                     "durationMs": result.duration_ms,
                     "error": result.error_message,
                 },
+                factory=factory,
+                run_step_id=run_step.id,
             )
             if result.outcome == StepOutcome.PASS:
                 summary["passed"] += 1
@@ -229,6 +246,7 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                 "failedSteps": failed_total,
                 "durationMs": duration_ms,
             },
+            factory=factory,
         )
 
         # --- best-effort defect filing ------------------------------------
@@ -251,17 +269,40 @@ async def _publish(
     run_id: str,
     event: str,
     data: dict[str, object],
+    *,
+    factory: object = None,
+    run_step_id: str | None = None,
+    level: str = "info",
 ) -> None:
-    """Publish ``{"event": ..., "data": ...}`` to ``run:<run_id>`` on Redis.
+    """Publish ``{"event": ..., "data": ...}`` to Redis AND persist to ``run_step_logs``.
 
     Typed against a structural :class:`_Publisher` so test stubs (a recorder
     that just appends to a list) satisfy the contract without inheriting
-    :class:`redis.asyncio.Redis`.
+    :class:`redis.asyncio.Redis`. When ``factory`` is callable AND the redis
+    client supports ``INCR``, an explicit per-run monotonic sequence is
+    minted via ``INCR run:<id>:logseq`` and the payload is appended to
+    ``run_step_logs``. Persistence is best-effort: a transient DB / Redis
+    failure logs a warning but never blocks the publish hot path (the runs
+    UI degrades to the live socket stream).
     """
-    if not isinstance(redis_client, _Publisher):
-        return
     payload = json.dumps({"event": event, "data": data})
-    await redis_client.publish(f"run:{run_id}", payload)
+    if isinstance(redis_client, _Publisher):
+        await redis_client.publish(f"run:{run_id}", payload)
+    if not callable(factory) or not isinstance(redis_client, _LogseqIncrementer):
+        return
+    try:
+        seq = int(await redis_client.incr(f"run:{run_id}:logseq"))
+        async with factory() as session:
+            await RunStepLogRepo(session).append(
+                run_id=run_id,
+                run_step_id=run_step_id,
+                level=level,
+                message=payload,
+                seq=seq,
+            )
+            await session.commit()
+    except Exception as exc:
+        log.warning("runner.log.persist_skip", run_id=run_id, reason=str(exc))
 
 
 async def _try_file_defect(factory: object, run_id: str) -> None:

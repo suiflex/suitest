@@ -8,6 +8,7 @@ import pytest
 from suitest_db.models.case import TestCase
 from suitest_db.models.project import Project, Suite
 from suitest_db.models.run import Artifact, Run, RunStep
+from suitest_db.models.run_step_log import RunStepLog
 from suitest_shared.domain.enums import (
     ArtifactKind,
     CaseSource,
@@ -139,7 +140,12 @@ async def test_get_run_steps_ordered(api_db: ApiDb) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_run_logs_paginated(api_db: ApiDb) -> None:
+async def test_get_run_logs_returns_persisted_rows(api_db: ApiDb) -> None:
+    """``GET /runs/:id/logs`` now reads from ``run_step_logs`` (M1c Task 17).
+
+    Seeds three rows in ascending ``seq`` and asserts the response carries
+    the same items in order plus ``hasMore=False`` (no more rows after).
+    """
     user = await api_db.seed_user(email="run-logs@example.com")
     ws = await api_db.member_workspace(user, slug="run-logs-ws")
     proj = await _project(api_db, ws.id)
@@ -150,22 +156,18 @@ async def test_get_run_logs_paginated(api_db: ApiDb) -> None:
     await api_db.add_all([case, run])
     await api_db.add_all(
         [
-            RunStep(
-                run_id=run.id,
-                case_id=case.id,
-                step_order=1,
-                outcome=StepOutcome.PASS,
-                stdout="out-line-1\nout-line-2",
-                stderr="err-line-1",
-            )
+            RunStepLog(run_id=run.id, seq=1, level="info", message="line-1"),
+            RunStepLog(run_id=run.id, seq=2, level="info", message="line-2"),
+            RunStepLog(run_id=run.id, seq=3, level="warn", message="line-3"),
         ]
     )
     async with api_db.client(user) as c:
         resp = await c.get(f"/api/v1/runs/{run.id}/logs", headers={"X-Workspace-Id": ws.id})
     assert resp.status_code == 200
     data = resp.json()
-    assert data["lines"] == ["out-line-1", "out-line-2", "err-line-1"]
-    assert data["nextCursor"] is None
+    assert [it["message"] for it in data["items"]] == ["line-1", "line-2", "line-3"]
+    assert data["nextCursor"] == 3
+    assert data["hasMore"] is False
 
 
 @pytest.mark.asyncio

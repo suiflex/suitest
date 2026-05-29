@@ -13,6 +13,7 @@ from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.repositories.projects import ProjectRepo
+from suitest_db.repositories.run_step_logs import RunStepLogRepo
 from suitest_db.repositories.runs import RunRepo
 from suitest_shared.domain.enums import RunStatus
 from suitest_shared.schemas.pagination import Page, PageMeta
@@ -26,6 +27,7 @@ from suitest_api.schemas.run import (
     ArtifactSignedUrl,
     RunDetail,
     RunListItem,
+    RunLogItem,
     RunLogPage,
     RunNetworkResponse,
     RunsSummary,
@@ -43,8 +45,6 @@ from suitest_api.services.run_service import RunService
 _RUNS_QUEUE = "suitest:runs"
 
 router = APIRouter(prefix="/api/v1", tags=["runs"])
-
-_LOG_PAGE_SIZE = 500  # log lines per page
 
 
 async def _project_in_scope(session: AsyncSession, project_id: str, workspace_id: str) -> bool:
@@ -173,39 +173,27 @@ async def get_run_steps(
 @router.get("/runs/{run_id}/logs", response_model=RunLogPage)
 async def get_run_logs(
     run_id: str,
-    cursor: str | None = Query(default=None),
+    cursor: int = Query(default=0, ge=0),
+    limit: int = Query(default=200, ge=1, le=1000),
     ctx: TenantContext = Depends(require_workspace_membership),
     session: AsyncSession = Depends(get_async_session),
 ) -> RunLogPage:
-    """Concatenated stdout/stderr text in step_order, paginated by line offset."""
+    """Cursor-paginated slice of the orchestrator's persisted log stream (M1c).
+
+    ``cursor`` is the last ``seq`` the client has already seen — pass ``0`` to
+    fetch the head of the stream. Returns up to ``limit`` rows ordered ascending
+    by ``seq`` plus the next ``seq`` for follow-up paging and a boolean
+    ``hasMore`` so the FE knows when to stop polling. A request that returns
+    fewer rows than ``limit`` is the natural EOF marker.
+    """
     await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
-    steps = await RunRepo(session).get_steps(run_id)
-    lines: list[str] = []
-    for step in steps:
-        if step.stdout:
-            lines.extend(step.stdout.splitlines())
-        if step.stderr:
-            lines.extend(step.stderr.splitlines())
-
-    offset = _parse_offset_cursor(cursor)
-    page = lines[offset : offset + _LOG_PAGE_SIZE]
-    next_offset = offset + _LOG_PAGE_SIZE
-    next_cursor = str(next_offset) if next_offset < len(lines) else None
-    return RunLogPage(lines=page, next_cursor=next_cursor)
-
-
-def _parse_offset_cursor(cursor: str | None) -> int:
-    if cursor is None:
-        return 0
-    try:
-        value = int(cursor)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="invalid cursor"
-        ) from exc
-    if value < 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid cursor")
-    return value
+    rows = await RunStepLogRepo(session).list_after(run_id, cursor=cursor, limit=limit)
+    items = [
+        RunLogItem(seq=r.seq, level=r.level, message=r.message, created_at=r.created_at)
+        for r in rows
+    ]
+    next_cursor = rows[-1].seq if rows else cursor
+    return RunLogPage(items=items, next_cursor=next_cursor, has_more=len(rows) == limit)
 
 
 @router.get("/runs/{run_id}/artifacts", response_model=list[ArtifactPublic])

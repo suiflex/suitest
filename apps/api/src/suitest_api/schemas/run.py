@@ -68,13 +68,29 @@ class RunStepPublic(BaseModel):
     error_message: str | None = None
 
 
-class RunLogPage(BaseModel):
-    """A cursor-paginated slice of a run's concatenated stdout/stderr text."""
+class RunLogItem(BaseModel):
+    """One persisted ``run_step_logs`` row in the page (M1c).
+
+    ``message`` is the JSON-encoded event payload the orchestrator published —
+    the FE deserialises it on receipt to match the live socket stream.
+    """
 
     model_config = ConfigDict(populate_by_name=True)
 
-    lines: list[str] = Field(default_factory=list)
-    next_cursor: str | None = Field(default=None, alias="nextCursor")
+    seq: int
+    level: str
+    message: str
+    created_at: datetime = Field(serialization_alias="createdAt")
+
+
+class RunLogPage(BaseModel):
+    """A cursor-paginated slice of a run's persisted log stream (M1c)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    items: list[RunLogItem] = Field(default_factory=list)
+    next_cursor: int = Field(serialization_alias="nextCursor")
+    has_more: bool = Field(serialization_alias="hasMore")
 
 
 class ArtifactPublic(BaseModel):
