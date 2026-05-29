@@ -107,15 +107,19 @@ class ArtifactPublic(BaseModel):
 
 
 class ArtifactSignedUrl(BaseModel):
-    """``GET /runs/:id/artifacts/:artifactId`` — presigned download URL."""
+    """``GET /runs/:id/artifacts/:artifactId`` — presigned download URL (M1c).
+
+    The M1a stub returned a placeholder URL alongside the artifact id + scheme;
+    M1c replaces it with a real S3 / MinIO presign + the artifact's MIME type
+    so the FE can decide how to render the response (inline image vs. download).
+    """
 
     model_config = ConfigDict(populate_by_name=True)
 
-    artifact_id: str
     url: str
+    expires_in_seconds: int = Field(serialization_alias="expiresInSeconds")
     kind: ArtifactKind
-    scheme: str  # "s3" | "file"
-    expires_at: datetime = Field(alias="expiresAt")
+    mime_type: str = Field(serialization_alias="mimeType")
 
 
 class RunsSummary(BaseModel):

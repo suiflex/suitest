@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     # the FastAPI-Users :class:`CookieTransport`.
     cookie_secure: bool = Field(default=False)
 
+    # S3 / MinIO target for artifact downloads. The presign endpoint
+    # (``GET /runs/:id/artifacts/:id``) issues against these credentials.
+    # Defaults point at the docker-compose dev MinIO; production overrides
+    # via env. Mirrored from :class:`RunnerSettings` so both processes can
+    # share one ``SUITEST_S3_*`` set without re-declaring the same env vars.
+    s3_endpoint: str = Field(default="http://localhost:9000")
+    s3_bucket: str = Field(default="suitest-artifacts")
+    s3_access_key: str = Field(default="minioadmin")
+    s3_secret_key: str = Field(default="minioadmin")
+    s3_region: str = Field(default="us-east-1")
+
 
 def get_settings() -> Settings:
     """Return a fresh Settings instance (env-resolved)."""

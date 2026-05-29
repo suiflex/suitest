@@ -9,9 +9,11 @@ with live streaming in M3). Artifact download produces a presigned URL via
 
 from __future__ import annotations
 
+import aioboto3
 from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from suitest_db.audit import write_audit
 from suitest_db.repositories.projects import ProjectRepo
 from suitest_db.repositories.run_step_logs import RunStepLogRepo
 from suitest_db.repositories.runs import RunRepo
@@ -35,8 +37,8 @@ from suitest_api.schemas.run import (
     RunSummary,
 )
 from suitest_api.schemas.runs import CreateRunBody, RunPublic
-from suitest_api.services.artifact_signing import build_signed_url
 from suitest_api.services.run_service import RunService
+from suitest_api.settings import get_settings
 
 # ARQ queue name shared with the runner. Hardcoded here (vs. importing
 # ``RunnerSettings``) so the api package does not depend on the runner package
@@ -208,6 +210,9 @@ async def get_run_artifacts(
     return [ArtifactPublic.model_validate(r) for r in rows]
 
 
+_ARTIFACT_SIGNED_URL_TTL_SECONDS = 3600
+
+
 @router.get("/runs/{run_id}/artifacts/{artifact_id}", response_model=ArtifactSignedUrl)
 async def get_artifact_signed_url(
     run_id: str,
@@ -215,20 +220,53 @@ async def get_artifact_signed_url(
     ctx: TenantContext = Depends(require_workspace_membership),
     session: AsyncSession = Depends(get_async_session),
 ) -> ArtifactSignedUrl:
-    """Return a presigned download URL for one artifact; 404 if run/artifact unknown."""
+    """Return a real S3/MinIO presigned download URL for one artifact (M1c Task 18).
+
+    Replaces the M1a stub presigner with an :mod:`aioboto3` ``generate_presigned_url``
+    call against the configured bucket. Only ``s3://...`` artifacts are presigned —
+    legacy ``file://`` artifacts (dev fixtures) return 404 here, the client should
+    fall back to the static ``/artifacts/raw/`` route the static server exposes.
+    Emits an ``artifact.signed_url`` audit row so download attribution is
+    captured even though the actual fetch happens directly against S3.
+    """
     await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
     repo = RunRepo(session)
     artifacts = await repo.get_artifacts(run_id)
     artifact = next((a for a in artifacts if a.id == artifact_id), None)
-    if artifact is None:
+    if artifact is None or not artifact.url.startswith("s3://"):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="artifact not found")
-    signed = build_signed_url(artifact_id=artifact.id, object_url=artifact.url)
+    bucket, key = artifact.url.removeprefix("s3://").split("/", 1)
+
+    settings = get_settings()
+    session_factory = aioboto3.Session()
+    async with session_factory.client(
+        "s3",
+        endpoint_url=settings.s3_endpoint,
+        aws_access_key_id=settings.s3_access_key,
+        aws_secret_access_key=settings.s3_secret_key,
+        region_name=settings.s3_region,
+    ) as client:
+        url = await client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket, "Key": key},
+            ExpiresIn=_ARTIFACT_SIGNED_URL_TTL_SECONDS,
+        )
+
+    await write_audit(
+        session,
+        workspace_id=ctx.workspace_id,
+        user_id=ctx.user_id,
+        action="artifact.signed_url",
+        resource_type="artifact",
+        resource_id=artifact.id,
+        metadata={"run_id": run_id},
+    )
+    await session.commit()
     return ArtifactSignedUrl(
-        artifact_id=artifact.id,
-        url=signed.url,
+        url=url,
+        expires_in_seconds=_ARTIFACT_SIGNED_URL_TTL_SECONDS,
         kind=artifact.kind,
-        scheme=signed.scheme,
-        expires_at=signed.expires_at,
+        mime_type=artifact.mime_type,
     )
 
 

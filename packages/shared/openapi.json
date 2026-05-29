@@ -54,22 +54,17 @@
         "type": "object"
       },
       "ArtifactSignedUrl": {
-        "description": "``GET /runs/:id/artifacts/:artifactId`` \u2014 presigned download URL.",
+        "description": "``GET /runs/:id/artifacts/:artifactId`` \u2014 presigned download URL (M1c).\n\nThe M1a stub returned a placeholder URL alongside the artifact id + scheme;\nM1c replaces it with a real S3 / MinIO presign + the artifact's MIME type\nso the FE can decide how to render the response (inline image vs. download).",
         "properties": {
-          "artifact_id": {
-            "title": "Artifact Id",
-            "type": "string"
-          },
-          "expiresAt": {
-            "format": "date-time",
-            "title": "Expiresat",
-            "type": "string"
+          "expiresInSeconds": {
+            "title": "Expiresinseconds",
+            "type": "integer"
           },
           "kind": {
             "$ref": "#/components/schemas/ArtifactKind"
           },
-          "scheme": {
-            "title": "Scheme",
+          "mimeType": {
+            "title": "Mimetype",
             "type": "string"
           },
           "url": {
@@ -78,11 +73,10 @@
           }
         },
         "required": [
-          "artifact_id",
           "url",
+          "expiresInSeconds",
           "kind",
-          "scheme",
-          "expiresAt"
+          "mimeType"
         ],
         "title": "ArtifactSignedUrl",
         "type": "object"
@@ -387,6 +381,80 @@
           "coverage"
         ],
         "title": "CoverageSuiteRow",
+        "type": "object"
+      },
+      "CreateRunBody": {
+        "description": "``POST /runs`` body. Mixed snake / camel aliases for FE convenience.",
+        "properties": {
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "commitSha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitsha"
+          },
+          "env": {
+            "default": "staging",
+            "title": "Env",
+            "type": "string"
+          },
+          "mcpRoutingOverride": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mcproutingoverride"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "projectId": {
+            "title": "Projectid",
+            "type": "string"
+          },
+          "selection": {
+            "items": {
+              "$ref": "#/components/schemas/RunSelectionItem"
+            },
+            "title": "Selection",
+            "type": "array"
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/RunTrigger",
+            "default": "MANUAL"
+          }
+        },
+        "required": [
+          "projectId",
+          "name",
+          "selection"
+        ],
+        "title": "CreateRunBody",
         "type": "object"
       },
       "DefectDetail": {
@@ -2251,28 +2319,59 @@
         "title": "RunListItem",
         "type": "object"
       },
-      "RunLogPage": {
-        "description": "A cursor-paginated slice of a run's concatenated stdout/stderr text.",
+      "RunLogItem": {
+        "description": "One persisted ``run_step_logs`` row in the page (M1c).\n\n``message`` is the JSON-encoded event payload the orchestrator published \u2014\nthe FE deserialises it on receipt to match the live socket stream.",
         "properties": {
-          "lines": {
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seq",
+          "level",
+          "message",
+          "createdAt"
+        ],
+        "title": "RunLogItem",
+        "type": "object"
+      },
+      "RunLogPage": {
+        "description": "A cursor-paginated slice of a run's persisted log stream (M1c).",
+        "properties": {
+          "hasMore": {
+            "title": "Hasmore",
+            "type": "boolean"
+          },
+          "items": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/RunLogItem"
             },
-            "title": "Lines",
+            "title": "Items",
             "type": "array"
           },
           "nextCursor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Nextcursor"
+            "title": "Nextcursor",
+            "type": "integer"
           }
         },
+        "required": [
+          "nextCursor",
+          "hasMore"
+        ],
         "title": "RunLogPage",
         "type": "object"
       },
@@ -2288,6 +2387,163 @@
           }
         },
         "title": "RunNetworkResponse",
+        "type": "object"
+      },
+      "RunPublic": {
+        "description": "``POST /runs`` + ``cancel`` + ``rerun`` response shape.\n\nSized for the runs list/detail FE rows so cancel/rerun results render in\nplace without a follow-up GET. Aliased to camelCase on serialization to\nmatch the M1b client.",
+        "properties": {
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "commitSha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitsha"
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completedat"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Durationms"
+          },
+          "env": {
+            "title": "Env",
+            "type": "string"
+          },
+          "failedSteps": {
+            "title": "Failedsteps",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "passedSteps": {
+            "title": "Passedsteps",
+            "type": "integer"
+          },
+          "projectId": {
+            "title": "Projectid",
+            "type": "string"
+          },
+          "publicId": {
+            "title": "Publicid",
+            "type": "string"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startedat"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "tierAtRuntime": {
+            "$ref": "#/components/schemas/Tier"
+          },
+          "totalSteps": {
+            "title": "Totalsteps",
+            "type": "integer"
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/RunTrigger"
+          }
+        },
+        "required": [
+          "id",
+          "publicId",
+          "projectId",
+          "name",
+          "branch",
+          "commitSha",
+          "env",
+          "trigger",
+          "status",
+          "tierAtRuntime",
+          "startedAt",
+          "completedAt",
+          "durationMs",
+          "totalSteps",
+          "passedSteps",
+          "failedSteps",
+          "createdAt"
+        ],
+        "title": "RunPublic",
+        "type": "object"
+      },
+      "RunSelectionItem": {
+        "description": "One ``{caseId, selectedStepIds?}`` entry in the create-run selection.\n\n``selected_step_ids`` is optional \u2014 when ``None`` the runner picks every\nactive step on the case. M1c keeps this opt-in flag in the request envelope\nso a future \"rerun only failed steps\" UI can wire through unchanged.",
+        "properties": {
+          "caseId": {
+            "title": "Caseid",
+            "type": "string"
+          },
+          "selectedStepIds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selectedstepids"
+          }
+        },
+        "required": [
+          "caseId"
+        ],
+        "title": "RunSelectionItem",
         "type": "object"
       },
       "RunStatus": {
@@ -4979,6 +5235,69 @@
         "tags": [
           "runs"
         ]
+      },
+      "post": {
+        "description": "Validate selection + MCP routing, persist the run, enqueue the ARQ job.\n\nReturns 202 once the row exists and the job has been enqueued \u2014 the runner\nflips the status to ``RUNNING`` / ``PASS`` / ``FAIL`` asynchronously. The\nmetadata blob carries the original selection so a rerun (or the orchestrator\non resume) can rehydrate it without re-deriving suite ordering.",
+        "operationId": "create_run_api_v1_runs_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRunBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Create Run",
+        "tags": [
+          "runs"
+        ]
       }
     },
     "/api/v1/runs/summary": {
@@ -5170,7 +5489,7 @@
     },
     "/api/v1/runs/{run_id}/artifacts/{artifact_id}": {
       "get": {
-        "description": "Return a presigned download URL for one artifact; 404 if run/artifact unknown.",
+        "description": "Return a real S3/MinIO presigned download URL for one artifact (M1c Task 18).\n\nReplaces the M1a stub presigner with an :mod:`aioboto3` ``generate_presigned_url``\ncall against the configured bucket. Only ``s3://...`` artifacts are presigned \u2014\nlegacy ``file://`` artifacts (dev fixtures) return 404 here, the client should\nfall back to the static ``/artifacts/raw/`` route the static server exposes.\nEmits an ``artifact.signed_url`` audit row so download attribution is\ncaptured even though the actual fetch happens directly against S3.",
         "operationId": "get_artifact_signed_url_api_v1_runs__run_id__artifacts__artifact_id__get",
         "parameters": [
           {
@@ -5241,9 +5560,73 @@
         ]
       }
     },
+    "/api/v1/runs/{run_id}/cancel": {
+      "post": {
+        "description": "Transition a QUEUED / RUNNING run to CANCELLED and best-effort abort the ARQ job.\n\nThe DB transition is authoritative \u2014 even if ARQ is unreachable, the run\nrow flips to CANCELLED so the UI no longer shows it as live. We then try\nto abort the in-flight job (no-op if the job already completed / never\nstarted). Returns 409 when the run is already in a terminal state.",
+        "operationId": "cancel_run_api_v1_runs__run_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Cancel Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/v1/runs/{run_id}/logs": {
       "get": {
-        "description": "Concatenated stdout/stderr text in step_order, paginated by line offset.",
+        "description": "Cursor-paginated slice of the orchestrator's persisted log stream (M1c).\n\n``cursor`` is the last ``seq`` the client has already seen \u2014 pass ``0`` to\nfetch the head of the stream. Returns up to ``limit`` rows ordered ascending\nby ``seq`` plus the next ``seq`` for follow-up paging and a boolean\n``hasMore`` so the FE knows when to stop polling. A request that returns\nfewer rows than ``limit`` is the natural EOF marker.",
         "operationId": "get_run_logs_api_v1_runs__run_id__logs_get",
         "parameters": [
           {
@@ -5260,15 +5643,22 @@
             "name": "cursor",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Cursor"
+              "default": 0,
+              "minimum": 0,
+              "title": "Cursor",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
             }
           },
           {
@@ -5380,6 +5770,70 @@
           }
         ],
         "summary": "Get Run Network",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{run_id}/rerun": {
+      "post": {
+        "description": "Clone the source run's selection into a fresh QUEUED row + enqueue the ARQ job.\n\nA rerun reuses the original selection + routing override (so the runner\nfans out identically) but re-resolves the workspace tier so a tier change\nbetween the two runs is honored. Returns 202 like the create endpoint.",
+        "operationId": "rerun_run_api_v1_runs__run_id__rerun_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Rerun Run",
         "tags": [
           "runs"
         ]

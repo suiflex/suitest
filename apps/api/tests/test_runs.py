@@ -207,47 +207,13 @@ async def test_get_run_artifacts_lists_all(api_db: ApiDb) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_artifact_signed_url_s3(api_db: ApiDb, monkeypatch: pytest.MonkeyPatch) -> None:
-    user = await api_db.seed_user(email="run-sign-s3@example.com")
-    ws = await api_db.member_workspace(user, slug="run-sign-s3-ws")
-    proj = await _project(api_db, ws.id)
-    suite = Suite(project_id=proj.id, name="S", order=0)
-    await api_db.add_all([suite])
-    case = TestCase(suite_id=suite.id, public_id="TC-RUN5", name="c", source=CaseSource.MANUAL)
-    run = _run(proj.id, "RUN-SGN1")
-    await api_db.add_all([case, run])
-    step = RunStep(run_id=run.id, case_id=case.id, step_order=1, outcome=StepOutcome.PASS)
-    await api_db.add_all([step])
-    art = Artifact(
-        run_step_id=step.id,
-        kind=ArtifactKind.SCREENSHOT,
-        url="s3://bucket/shot.png",
-        size_bytes=10,
-        mime_type="image/png",
-    )
-    await api_db.add_all([art])
+async def test_get_artifact_signed_url_file_scheme_returns_404(api_db: ApiDb) -> None:
+    """``file://`` artifacts (dev fixtures) are no longer presigned by the API.
 
-    calls: list[tuple[str, int]] = []
-
-    def _fake_presign(object_url: str, *, expires_in: int) -> str:
-        calls.append((object_url, expires_in))
-        return f"https://signed.example/{object_url}"
-
-    monkeypatch.setattr("suitest_api.services.artifact_signing._presign", _fake_presign)
-
-    async with api_db.client(user) as c:
-        resp = await c.get(
-            f"/api/v1/runs/{run.id}/artifacts/{art.id}", headers={"X-Workspace-Id": ws.id}
-        )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["scheme"] == "s3"
-    assert data["url"].startswith("https://signed.example/")
-    assert calls == [("s3://bucket/shot.png", 900)]
-
-
-@pytest.mark.asyncio
-async def test_get_artifact_signed_url_file_scheme_returns_placeholder(api_db: ApiDb) -> None:
+    M1c routes only ``s3://`` artifacts through ``generate_presigned_url`` —
+    the legacy file scheme is served via the static ``/artifacts/raw/`` route
+    instead, so the presign endpoint returns 404 to make the client switch.
+    """
     user = await api_db.seed_user(email="run-sign-file@example.com")
     ws = await api_db.member_workspace(user, slug="run-sign-file-ws")
     proj = await _project(api_db, ws.id)
@@ -271,11 +237,7 @@ async def test_get_artifact_signed_url_file_scheme_returns_placeholder(api_db: A
         resp = await c.get(
             f"/api/v1/runs/{run.id}/artifacts/{art.id}", headers={"X-Workspace-Id": ws.id}
         )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["scheme"] == "file"
-    assert data["url"] == f"/artifacts/raw/{art.id}"
-    assert data["kind"] == "VIDEO"
+    assert resp.status_code == 404
 
 
 @pytest.mark.asyncio
