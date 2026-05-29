@@ -28,12 +28,38 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     ``app.state.capabilities``. A misconfigured tier (``ConfigError``) propagates
     here, so the app refuses to boot rather than serving the wrong tier. Also
     records ``app.state.started_at`` for the ``/capabilities/health`` uptime.
+
+    Also boots the WebSocket connection manager (:mod:`suitest_api.ws.manager`)
+    if a Redis-compatible client has been pre-wired onto ``app.state.ws_redis``
+    by the bootstrap path. Tests inject ``fakeredis.aioredis.FakeRedis`` here;
+    production wires a real :class:`redis.asyncio.Redis` from ``SUITEST_REDIS_URL``.
     """
+    from suitest_api.ws.manager import WsConnectionManager
+
     if not getattr(app.state, "settings", None):
         app.state.settings = get_settings()
     app.state.started_at = time.monotonic()
     app.state.capabilities = build_base_capabilities()
-    yield
+
+    ws_manager: WsConnectionManager | None = None
+    ws_redis = getattr(app.state, "ws_redis", None)
+    if ws_redis is None:
+        ws_redis = _build_default_ws_redis()
+        if ws_redis is not None:
+            app.state.ws_redis = ws_redis
+    if ws_redis is not None:
+        # ``ws_redis`` is duck-typed as ``object`` so :mod:`redis.asyncio` stays
+        # off the import path of CLI entrypoints. Tests inject ``fakeredis``
+        # (a subclass of ``redis.asyncio.client.Redis``) and prod injects a real
+        # ``Redis`` — both satisfy WsConnectionManager's runtime use.
+        ws_manager = WsConnectionManager(ws_redis)  # type: ignore[arg-type]
+        await ws_manager.start()
+        app.state.ws_manager = ws_manager
+    try:
+        yield
+    finally:
+        if ws_manager is not None:
+            await ws_manager.stop()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -54,6 +80,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from suitest_api.routers.suites import router as suites_router
     from suitest_api.routers.test_cases import router as test_cases_router
     from suitest_api.routers.workspaces import router as workspaces_router
+    from suitest_api.routers.ws import router as ws_router
 
     resolved = settings or get_settings()
 
@@ -132,6 +159,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(audit_logs_router)
     app.include_router(inbox_router)
     app.include_router(mcp_providers_router)
+    # WebSocket gateway — mounted at root (NOT /api/v1) so the path stays
+    # ``GET /ws?token=...``. CORS preflight does not apply to WebSocket upgrades;
+    # cross-origin enforcement lives in the JWT check (Task 14).
+    app.include_router(ws_router)
 
     # Observability is wired BEFORE CORS so:
     #   1. FastAPIInstrumentor sees every non-preflight request (CORS short-circuits
@@ -196,6 +227,34 @@ def _exempt_anonymous_routes(app: FastAPI) -> None:
             continue
         name = f"{endpoint.__module__}.{endpoint.__name__}"
         limiter._exempt_routes.add(name)
+
+
+def _build_default_ws_redis() -> object | None:
+    """Lazily construct a :class:`redis.asyncio.Redis` from ``SUITEST_REDIS_URL``.
+
+    Returns ``None`` when the env var is unset OR points at an in-memory backend
+    (``memory://``) — in those cases the WS gateway stays inert (the endpoint
+    closes with ``4401`` "unavailable" if a client tries to connect) so dev /
+    test runs that opt out of Redis don't pay the connect cost. Tests inject a
+    ``fakeredis`` client on ``app.state.ws_redis`` BEFORE entering the lifespan.
+
+    The return type is ``object | None`` so the import of :mod:`redis.asyncio`
+    stays local — main.py is imported at startup by every CLI script (incl.
+    the openapi exporter) and we don't want to drag the redis async client
+    into modules that never serve a WS. The lifespan casts via
+    ``# type: ignore[arg-type]`` when handing it to ``WsConnectionManager``.
+    """
+    import os
+
+    url = os.environ.get("SUITEST_REDIS_URL")
+    if not url or url.startswith("memory://"):
+        return None
+    try:
+        from redis.asyncio import Redis
+    except ImportError:  # pragma: no cover — redis is a hard dep via slowapi/arq
+        return None
+    client: object = Redis.from_url(url, decode_responses=False)
+    return client
 
 
 # Intentionally NO module-level ``app = create_app()``.
