@@ -25,6 +25,8 @@ dependencies = [
   "suitest-db",
   "suitest-shared",
   "slowapi>=0.1.9",
+  "arq>=0.26",
+  "aioboto3>=12.4",
 ]
 
 [build-system]

@@ -9,6 +9,7 @@ with live streaming in M3). Artifact download produces a presigned URL via
 
 from __future__ import annotations
 
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.repositories.projects import ProjectRepo
@@ -17,6 +18,7 @@ from suitest_shared.domain.enums import RunStatus
 from suitest_shared.schemas.pagination import Page, PageMeta
 
 from suitest_api.auth.db import get_async_session
+from suitest_api.deps.arq import get_arq
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
 from suitest_api.routers._pagination import decode_cursor_or_400, encode_next
 from suitest_api.schemas.run import (
@@ -30,7 +32,15 @@ from suitest_api.schemas.run import (
     RunStepPublic,
     RunSummary,
 )
+from suitest_api.schemas.runs import CreateRunBody, RunPublic
 from suitest_api.services.artifact_signing import build_signed_url
+from suitest_api.services.run_service import RunService
+
+# ARQ queue name shared with the runner. Hardcoded here (vs. importing
+# ``RunnerSettings``) so the api package does not depend on the runner package
+# — runner is a separate process and its settings module pulls a redis client
+# on import. Keep in sync with ``suitest_runner.worker.WorkerSettings.queue_name``.
+_RUNS_QUEUE = "suitest:runs"
 
 router = APIRouter(prefix="/api/v1", tags=["runs"])
 
@@ -249,3 +259,51 @@ async def get_run_network(
     """
     await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
     return RunNetworkResponse(items=[])
+
+
+def _build_run_service(session: AsyncSession, ctx: TenantContext) -> RunService:
+    """Compose a :class:`RunService` from a session + the resolved tenant scope.
+
+    Both repos are workspace-aware via the service's ``_project_in_scope`` guard;
+    the helper exists so the create / cancel / rerun handlers below stay one-liners
+    and the next M1d endpoint added on top doesn't have to re-derive the wiring.
+    """
+    return RunService(ctx, RunRepo(session), ProjectRepo(session))
+
+
+@router.post("/runs", response_model=RunPublic, status_code=status.HTTP_202_ACCEPTED)
+async def create_run(
+    body: CreateRunBody,
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+    arq: ArqRedis = Depends(get_arq),
+) -> RunPublic:
+    """Validate selection + MCP routing, persist the run, enqueue the ARQ job.
+
+    Returns 202 once the row exists and the job has been enqueued — the runner
+    flips the status to ``RUNNING`` / ``PASS`` / ``FAIL`` asynchronously. The
+    metadata blob carries the original selection so a rerun (or the orchestrator
+    on resume) can rehydrate it without re-deriving suite ordering.
+    """
+    svc = _build_run_service(session, ctx)
+    try:
+        run = await svc.create_run(
+            project_id=body.project_id,
+            name=body.name,
+            selection=[item.model_dump(by_alias=False) for item in body.selection],
+            branch=body.branch,
+            commit_sha=body.commit_sha,
+            env=body.env,
+            trigger=body.trigger,
+            user_id=ctx.user_id,
+            mcp_routing_override=body.mcp_routing_override,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    job = await arq.enqueue_job("run_test_case", run.id, _queue_name=_RUNS_QUEUE)
+    if job is not None:
+        await svc.attach_arq_job_id(run.id, job.job_id)
+    await session.commit()
+    await session.refresh(run)
+    return RunPublic.model_validate(run)
