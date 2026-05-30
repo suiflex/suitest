@@ -18,6 +18,7 @@ import pytest
 from arq.connections import RedisSettings
 from arq.worker import Worker
 from suitest_runner.jobs.run_test_case import run_test_case
+from suitest_runner.jobs.workspace_cleanup import workspace_cleanup
 from suitest_runner.settings import RunnerSettings
 from suitest_runner.worker import WorkerSettings, shutdown, startup
 
@@ -31,8 +32,8 @@ def test_worker_settings_class_attributes() -> None:
 
 
 def test_worker_functions_registry() -> None:
-    """``run_test_case`` must be the sole registered job for Task 10."""
-    assert WorkerSettings.functions == [run_test_case]
+    """``run_test_case`` + M1d-28 ``workspace_cleanup`` are both registered."""
+    assert WorkerSettings.functions == [run_test_case, workspace_cleanup]
 
 
 def test_worker_redis_settings_dsn() -> None:

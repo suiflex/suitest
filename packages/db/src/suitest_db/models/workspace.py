@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, String
+from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,6 +38,11 @@ class Workspace(Base, TimestampMixin):
     mcp_routing_overrides: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default="'{}'"
     )
+
+    # M1d-28: soft-delete tombstone for ``DELETE /workspaces/:id``. Reads
+    # short-circuit when set so the FE hides the workspace immediately while
+    # the async ``workspace_cleanup`` ARQ job tears down dependent rows.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     memberships: Mapped[list[Membership]] = relationship(
         "Membership", back_populates="workspace", cascade="all, delete-orphan"

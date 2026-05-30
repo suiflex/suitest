@@ -31,6 +31,7 @@ from suitest_mcp.registry import McpRegistry
 from suitest_mcp.workspace_cap import WorkspacePoolCap
 
 from suitest_runner.jobs.run_test_case import run_test_case
+from suitest_runner.jobs.workspace_cleanup import workspace_cleanup
 from suitest_runner.observability import setup_observability
 from suitest_runner.settings import RunnerSettings, get_settings
 
@@ -133,7 +134,7 @@ class WorkerSettings:
     ``WorkerSettings.__dict__`` directly.
     """
 
-    functions = [run_test_case]  # noqa: RUF012 — ARQ reads this as a class attribute
+    functions = [run_test_case, workspace_cleanup]  # noqa: RUF012 — ARQ reads this as a class attribute
     queue_name: str = "suitest:runs"
     max_jobs: int = _settings.max_jobs_concurrent
     max_tries: int = _settings.max_retries + 1
