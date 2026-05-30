@@ -81,8 +81,8 @@
         "title": "ArtifactSignedUrl",
         "type": "object"
       },
-      "AuditLogEntry": {
-        "description": "One audit row exposed in the Dashboard agent activity feed.",
+      "AuditLogRead": {
+        "description": "One audit row in the workspace audit trail (``GET /audit-logs`` item).",
         "properties": {
           "action": {
             "title": "Action",
@@ -93,17 +93,47 @@
             "title": "Createdat",
             "type": "string"
           },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
           "id": {
             "title": "Id",
             "type": "string"
           },
           "resourceId": {
-            "title": "Resourceid",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resourceid"
           },
           "resourceType": {
             "title": "Resourcetype",
             "type": "string"
+          },
+          "userEmail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Useremail"
           },
           "userId": {
             "anyOf": [
@@ -115,30 +145,45 @@
               }
             ],
             "title": "Userid"
+          },
+          "workspaceId": {
+            "title": "Workspaceid",
+            "type": "string"
           }
         },
         "required": [
           "id",
+          "workspaceId",
           "action",
           "resourceType",
-          "resourceId",
           "createdAt"
         ],
-        "title": "AuditLogEntry",
+        "title": "AuditLogRead",
         "type": "object"
       },
-      "AuditLogResponse": {
-        "description": "``GET /audit-logs`` envelope \u2014 small bounded list, no cursor.",
+      "AuditLogsResponse": {
+        "description": "Cursor-paginated envelope for ``GET /audit-logs``.\n\n``next_cursor`` is an opaque base64 token encoding ``(created_at, id)``; when\n``None`` the caller has reached the head of the workspace audit log. The\nwire key stays snake_case to match the example envelope in ``docs/API.md``\n(\u00a7179) \u2014 the per-row keys are camelCase by alias, only the envelope keys\nfollow the spec verbatim.",
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/AuditLogEntry"
+              "$ref": "#/components/schemas/AuditLogRead"
             },
             "title": "Items",
             "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
           }
         },
-        "title": "AuditLogResponse",
+        "title": "AuditLogsResponse",
         "type": "object"
       },
       "AutonomyLevel": {
@@ -2764,6 +2809,138 @@
         "title": "Severity",
         "type": "string"
       },
+      "StepAppend": {
+        "additionalProperties": false,
+        "description": "Body shape for ``POST /test-cases/:id/steps`` \u2014 ``order`` always ignored.",
+        "properties": {
+          "action": {
+            "minLength": 1,
+            "title": "Action",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "expected": {
+            "default": "",
+            "title": "Expected",
+            "type": "string"
+          },
+          "mcpProvider": {
+            "minLength": 1,
+            "title": "Mcpprovider",
+            "type": "string"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order"
+          },
+          "targetKind": {
+            "$ref": "#/components/schemas/TargetKind",
+            "default": "FE_WEB"
+          }
+        },
+        "required": [
+          "action",
+          "mcpProvider"
+        ],
+        "title": "StepAppend",
+        "type": "object"
+      },
+      "StepCreate": {
+        "additionalProperties": false,
+        "description": "One step inside a :class:`TestCaseCreate` / :class:`StepReplace` payload.\n\n``order`` is honoured if provided; otherwise the service assigns sequential\n1-based positions in array order. ``code`` MAY be omitted in CLOUD / LOCAL\ntiers (or when ``workspace.strict_zero_validation=false``); ZERO tier with\nstrict validation rejects via ``STEPS_REQUIRE_CODE_IN_ZERO_LLM``.",
+        "properties": {
+          "action": {
+            "minLength": 1,
+            "title": "Action",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "expected": {
+            "default": "",
+            "title": "Expected",
+            "type": "string"
+          },
+          "mcpProvider": {
+            "minLength": 1,
+            "title": "Mcpprovider",
+            "type": "string"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order"
+          },
+          "targetKind": {
+            "$ref": "#/components/schemas/TargetKind",
+            "default": "FE_WEB"
+          }
+        },
+        "required": [
+          "action",
+          "mcpProvider"
+        ],
+        "title": "StepCreate",
+        "type": "object"
+      },
       "StepOutcome": {
         "enum": [
           "PASS",
@@ -2774,6 +2951,36 @@
         ],
         "title": "StepOutcome",
         "type": "string"
+      },
+      "StepReorderRequest": {
+        "additionalProperties": false,
+        "description": "Body for ``PATCH /test-cases/:id/steps/reorder`` (docs/API.md \u00a73.3).",
+        "properties": {
+          "stepIdsInOrder": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stepidsinorder",
+            "type": "array"
+          }
+        },
+        "title": "StepReorderRequest",
+        "type": "object"
+      },
+      "StepReplace": {
+        "additionalProperties": false,
+        "description": "Body for ``PATCH /test-cases/:id/steps`` \u2014 atomic replace.",
+        "properties": {
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/StepCreate"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "title": "StepReplace",
+        "type": "object"
       },
       "SuitePublic": {
         "description": "A suite with its non-deleted ``case_count`` (set by the service).",
@@ -2845,6 +3052,77 @@
         ],
         "title": "TargetKind",
         "type": "string"
+      },
+      "TestCaseCreate": {
+        "additionalProperties": false,
+        "description": "Body for ``POST /test-cases`` (docs/API.md \u00a73.3 \u2014 sample request).",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "preconditions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preconditions"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority",
+            "default": "P2"
+          },
+          "source": {
+            "$ref": "#/components/schemas/CaseSource",
+            "default": "MANUAL"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CaseStatus",
+            "default": "ACTIVE"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/StepCreate"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "suiteId": {
+            "minLength": 1,
+            "title": "Suiteid",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "suiteId",
+          "name"
+        ],
+        "title": "TestCaseCreate",
+        "type": "object"
       },
       "TestCaseDetail": {
         "description": "Detail \u2014 adds steps (with ``executable``) + tags.",
@@ -3021,6 +3299,83 @@
           "updated_at"
         ],
         "title": "TestCaseListItem",
+        "type": "object"
+      },
+      "TestCaseUpdate": {
+        "additionalProperties": false,
+        "description": "Body for ``PATCH /test-cases/:id`` \u2014 metadata + tag replace.\n\nAll fields optional; only ``model_dump(exclude_unset=True)`` keys are\napplied. Tags, if provided, replace the existing set in full.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "preconditions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preconditions"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Priority"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "title": "TestCaseUpdate",
         "type": "object"
       },
       "TestStepPublic": {
@@ -3982,11 +4337,29 @@
     },
     "/api/v1/audit-logs": {
       "get": {
-        "description": "List audit log entries for the workspace, optionally filtered by action prefix.",
+        "description": "List workspace audit rows newest-first with cursor pagination + filters.",
         "operationId": "list_audit_logs_api_v1_audit_logs_get",
         "parameters": [
           {
-            "description": "Action prefix filter (e.g. 'agent.*')",
+            "description": "Opaque cursor from a prior page.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a prior page.",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Glob filter (e.g. 'integration.*').",
             "in": "query",
             "name": "action",
             "required": false,
@@ -3999,18 +4372,92 @@
                   "type": "null"
                 }
               ],
-              "description": "Action prefix filter (e.g. 'agent.*')",
+              "description": "Glob filter (e.g. 'integration.*').",
               "title": "Action"
             }
           },
           {
+            "description": "Exact resource_type filter.",
+            "in": "query",
+            "name": "resource_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exact resource_type filter.",
+              "title": "Resource Type"
+            }
+          },
+          {
+            "description": "Exact UUID actor filter.",
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exact UUID actor filter.",
+              "title": "User Id"
+            }
+          },
+          {
+            "description": "ISO-8601 lower bound (inclusive).",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ISO-8601 lower bound (inclusive).",
+              "title": "From"
+            }
+          },
+          {
+            "description": "ISO-8601 upper bound (inclusive).",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ISO-8601 upper bound (inclusive).",
+              "title": "To"
+            }
+          },
+          {
+            "description": "Page size; 1..200, default 50.",
             "in": "query",
             "name": "limit",
             "required": false,
             "schema": {
-              "default": 20,
-              "maximum": 100,
-              "minimum": 1,
+              "default": 50,
+              "description": "Page size; 1..200, default 50.",
               "title": "Limit",
               "type": "integer"
             }
@@ -4037,7 +4484,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuditLogResponse"
+                  "$ref": "#/components/schemas/AuditLogsResponse"
                 }
               }
             },
@@ -6209,6 +6656,69 @@
         "tags": [
           "test-cases"
         ]
+      },
+      "post": {
+        "description": "Create a test case + its steps + its tag set atomically.",
+        "operationId": "create_test_case_api_v1_test_cases_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestCaseCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Create Test Case",
+        "tags": [
+          "test-cases"
+        ]
       }
     },
     "/api/v1/test-cases/{case_id}": {
@@ -6270,6 +6780,158 @@
           }
         ],
         "summary": "Get Test Case",
+        "tags": [
+          "test-cases"
+        ]
+      },
+      "patch": {
+        "description": "Patch metadata + tag set; honours ``If-Unmodified-Since``.",
+        "operationId": "update_test_case_api_v1_test_cases__case_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Unmodified-Since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Unmodified-Since"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestCaseUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Update Test Case",
+        "tags": [
+          "test-cases"
+        ]
+      }
+    },
+    "/api/v1/test-cases/{case_id}/duplicate": {
+      "post": {
+        "description": "Clone a case + its steps + tags inside the same suite (new public id).",
+        "operationId": "duplicate_test_case_api_v1_test_cases__case_id__duplicate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Duplicate Test Case",
         "tags": [
           "test-cases"
         ]
@@ -6338,6 +7000,256 @@
           }
         ],
         "summary": "Get Test Case Steps",
+        "tags": [
+          "test-cases"
+        ]
+      },
+      "patch": {
+        "description": "Atomic replace-all-steps; honours ``If-Unmodified-Since``.",
+        "operationId": "replace_test_case_steps_api_v1_test_cases__case_id__steps_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Unmodified-Since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Unmodified-Since"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepReplace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Replace Test Case Steps",
+        "tags": [
+          "test-cases"
+        ]
+      },
+      "post": {
+        "description": "Append one step using a row-locked ``SELECT MAX(order)`` for race safety.",
+        "operationId": "append_test_case_step_api_v1_test_cases__case_id__steps_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepAppend"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Append Test Case Step",
+        "tags": [
+          "test-cases"
+        ]
+      }
+    },
+    "/api/v1/test-cases/{case_id}/steps/reorder": {
+      "patch": {
+        "description": "Atomic step reorder.",
+        "operationId": "reorder_test_case_steps_api_v1_test_cases__case_id__steps_reorder_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Unmodified-Since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Unmodified-Since"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepReorderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Reorder Test Case Steps",
         "tags": [
           "test-cases"
         ]

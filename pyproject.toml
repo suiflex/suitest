@@ -27,6 +27,14 @@ dev-dependencies = [
   "pre-commit>=4.0.0",
   "aiosqlite>=0.20.0",
   "fakeredis>=2.26.0",
+  # M1d-13/14/15/29 — `respx` mocks Linear's GraphQL endpoint
+  # (test_linear_adapter.py), the GitHub App installation-token mint endpoint
+  # (test_github_adapter.py), the Slack incoming-webhook POST
+  # (test_slack_adapter.py), and the auto-defect E2E gate
+  # (apps/api/tests/e2e/test_auto_defect_e2e). The MCP test extras already
+  # pull respx but the API/root test suite needs the dep at root so it
+  # resolves without extras.
+  "respx>=0.21.0",
   # M1c Task 22 — E2E-only deps for tests/e2e/test_m1c_smoke.py. The test is
   # marked ``e2e`` and excluded from the default ``pytest -m "not e2e"``
   # selector, but the workflow that opts in (``.github/workflows/m1c-e2e.yml``)
@@ -145,5 +153,5 @@ asyncio_mode = "strict"
 testpaths = ["apps/api/tests", "apps/runner/tests", "packages/core/tests", "packages/db/tests", "packages/mcp/tests", "packages/shared/tests", "packages/agent/tests"]
 addopts = "-ra -q --strict-markers --import-mode=importlib"  # NEW: --import-mode=importlib resolves test file name collisions across packages
 markers = [
-    "e2e: end-to-end smoke test against the live docker-compose stack (M1c DoD, Task 22). Excluded from default pytest runs.",
+    "e2e: end-to-end smoke / integration test. Two flavours: (a) live docker-compose stack (M1c DoD, ``tests/e2e/``) — opt-in via the M1c E2E workflow; (b) testcontainer-driven in-process E2E (M1d-29, ``apps/api/tests/e2e/``) — runs in the default ``pytest`` invocation because it self-provisions Postgres via testcontainers and mocks every external network call. Use ``pytest -m 'not e2e'`` to deselect both.",
 ]

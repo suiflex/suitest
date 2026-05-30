@@ -2045,6 +2045,7 @@ dependencies = [
     { name = "structlog" },
     { name = "suitest-core" },
     { name = "suitest-db" },
+    { name = "suitest-mcp" },
     { name = "suitest-shared" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -2072,6 +2073,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=24.4.0" },
     { name = "suitest-core", editable = "packages/core" },
     { name = "suitest-db", editable = "packages/db" },
+    { name = "suitest-mcp", editable = "packages/mcp" },
     { name = "suitest-shared", editable = "packages/shared" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
 ]
@@ -2206,6 +2208,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "respx" },
     { name = "ruff" },
 ]
 
@@ -2223,6 +2226,7 @@ dev = [
     { name = "pytest", specifier = ">=8.3.0" },
     { name = "pytest-asyncio", specifier = ">=0.24.0" },
     { name = "pytest-cov", specifier = ">=5.0.0" },
+    { name = "respx", specifier = ">=0.21.0" },
     { name = "ruff", specifier = ">=0.7.0" },
 ]
 

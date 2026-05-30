@@ -31,7 +31,8 @@ def _ws(ws_id: str) -> Workspace:
 async def test_workspace_list_for_user_passes_user_id() -> None:
     repo = AsyncMock()
     repo.list_for_user.return_value = [_ws("ws_1"), _ws("ws_2")]
-    svc = WorkspaceService(_ctx(), repo)
+    member_repo = AsyncMock()
+    svc = WorkspaceService(_ctx(), repo, member_repo)
 
     out = await svc.list_for_user()
 
@@ -43,7 +44,8 @@ async def test_workspace_list_for_user_passes_user_id() -> None:
 async def test_workspace_get_404_when_not_a_member() -> None:
     repo = AsyncMock()
     repo.list_for_user.return_value = [_ws("ws_1")]
-    svc = WorkspaceService(_ctx(), repo)
+    member_repo = AsyncMock()
+    svc = WorkspaceService(_ctx(), repo, member_repo)
 
     assert await svc.get_by_id_for_user("ws_NOT_MINE") is None
     assert (await svc.get_by_id_for_user("ws_1")).id == "ws_1"  # type: ignore[union-attr]

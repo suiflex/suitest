@@ -34,7 +34,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     by the bootstrap path. Tests inject ``fakeredis.aioredis.FakeRedis`` here;
     production wires a real :class:`redis.asyncio.Redis` from ``SUITEST_REDIS_URL``.
     """
+    from suitest_shared.domain.enums import IntegrationKind
+
+    from suitest_api.integrations.jira_adapter import _IdentityCrypto
+    from suitest_api.integrations.notifier_registry import notifier_factory_registry
     from suitest_api.integrations.registry import adapter_registry
+    from suitest_api.integrations.slack_adapter import SlackAdapter
     from suitest_api.ws.manager import WsConnectionManager
 
     if not getattr(app.state, "settings", None):
@@ -49,6 +54,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # PR-12..15 register concrete adapters (Jira / Linear / GitHub / Slack)
     # by appending ``adapter_registry.register(...)`` lines below this one.
     app.state.adapter_registry = adapter_registry
+
+    # Notifier-adapter factory registry (M1d-15). Notifier adapters are
+    # constructed per-integration-row (each row carries its own webhook secret),
+    # so the registry stores callables rather than singletons. The Slack factory
+    # builds a :class:`~suitest_api.integrations.slack_adapter.SlackAdapter`
+    # from the integration row plus the shared httpx client.
+    notifier_factory_registry.register(IntegrationKind.SLACK, SlackAdapter)
+    app.state.notifier_factory_registry = notifier_factory_registry
+
+    # Issue-tracker adapter FACTORY registry (M1d-12..15). Concrete adapters
+    # (JiraAdapter, GitHubAdapter, LinearAdapter, …) carry per-:class:`Integration`-row
+    # state (workspace_id, decrypted credentials, App installation id) so the
+    # ``IntegrationService.sync_external`` call site builds one fresh per
+    # request instead of registering a singleton instance on the M1d-11
+    # ``adapter_registry``. ``app.state.adapter_factories`` maps
+    # :class:`IntegrationKind` → callable returning a constructed adapter for
+    # a given ``Integration`` row. Wired here so request handlers can resolve
+    # the factory via ``request.app.state.adapter_factories[kind]`` without
+    # touching module-level state directly.
+    app.state.adapter_factories = _build_adapter_factories()
+    # Default crypto seam — ``EncryptedBytes`` already returns plaintext on
+    # read so the production path uses an identity callable. KMS-backed crypto
+    # can replace this without touching the adapter code.
+    app.state.integration_crypto = _IdentityCrypto()
 
     ws_manager: WsConnectionManager | None = None
     ws_redis = getattr(app.state, "ws_redis", None)
@@ -88,6 +117,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from suitest_api.routers.runs import router as runs_router
     from suitest_api.routers.suites import router as suites_router
     from suitest_api.routers.test_cases import router as test_cases_router
+    from suitest_api.routers.webhooks import router as webhooks_router
     from suitest_api.routers.workspaces import router as workspaces_router
     from suitest_api.routers.ws import router as ws_router
 
@@ -168,6 +198,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(audit_logs_router)
     app.include_router(inbox_router)
     app.include_router(mcp_providers_router)
+    app.include_router(webhooks_router)
     # WebSocket gateway — mounted at root (NOT /api/v1) so the path stays
     # ``GET /ws?token=...``. CORS preflight does not apply to WebSocket upgrades;
     # cross-origin enforcement lives in the JWT check (Task 14).
@@ -236,6 +267,42 @@ def _exempt_anonymous_routes(app: FastAPI) -> None:
             continue
         name = f"{endpoint.__module__}.{endpoint.__name__}"
         limiter._exempt_routes.add(name)
+
+
+def _build_adapter_factories() -> dict[object, object]:
+    """Return the :class:`IntegrationKind` → adapter-factory map (M1d-12..15).
+
+    Each value is a callable accepting keyword args
+    ``integration`` / ``mcp_client`` / ``crypto`` / ``http_client`` and returning
+    a fully-constructed :class:`IssueTrackerAdapter`. The call site (e.g.
+    :meth:`IntegrationService.sync_external`) builds the adapter once per
+    request — keeping per-row state (decrypted credentials, App installation
+    id, token cache) bounded to that request's lifetime.
+
+    The return annotation is ``dict[object, object]`` rather than
+    ``dict[IntegrationKind, AdapterFactory]`` so this helper can ship before
+    every adapter lands without forcing each call site to know the union of
+    constructor signatures.
+    """
+    import httpx as _httpx
+    from suitest_db.models.integration import Integration as _IntegrationModel
+    from suitest_shared.domain.enums import IntegrationKind
+
+    from suitest_api.integrations.github_adapter import GitHubAdapter
+    from suitest_api.integrations.jira_adapter import JiraAdapter
+    from suitest_api.integrations.linear_adapter import LinearAdapter
+
+    def _linear_factory(
+        *, integration: _IntegrationModel, http_client: _httpx.AsyncClient
+    ) -> LinearAdapter:
+        """Build a per-:class:`Integration` :class:`LinearAdapter` (M1d-13)."""
+        return LinearAdapter(integration=integration, http_client=http_client)
+
+    return {
+        IntegrationKind.JIRA: JiraAdapter,
+        IntegrationKind.LINEAR: _linear_factory,
+        IntegrationKind.GITHUB: GitHubAdapter,
+    }
 
 
 def _build_default_ws_redis() -> object | None:

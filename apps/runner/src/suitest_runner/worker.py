@@ -22,7 +22,7 @@ override for ``suitest_runner.worker``):
 from __future__ import annotations
 
 import structlog
-from arq.connections import RedisSettings
+from arq.connections import ArqRedis, RedisSettings, create_pool
 from redis import asyncio as redis_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from suitest_mcp.invoker import McpInvoker
@@ -30,7 +30,11 @@ from suitest_mcp.pool import McpPool
 from suitest_mcp.registry import McpRegistry
 from suitest_mcp.workspace_cap import WorkspacePoolCap
 
+from suitest_runner.deps import build_defect_auto_filer
+from suitest_runner.jobs.file_external_issue import file_external_issue
 from suitest_runner.jobs.run_test_case import run_test_case
+from suitest_runner.jobs.send_slack_notification import send_slack_notification
+from suitest_runner.jobs.workspace_cleanup import workspace_cleanup
 from suitest_runner.observability import setup_observability
 from suitest_runner.settings import RunnerSettings, get_settings
 
@@ -75,6 +79,25 @@ async def startup(ctx: dict[str, object]) -> None:
         audit_session_factory=session_factory,
         workspace_cap=workspace_cap,
     )
+    # M1d-10 ARQ pool used by the defect auto-filer to enqueue downstream
+    # ``send_slack_notification`` (M1d-15) + ``file_external_issue`` (M1d-10)
+    # jobs. Built off the same redis URL the runner already opened so we
+    # don't double the broker connection count.
+    arq_pool: ArqRedis = await create_pool(RedisSettings.from_dsn(settings.redis_url))
+    # M1d-10 defect auto-filer. Wired here so the orchestrator can look it up
+    # off ``ctx`` without constructing the API service per job. The filer is
+    # process-singleton (regex tables are module-level constants; the per-call
+    # state is the short-lived session it opens itself).
+    # ARQ's ``ArqRedis.enqueue_job`` is typed against ``*args: Any, **kwargs:
+    # Any`` (and uses ``function:`` rather than ``name:``); our protocol
+    # surface deliberately tightens that for safety. The structural cast is
+    # safe — the auto-filer only calls ``enqueue_job("send_slack_notification",
+    # integration_id=..., defect_id=...)`` which is a valid ArqRedis invocation.
+    auto_filer = build_defect_auto_filer(
+        session_factory=session_factory,
+        publisher=redis_client,
+        arq_pool=arq_pool,  # type: ignore[arg-type]
+    )
     ctx["settings"] = settings
     ctx["engine"] = engine
     ctx["session_factory"] = session_factory
@@ -83,6 +106,8 @@ async def startup(ctx: dict[str, object]) -> None:
     ctx["pool"] = pool
     ctx["workspace_cap"] = workspace_cap
     ctx["invoker"] = invoker
+    ctx["arq_pool"] = arq_pool
+    ctx["defect_auto_filer"] = auto_filer
     log.info(
         "runner.started",
         concurrency=settings.max_jobs_concurrent,
@@ -103,6 +128,9 @@ async def shutdown(ctx: dict[str, object]) -> None:
     pool = ctx.get("pool")
     if isinstance(pool, McpPool):
         await pool.shutdown()
+    arq_pool = ctx.get("arq_pool")
+    if isinstance(arq_pool, ArqRedis):
+        await arq_pool.aclose()
     redis_client = ctx.get("redis")
     if isinstance(redis_client, redis_asyncio.Redis):
         await redis_client.aclose()
@@ -133,7 +161,17 @@ class WorkerSettings:
     ``WorkerSettings.__dict__`` directly.
     """
 
-    functions = [run_test_case]  # noqa: RUF012 — ARQ reads this as a class attribute
+    # ARQ reads ``functions`` as a class attribute. Jobs owned by the runner:
+    # - ``run_test_case`` (M1c) — canonical run executor
+    # - ``send_slack_notification`` (M1d-15) — outbound Slack with own retry
+    # - ``file_external_issue`` (M1d-10) — defect auto-filer
+    # - ``workspace_cleanup`` (M1d-28) — async workspace tear-down job
+    functions = [  # noqa: RUF012 — ARQ reads this as a class attribute
+        run_test_case,
+        send_slack_notification,
+        file_external_issue,
+        workspace_cleanup,
+    ]
     queue_name: str = "suitest:runs"
     max_jobs: int = _settings.max_jobs_concurrent
     max_tries: int = _settings.max_retries + 1

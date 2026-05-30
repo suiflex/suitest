@@ -44,7 +44,9 @@ _DB_PKG_ROOT = _REPO_ROOT / "packages" / "db"
 # Last revision *before* the M1d chain — round-trip downgrade target.
 _PRE_M1D_REV = "0015_run_step_logs"
 # Head once the M1d chain is applied — used to assert linear chain integrity.
-_M1D_HEAD_REV = "0025_m1d_10_req_soft_delete"
+# Bumped to 0026 by M1d-28 (workspaces.deleted_at + partial index) on top of
+# the 0025_m1d_10_req_soft_delete chain tip.
+_M1D_HEAD_REV = "0026_m1d_28_ws_soft_delete"
 
 
 @pytest.fixture(scope="module")

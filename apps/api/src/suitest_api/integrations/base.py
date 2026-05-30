@@ -32,7 +32,7 @@ from __future__ import annotations
 from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
-from suitest_shared.domain.enums import DefectStatus, IntegrationKind, Severity
+from suitest_shared.domain.enums import DefectStatus, DiagnosisKind, IntegrationKind, Severity
 
 
 class ExternalIssueInput(BaseModel):
@@ -223,6 +223,19 @@ class IssueTrackerAdapter(Protocol):
         """Patch the issue identified by ``external_key`` and return the refreshed ExternalIssue."""
         ...
 
+    async def fetch_external_issue(self, external_key: str) -> ExternalIssue:
+        """Read-only fetch of the live external state for ``external_key``.
+
+        Used by :meth:`suitest_api.services.integration_service.IntegrationService.sync_external`
+        to refetch the remote status without mutating. Adapters implement this
+        as the cheapest read-only call their API offers (Jira ``GET /issue/:key``,
+        Linear ``issue(id:)`` query, GitHub ``GET /repos/:o/:r/issues/:n``).
+        Raises :class:`AdapterError` (or subclass) on failure so the sync loop
+        can ``except AdapterError`` and continue with the next defect rather
+        than aborting the whole pass.
+        """
+        ...
+
     async def transition_status(self, external_key: str, new_status: DefectStatus) -> None:
         """Move the issue to the workflow state that maps to ``new_status``.
 
@@ -239,5 +252,110 @@ class IssueTrackerAdapter(Protocol):
 
         Returns ``None`` for unknown / unmapped statuses; webhook receivers
         treat that as "no-op, log it" rather than 500-ing.
+        """
+        ...
+
+
+# ---------------------------------------------------------------------------
+# Notifier surface (M1d-15 — Slack adapter)
+# ---------------------------------------------------------------------------
+#
+# Slack is a notifier, not an issue tracker — it has no concept of "create
+# issue / transition status". A separate Protocol keeps the issue-tracker
+# surface from sprouting a no-op ``create_external_issue`` for Slack. Future
+# notifier integrations (PagerDuty, Microsoft Teams, generic webhook) can
+# implement :class:`NotifierAdapter` without touching the issue-tracker
+# Protocol above.
+
+
+class DefectEvent(BaseModel):
+    """Adapter-agnostic payload representing a defect worth notifying about.
+
+    Mirrors the subset of the :class:`suitest_db.models.defect.Defect` columns
+    that downstream notifications surface (title, severity, public id, run
+    back-reference, diagnosis kind). The notifier adapter is responsible for
+    rendering this into its wire format (Slack Block Kit, PagerDuty event,
+    etc.) — it MUST NOT round-trip the DB to fetch additional fields.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    defect_id: str = Field(description="Suitest internal defect id (cuid).")
+    defect_public_id: str = Field(
+        description="Workspace-scoped public id (e.g. 'DEF-42') for human-readable links."
+    )
+    title: str = Field(min_length=1, max_length=255)
+    severity: Severity
+    diagnosis_kind: DiagnosisKind
+    workspace_id: str
+    run_id: str | None = Field(
+        default=None, description="Back-reference to the failing run (if any)."
+    )
+    test_case_public_id: str | None = Field(
+        default=None,
+        description="Public id of the failed test case (for back-link in the notification).",
+    )
+    suitest_base_url: str | None = Field(
+        default=None,
+        description="Browser-openable Suitest base URL the adapter prepends to deep-links.",
+    )
+
+
+class NotificationResult(BaseModel):
+    """Return shape for :meth:`NotifierAdapter.send_notification`.
+
+    On success ``sent=True``; the optional ``message_id`` exposes whatever
+    handle the remote system returned so the caller can log it for traceability
+    (Slack incoming webhooks don't return a message id, so this stays
+    ``None`` for Slack). On failure ``sent=False`` and ``error`` carries the
+    human-readable message bubbled up to the ARQ job's retry decision.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    sent: bool
+    message_id: str | None = None
+    error: str | None = None
+
+
+@runtime_checkable
+class NotifierAdapter(Protocol):
+    """Contract every notifier adapter (Slack / PagerDuty / Teams / …) implements.
+
+    Marked ``@runtime_checkable`` so call sites can ``isinstance(adapter,
+    NotifierAdapter)`` against the registry without each adapter inheriting
+    from the Protocol. Notifier adapters are deliberately kept separate from
+    :class:`IssueTrackerAdapter` because Slack-style webhooks have neither
+    issue-id nor status-transition semantics.
+    """
+
+    kind: IntegrationKind
+
+    async def test_connection(self) -> ConnectionTestResult:
+        """Round-trip the remote system to confirm the webhook / API token is live.
+
+        For Slack this posts a "Suitest connection test" message (Q9 — intrusive
+        but confirmed via UI dialog before invocation). Returns
+        ``ConnectionTestResult(ok=False, error=<message>)`` on failure rather
+        than raising so the FE renders the error inline.
+        """
+        ...
+
+    async def send_notification(
+        self,
+        event: DefectEvent,
+        config: dict[str, Any],
+        secrets: dict[str, Any],
+    ) -> NotificationResult:
+        """Send a notification for ``event`` and return whether it landed.
+
+        Implementations construct their wire payload from ``event``, decrypt
+        whatever secret material they need from ``secrets`` (the adapter is
+        handed the already-decrypted dict by the caller; the on-disk blob is
+        AES-GCM-encrypted via ``EncryptedBytes``), and POST / publish.
+
+        Raise :class:`AdapterError` (or subclass) on terminal failure so the
+        ARQ job's retry policy can decide whether to back off and try again or
+        mark the integration ``status=error``.
         """
         ...

@@ -17,7 +17,10 @@ import asyncio
 import pytest
 from arq.connections import RedisSettings
 from arq.worker import Worker
+from suitest_runner.jobs.file_external_issue import file_external_issue
 from suitest_runner.jobs.run_test_case import run_test_case
+from suitest_runner.jobs.send_slack_notification import send_slack_notification
+from suitest_runner.jobs.workspace_cleanup import workspace_cleanup
 from suitest_runner.settings import RunnerSettings
 from suitest_runner.worker import WorkerSettings, shutdown, startup
 
@@ -31,8 +34,13 @@ def test_worker_settings_class_attributes() -> None:
 
 
 def test_worker_functions_registry() -> None:
-    """``run_test_case`` must be the sole registered job for Task 10."""
-    assert WorkerSettings.functions == [run_test_case]
+    """ARQ-registered job list — run job + Slack + external-issue + workspace cleanup."""
+    assert WorkerSettings.functions == [
+        run_test_case,
+        send_slack_notification,
+        file_external_issue,
+        workspace_cleanup,
+    ]
 
 
 def test_worker_redis_settings_dsn() -> None:
@@ -75,6 +83,10 @@ async def test_startup_populates_ctx(monkeypatch: pytest.MonkeyPatch) -> None:
         assert "registry" in ctx
         assert "pool" in ctx
         assert "invoker" in ctx
+        # M1d-10 — defect auto-filer + its ARQ pool wired during startup.
+        assert "arq_pool" in ctx
+        assert "defect_auto_filer" in ctx
+        assert hasattr(ctx["defect_auto_filer"], "file_for_failed_step")
         settings = ctx["settings"]
         assert isinstance(settings, RunnerSettings)
         assert settings.database_url == "sqlite+aiosqlite:///:memory:"
@@ -123,7 +135,11 @@ async def test_enqueue_and_run_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Build a worker bound to the same ArqRedis so enqueue + drain share state.
     worker = Worker(
-        functions=WorkerSettings.functions,
+        # ARQ types ``functions`` as ``Sequence[Function | WorkerCoroutine]``
+        # — bare ``async def`` callables satisfy the runtime contract but
+        # mypy can't narrow the class-level attribute that way without an
+        # ARQ-side stub fix.
+        functions=WorkerSettings.functions,  # type: ignore[arg-type]
         redis_pool=arq_pool,
         queue_name=WorkerSettings.queue_name,
         max_jobs=1,
