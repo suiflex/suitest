@@ -223,6 +223,19 @@ class IssueTrackerAdapter(Protocol):
         """Patch the issue identified by ``external_key`` and return the refreshed ExternalIssue."""
         ...
 
+    async def fetch_external_issue(self, external_key: str) -> ExternalIssue:
+        """Read-only fetch of the live external state for ``external_key``.
+
+        Used by :meth:`suitest_api.services.integration_service.IntegrationService.sync_external`
+        to refetch the remote status without mutating. Adapters implement this
+        as the cheapest read-only call their API offers (Jira ``GET /issue/:key``,
+        Linear ``issue(id:)`` query, GitHub ``GET /repos/:o/:r/issues/:n``).
+        Raises :class:`AdapterError` (or subclass) on failure so the sync loop
+        can ``except AdapterError`` and continue with the next defect rather
+        than aborting the whole pass.
+        """
+        ...
+
     async def transition_status(self, external_key: str, new_status: DefectStatus) -> None:
         """Move the issue to the workflow state that maps to ``new_status``.
 

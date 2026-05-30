@@ -87,6 +87,13 @@ async def _assert_update_round_trip(adapter: IssueTrackerAdapter, key: str) -> N
     assert updated.external_key == key or updated.external_id == key
 
 
+async def _assert_fetch_round_trip(adapter: IssueTrackerAdapter, key: str) -> None:
+    """``fetch_external_issue`` returns the live :class:`ExternalIssue` for ``key``."""
+    fetched = await adapter.fetch_external_issue(key)
+    assert isinstance(fetched, ExternalIssue)
+    assert fetched.external_key == key or fetched.external_id == key
+
+
 async def _assert_transition(adapter: IssueTrackerAdapter, key: str) -> None:
     """``transition_status`` runs without raising for a known :class:`DefectStatus`."""
     await adapter.transition_status(key, DefectStatus.IN_PROGRESS)
@@ -109,6 +116,7 @@ async def run_adapter_contract(adapter: IssueTrackerAdapter) -> None:
     await _assert_test_connection(adapter)
     issue = await _assert_create_issue(adapter)
     await _assert_update_round_trip(adapter, issue.external_key)
+    await _assert_fetch_round_trip(adapter, issue.external_key)
     await _assert_transition(adapter, issue.external_key)
     _assert_status_map(adapter)
 
