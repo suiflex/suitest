@@ -140,8 +140,9 @@ class RunService:
         commit_sha: str | None,
         env: str,
         trigger: RunTrigger,
-        user_id: str,
+        user_id: str | None,
         mcp_routing_override: dict[str, str] | None,
+        triggered_by: str | None = None,
     ) -> RunRow:
         """Validate, insert one ``runs`` row, and append an audit log.
 
@@ -166,6 +167,13 @@ class RunService:
         appends a ``run.create`` audit row. The session is NOT committed
         here — the router commits after attaching the ARQ job id so the run
         row + job id land atomically.
+
+        ``triggered_by`` overrides the per-row ``triggered_by`` string when set
+        (e.g. webhook receivers passing ``"webhook:gitlab"``); otherwise the
+        UUID ``user_id`` value is used. ``user_id`` may be ``None`` for
+        attributionless webhook-driven runs — the audit row's ``user_id`` is
+        omitted in that case (the audit table allows NULL user_id, matching
+        background-job semantics).
         """
         project = await self._project_repo.get_by_id(project_id)
         if project is None or project.workspace_id != self._ctx.workspace_id:
@@ -220,7 +228,7 @@ class RunService:
             commit_sha=commit_sha,
             env=env,
             trigger=trigger,
-            triggered_by=user_id,
+            triggered_by=triggered_by if triggered_by is not None else user_id,
             status=RunStatus.QUEUED,
             tier_at_runtime=tier,
             metadata_json=metadata,
