@@ -12,9 +12,12 @@ The orchestrator owns the run lifecycle:
    ``run.step.completed``.
 5. Aggregate per-outcome counters, update the run with terminal status,
    publish ``run.completed``.
-6. If the run failed (any FAIL or ERROR step), best-effort file a defect via
-   ``DefectService.file_for_failed_run`` — wrapped in try/except because the
-   ZERO-tier defect service is not in the runner's hard dependency set yet.
+6. On each ``StepOutcome.FAIL``, dispatch to
+   :func:`suitest_runner.handlers.step_handler.on_run_step_failed`, which
+   hands the row to the M1d-10 :class:`DefectAutoFiler` (categorise →
+   dedup-aware insert → ``defect.created`` WS broadcast → enqueue downstream
+   notifier / issue-tracker jobs). The hook is wrapped in try/except so a
+   degraded defect pipeline never blocks run completion.
 
 Everything that touches the DB happens inside a fresh ``session_factory()``
 context manager so the worker's job-level concurrency doesn't share an
@@ -26,7 +29,7 @@ from __future__ import annotations
 import json
 import time
 from datetime import UTC, datetime
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
 import structlog
 from suitest_db.models.project import Project
@@ -38,7 +41,11 @@ from suitest_mcp.registry import McpRegistry
 from suitest_shared.domain.enums import RunStatus, StepOutcome, Tier
 
 from suitest_runner.executors.step_executor import execute_step
+from suitest_runner.handlers.step_handler import on_run_step_failed
 from suitest_runner.observability import get_tracer
+
+if TYPE_CHECKING:
+    from suitest_api.services.defect_auto_filer import DefectAutoFiler
 
 log = structlog.get_logger(__name__)
 
@@ -48,6 +55,22 @@ class _Publisher(Protocol):
     """Minimal Redis publish surface so tests can sub a recorder for ``publish``."""
 
     async def publish(self, channel: str, message: str | bytes) -> int: ...
+
+
+def _is_defect_auto_filer(obj: object) -> bool:
+    """Duck-typed check for the M1d-10 defect auto-filer.
+
+    We avoid a hard import-time dependency on
+    :class:`~suitest_api.services.defect_auto_filer.DefectAutoFiler` (the
+    api package is logically downstream of the runner from a deployment
+    standpoint, even though both currently live in the same monorepo) by
+    structurally checking for the single method the hook calls. This keeps
+    the runner importable in test fixtures that monkeypatch ``ctx`` with
+    plain stubs.
+    """
+    return hasattr(obj, "file_for_failed_step") and callable(
+        getattr(obj, "file_for_failed_step", None)
+    )
 
 
 @runtime_checkable
@@ -212,6 +235,32 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                 summary["passed"] += 1
             elif result.outcome == StepOutcome.FAIL:
                 summary["failed"] += 1
+                # M1d-10: hand the failed step off to the defect auto-filer.
+                # The hook owns its own try/except so a degraded defect
+                # pipeline never blocks run completion. We swallow any
+                # exception that bubbles out of the hook itself for the
+                # same reason — orchestrator forward-progress is paramount.
+                auto_filer = ctx.get("defect_auto_filer")
+                # ``cast`` is intentional — the handler accepts a nominal
+                # ``DefectAutoFiler | None`` but mypy can't narrow ``object``
+                # to that type. :func:`_is_defect_auto_filer` is the runtime
+                # source of truth — non-conforming objects become ``None``.
+                typed_filer: DefectAutoFiler | None = (
+                    cast("DefectAutoFiler", auto_filer)
+                    if _is_defect_auto_filer(auto_filer)
+                    else None
+                )
+                try:
+                    await on_run_step_failed(
+                        auto_filer=typed_filer,
+                        run_step=run_step,
+                    )
+                except Exception as exc:
+                    log.warning(
+                        "runner.step.fail.hook_error",
+                        run_step_id=run_step.id,
+                        reason=str(exc),
+                    )
             elif result.outcome == StepOutcome.SKIP:
                 summary["skipped"] += 1
             else:
@@ -250,6 +299,9 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
         )
 
         # --- best-effort defect filing ------------------------------------
+        # M1d-10 ships per-step defect filing via the ``on_run_step_failed``
+        # hook above; the old per-run filer below is retained as a no-op
+        # safety net until M2 deletes it.
         if failed_total > 0:
             await _try_file_defect(factory, run_id)
 
