@@ -34,6 +34,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     by the bootstrap path. Tests inject ``fakeredis.aioredis.FakeRedis`` here;
     production wires a real :class:`redis.asyncio.Redis` from ``SUITEST_REDIS_URL``.
     """
+    from suitest_shared.domain.enums import IntegrationKind
+
     from suitest_api.integrations.registry import adapter_registry
     from suitest_api.ws.manager import WsConnectionManager
 
@@ -49,6 +51,34 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # PR-12..15 register concrete adapters (Jira / Linear / GitHub / Slack)
     # by appending ``adapter_registry.register(...)`` lines below this one.
     app.state.adapter_registry = adapter_registry
+
+    # Per-Integration adapter factories (M1d-13+). Unlike Jira (PR-12), which
+    # can pre-build a singleton at boot because its secrets/config land in a
+    # workspace-wide MCP provider, the Linear / GitHub / Slack adapters need
+    # one instance per ``Integration`` row (each row carries its own PAT +
+    # team_id). Lifespan registers a factory per kind here; request handlers
+    # (M1d-19 sync_external, M1d-10 auto_filer) resolve
+    # ``app.state.adapter_factories[integration.kind]`` and invoke it with the
+    # loaded :class:`Integration` row + the shared :class:`httpx.AsyncClient`.
+    import httpx as _httpx
+    from suitest_db.models.integration import Integration as _IntegrationModel
+
+    from suitest_api.integrations.linear_adapter import LinearAdapter
+
+    def _linear_factory(
+        *, integration: _IntegrationModel, http_client: _httpx.AsyncClient
+    ) -> LinearAdapter:
+        """Build a per-:class:`Integration` :class:`LinearAdapter`.
+
+        Both args are duck-typed at runtime (the body only reads
+        ``integration.config`` / ``.secrets_encrypted`` and the http client's
+        ``.post(...)``), but the signature pins the production callers'
+        intent. Tests inject a ``MagicMock`` shaped like ``Integration`` and
+        a real :class:`httpx.AsyncClient`.
+        """
+        return LinearAdapter(integration=integration, http_client=http_client)
+
+    app.state.adapter_factories = {IntegrationKind.LINEAR: _linear_factory}
 
     ws_manager: WsConnectionManager | None = None
     ws_redis = getattr(app.state, "ws_redis", None)
