@@ -64,7 +64,7 @@ jobs:
       - name: Bring up docker-compose stack (zero + e2e profiles)
         working-directory: infra/docker
         run: |
-          docker compose --profile zero --profile e2e up -d --wait
+          docker compose --profile zero --profile e2e up -d
           docker compose ps
 
       - name: Wait for api health
