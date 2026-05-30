@@ -23,6 +23,7 @@ dependencies = [
   "prometheus-fastapi-instrumentator>=7.0.0",
   "suitest-core",
   "suitest-db",
+  "suitest-mcp",
   "suitest-shared",
   "slowapi>=0.1.9",
   "arq>=0.26",

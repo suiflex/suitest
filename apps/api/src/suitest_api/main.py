@@ -34,6 +34,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     by the bootstrap path. Tests inject ``fakeredis.aioredis.FakeRedis`` here;
     production wires a real :class:`redis.asyncio.Redis` from ``SUITEST_REDIS_URL``.
     """
+    from suitest_shared.domain.enums import IntegrationKind
+
+    from suitest_api.integrations.jira_adapter import JiraAdapter, _IdentityCrypto
     from suitest_api.integrations.registry import adapter_registry
     from suitest_api.ws.manager import WsConnectionManager
 
@@ -49,6 +52,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # PR-12..15 register concrete adapters (Jira / Linear / GitHub / Slack)
     # by appending ``adapter_registry.register(...)`` lines below this one.
     app.state.adapter_registry = adapter_registry
+
+    # M1d-12: per-Integration adapters (JiraAdapter / LinearAdapter / ...) are
+    # constructed per-request from the workspace's Integration row, so we
+    # register factory callables here rather than singleton instances. M1d-19's
+    # ``IntegrationService.sync_external`` and the M1d-10 auto-filer look up
+    # the factory by IntegrationKind, then call it with the live ``Integration``.
+    # The MCP client + crypto are injected at call-time by the consumer (the
+    # service holds the process-wide McpInvoker + crypto seam).
+    adapter_factories: dict[IntegrationKind, type] = {
+        IntegrationKind.JIRA: JiraAdapter,
+    }
+    app.state.adapter_factories = adapter_factories
+    # Default crypto seam — ``EncryptedBytes`` already returns plaintext on
+    # read so the production path uses an identity callable. KMS-backed crypto
+    # can replace this without touching the adapter code.
+    app.state.integration_crypto = _IdentityCrypto()
 
     ws_manager: WsConnectionManager | None = None
     ws_redis = getattr(app.state, "ws_redis", None)
