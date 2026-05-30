@@ -20,7 +20,6 @@ contract surface stays one file for code review.
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import pytest
@@ -29,6 +28,7 @@ from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
 from suitest_api.deps.integrations import get_adapter_registry
 from suitest_api.integrations import adapter_registry as singleton_registry
+from suitest_api.integrations import registry as registry_module
 from suitest_api.integrations.base import (
     AdapterAuthError,
     AdapterError,
@@ -171,20 +171,32 @@ def test_registry_get_unknown_kind_raises_adapter_not_registered() -> None:
 
 
 def test_registry_duplicate_register_replaces_and_warns(
-    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     registry = AdapterRegistry()
     first = _MockAdapter(IntegrationKind.JIRA)
     second = _MockAdapter(IntegrationKind.JIRA)
+    warnings: list[tuple[str, dict[str, object]]] = []
+
+    def _capture_warning(message: str, *args: object, **kwargs: object) -> None:
+        warnings.append((message, dict(kwargs.get("extra", {}))))
+
+    monkeypatch.setattr(registry_module.logger, "warning", _capture_warning)
 
     registry.register(first)
-    with caplog.at_level(logging.WARNING, logger="suitest_api.integrations.registry"):
-        registry.register(second)
+    registry.register(second)
 
     assert registry.get(IntegrationKind.JIRA) is second
-    assert any("adapter_registry.replace" in rec.message for rec in caplog.records), (
-        f"expected replace warning, got: {[r.message for r in caplog.records]}"
-    )
+    assert warnings == [
+        (
+            "adapter_registry.replace",
+            {
+                "kind": IntegrationKind.JIRA.value,
+                "existing": "_MockAdapter",
+                "new": "_MockAdapter",
+            },
+        )
+    ]
 
 
 # ---------------------------------------------------------------------------
