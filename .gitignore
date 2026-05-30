@@ -73,3 +73,9 @@ apps/runner/.coverage
 # Docker
 .docker/
 .claude-flow
+
+# Ruflo / swarm runtime artifacts (local agent state — never commit)
+.swarm/
+agentdb.rvf
+agentdb.rvf.lock
+ruvector.db

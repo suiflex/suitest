@@ -70,6 +70,52 @@ export const handlers: HttpHandler[] = [
       updated_at: "2026-05-27T10:01:14Z",
     });
   }),
+  // M1d-32: cancel + rerun (handlers shipped in M1c, mocked here for tests)
+  http.post(`${BASE}/runs/:runId/cancel`, ({ params }) => {
+    const publicId = String(params["runId"]);
+    return HttpResponse.json({
+      id: `run_${publicId}`,
+      public_id: publicId,
+      project_id: "prj_demo",
+      name: "Checkout flow rejects expired cards",
+      branch: "main",
+      commit_sha: "abcd123",
+      env: "staging",
+      status: "CANCELED",
+      trigger: "MANUAL",
+      tier_at_runtime: "ZERO",
+      started_at: "2026-05-27T10:00:00Z",
+      completed_at: "2026-05-27T10:00:30Z",
+      duration_ms: 30000,
+      summary: { total_steps: 4, passed_steps: 1, failed_steps: 0, duration_ms: 30000 },
+      created_at: "2026-05-27T10:00:00Z",
+      updated_at: "2026-05-27T10:00:30Z",
+    });
+  }),
+  http.post(`${BASE}/runs/:runId/rerun`, () =>
+    HttpResponse.json(
+      {
+        id: "run_RUN-502",
+        public_id: "RUN-502",
+        project_id: "prj_demo",
+        name: "Checkout flow rejects expired cards",
+        branch: "main",
+        commit_sha: "abcd123",
+        env: "staging",
+        status: "QUEUED",
+        trigger: "MANUAL",
+        tier_at_runtime: "ZERO",
+        started_at: null,
+        completed_at: null,
+        duration_ms: null,
+        summary: null,
+        created_at: "2026-05-30T17:00:00Z",
+        updated_at: "2026-05-30T17:00:00Z",
+      },
+      { status: 201 },
+    ),
+  ),
+
   http.get(`${BASE}/runs/:runId/steps`, ({ params }) =>
     HttpResponse.json({
       items: [
@@ -190,11 +236,90 @@ export const handlers: HttpHandler[] = [
   }),
   http.get(`${BASE}/test-cases/:caseId/steps`, () => HttpResponse.json({ items: [] })),
 
+  // M1-12: step write endpoints — thin stubs (per-test overrides via server.use)
+  http.post(`${BASE}/test-cases/:caseId/steps`, ({ params }) => {
+    const publicId = String(params["caseId"]);
+    return HttpResponse.json(
+      {
+        id: `case_${publicId}`,
+        public_id: publicId,
+        name: "Checkout flow rejects expired cards",
+        description: null,
+        preconditions: null,
+        priority: "P1",
+        status: "ACTIVE",
+        source: "MANUAL",
+        suite_id: "ste_smoke",
+        owner_id: null,
+        tags: [],
+        steps: [
+          {
+            id: "stp_new",
+            case_id: `case_${publicId}`,
+            order: 1,
+            action: "",
+            expected: "",
+            executable: true,
+            mcp_provider: "playwright-mcp",
+            target_kind: "FE_WEB",
+            code: null,
+            data: null,
+          },
+        ],
+        created_at: "2026-05-01T08:00:00Z",
+        updated_at: "2026-05-25T14:30:00Z",
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.patch(`${BASE}/test-cases/:caseId/steps`, ({ params }) => {
+    const publicId = String(params["caseId"]);
+    return HttpResponse.json({
+      id: `case_${publicId}`,
+      public_id: publicId,
+      name: "Checkout flow rejects expired cards",
+      description: null,
+      preconditions: null,
+      priority: "P1",
+      status: "ACTIVE",
+      source: "MANUAL",
+      suite_id: "ste_smoke",
+      owner_id: null,
+      tags: [],
+      steps: [],
+      created_at: "2026-05-01T08:00:00Z",
+      updated_at: "2026-05-25T14:30:00Z",
+    });
+  }),
+
+  // M1d-23: soft-delete + restore (204 No Content, idempotent)
+  http.delete(`${BASE}/test-cases/:caseId`, () => new HttpResponse(null, { status: 204 })),
+  http.post(`${BASE}/test-cases/:caseId/restore`, () => new HttpResponse(null, { status: 204 })),
+
   // Defects
   http.get(`${BASE}/defects`, () => HttpResponse.json(defects)),
-  http.get(`${BASE}/defects/:defectId`, ({ params }) =>
-    HttpResponse.json({ id: params["defectId"], public_id: params["defectId"], title: "Fixture defect" }),
-  ),
+  http.get(`${BASE}/defects/:defectId`, ({ params }) => {
+    const publicId = String(params["defectId"]);
+    return HttpResponse.json({
+      id: `def_${publicId}`,
+      public_id: publicId,
+      title: "Fixture defect",
+      description: null,
+      severity: "HIGH",
+      status: "OPEN",
+      agent_diagnosis_kind: "MANUAL_TRIAGE",
+      run_public_id: "RUN-501",
+      test_case_public_id: "TC-101",
+      requirement_public_id: null,
+      assignee_id: null,
+      component: null,
+      workspace_id: "ws_demo",
+      external_issues: [],
+      created_at: "2026-05-01T08:00:00Z",
+      updated_at: "2026-05-25T14:30:00Z",
+    });
+  }),
   http.get(`${BASE}/defects/:defectId/timeline`, () => HttpResponse.json({ items: [] })),
 
   // Documents

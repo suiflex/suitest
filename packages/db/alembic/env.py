@@ -19,7 +19,10 @@ if TYPE_CHECKING:
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False preserves app loggers (e.g.
+    # ``suitest_api.integrations.registry``) so pytest ``caplog`` still
+    # captures their records after a migration test triggers env.py load.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Pull URL from DbSettings (env-driven) and inject into alembic's config dict.
 _settings = DbSettings()

@@ -36,6 +36,7 @@ import {
   useRunsList,
   useRunsSummary,
 } from "@/hooks/use-runs";
+import { ApiError } from "@/lib/api-client";
 import type { components } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
 import { useCapabilities } from "@/stores/use-capabilities";
@@ -411,6 +412,11 @@ function RunDetailPanel({
     });
   };
 
+  // VIEWER role can't cancel — the backend returns 403; surface a non-blocking
+  // capability banner instead of swallowing the error.
+  const cancelForbidden =
+    cancelMutation.error instanceof ApiError && cancelMutation.error.status === 403;
+
   return (
     <div className="flex flex-col gap-4" data-testid="run-detail">
       <div className="flex items-center justify-between border-b border-border pb-3">
@@ -446,6 +452,16 @@ function RunDetailPanel({
           </Button>
         </div>
       </div>
+
+      {cancelForbidden ? (
+        <div
+          role="alert"
+          data-testid="run-cancel-forbidden-banner"
+          className="rounded-md border border-red/30 bg-red/10 px-3 py-2 text-[12px] text-red"
+        >
+          Cancelling runs requires QA access. Ask an admin to grant it.
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-1.5">
         <h3 className="text-[18px] font-semibold leading-tight tracking-[-.01em] text-fg-1">

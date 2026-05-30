@@ -4,7 +4,8 @@ import {
   createMemoryHistory,
   createRouter,
 } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -103,5 +104,84 @@ describe("Defects screen", () => {
     await screen.findByTestId("defects-list", undefined, { timeout: 3000 });
     expect(screen.getAllByTestId("agent-insight").length).toBeGreaterThan(0);
     expect(screen.queryByTestId("defects-auto-filed")).toBeInTheDocument();
+  });
+
+  it("M1d-32: clicking 'Open run' fetches defect detail and navigates to /runs/$runId", async () => {
+    const user = userEvent.setup();
+    let detailFetched = false;
+    server.use(
+      http.get("*/api/v1/defects/:defectId", ({ params }) => {
+        detailFetched = true;
+        return HttpResponse.json({
+          id: `def_${String(params["defectId"])}`,
+          public_id: String(params["defectId"]),
+          title: "Linked defect",
+          description: null,
+          severity: "HIGH",
+          status: "OPEN",
+          agent_diagnosis_kind: "MANUAL_TRIAGE",
+          run_public_id: "RUN-777",
+          test_case_public_id: "TC-101",
+          requirement_public_id: null,
+          assignee_id: null,
+          component: null,
+          workspace_id: "ws_demo",
+          external_issues: [],
+          created_at: "2026-05-01T08:00:00Z",
+          updated_at: "2026-05-25T14:30:00Z",
+        });
+      }),
+    );
+
+    const router = renderDefects();
+    await screen.findByTestId("defects-list", undefined, { timeout: 3000 });
+    const openRunBtns = await screen.findAllByTestId("defect-open-run-btn");
+    await user.click(openRunBtns[0] as HTMLElement);
+
+    await waitFor(() => {
+      expect(detailFetched).toBe(true);
+    });
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/runs/RUN-777");
+    });
+  });
+
+  it("M1d-32: defect with null run_public_id falls back to disabled tooltip", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get("*/api/v1/defects/:defectId", ({ params }) =>
+        HttpResponse.json({
+          id: `def_${String(params["defectId"])}`,
+          public_id: String(params["defectId"]),
+          title: "Defect without run",
+          description: null,
+          severity: "HIGH",
+          status: "OPEN",
+          agent_diagnosis_kind: "MANUAL_TRIAGE",
+          run_public_id: null,
+          test_case_public_id: null,
+          requirement_public_id: null,
+          assignee_id: null,
+          component: null,
+          workspace_id: "ws_demo",
+          external_issues: [],
+          created_at: "2026-05-01T08:00:00Z",
+          updated_at: "2026-05-25T14:30:00Z",
+        }),
+      ),
+    );
+
+    renderDefects();
+    await screen.findByTestId("defects-list", undefined, { timeout: 3000 });
+    const openRunBtns = await screen.findAllByTestId("defect-open-run-btn");
+    await user.click(openRunBtns[0] as HTMLElement);
+
+    await waitFor(() => {
+      // After the fetch resolves with null run_public_id, the active button
+      // disappears and the DisabledTooltip wrapper takes over.
+      expect(screen.queryAllByTestId("defect-open-run-btn").length).toBeLessThan(
+        openRunBtns.length,
+      );
+    });
   });
 });

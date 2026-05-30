@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
-import { AlertTriangle, Bug, ExternalLink } from "lucide-react";
+import { AlertTriangle, Bug, ExternalLink, Play } from "lucide-react";
 import { Suspense } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { useDefects } from "@/hooks/use-defects";
+import { useDefects, useFetchDefectDetail } from "@/hooks/use-defects";
 import type { components } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
 import { useCapabilities } from "@/stores/use-capabilities";
@@ -53,6 +53,28 @@ function statusBadgeForDefect(status: Defect["status"]):
 function DefectCard({ defect }: { defect: Defect }): React.ReactElement {
   const tier = useCapabilities((s) => s.capabilities?.tier);
   const showAgent = tier !== "ZERO";
+  const navigate = useNavigate();
+  const fetchDetail = useFetchDefectDetail();
+
+  // M1d-32: replace the M1c-era disabled "Re-run" stub with a flow that
+  // fetches the defect detail to read ``run_public_id`` then navigates to
+  // the run detail screen, where the M1c-shipped ``POST /runs/:id/rerun``
+  // is already wired (see runs.tsx Cancel/Rerun buttons).
+  const handleOpenRun = (): void => {
+    fetchDetail.mutate(defect.public_id, {
+      onSuccess: (detail) => {
+        if (detail.run_public_id) {
+          void navigate({
+            to: "/runs/$runId",
+            params: { runId: detail.run_public_id },
+          });
+        }
+      },
+    });
+  };
+  const openRunPending = fetchDetail.isPending;
+  const noLinkedRun =
+    fetchDetail.isSuccess && fetchDetail.data?.run_public_id == null;
 
   return (
     <article
@@ -87,11 +109,25 @@ function DefectCard({ defect }: { defect: Defect }): React.ReactElement {
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
             View in Jira
           </Button>
-          <DisabledTooltip reason="Open the linked run to re-run it">
-            <Button type="button" size="sm" disabled>
-              Re-run
+          {noLinkedRun ? (
+            <DisabledTooltip reason="This defect has no linked run yet.">
+              <Button type="button" size="sm" disabled>
+                <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                Open run
+              </Button>
+            </DisabledTooltip>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              data-testid="defect-open-run-btn"
+              disabled={openRunPending}
+              onClick={handleOpenRun}
+            >
+              <Play className="h-3.5 w-3.5" aria-hidden="true" />
+              {openRunPending ? "Loading…" : "Open run"}
             </Button>
-          </DisabledTooltip>
+          )}
         </div>
       </header>
 
