@@ -1,53 +1,66 @@
 """Inbound webhook receivers — provider-specific endpoints under ``/api/v1/webhooks``.
 
-M1d-17 ships the GitLab handler and M1d-16 the GitHub handler; M1d-18 (Jira)
-plugs into the same router. All handlers share the helpers in
-:mod:`suitest_api.services.webhook_receiver_service` for HMAC / token verify,
-Redis SETNX dedup, and gating-suite selection resolution.
+M1d-17 ships the GitLab handler, M1d-16 the GitHub handler, and M1d-18 the
+Jira ``issue_updated`` handler. All handlers share the helpers in
+:mod:`suitest_api.services.webhook_receiver_service` for HMAC / token / secret
+verification, Redis SETNX dedup, and gating-suite selection resolution.
 
 Webhook receivers run **without** the standard ``current_active_user`` /
 ``require_workspace_membership`` chain — authentication is via the provider's
-signed-token header instead. Tenant scope (workspace) is resolved from the
-:class:`Integration` row that owns the matching secret; project resolution then
-falls under that workspace. Mis-signed requests return 401 *before* any DB
-write so a credential-stuffing scan can't tax the dedup TTL.
+signed-token header (GitHub HMAC, GitLab token) or URL-embedded secret (Jira,
+constant-time compared against ``Integration.config['webhook_secret']``).
+Tenant scope (workspace) is resolved from the :class:`Integration` row that
+owns the matching secret; project resolution then falls under that workspace.
+Mis-signed requests return 401 *before* any DB write so a credential-stuffing
+scan can't tax the dedup TTL or audit log.
 """
 
 from __future__ import annotations
 
-from typing import Annotated
+from datetime import UTC, datetime
+from typing import Annotated, Any, cast
 
 from arq.connections import ArqRedis
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.audit import write_audit
+from suitest_db.models.defect import Defect, ExternalIssue
 from suitest_db.repositories.projects import ProjectRepo
 from suitest_db.repositories.runs import RunRepo
-from suitest_shared.domain.enums import IntegrationKind, Role, RunTrigger
+from suitest_shared.domain.enums import DefectStatus, IntegrationKind, Role, RunTrigger
 
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.arq import get_arq
 from suitest_api.deps.dedup_redis import get_dedup_redis
 from suitest_api.deps.scope import TenantContext
+from suitest_api.integrations.base import IssueTrackerAdapter
+from suitest_api.integrations.jira_adapter import JiraAdapter
 from suitest_api.schemas.webhooks import (
     GithubPullRequestPayload,
     GithubPushPayload,
     GitlabMergeRequestPayload,
     GitlabPushPayload,
+    JiraIssueUpdatedPayload,
+    JiraSyncedResponse,
     WebhookEnqueuedResponse,
     WebhookIgnoredResponse,
     WebhookPingResponse,
 )
 from suitest_api.services.run_service import RunService
 from suitest_api.services.webhook_receiver_service import (
+    WebhookTenant,
     resolve_gating_selection,
     resolve_github_project,
     resolve_project_from_payload,
+    resolve_workspace_by_secret,
     resolve_workspace_by_token,
     setnx_dedup,
+    setnx_jira_dedup,
     verify_github_hmac,
 )
+from suitest_api.ws.publisher import publish_event
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
 
@@ -68,6 +81,20 @@ _GITHUB_PUSH_EVENT = "push"
 _GITHUB_PULL_REQUEST_EVENT = "pull_request"
 # Per plan-05b §M1d-16 only these PR actions enqueue a run.
 _GITHUB_PR_ACTIONS_TRIGGERING_RUN: frozenset[str] = frozenset({"opened", "synchronize", "reopened"})
+
+# Stable string for the only Jira event we act on. Anything else short-circuits
+# to a 200 ``unsupported_event`` reply so test/dev subscriptions firing every
+# Jira event kind don't choke on missing handlers.
+_JIRA_EVENT_ISSUE_UPDATED = "jira:issue_updated"
+
+# Provider string stored on ``external_issues.provider`` for Jira-linked rows.
+_JIRA_EXTERNAL_PROVIDER = "jira"
+
+# Terminal :class:`DefectStatus` values — these flip ``resolved_at``. Anything
+# else (re-open, in-progress) clears the column back to ``NULL``.
+_TERMINAL_STATUSES: frozenset[DefectStatus] = frozenset(
+    {DefectStatus.RESOLVED, DefectStatus.CLOSED}
+)
 
 
 def _status_url(run_id: str) -> str:
@@ -182,9 +209,6 @@ async def receive_gitlab(
     trigger_label = RunTrigger.WEBHOOK.value
 
     # ---- 4. dedup ----------------------------------------------------------
-    # ``dedup_redis`` is duck-typed as ``object`` so this module does not pin
-    # the concrete redis client class on its import graph — the receiver
-    # service's ``_RedisLike`` Protocol picks up the structural match.
     fresh = await setnx_dedup(
         dedup_redis,  # type: ignore[arg-type]
         project_id=project.id,
@@ -202,10 +226,6 @@ async def receive_gitlab(
         return WebhookIgnoredResponse(reason="no_gating_suite")
 
     # ---- 6. enqueue run + audit -------------------------------------------
-    # Synthesise a TenantContext: the dataclass is frozen, but RunService only
-    # reads ``ctx.workspace_id`` (and ``ctx.user_id`` for clone_for_rerun,
-    # which webhook flows never call). ``role`` is set to OWNER as the
-    # least-restrictive value since downstream code does not gate on it here.
     ctx = TenantContext(workspace_id=tenant.workspace_id, user_id="", role=Role.OWNER)
     svc = RunService(
         ctx=ctx,
@@ -226,10 +246,6 @@ async def receive_gitlab(
             triggered_by="webhook:gitlab",
         )
     except ValueError as exc:
-        # Selection contained a case that no longer resolves under the project
-        # (e.g. soft-deleted between resolution and create_run). Surface as a
-        # 200 ignored — webhook-receivers should not return 4xx for transient
-        # data-race conditions a CI run would otherwise re-emit.
         response.status_code = status.HTTP_200_OK
         return WebhookIgnoredResponse(reason=f"selection_invalid: {exc}")
 
@@ -291,29 +307,9 @@ async def receive_github(
     arq: ArqRedis = Depends(get_arq),
     dedup_redis: object = Depends(get_dedup_redis),
 ) -> WebhookEnqueuedResponse | WebhookIgnoredResponse | WebhookPingResponse:
-    """Handle a GitHub inbound webhook.
-
-    Flow:
-
-    1. Reject unsigned / wrong-HMAC requests with 401 (constant-time compare
-       lives in :func:`verify_github_hmac`). The raw request body is read once
-       and reused for both the signature check and JSON parse so the bytes
-       hashed match the bytes GitHub signed.
-    2. ``X-GitHub-Event: ping`` → 200 ``{pong: true}`` (no Run).
-    3. ``push`` → enqueue a gating run on ``after``. ``ref`` becomes the
-       branch label (``refs/heads/main`` → ``main``).
-    4. ``pull_request`` with action in ``{opened, synchronize, reopened}`` →
-       enqueue a gating run on ``pull_request.head.sha``; other actions
-       (``closed``, ``labeled``, …) return 200 ``unsupported_action``.
-    5. Other events → 200 ``unsupported_event``.
-    6. Unknown repo (``github_repo`` mismatch or project absent) → 404.
-    7. SETNX dedup over ``(project_id, commit_sha, trigger=WEBHOOK)`` keeps
-       PR ``synchronize`` from re-firing inside the TTL when GitHub retries.
-    """
-    # ---- 0. read body once for HMAC + JSON parse --------------------------
+    """Handle a GitHub inbound webhook."""
     body_bytes = await request.body()
 
-    # ---- 1. HMAC verify ---------------------------------------------------
     if not x_hub_signature_256:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="missing X-Hub-Signature-256"
@@ -326,15 +322,13 @@ async def receive_github(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid X-Hub-Signature-256"
         )
 
-    # ---- 2. ping → short circuit ------------------------------------------
     if x_github_event == _GITHUB_PING_EVENT:
         response.status_code = status.HTTP_200_OK
         return WebhookPingResponse(pong=True)
 
-    # ---- 3. parse payload by event kind -----------------------------------
     try:
         raw_body = await request.json()
-    except ValueError as exc:  # pragma: no cover — FastAPI surfaces this
+    except ValueError as exc:  # pragma: no cover
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="invalid json body"
         ) from exc
@@ -352,9 +346,6 @@ async def receive_github(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="invalid push payload"
             ) from exc
-        # GitHub sets ``deleted=true`` for branch deletes — we don't gate on
-        # those because ``after`` will be the zero-SHA and the runner has
-        # nothing to check out.
         if push.deleted is True:
             response.status_code = status.HTTP_200_OK
             return WebhookIgnoredResponse(reason="branch_deleted")
@@ -383,14 +374,12 @@ async def receive_github(
         response.status_code = status.HTTP_200_OK
         return WebhookIgnoredResponse(reason="unsupported_event")
 
-    # ---- 4. project lookup -------------------------------------------------
     project = await resolve_github_project(session, tenant=tenant, repo_full_name=repo_full_name)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project not found")
 
     trigger_label = RunTrigger.WEBHOOK.value
 
-    # ---- 5. dedup ----------------------------------------------------------
     fresh = await setnx_dedup(
         dedup_redis,  # type: ignore[arg-type]
         project_id=project.id,
@@ -401,13 +390,11 @@ async def receive_github(
         response.status_code = status.HTTP_200_OK
         return WebhookIgnoredResponse(reason="duplicate")
 
-    # ---- 6. gating selection ----------------------------------------------
     selection = await resolve_gating_selection(session, project=project)
     if selection is None:
         response.status_code = status.HTTP_200_OK
         return WebhookIgnoredResponse(reason="no_gating_suite")
 
-    # ---- 7. enqueue run + audit -------------------------------------------
     ctx = TenantContext(workspace_id=tenant.workspace_id, user_id="", role=Role.OWNER)
     svc = RunService(
         ctx=ctx,
@@ -428,9 +415,6 @@ async def receive_github(
             triggered_by="webhook:github",
         )
     except ValueError as exc:
-        # See the GitLab handler: a soft-deleted case between selection +
-        # create_run is a transient race CI will re-emit, so we soft-fail to
-        # 200 ignored rather than a hard 4xx.
         response.status_code = status.HTTP_200_OK
         return WebhookIgnoredResponse(reason=f"selection_invalid: {exc}")
 
@@ -461,3 +445,223 @@ async def receive_github(
     return WebhookEnqueuedResponse(
         run_id=run.id, public_id=run.public_id, status_url=_status_url(run.id)
     )
+
+
+# ---------------------------------------------------------------------------
+# Jira
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/jira",
+    responses={
+        200: {
+            "model": WebhookIgnoredResponse,
+            "description": "Event accepted but no update applied",
+        },
+        202: {"model": JiraSyncedResponse, "description": "Defect status synced from Jira"},
+        401: {"description": "Secret missing or mismatch"},
+        400: {"description": "Payload failed schema validation"},
+    },
+)
+async def receive_jira(
+    request: Request,
+    response: Response,
+    secret: Annotated[str | None, Query(description="URL-embedded webhook secret")] = None,
+    session: AsyncSession = Depends(get_async_session),
+    dedup_redis: object = Depends(get_dedup_redis),
+) -> JiraSyncedResponse | WebhookIgnoredResponse:
+    """Handle an inbound Jira webhook (M1d-18)."""
+    # ---- 1. secret verify --------------------------------------------------
+    if not secret:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing secret")
+    tenant = await resolve_workspace_by_secret(session, kind=IntegrationKind.JIRA, secret=secret)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid secret")
+
+    # ---- 2. event filter (pre-validation) ----------------------------------
+    raw_body_obj = await request.json()
+    if not isinstance(raw_body_obj, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="payload must be a JSON object"
+        )
+    raw_body_jira: dict[str, object] = raw_body_obj
+    event_name = raw_body_jira.get("webhookEvent")
+    if event_name != _JIRA_EVENT_ISSUE_UPDATED:
+        response.status_code = status.HTTP_200_OK
+        return WebhookIgnoredResponse(reason="unsupported_event")
+
+    # ---- 3. payload parse --------------------------------------------------
+    try:
+        payload = JiraIssueUpdatedPayload.model_validate(raw_body_jira)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="invalid issue_updated payload"
+        ) from exc
+
+    issue_key = payload.issue.key
+    status_name = ""
+    if payload.issue.fields is not None and payload.issue.fields.status is not None:
+        status_name = payload.issue.fields.status.name or ""
+    changelog_id = (payload.changelog.id if payload.changelog is not None else None) or ""
+    correlation_id = changelog_id or None
+
+    # ---- 4. local defect lookup -------------------------------------------
+    defect = await _find_workspace_defect_by_external_key(
+        session, workspace_id=tenant.workspace_id, external_key=issue_key
+    )
+    if defect is None:
+        response.status_code = status.HTTP_200_OK
+        return WebhookIgnoredResponse(reason="unknown_issue")
+
+    # ---- 5. status mapping via JiraAdapter --------------------------------
+    if not status_name:
+        response.status_code = status.HTTP_200_OK
+        return WebhookIgnoredResponse(reason="unmappable_status")
+    adapter = _build_jira_adapter(request, tenant)
+    mapped_status = adapter.map_external_status_to_defect_status(status_name)
+    if mapped_status is None:
+        await write_audit(
+            session,
+            workspace_id=tenant.workspace_id,
+            user_id=None,
+            action="defect.status_sync_skipped_unmappable",
+            resource_type="defect",
+            resource_id=defect.id,
+            metadata={
+                "external_status_name": status_name,
+                "external_id": issue_key,
+                "integration_id": tenant.integration.id,
+                "correlation_id": correlation_id,
+            },
+        )
+        await session.commit()
+        response.status_code = status.HTTP_200_OK
+        return WebhookIgnoredResponse(reason="unmappable_status")
+
+    # ---- 6. dedup ----------------------------------------------------------
+    fresh_jira = await setnx_jira_dedup(
+        dedup_redis,  # type: ignore[arg-type]
+        workspace_id=tenant.workspace_id,
+        issue_key=issue_key,
+        changelog_id=changelog_id,
+    )
+    if not fresh_jira:
+        response.status_code = status.HTTP_200_OK
+        return WebhookIgnoredResponse(reason="duplicate")
+
+    # ---- 7. idempotency: no change --------------------------------------
+    from_status = defect.status
+    if from_status == mapped_status:
+        response.status_code = status.HTTP_200_OK
+        return WebhookIgnoredResponse(reason="no_status_change")
+
+    # ---- 8. mutate + audit + WS -----------------------------------------
+    defect.status = mapped_status
+    if mapped_status in _TERMINAL_STATUSES:
+        if defect.resolved_at is None:
+            defect.resolved_at = datetime.now(UTC)
+    else:
+        defect.resolved_at = None
+
+    await write_audit(
+        session,
+        workspace_id=tenant.workspace_id,
+        user_id=None,
+        action="defect.status_synced_from_jira",
+        resource_type="defect",
+        resource_id=defect.id,
+        metadata={
+            "from_status": from_status.value,
+            "to_status": mapped_status.value,
+            "external_status_name": status_name,
+            "external_id": issue_key,
+            "integration_id": tenant.integration.id,
+            "correlation_id": correlation_id,
+        },
+    )
+    await session.commit()
+
+    await publish_event(
+        request,
+        topic=f"workspace:{tenant.workspace_id}",
+        event="defect.updated",
+        data={
+            "defectId": defect.id,
+            "status": mapped_status.value,
+            "severity": defect.severity.value,
+            "assigneeUserId": str(defect.assignee_id) if defect.assignee_id else None,
+        },
+    )
+
+    response.status_code = status.HTTP_202_ACCEPTED
+    return JiraSyncedResponse(
+        defect_id=defect.id,
+        from_status=from_status.value,
+        to_status=mapped_status.value,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers (Jira)
+# ---------------------------------------------------------------------------
+
+
+async def _find_workspace_defect_by_external_key(
+    session: AsyncSession, *, workspace_id: str, external_key: str
+) -> Defect | None:
+    """Resolve the local :class:`Defect` for a Jira issue key, workspace-scoped."""
+    stmt = (
+        select(Defect)
+        .join(ExternalIssue, ExternalIssue.defect_id == Defect.id)
+        .where(
+            ExternalIssue.provider == _JIRA_EXTERNAL_PROVIDER,
+            ExternalIssue.external_id == external_key,
+            Defect.workspace_id == workspace_id,
+        )
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+def _build_jira_adapter(request: Request, tenant: WebhookTenant) -> IssueTrackerAdapter:
+    """Construct a :class:`JiraAdapter` for the resolved tenant integration."""
+    factories = getattr(request.app.state, "adapter_factories", None)
+    crypto = getattr(request.app.state, "integration_crypto", None)
+    factory: Any = JiraAdapter
+    if isinstance(factories, dict):
+        candidate = factories.get(IntegrationKind.JIRA)
+        if candidate is not None:
+            factory = candidate
+    if crypto is None:
+        from suitest_api.integrations.jira_adapter import _IdentityCrypto
+
+        crypto = _IdentityCrypto()
+    return cast(
+        "IssueTrackerAdapter",
+        factory(
+            integration=tenant.integration,
+            mcp_client=_NoopMcpClient(),
+            crypto=crypto,
+        ),
+    )
+
+
+class _NoopMcpClient:
+    """Stub MCP client for the status-map-only call path."""
+
+    async def invoke(
+        self,
+        *,
+        provider: str,
+        tool: str,
+        arguments: dict[str, object],
+        env_overrides: dict[str, str],
+    ) -> dict[str, object]:
+        raise RuntimeError(
+            "JiraAdapter MCP client invoked from the webhook receiver — "
+            "the receiver only uses the pure-Python status map; reaching this "
+            "path means a future code change tried to call a remote Jira tool "
+            "without wiring a real MCP client"
+        )
