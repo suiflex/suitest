@@ -384,6 +384,11 @@ class JiraAdapter:
         merged = {**_unwrap_result(result), **_unwrap_result(refreshed)}
         return self._to_external_issue({"result": merged})
 
+    async def fetch_external_issue(self, external_key: str) -> ExternalIssue:
+        """Read-only ``jira_issue_view`` to refresh the live :class:`ExternalIssue`."""
+        result = await self._invoke("jira_issue_view", {"key": external_key})
+        return self._to_external_issue(result)
+
     async def transition_status(self, external_key: str, new_status: DefectStatus) -> None:
         """Resolve the workflow transition id then call ``jira_issue_transition``."""
         target_name = self._status_map.defect_to_external(new_status)
