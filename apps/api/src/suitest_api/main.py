@@ -34,12 +34,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     by the bootstrap path. Tests inject ``fakeredis.aioredis.FakeRedis`` here;
     production wires a real :class:`redis.asyncio.Redis` from ``SUITEST_REDIS_URL``.
     """
+    from suitest_api.integrations.registry import adapter_registry
     from suitest_api.ws.manager import WsConnectionManager
 
     if not getattr(app.state, "settings", None):
         app.state.settings = get_settings()
     app.state.started_at = time.monotonic()
     app.state.capabilities = build_base_capabilities()
+
+    # Issue-tracker adapter registry (M1d-11). The singleton is constructed at
+    # import time; lifespan only stashes it on ``app.state`` so request handlers
+    # can resolve it via ``request.app.state.adapter_registry`` (or the
+    # ``get_adapter_registry`` Depends helper in :mod:`suitest_api.deps.integrations`).
+    # PR-12..15 register concrete adapters (Jira / Linear / GitHub / Slack)
+    # by appending ``adapter_registry.register(...)`` lines below this one.
+    app.state.adapter_registry = adapter_registry
 
     ws_manager: WsConnectionManager | None = None
     ws_redis = getattr(app.state, "ws_redis", None)
