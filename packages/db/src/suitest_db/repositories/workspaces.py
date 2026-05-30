@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -25,19 +26,40 @@ class WorkspaceCreate(BaseModel):
 class WorkspaceUpdate(BaseModel):
     name: str | None = None
     region: str | None = None
+    strict_zero_validation: bool | None = None
+    mcp_routing_overrides: dict[str, Any] | None = None
 
 
 class WorkspaceRepo(AsyncRepository[Workspace, WorkspaceCreate, WorkspaceUpdate]):
     model = Workspace
 
     async def list_for_user(self, user_id: uuid.UUID) -> Sequence[Workspace]:
+        # Only active (non-tombstoned) workspaces — DELETE /workspaces/:id sets
+        # ``deleted_at`` and we hide the row from list/detail immediately so the
+        # FE Danger Zone confirm leaves no zombie entry visible while the async
+        # ``workspace_cleanup`` ARQ job tears down children.
         stmt = (
             select(Workspace)
             .join(Membership, Membership.workspace_id == Workspace.id)
-            .where(Membership.user_id == user_id)
+            .where(Membership.user_id == user_id, Workspace.deleted_at.is_(None))
             .order_by(Workspace.created_at.desc(), Workspace.id.desc())
         )
         return (await self.session.scalars(stmt)).all()
+
+    async def mark_deleted(self, workspace_id: str) -> Workspace | None:
+        """Set ``deleted_at = now()`` and return the row (or ``None`` if missing).
+
+        The actual children-cleanup is performed asynchronously by the
+        ``workspace_cleanup`` ARQ job (see ``apps/runner/.../workspace_cleanup.py``).
+        Tombstoning here only flips visibility — caller is responsible for
+        enqueueing the job and committing the surrounding transaction.
+        """
+        row = await self.get_by_id(workspace_id)
+        if row is None:
+            return None
+        row.deleted_at = datetime.now(tz=UTC)
+        await self.session.flush()
+        return row
 
     async def get_by_slug(self, slug: str) -> Workspace | None:
         result: Workspace | None = await self.session.scalar(
