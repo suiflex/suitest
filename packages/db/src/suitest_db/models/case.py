@@ -52,6 +52,14 @@ class TestCase(Base, TimestampMixin):
     generated_from: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     estimated_ms: Mapped[int | None] = mapped_column(Integer)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # M1d: manual sort key within suite — drives drag-reorder UX (M1d-21/22).
+    # Default 0; service layer breaks ties by created_at ASC. The composite
+    # `(suite_id, order_in_suite)` index is declared in `__table_args__` below;
+    # we deliberately do NOT also emit the auto-named single-column index here
+    # (plan-05b explicitly excludes ix_test_cases_order_in_suite).
+    order_in_suite: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
     suite: Mapped[Suite] = relationship("Suite")
     steps: Mapped[list[TestStep]] = relationship(
@@ -63,6 +71,7 @@ class TestCase(Base, TimestampMixin):
         Index("ix_test_cases_suite_status", "suite_id", "status"),
         Index("ix_test_cases_source", "source"),
         Index("ix_test_cases_deleted_at", "deleted_at"),
+        Index("ix_test_cases_suite_order", "suite_id", "order_in_suite"),
     )
 
 

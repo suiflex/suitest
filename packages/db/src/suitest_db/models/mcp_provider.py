@@ -44,6 +44,15 @@ class McpProvider(Base, TimestampMixin):
         JSONB, default=dict, nullable=False
     )
 
+    # M1d: provenance / version pins per MCP_PLUGINS §13. All nullable;
+    # the resolver writes whichever the transport exposes:
+    # stdio → command_pin (+ optional git_ref for git-stdio transports);
+    # docker/image → image_pin; SSE/WS → version_pin from handshake.
+    command_pin: Mapped[str | None] = mapped_column(String(200))
+    image_pin: Mapped[str | None] = mapped_column(String(200))
+    version_pin: Mapped[str | None] = mapped_column(String(100))
+    git_ref: Mapped[str | None] = mapped_column(String(100))
+
     health_status: Mapped[str] = mapped_column(String(32), default="unknown", nullable=False)
     last_health_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # false = registered but not active in routing (e.g. bundled jirac-mcp before integration connect)

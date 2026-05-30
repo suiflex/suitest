@@ -63,6 +63,8 @@ repos:
           - anyio>=4.3
           - psycopg>=3.2
           - psycopg-pool>=3.2
+          - alembic>=1.14.0
+          - testcontainers[postgres]>=4.8.0
         args: ["--config-file=pyproject.toml"]
         files: ^(apps|packages)/.*\.py$
         # mirrors-mypy passes the staged files in a single invocation. With
