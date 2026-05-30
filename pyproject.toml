@@ -32,6 +32,10 @@ dev-dependencies = [
   # selector, but the workflow that opts in (``.github/workflows/m1c-e2e.yml``)
   # needs these resolved by ``uv sync``.
   "httpx-ws>=0.7.0",
+  # M1d-15 + M1d-29 — httpx route mocking. ``test_slack_adapter`` (unit) and
+  # ``apps/api/tests/e2e/test_auto_defect_e2e`` (E2E gate) both depend on respx
+  # to intercept the Slack incoming-webhook POST without a live network.
+  "respx>=0.21.0",
 ]
 
 [tool.uv.sources]
@@ -145,5 +149,5 @@ asyncio_mode = "strict"
 testpaths = ["apps/api/tests", "apps/runner/tests", "packages/core/tests", "packages/db/tests", "packages/mcp/tests", "packages/shared/tests", "packages/agent/tests"]
 addopts = "-ra -q --strict-markers --import-mode=importlib"  # NEW: --import-mode=importlib resolves test file name collisions across packages
 markers = [
-    "e2e: end-to-end smoke test against the live docker-compose stack (M1c DoD, Task 22). Excluded from default pytest runs.",
+    "e2e: end-to-end smoke / integration test. Two flavours: (a) live docker-compose stack (M1c DoD, ``tests/e2e/``) — opt-in via the M1c E2E workflow; (b) testcontainer-driven in-process E2E (M1d-29, ``apps/api/tests/e2e/``) — runs in the default ``pytest`` invocation because it self-provisions Postgres via testcontainers and mocks every external network call. Use ``pytest -m 'not e2e'`` to deselect both.",
 ]
