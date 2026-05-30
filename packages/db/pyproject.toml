@@ -1,6 +1,6 @@
 [project]
 name = "suitest-db"
-version = "0.1.0"
+version = "0.5.0"
 description = "Suitest async DB layer (SQLAlchemy 2 + Alembic + repositories)"
 requires-python = ">=3.12,<3.13"
 dependencies = [
