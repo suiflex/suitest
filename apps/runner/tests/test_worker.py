@@ -17,6 +17,7 @@ import asyncio
 import pytest
 from arq.connections import RedisSettings
 from arq.worker import Worker
+from suitest_runner.jobs.file_external_issue import file_external_issue
 from suitest_runner.jobs.run_test_case import run_test_case
 from suitest_runner.jobs.send_slack_notification import send_slack_notification
 from suitest_runner.settings import RunnerSettings
@@ -32,8 +33,12 @@ def test_worker_settings_class_attributes() -> None:
 
 
 def test_worker_functions_registry() -> None:
-    """ARQ-registered job list — ``run_test_case`` (M1c) + ``send_slack_notification`` (M1d-15)."""
-    assert WorkerSettings.functions == [run_test_case, send_slack_notification]
+    """ARQ-registered job list — M1c run job + M1d-15 Slack + M1d-10 external-issue."""
+    assert WorkerSettings.functions == [
+        run_test_case,
+        send_slack_notification,
+        file_external_issue,
+    ]
 
 
 def test_worker_redis_settings_dsn() -> None:
@@ -76,6 +81,10 @@ async def test_startup_populates_ctx(monkeypatch: pytest.MonkeyPatch) -> None:
         assert "registry" in ctx
         assert "pool" in ctx
         assert "invoker" in ctx
+        # M1d-10 — defect auto-filer + its ARQ pool wired during startup.
+        assert "arq_pool" in ctx
+        assert "defect_auto_filer" in ctx
+        assert hasattr(ctx["defect_auto_filer"], "file_for_failed_step")
         settings = ctx["settings"]
         assert isinstance(settings, RunnerSettings)
         assert settings.database_url == "sqlite+aiosqlite:///:memory:"
