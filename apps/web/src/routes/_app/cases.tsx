@@ -24,6 +24,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFeatureEnabled } from "@/hooks/use-feature-enabled";
+import { useCreateRun } from "@/hooks/use-runs";
 import { useSuites, useTestCase, useTestCases } from "@/hooks/use-test-cases";
 import type { components } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
@@ -182,8 +183,16 @@ function CaseTree({
   );
 }
 
-function CaseDetailPanel({ publicId }: { publicId: string | null }): React.ReactElement {
+function CaseDetailPanel({
+  publicId,
+  suites,
+}: {
+  publicId: string | null;
+  suites: Suite[];
+}): React.ReactElement {
   const { data: detail, isLoading, isError } = useTestCase(publicId ?? undefined);
+  const navigate = useNavigate();
+  const createRun = useCreateRun();
 
   if (!publicId) {
     return (
@@ -209,6 +218,28 @@ function CaseDetailPanel({ publicId }: { publicId: string | null }): React.React
 
   const sourcePill = caseSourceToPill(detail.source);
   const steps = detail.steps ?? [];
+  // ``TestCaseDetail`` exposes ``suite_id`` but not ``project_id``; derive the
+  // latter from the cached suites list so ``POST /runs`` can be addressed to
+  // the right project without an extra round-trip.
+  const projectId = suites.find((s) => s.id === detail.suite_id)?.project_id ?? null;
+  const runPending = createRun.isPending;
+  const canRun = projectId !== null && !runPending;
+  const handleRun = (): void => {
+    if (projectId === null) return;
+    createRun.mutate(
+      {
+        projectId,
+        name: `Ad-hoc: ${detail.name}`,
+        selection: [{ caseId: detail.id }],
+        trigger: "MANUAL",
+      },
+      {
+        onSuccess: (run) => {
+          void navigate({ to: "/runs/$runId", params: { runId: run.public_id } });
+        },
+      },
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4" data-testid="case-detail">
@@ -232,11 +263,15 @@ function CaseDetailPanel({ publicId }: { publicId: string | null }): React.React
               Edit
             </Button>
           </DisabledTooltip>
-          <DisabledTooltip reason="Run wiring lands in M1c">
-            <Button type="button" size="sm" disabled>
-              Run now
-            </Button>
-          </DisabledTooltip>
+          <Button
+            type="button"
+            size="sm"
+            data-testid="case-run-now"
+            disabled={!canRun}
+            onClick={handleRun}
+          >
+            {runPending ? "Queuing…" : "Run now"}
+          </Button>
         </div>
       </div>
 
@@ -383,7 +418,7 @@ function CasesBody(): React.ReactElement {
           className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
           data-testid="cases-right-pane"
         >
-          <CaseDetailPanel publicId={selectedId} />
+          <CaseDetailPanel publicId={selectedId} suites={suites.items} />
         </section>
       </div>
     </>

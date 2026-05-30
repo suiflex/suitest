@@ -74,9 +74,16 @@ function categoryLabel(c: Tab): string {
   }
 }
 
-function IntegrationCard({ item }: { item: Integration }): React.ReactElement {
+function IntegrationCard({
+  item,
+  onOpenMcp,
+}: {
+  item: Integration;
+  onOpenMcp: () => void;
+}): React.ReactElement {
   const category = CATEGORY_OF[item.kind];
   const status = statusToBadge(item.status);
+  const isMcp = category === "mcp";
   return (
     <article
       data-testid="integration-card"
@@ -104,11 +111,23 @@ function IntegrationCard({ item }: { item: Integration }): React.ReactElement {
             ? `Synced ${formatDistanceToNow(new Date(item.last_synced_at), { addSuffix: true })}`
             : "Never synced"}
         </span>
-        <DisabledTooltip reason="Configuration ships in M1c">
-          <Button type="button" size="sm" variant="outline" disabled>
+        {isMcp ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            data-testid="integration-configure-mcp"
+            onClick={onOpenMcp}
+          >
             {item.status === "connected" ? "Configure" : "Connect"}
           </Button>
-        </DisabledTooltip>
+        ) : (
+          <DisabledTooltip reason="Configuration ships in M2">
+            <Button type="button" size="sm" variant="outline" disabled>
+              {item.status === "connected" ? "Configure" : "Connect"}
+            </Button>
+          </DisabledTooltip>
+        )}
       </footer>
     </article>
   );
@@ -243,7 +262,13 @@ function IntegrationsBody(): React.ReactElement {
           {filteredIntegrations.length > 0 && (
             <section className="grid grid-cols-3 gap-3" data-testid="integrations-grid">
               {filteredIntegrations.map((it) => (
-                <IntegrationCard key={it.id} item={it} />
+                <IntegrationCard
+                  key={it.id}
+                  item={it}
+                  onOpenMcp={() => {
+                    setActive("mcp");
+                  }}
+                />
               ))}
             </section>
           )}

@@ -87,7 +87,7 @@ function DefectCard({ defect }: { defect: Defect }): React.ReactElement {
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
             View in Jira
           </Button>
-          <DisabledTooltip reason="Re-run wiring lands in M1c">
+          <DisabledTooltip reason="Open the linked run to re-run it">
             <Button type="button" size="sm" disabled>
               Re-run
             </Button>

@@ -18,7 +18,6 @@ import { Gated } from "@/components/gating/Gated";
 import { RunsSkeleton } from "@/components/runs/skeleton";
 import { AgentInsightCallout } from "@/components/shared/AgentInsightCallout";
 import { CostChip } from "@/components/shared/CostChip";
-import { DisabledTooltip } from "@/components/shared/DisabledTooltip";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { ProgressBar } from "@/components/shared/ProgressBar";
@@ -27,6 +26,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  useCancelRun,
+  useRerunRun,
   useRun,
   useRunArtifacts,
   useRunLogs,
@@ -363,9 +364,17 @@ function NetworkPanel({ runId }: { runId: string }): React.ReactElement {
   );
 }
 
-function RunDetailPanel({ runId }: { runId: string | null }): React.ReactElement {
+function RunDetailPanel({
+  runId,
+  onNavigateToRun,
+}: {
+  runId: string | null;
+  onNavigateToRun: (publicId: string) => void;
+}): React.ReactElement {
   const [tab, setTab] = useState("logs");
   const { data: run, isLoading, isError } = useRun(runId ?? undefined);
+  const cancelMutation = useCancelRun();
+  const rerunMutation = useRerunRun();
 
   if (!runId) {
     return (
@@ -386,6 +395,22 @@ function RunDetailPanel({ runId }: { runId: string | null }): React.ReactElement
     );
   }
 
+  const isLive = run.status === "RUNNING" || run.status === "QUEUED";
+  const cancelDisabled = !isLive || cancelMutation.isPending;
+  // Re-run is only meaningful for terminal runs — guard against double-queueing.
+  const rerunDisabled = isLive || rerunMutation.isPending;
+
+  const handleCancel = (): void => {
+    cancelMutation.mutate(run.id);
+  };
+  const handleRerun = (): void => {
+    rerunMutation.mutate(run.id, {
+      onSuccess: (data) => {
+        onNavigateToRun(data.public_id);
+      },
+    });
+  };
+
   return (
     <div className="flex flex-col gap-4" data-testid="run-detail">
       <div className="flex items-center justify-between border-b border-border pb-3">
@@ -395,17 +420,27 @@ function RunDetailPanel({ runId }: { runId: string | null }): React.ReactElement
           <span className="font-mono text-[11px] text-fg-5">via {run.trigger}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <DisabledTooltip reason="Cancel ships in M1c">
-            <Button type="button" size="sm" variant="outline" disabled>
-              <Square className="h-3.5 w-3.5" aria-hidden="true" />
-              Cancel
-            </Button>
-          </DisabledTooltip>
-          <DisabledTooltip reason="Re-run ships in M1c">
-            <Button type="button" size="sm" variant="outline" disabled>
-              Re-run
-            </Button>
-          </DisabledTooltip>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={cancelDisabled}
+            onClick={handleCancel}
+            data-testid="run-cancel-button"
+          >
+            <Square className="h-3.5 w-3.5" aria-hidden="true" />
+            {cancelMutation.isPending ? "Cancelling…" : "Cancel"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={rerunDisabled}
+            onClick={handleRerun}
+            data-testid="run-rerun-button"
+          >
+            {rerunMutation.isPending ? "Queuing…" : "Re-run"}
+          </Button>
           <Button type="button" size="sm" variant="ghost" disabled aria-label="Fullscreen">
             <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
@@ -494,7 +529,12 @@ function RunsBody(): React.ReactElement {
           className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
           data-testid="runs-right-pane"
         >
-          <RunDetailPanel runId={selected} />
+          <RunDetailPanel
+            runId={selected}
+            onNavigateToRun={(publicId) => {
+              void navigate({ search: { run: publicId } });
+            }}
+          />
         </section>
       </div>
     </>
