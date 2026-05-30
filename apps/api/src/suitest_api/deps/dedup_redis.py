@@ -1,10 +1,14 @@
-"""FastAPI dependency: Redis client used for webhook run-dedup SETNX (M1d-16/17).
+"""FastAPI dependency: Redis client used for webhook dedup SETNX (M1d-16..18).
 
-The webhook receivers de-duplicate ``(project_id, commit_sha, trigger)`` tuples
-inside a short TTL window via Redis ``SETNX``. We piggy-back on the existing
-ARQ pool (``app.state.arq``) — it's already a ``redis.asyncio.Redis`` subclass
-with a connection pool, so opening a second pool just for SETNX would burn
-file descriptors without buying isolation we need.
+The webhook receivers (GitLab push, GitHub push/PR, Jira issue_updated) all
+de-duplicate event tuples inside a short TTL window via Redis ``SETNX``:
+- GitHub/GitLab: ``(project_id, commit_sha, trigger)``
+- Jira: ``(workspace_id, issue_key, changelog_id)``
+
+We piggy-back on the existing ARQ pool (``app.state.arq``) — it's already a
+``redis.asyncio.Redis`` subclass with a connection pool, so opening a second
+pool just for SETNX would burn file descriptors without buying isolation we
+need.
 
 Tests override this dependency with a ``fakeredis.aioredis.FakeRedis`` so the
 receiver suite never opens a real broker. The override sidesteps :mod:`arq`

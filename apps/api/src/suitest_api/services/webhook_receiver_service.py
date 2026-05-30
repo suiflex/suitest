@@ -331,3 +331,95 @@ async def resolve_gating_selection(
     if not case_ids:
         return None
     return [{"case_id": cid} for cid in case_ids]
+
+
+# ---------------------------------------------------------------------------
+# Jira-specific dedup + workspace resolution (M1d-18)
+# ---------------------------------------------------------------------------
+
+
+# Dedup TTL — plan-05b §M1d-18 pins 60 seconds for Jira changelog replay.
+_JIRA_DEFAULT_DEDUP_TTL_SECONDS = 60
+
+
+async def setnx_jira_dedup(
+    redis: _RedisLike,
+    *,
+    workspace_id: str,
+    issue_key: str,
+    changelog_id: str,
+    ttl_seconds: int = _JIRA_DEFAULT_DEDUP_TTL_SECONDS,
+) -> bool:
+    """Return ``True`` on first call within the TTL, ``False`` on dedup hit.
+
+    Key shape ``dedup:jira:webhook:{workspace_id}:{issue_key}:{changelog_id}``
+    is the one plan-05b §M1d-18 spells out. ``changelog_id`` may be the empty
+    string when Jira omits the changelog block (some webhook configurations
+    only forward the ``issue`` payload) — we keep dedup keyed on it anyway
+    because two distinct payloads with an empty id within 60 s still represent
+    the same logical event from Jira's perspective.
+    """
+    key = f"dedup:jira:webhook:{workspace_id}:{issue_key}:{changelog_id}"
+    result = await redis.set(name=key, value="1", nx=True, ex=ttl_seconds)
+    return bool(result)
+
+
+async def resolve_workspace_by_secret(
+    session: AsyncSession, *, kind: IntegrationKind, secret: str
+) -> WebhookTenant | None:
+    """Return the workspace + integration whose webhook secret matches ``secret``.
+
+    Resolution order per integration row:
+
+    1. ``Integration.config['webhook_secret']`` if present (the documented
+       v1 location for Jira's URL-embedded secret — Jira webhooks don't have
+       HMAC headers).
+    2. ``Integration.secrets_encrypted`` as a backwards-compatibility seam for
+       integrations that re-use the auth credential as the webhook secret.
+
+    Runs :func:`hmac.compare_digest` against every candidate so the response
+    timing carries no information about which (if any) integration matched.
+    First match wins, but the loop continues so a wrong-secret call costs the
+    same wall-time as a right-secret one.
+
+    Returns ``None`` when no integration matches; callers turn that into
+    ``401 Unauthorized``.
+    """
+    stmt = select(Integration).where(Integration.kind == kind)
+    rows: Sequence[Integration] = (await session.scalars(stmt)).all()
+    matched: WebhookTenant | None = None
+    secret_bytes = secret.encode("utf-8")
+    for row in rows:
+        candidate = _resolve_webhook_secret(row)
+        if candidate is None:
+            # Keep the loop length stable: pay the same compare cost on every
+            # iteration so the wrong-secret reply timing reveals nothing about
+            # which rows had a secret configured.
+            hmac.compare_digest(secret_bytes, secret_bytes)
+            continue
+        candidate_bytes = candidate.encode("utf-8")
+        if (
+            len(candidate_bytes) == len(secret_bytes)
+            and hmac.compare_digest(candidate_bytes, secret_bytes)
+            and matched is None
+        ):
+            matched = WebhookTenant(workspace_id=row.workspace_id, integration=row)
+    return matched
+
+
+def _resolve_webhook_secret(row: Integration) -> str | None:
+    """Pull the per-Integration webhook secret out of config / secrets, or ``None``.
+
+    Config wins when present so a future FE flow that rotates the webhook
+    secret independently of the API credential doesn't bleed into the auth
+    surface.
+    """
+    cfg = row.config or {}
+    if isinstance(cfg, dict):
+        candidate = cfg.get("webhook_secret")
+        if isinstance(candidate, str) and candidate:
+            return candidate
+    secret = row.secrets_encrypted
+    if isinstance(secret, str) and secret:
+        return secret
+    return None
