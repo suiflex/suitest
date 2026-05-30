@@ -1,0 +1,64 @@
+name: M1d Golden-path E2E
+
+# Runs the M1d golden-path Playwright spec against the Vite dev server only —
+# no backend, no docker-compose. Every API call is intercepted inside the spec
+# with inline fixtures, keeping CI portable and fast (< 2 min cold).
+#
+# Trigger: PRs touching the web app or this workflow file.
+# Upload: test-results + playwright-report on failure for triage.
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/m1d-e2e.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  golden-path:
+    name: Playwright golden-path (chromium)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: ${{ github.workspace }}
+
+      - name: Install Playwright browsers (chromium only)
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run golden-path E2E
+        run: pnpm exec playwright test e2e/golden-path.spec.ts --project=chromium
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-golden-path-${{ github.run_id }}
+          path: |
+            apps/web/test-results/
+            apps/web/playwright-report/
+          retention-days: 7
