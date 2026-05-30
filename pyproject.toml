@@ -27,11 +27,12 @@ dev-dependencies = [
   "pre-commit>=4.0.0",
   "aiosqlite>=0.20.0",
   "fakeredis>=2.26.0",
-  # M1d-13 — `respx` mocks Linear's GraphQL endpoint in apps/api integration
-  # adapter tests (test_linear_adapter.py). Same respx already pulled in via
-  # ``packages/mcp[test]`` but isn't picked up by the API test suite when uv
-  # builds the api venv without that extra. Pin to a recent line.
-  "respx>=0.21",
+  # M1d-13/14 — `respx` mocks Linear's GraphQL endpoint AND the GitHub App
+  # installation-token mint endpoint in their respective adapter test suites
+  # (test_linear_adapter.py, test_github_adapter.py). The MCP test extras
+  # already pull respx, but the API tests are run from the root suite (no
+  # extras), so the dep needs to live at the root.
+  "respx>=0.21.0",
   # M1c Task 22 — E2E-only deps for tests/e2e/test_m1c_smoke.py. The test is
   # marked ``e2e`` and excluded from the default ``pytest -m "not e2e"``
   # selector, but the workflow that opts in (``.github/workflows/m1c-e2e.yml``)
