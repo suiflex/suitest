@@ -410,6 +410,25 @@ class LinearAdapter:
             raise AdapterRemoteError("Linear issueUpdate returned no issue")
         return _issue_payload_to_external(issue)
 
+    async def fetch_external_issue(self, external_key: str) -> ExternalIssue:
+        """Read-only Linear ``issue(id:)`` query — refresh state without mutating.
+
+        Implements the :class:`IssueTrackerAdapter` Protocol method M1d-19's
+        ``IntegrationService.sync_external`` calls when refreshing the live
+        remote status. ``external_key`` may be the Linear UUID or the
+        ``TEAM-123`` identifier — both resolve through the same query.
+        """
+        query = (
+            "query IssueFetch($id: String!) {"
+            "  issue(id: $id) { id identifier url title state { id name } }"
+            "}"
+        )
+        data = await self._gql(query, {"id": external_key})
+        issue = data.get("issue")
+        if not isinstance(issue, dict):
+            raise AdapterRemoteError(f"Linear issue {external_key} not found")
+        return _issue_payload_to_external(issue)
+
     async def transition_status(self, external_key: str, new_status: DefectStatus) -> None:
         """Move the issue to the workflow state mapped from ``new_status``.
 

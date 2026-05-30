@@ -151,6 +151,16 @@ class RecordingJiraAdapter:
             raw_payload={},
         )
 
+    async def fetch_external_issue(self, external_key: str) -> ExternalIssue:
+        # Unused by the auto-defect chain — provided for Protocol completeness.
+        return ExternalIssue(
+            external_id="0",
+            external_key=external_key,
+            external_url=f"https://jira.example/browse/{external_key}",
+            external_status="To Do",
+            raw_payload={},
+        )
+
     async def transition_status(self, external_key: str, new_status: DefectStatus) -> None:
         return None
 
