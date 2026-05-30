@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.project import Suite
@@ -133,3 +133,66 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
             .order_by(TestCase.created_at.desc(), TestCase.id.desc())
         )
         return (await self.session.scalars(stmt)).all()
+
+    # -- M1d-2 step writes -----------------------------------------------------
+
+    async def replace_tags(self, case_id: str, tags: Sequence[str]) -> None:
+        """Replace the case's tag set wholesale.
+
+        Deletes every existing :class:`CaseTag` row for ``case_id`` then inserts
+        each unique tag in ``tags`` (preserving caller order). The unique
+        constraint ``(case_id, tag)`` makes duplicate entries in ``tags`` collapse
+        to a single row; we de-duplicate in Python first so a single ``IntegrityError``
+        on the second insert does not abort the surrounding transaction.
+        """
+        await self.session.execute(delete(CaseTag).where(CaseTag.case_id == case_id))
+        seen: set[str] = set()
+        for tag in tags:
+            if tag in seen:
+                continue
+            seen.add(tag)
+            self.session.add(CaseTag(case_id=case_id, tag=tag))
+        await self.session.flush()
+
+    async def delete_steps(self, case_id: str) -> None:
+        """Delete every :class:`TestStep` row for ``case_id``."""
+        await self.session.execute(delete(TestStep).where(TestStep.case_id == case_id))
+        await self.session.flush()
+
+    async def add_steps(self, case_id: str, steps: Sequence[TestStep]) -> None:
+        """Persist every step in ``steps`` (caller pre-populates ``case_id``, ``order``)."""
+        for step in steps:
+            step.case_id = case_id
+            self.session.add(step)
+        await self.session.flush()
+
+    async def next_step_order_locked(self, case_id: str) -> int:
+        """Return the next 0-based ``order`` for an append, race-safe.
+
+        Plan-05b specifies ``SELECT MAX(order) FROM test_steps WHERE
+        case_id=:cid FOR UPDATE`` — but Postgres rejects ``FOR UPDATE`` on a
+        query that uses an aggregate. We achieve the same serialisation by
+        locking the parent :class:`TestCase` row (always unique, always
+        present) up front, then computing the max in a follow-up read.
+        Concurrent appends against the same case block on that row lock; the
+        max read inside the second transaction therefore sees the first
+        transaction's just-inserted step. Returns ``0`` when no steps exist.
+        """
+        await self.session.execute(
+            select(TestCase.id).where(TestCase.id == case_id).with_for_update()
+        )
+        stmt = select(func.max(TestStep.order)).where(TestStep.case_id == case_id)
+        current_max: int | None = await self.session.scalar(stmt)
+        return 0 if current_max is None else current_max + 1
+
+    async def step_ids(self, case_id: str) -> Sequence[str]:
+        """Return the ids of every step belonging to ``case_id`` (no order)."""
+        stmt = select(TestStep.id).where(TestStep.case_id == case_id)
+        return list((await self.session.scalars(stmt)).all())
+
+    async def get_steps_by_ids(self, case_id: str, ids: Sequence[str]) -> Sequence[TestStep]:
+        """Return the steps whose ``id`` is in ``ids`` AND who belong to ``case_id``."""
+        if not ids:
+            return []
+        stmt = select(TestStep).where(TestStep.case_id == case_id, TestStep.id.in_(list(ids)))
+        return list((await self.session.scalars(stmt)).all())
