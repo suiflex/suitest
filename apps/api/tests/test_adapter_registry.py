@@ -20,6 +20,7 @@ contract surface stays one file for code review.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import pytest
@@ -179,7 +180,9 @@ def test_registry_duplicate_register_replaces_and_warns(
     warnings: list[tuple[str, dict[str, object]]] = []
 
     def _capture_warning(message: str, *args: object, **kwargs: object) -> None:
-        warnings.append((message, dict(kwargs.get("extra", {}))))
+        extra = kwargs.get("extra", {})
+        extra_dict = dict(extra) if isinstance(extra, Mapping) else {}
+        warnings.append((message, extra_dict))
 
     monkeypatch.setattr(registry_module.logger, "warning", _capture_warning)
 
