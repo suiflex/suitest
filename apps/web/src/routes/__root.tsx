@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 import { Suspense, useEffect } from "react";
 
+import { Toaster } from "@/components/ui/sonner";
 import { useCapabilities } from "@/stores/use-capabilities";
 
 /**
@@ -35,6 +36,7 @@ function RootLayout(): React.ReactElement {
   return (
     <Suspense fallback={<RootFallback />}>
       <Outlet />
+      <Toaster richColors closeButton position="bottom-right" duration={8000} />
     </Suspense>
   );
 }

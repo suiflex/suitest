@@ -247,6 +247,10 @@ export const handlers: HttpHandler[] = [
     });
   }),
 
+  // M1d-23: soft-delete + restore (204 No Content, idempotent)
+  http.delete(`${BASE}/test-cases/:caseId`, () => new HttpResponse(null, { status: 204 })),
+  http.post(`${BASE}/test-cases/:caseId/restore`, () => new HttpResponse(null, { status: 204 })),
+
   // Defects
   http.get(`${BASE}/defects`, () => HttpResponse.json(defects)),
   http.get(`${BASE}/defects/:defectId`, ({ params }) =>

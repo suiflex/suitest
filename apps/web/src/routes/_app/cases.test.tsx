@@ -4,7 +4,7 @@ import {
   createMemoryHistory,
   createRouter,
 } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -122,5 +122,30 @@ describe("Test Cases screen", () => {
       await screen.findByTestId("case-detail", undefined, { timeout: 3000 }),
     ).toBeInTheDocument();
     expect(screen.getAllByTestId("step-row").length).toBeGreaterThan(0);
+  });
+
+  it("M1d-23: clicking Delete fires DELETE /test-cases/:id", async () => {
+    const user = userEvent.setup();
+    let deleteCalled = false;
+    server.use(
+      http.delete("*/api/v1/test-cases/:caseId", ({ params }) => {
+        deleteCalled = true;
+        expect(params["caseId"]).toBe("TC-101");
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    renderCases("/cases?case=TC-101");
+
+    const deleteBtn = await screen.findByTestId(
+      "case-delete-btn",
+      undefined,
+      { timeout: 3000 },
+    );
+    await user.click(deleteBtn);
+
+    await waitFor(() => {
+      expect(deleteCalled).toBe(true);
+    });
   });
 });

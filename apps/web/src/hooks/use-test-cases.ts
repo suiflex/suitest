@@ -105,3 +105,41 @@ export function useReplaceSteps(caseId: string): UseMutationResult<CaseDetail, E
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Soft-delete + restore — M1d-23 undo affordance
+// ---------------------------------------------------------------------------
+
+/**
+ * Soft-delete a test case via ``DELETE /test-cases/:id``. Returns 204; the
+ * record is hidden from list queries until ``POST /test-cases/:id/restore``.
+ */
+export function useDeleteTestCase(): UseMutationResult<void, Error, string> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (caseId: string) => {
+      await api.delete(`/test-cases/${caseId}`);
+    },
+    onSuccess: (_data, caseId) => {
+      void queryClient.invalidateQueries({ queryKey: ["test-cases"] });
+      void queryClient.invalidateQueries({ queryKey: ["test-cases", caseId] });
+    },
+  });
+}
+
+/**
+ * Restore a soft-deleted test case via ``POST /test-cases/:id/restore``.
+ * Idempotent per docs/API.md §3.3 — re-POST after restore returns 204.
+ */
+export function useRestoreTestCase(): UseMutationResult<void, Error, string> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (caseId: string) => {
+      await api.post(`/test-cases/${caseId}/restore`);
+    },
+    onSuccess: (_data, caseId) => {
+      void queryClient.invalidateQueries({ queryKey: ["test-cases"] });
+      void queryClient.invalidateQueries({ queryKey: ["test-cases", caseId] });
+    },
+  });
+}

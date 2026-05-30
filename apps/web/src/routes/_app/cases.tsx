@@ -6,6 +6,7 @@ import {
   FileText,
   FolderTree,
   ListChecks,
+  Trash2,
 } from "lucide-react";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,8 +26,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFeatureEnabled } from "@/hooks/use-feature-enabled";
 import { useCreateRun } from "@/hooks/use-runs";
-import { useSuites, useTestCase, useTestCases } from "@/hooks/use-test-cases";
+import {
+  useDeleteTestCase,
+  useRestoreTestCase,
+  useSuites,
+  useTestCase,
+  useTestCases,
+} from "@/hooks/use-test-cases";
 import type { components } from "@/lib/api-types";
+import { undoToast } from "@/lib/undo-toast";
 import { cn } from "@/lib/utils";
 
 type Case = components["schemas"]["TestCaseListItem"];
@@ -193,6 +201,8 @@ function CaseDetailPanel({
   const { data: detail, isLoading, isError } = useTestCase(publicId ?? undefined);
   const navigate = useNavigate();
   const createRun = useCreateRun();
+  const deleteCase = useDeleteTestCase();
+  const restoreCase = useRestoreTestCase();
 
   // Local draft state for the step editor — seeded from the server response
   // and kept in sync when the server data refreshes (via key on detail?.id).
@@ -289,6 +299,33 @@ function CaseDetailPanel({
     );
   };
 
+  const deletePending = deleteCase.isPending || restoreCase.isPending;
+  const handleDelete = (): void => {
+    const targetId = detail.public_id;
+    deleteCase.mutate(targetId, {
+      onSuccess: () => {
+        // Drop the ?case= param so the panel returns to the empty state.
+        void navigate({ to: "/cases", search: {} });
+        void undoToast({
+          label: `Deleted ${targetId}`,
+          onUndo: () =>
+            new Promise<void>((resolve, reject) => {
+              restoreCase.mutate(targetId, {
+                onSuccess: () => {
+                  resolve();
+                },
+                onError: (err) => {
+                  reject(err);
+                },
+              });
+            }),
+          undoSuccessMessage: `Restored ${targetId}`,
+          undoErrorMessage: `Failed to restore ${targetId}`,
+        });
+      },
+    });
+  };
+
   return (
     <div className="flex flex-col gap-4" data-testid="case-detail">
       <div
@@ -306,6 +343,19 @@ function CaseDetailPanel({
           <SourcePill source={sourcePill} />
         </div>
         <div className="flex items-center gap-1.5">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            data-testid="case-delete-btn"
+            disabled={deletePending}
+            onClick={handleDelete}
+            className="text-fg-3 hover:text-red"
+            aria-label="Delete case"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+            {deleteCase.isPending ? "Deleting…" : "Delete"}
+          </Button>
           <Button
             type="button"
             size="sm"
