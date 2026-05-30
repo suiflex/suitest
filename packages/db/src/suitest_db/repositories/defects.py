@@ -73,6 +73,20 @@ class DefectRepo(AsyncRepository[Defect, DefectCreate, DefectUpdate]):
         await self.session.flush()
         return row
 
+    async def apply_update(self, defect: Defect, dto: DefectUpdate) -> Defect:
+        """Apply a :class:`DefectUpdate` to ``defect`` in-place + flush.
+
+        Only fields explicitly set on the DTO mutate — ``model_dump`` with
+        ``exclude_unset=True`` distinguishes "absent" from "explicit null".
+        Returns the same row (for fluent call sites). The caller owns the
+        transaction.
+        """
+        payload = dto.model_dump(exclude_unset=True)
+        for field, value in payload.items():
+            setattr(defect, field, value)
+        await self.session.flush()
+        return defect
+
     async def list_by_workspace(
         self,
         workspace_id: str,
