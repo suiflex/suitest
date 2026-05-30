@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin
@@ -12,8 +13,10 @@ from fastapi_users.authentication import (
 )
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from suitest_db.models.user import User
+from suitest_db.repositories.password_reset_requests import PasswordResetRequestRepository
 
 from suitest_api.auth.db import get_user_db
+from suitest_api.services.invitation_service import hash_token
 from suitest_api.settings import get_settings
 
 _settings = get_settings()
@@ -27,6 +30,23 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
     async def on_after_register(self, user: User, request: Request | None = None) -> None:
         """Hook fired after a new user is registered. No-op for M0."""
+        return None
+
+    async def on_after_forgot_password(
+        self, user: User, token: str, request: Request | None = None
+    ) -> None:
+        """Persist reset-token metadata for super-admin review until SMTP exists."""
+        session = getattr(self.user_db, "session", None)
+        if session is None:
+            return None
+        link = f"{_settings.web_url}/reset-password?token={token}"
+        await PasswordResetRequestRepository(session).create(
+            email=user.email,
+            token_hash=hash_token(token),
+            reset_link_encrypted=link,
+            expires_at=datetime.now(tz=UTC) + timedelta(hours=1),
+        )
+        await session.commit()
         return None
 
 

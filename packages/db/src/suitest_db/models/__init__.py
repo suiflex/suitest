@@ -15,8 +15,10 @@ import suitest_db.models.document as _document  # noqa: F401
 import suitest_db.models.eval_run as _eval_run  # noqa: F401
 import suitest_db.models.generator_run as _generator_run  # noqa: F401
 import suitest_db.models.integration as _integration  # noqa: F401
+import suitest_db.models.invitation as _invitation  # noqa: F401
 import suitest_db.models.llm_config as _llm_config  # noqa: F401
 import suitest_db.models.mcp_provider as _mcp_provider  # noqa: F401
+import suitest_db.models.password_reset_request as _password_reset_request  # noqa: F401
 import suitest_db.models.project as _project  # noqa: F401
 import suitest_db.models.prompt_version as _prompt_version  # noqa: F401
 import suitest_db.models.requirement as _requirement  # noqa: F401

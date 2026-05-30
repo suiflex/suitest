@@ -1,9 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  RouterProvider,
-  createMemoryHistory,
-  createRouter,
-} from "@tanstack/react-router";
+import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -52,11 +48,80 @@ describe("<LoginRoute>", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders 'Sign in with Google' button", async () => {
+  it("renders email/password login first with Google as secondary", async () => {
     renderLogin();
-    expect(
-      await screen.findByRole("button", { name: /sign in with google/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("textbox", { name: /email/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^sign in$/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /sign in with google/i })).toBeInTheDocument();
+  });
+
+  it("posts form-encoded credentials to cookie login and redirects to dashboard", async () => {
+    const fetchSpy = vi.fn((_url: string, _init?: RequestInit) =>
+      Promise.resolve(new Response(null, { status: 204 })),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    renderLogin();
+
+    const user = userEvent.setup();
+    await user.type(await screen.findByRole("textbox", { name: /email/i }), "maya@example.test");
+    await user.type(screen.getByLabelText(/password/i), "correct horse");
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "/auth/cookie/login",
+        expect.objectContaining({
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        }),
+      );
+    });
+    const body = fetchSpy.mock.calls[0]?.[1]?.body;
+    expect(body).toBeInstanceOf(URLSearchParams);
+    expect((body as URLSearchParams).get("username")).toBe("maya@example.test");
+    expect((body as URLSearchParams).get("password")).toBe("correct horse");
+    expect(window.location.assign).toHaveBeenCalledWith("/dashboard");
+  });
+
+  it("uses `next` search param after password login", async () => {
+    const fetchSpy = vi.fn(() => Promise.resolve(new Response(null, { status: 204 })));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    renderLogin("/login?next=%2Fcases");
+
+    const user = userEvent.setup();
+    await user.type(await screen.findByRole("textbox", { name: /email/i }), "maya@example.test");
+    await user.type(screen.getByLabelText(/password/i), "correct horse");
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => {
+      expect(window.location.assign).toHaveBeenCalledWith("/cases");
+    });
+  });
+
+  it("renders a friendly error when password login fails", async () => {
+    const fetchSpy = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ detail: "LOGIN_BAD_CREDENTIALS" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    renderLogin();
+
+    const user = userEvent.setup();
+    await user.type(await screen.findByRole("textbox", { name: /email/i }), "maya@example.test");
+    await user.type(screen.getByLabelText(/password/i), "wrong");
+    await user.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    expect(await screen.findByText(/email or password did not match/i)).toBeInTheDocument();
+    expect(window.location.assign).not.toHaveBeenCalled();
   });
 
   it("fetches authorize endpoint and assigns returned URL on click", async () => {
@@ -105,7 +170,6 @@ describe("<LoginRoute>", () => {
     renderLogin("/login?next=%2Fcases");
 
     const btn = await screen.findByRole("button", { name: /sign in with google/i });
-    expect(screen.getByText("/cases")).toBeInTheDocument();
     await userEvent.click(btn);
 
     await waitFor(() => {
@@ -122,9 +186,7 @@ describe("<LoginRoute>", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     renderLogin();
-    await userEvent.click(
-      await screen.findByRole("button", { name: /sign in with google/i }),
-    );
+    await userEvent.click(await screen.findByRole("button", { name: /sign in with google/i }));
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalled();

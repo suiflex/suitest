@@ -31,6 +31,8 @@ Workspace ──< User (via Membership)
    │
    ├──< LLMConfig (workspace-scoped, AES-GCM key)
    │
+   ├──< Invitation (invite-only onboarding, token hash)
+   │
    ├──< WorkspaceCapability (materialized tier + autonomy snapshot)
    │
    ├──< AgentSession (prompt_version, seed, temperature, cost_usd, provider)
@@ -46,6 +48,8 @@ Workspace ──< User (via Membership)
    │       └──< DocumentChunk (pgvector embedding, variable dim)
    │
    └──< AuditLog
+
+User ──< PasswordResetRequest (pre-SMTP reset link review)
 ```
 
 ---
@@ -100,6 +104,7 @@ class User(DomainModel):
     email: str
     name: str
     avatar_url: str | None = None
+    must_change_password: bool = False
     created_at: datetime
 
 
@@ -108,6 +113,27 @@ class Membership(DomainModel):
     workspace_id: str
     user_id: uuid.UUID
     role: Role = Role.QA
+    created_at: datetime
+
+
+class Invitation(DomainModel):
+    id: str
+    workspace_id: str
+    email: str
+    role: Role
+    expires_at: datetime
+    accepted_at: datetime | None = None
+    revoked_at: datetime | None = None
+    created_by: uuid.UUID | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PasswordResetRequest(DomainModel):
+    id: str
+    email: str
+    expires_at: datetime
+    used_at: datetime | None = None
     created_at: datetime
 ```
 

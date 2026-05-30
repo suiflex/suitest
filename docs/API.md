@@ -145,6 +145,25 @@ Surfaces tier + autonomy + MCP + embeddings state. **No auth required** — fron
 | DELETE | `/workspaces/:id` | **OWNER only** — destroy workspace; returns `202 Accepted` + async cleanup job id |
 | GET | `/audit-logs` | Workspace-scoped audit trail, cursor-paginated (`?cursor=&action=&resource_type=&user_id=&from=&to=&limit=50`) |
 
+**M1e local auth + invite-only onboarding**
+
+| Method | Path | Tujuan |
+|--------|------|--------|
+| POST | `/auth/cookie/login` | Password login; FastAPI-Users form body `username` + `password`; sets `suitest_session` cookie |
+| POST | `/auth/forgot-password` | Start reset-password flow; stores encrypted reset link for super-admin review until SMTP exists |
+| POST | `/auth/reset-password` | Complete FastAPI-Users reset-password flow |
+| PATCH | `/api/v1/users/me/password` | Current user changes password; requires `current_password` + `new_password` |
+| POST | `/api/v1/workspaces/:id/invitations` | ADMIN/OWNER creates invite link; returns raw link once |
+| GET | `/api/v1/workspaces/:id/invitations` | ADMIN/OWNER lists invitations |
+| POST | `/api/v1/invitations/:id/revoke` | ADMIN/OWNER revokes invitation |
+| POST | `/api/v1/invitations/:id/resend` | ADMIN/OWNER rotates token and returns new raw link once |
+| GET | `/api/v1/invitations/validate?token=` | Public invite validation for `/accept-invite` |
+| POST | `/api/v1/auth/accept-invite` | Public accept invite; creates/activates user, membership, and session cookie |
+| POST | `/api/v1/admin/users/:userId/reset-password` | `is_superuser` only; returns one-time temporary password |
+| GET | `/api/v1/admin/password-reset-requests` | `is_superuser` only; lists encrypted reset links after decryption |
+
+`POST /auth/register` is intentionally not mounted after M1e. Suitest OSS is invite-only after first-install bootstrap.
+
 **DELETE `/workspaces/:id`** body (required):
 ```json
 { "confirm_slug": "acme-prod" }

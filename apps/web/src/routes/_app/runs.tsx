@@ -214,8 +214,8 @@ function LogsPanel({ runId }: { runId: string }): React.ReactElement {
   const { data, isLoading, isError } = useRunLogs(runId);
   if (isLoading) return <div className="text-[12px] text-fg-4">Loading…</div>;
   if (isError || !data) return <div className="text-[12px] text-red">Failed to load logs</div>;
-  const lines = data.lines ?? [];
-  if (lines.length === 0) {
+  const items = data.items ?? [];
+  if (items.length === 0) {
     return <div className="text-[12px] text-fg-4">No log lines yet.</div>;
   }
   return (
@@ -223,8 +223,8 @@ function LogsPanel({ runId }: { runId: string }): React.ReactElement {
       data-testid="run-logs"
       className="max-h-[480px] overflow-auto rounded-md bg-[#060606] p-[14px] font-mono text-[11.5px] leading-relaxed text-fg-1"
     >
-      {lines.map((line, i) => (
-        <div key={i}>{line}</div>
+      {items.map((item) => (
+        <div key={item.seq}>{item.message}</div>
       ))}
     </pre>
   );

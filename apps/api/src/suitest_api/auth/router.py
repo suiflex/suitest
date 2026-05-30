@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from httpx_oauth.clients.google import GoogleOAuth2
 
 from suitest_api.auth.manager import auth_backend, fastapi_users
-from suitest_api.auth.schemas import UserCreate, UserRead, UserUpdate
+from suitest_api.auth.schemas import UserRead, UserUpdate
 from suitest_api.settings import get_settings
 
 _settings = get_settings()
@@ -17,7 +17,7 @@ router.include_router(
     tags=["auth"],
 )
 router.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
+    fastapi_users.get_reset_password_router(),
     prefix="/auth",
     tags=["auth"],
 )

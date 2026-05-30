@@ -19,3 +19,17 @@ async def test_google_authorize_returns_redirect(client: AsyncClient) -> None:
     payload = response.json()
     assert "authorization_url" in payload
     assert "accounts.google.com" in payload["authorization_url"]
+
+
+@pytest.mark.asyncio
+async def test_public_register_is_disabled(client: AsyncClient) -> None:
+    """M1e is invite-only; public self-registration must not be mounted."""
+    response = await client.post(
+        "/auth/register",
+        json={
+            "email": "new@example.com",
+            "password": "secret123",
+            "name": "New User",
+        },
+    )
+    assert response.status_code == 404

@@ -1,6 +1,73 @@
 {
   "components": {
     "schemas": {
+      "AcceptInviteRequest": {
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "minLength": 8,
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "name",
+          "password"
+        ],
+        "title": "AcceptInviteRequest",
+        "type": "object"
+      },
+      "AcceptInviteResponse": {
+        "properties": {
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "title": "AcceptInviteResponse",
+        "type": "object"
+      },
+      "AdHocRunResponse": {
+        "description": "Response shape for ``POST /test-cases/:id/run`` (docs/API.md \u00a73.3).\n\nA thin descriptor the FE uses to deep-link the newly queued run + open the\nmatching live-events room. ``statusUrl`` is path-relative to the API root so\nthe client can reuse its existing ``apiClient`` base URL; ``wsRoom`` follows\nthe canonical ``run:<id>`` channel name shared with the live-events gateway.",
+        "properties": {
+          "publicId": {
+            "title": "Publicid",
+            "type": "string"
+          },
+          "runId": {
+            "title": "Runid",
+            "type": "string"
+          },
+          "statusUrl": {
+            "title": "Statusurl",
+            "type": "string"
+          },
+          "wsRoom": {
+            "title": "Wsroom",
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId",
+          "publicId",
+          "statusUrl",
+          "wsRoom"
+        ],
+        "title": "AdHocRunResponse",
+        "type": "object"
+      },
       "ArtifactKind": {
         "enum": [
           "SCREENSHOT",
@@ -277,6 +344,198 @@
         "title": "Body_auth_cookie_jwt_login_auth_cookie_login_post",
         "type": "object"
       },
+      "Body_reset_forgot_password_auth_forgot_password_post": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "Body_reset_forgot_password_auth_forgot_password_post",
+        "type": "object"
+      },
+      "Body_reset_reset_password_auth_reset_password_post": {
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "password"
+        ],
+        "title": "Body_reset_reset_password_auth_reset_password_post",
+        "type": "object"
+      },
+      "BulkAddTagsRequest": {
+        "additionalProperties": false,
+        "description": "``action = \"add_tags\"`` variant.",
+        "properties": {
+          "action": {
+            "const": "add_tags",
+            "title": "Action",
+            "type": "string"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ids",
+            "type": "array"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/_BulkTagsPayload"
+          }
+        },
+        "required": [
+          "action",
+          "ids",
+          "payload"
+        ],
+        "title": "BulkAddTagsRequest",
+        "type": "object"
+      },
+      "BulkDeleteRequest": {
+        "additionalProperties": false,
+        "description": "``action = \"delete\"`` variant.",
+        "properties": {
+          "action": {
+            "const": "delete",
+            "title": "Action",
+            "type": "string"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ids",
+            "type": "array"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/_BulkDeletePayload"
+          }
+        },
+        "required": [
+          "action",
+          "ids"
+        ],
+        "title": "BulkDeleteRequest",
+        "type": "object"
+      },
+      "BulkMoveToSuiteRequest": {
+        "additionalProperties": false,
+        "description": "``action = \"move_to_suite\"`` variant.",
+        "properties": {
+          "action": {
+            "const": "move_to_suite",
+            "title": "Action",
+            "type": "string"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ids",
+            "type": "array"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/_BulkMoveToSuitePayload"
+          }
+        },
+        "required": [
+          "action",
+          "ids",
+          "payload"
+        ],
+        "title": "BulkMoveToSuiteRequest",
+        "type": "object"
+      },
+      "BulkRemoveTagsRequest": {
+        "additionalProperties": false,
+        "description": "``action = \"remove_tags\"`` variant.",
+        "properties": {
+          "action": {
+            "const": "remove_tags",
+            "title": "Action",
+            "type": "string"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ids",
+            "type": "array"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/_BulkTagsPayload"
+          }
+        },
+        "required": [
+          "action",
+          "ids",
+          "payload"
+        ],
+        "title": "BulkRemoveTagsRequest",
+        "type": "object"
+      },
+      "BulkSetPriorityRequest": {
+        "additionalProperties": false,
+        "description": "``action = \"set_priority\"`` variant.",
+        "properties": {
+          "action": {
+            "const": "set_priority",
+            "title": "Action",
+            "type": "string"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ids",
+            "type": "array"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/_BulkSetPriorityPayload"
+          }
+        },
+        "required": [
+          "action",
+          "ids",
+          "payload"
+        ],
+        "title": "BulkSetPriorityRequest",
+        "type": "object"
+      },
+      "BulkUpdateResponse": {
+        "description": "``POST /test-cases/bulk-update`` 200 body (docs/API.md \u00a73.3).",
+        "properties": {
+          "auditIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Auditids",
+            "type": "array"
+          },
+          "updated": {
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "updated"
+        ],
+        "title": "BulkUpdateResponse",
+        "type": "object"
+      },
       "Capabilities": {
         "description": "Full ``GET /capabilities`` response.",
         "properties": {
@@ -350,6 +609,74 @@
         ],
         "title": "CaseStatus",
         "type": "string"
+      },
+      "ChangePasswordRequest": {
+        "properties": {
+          "current_password": {
+            "minLength": 1,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "minLength": 8,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "ChangePasswordRequest",
+        "type": "object"
+      },
+      "ConnectionTestResponse": {
+        "additionalProperties": false,
+        "description": "JSON response for ``/test`` + pre-save ``test-connection`` endpoints.\n\nMirrors :class:`suitest_api.integrations.base.ConnectionTestResult` 1:1 so\nthe FE can render the same UI for both pre-save and post-save flows. On\nsuccess ``ok=True`` and ``account_id``/``display_name`` describe who the\nadapter authenticated as. On failure ``ok=False`` and ``error`` carries\nthe human-readable string the FE renders inline.",
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "ConnectionTestResponse",
+        "type": "object"
       },
       "CoverageOut": {
         "description": "``GET /analytics/coverage`` \u2192 coverage by suite + by requirement.",
@@ -502,6 +829,95 @@
         "title": "CreateRunBody",
         "type": "object"
       },
+      "DefectCreate": {
+        "additionalProperties": false,
+        "description": "Body for ``POST /defects`` \u2014 manual file (docs/API.md \u00a73.6).",
+        "properties": {
+          "assigneeId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigneeid"
+          },
+          "component": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Component"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "requirementId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirementid"
+          },
+          "runId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runid"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "testCaseId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Testcaseid"
+          },
+          "title": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "severity"
+        ],
+        "title": "DefectCreate",
+        "type": "object"
+      },
       "DefectDetail": {
         "description": "Detail \u2014 adds linked resource public ids + external issues.",
         "properties": {
@@ -534,6 +950,10 @@
           "created_at": {
             "format": "date-time",
             "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
             "type": "string"
           },
           "description": {
@@ -572,6 +992,18 @@
               }
             ],
             "title": "Requirement Public Id"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
           },
           "run_public_id": {
             "anyOf": [
@@ -623,6 +1055,7 @@
           "severity",
           "status",
           "agent_diagnosis_kind",
+          "created_by",
           "created_at",
           "updated_at"
         ],
@@ -663,6 +1096,10 @@
             "title": "Created At",
             "type": "string"
           },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -670,6 +1107,18 @@
           "public_id": {
             "title": "Public Id",
             "type": "string"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
           },
           "severity": {
             "$ref": "#/components/schemas/Severity"
@@ -699,6 +1148,7 @@
           "severity",
           "status",
           "agent_diagnosis_kind",
+          "created_by",
           "created_at",
           "updated_at"
         ],
@@ -746,6 +1196,87 @@
           "action"
         ],
         "title": "DefectTimelineEntry",
+        "type": "object"
+      },
+      "DefectUpdate": {
+        "additionalProperties": false,
+        "description": "Body for ``PATCH /defects/:id`` \u2014 status / severity / assignee / description.\n\n``force`` (default ``False``) lets QA+ override the linear status flow for\nworkflow corrections (e.g. CLOSED \u2192 OPEN reopen after a real regression).\nWithout ``force`` a non-allowed transition returns 400\n``INVALID_STATUS_TRANSITION``.",
+        "properties": {
+          "assigneeId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigneeid"
+          },
+          "component": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Component"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "force": {
+            "default": false,
+            "title": "Force",
+            "type": "boolean"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Severity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DefectStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "DefectUpdate",
         "type": "object"
       },
       "DiagnosisKind": {
@@ -1101,6 +1632,28 @@
         "title": "FlakyCaseOut",
         "type": "object"
       },
+      "GitHubTestConnectionRequest": {
+        "additionalProperties": false,
+        "description": "Pre-save credential payload for ``POST /integrations/github/test-connection``.\n\nNo row is persisted. ``private_key_pem`` is never logged and never stored\nby this endpoint (per ``docs/API.md \u00a73.9``). The router spawns an ephemeral\n``github-mcp-server`` process, derives an installation token, calls a\ncheap whoami / list-repos tool, and discards.",
+        "properties": {
+          "app_installation_id": {
+            "minLength": 1,
+            "title": "App Installation Id",
+            "type": "string"
+          },
+          "private_key_pem": {
+            "minLength": 1,
+            "title": "Private Key Pem",
+            "type": "string"
+          }
+        },
+        "required": [
+          "app_installation_id",
+          "private_key_pem"
+        ],
+        "title": "GitHubTestConnectionRequest",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1208,6 +1761,45 @@
           }
         },
         "title": "InboxResponse",
+        "type": "object"
+      },
+      "IntegrationCreate": {
+        "additionalProperties": false,
+        "description": "``POST /integrations`` request body.\n\n``secrets`` is an arbitrary JSON-object the kind-specific adapter consumes\n(e.g. Slack: ``{\"webhook_url\": \"...\"}``, Jira: ``{\"jira_token\": \"...\"}``).\nThe service AES-GCM-encrypts it via ``packages/core/crypto`` before INSERT.\n``status`` defaults to ``active`` and is set by the service \u2014 accepting it\nfrom the wire would let an admin force-set bypassed states.",
+        "properties": {
+          "config": {
+            "additionalProperties": true,
+            "title": "Config",
+            "type": "object"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/IntegrationKind"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "secrets": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Adapter-specific secret material (e.g. Slack webhook_url, Jira token). Encrypted at rest via AES-GCM; never echoed back.",
+            "title": "Secrets"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "IntegrationCreate",
         "type": "object"
       },
       "IntegrationDetail": {
@@ -1372,6 +1964,319 @@
           "updated_at"
         ],
         "title": "IntegrationListItem",
+        "type": "object"
+      },
+      "IntegrationRead": {
+        "description": "Write-path response: ``config`` is visible but secrets stay opaque.\n\nDeliberately ``model_config`` does NOT add a ``secrets`` field \u2014 the only\ncue the FE gets that secrets exist is ``has_secrets: bool``. The ``config``\nfield is allowed because integration config (``Jira url``, ``Slack channel\nname``) is non-sensitive metadata; the AES-GCM blob lives only in the\ndatabase column. See ``docs/API.md \u00a73.9``.",
+        "properties": {
+          "config": {
+            "additionalProperties": true,
+            "title": "Config",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "has_secrets": {
+            "title": "Has Secrets",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/IntegrationKind"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "kind",
+          "name",
+          "status",
+          "has_secrets",
+          "created_at",
+          "updated_at",
+          "config"
+        ],
+        "title": "IntegrationRead",
+        "type": "object"
+      },
+      "IntegrationUpdate": {
+        "additionalProperties": false,
+        "description": "``PATCH /integrations/:id`` request body \u2014 partial update.\n\n``secrets`` semantics:\n\n* absent from body \u2192 existing encrypted blob preserved verbatim.\n* present but empty dict \u2192 existing blob CLEARED (the integration becomes\n  secret-less; ``has_secrets`` flips to False).\n* present with keys \u2192 MERGED with the existing decrypted dict before\n  re-encrypting (FE doesn't have to know every secret key). Submitted keys\n  overwrite; unsubmitted keys retain prior values.",
+        "properties": {
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "secrets": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secrets"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "title": "IntegrationUpdate",
+        "type": "object"
+      },
+      "InvitationCreateRequest": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ],
+        "title": "InvitationCreateRequest",
+        "type": "object"
+      },
+      "InvitationListEnvelope": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InvitationOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "InvitationListEnvelope",
+        "type": "object"
+      },
+      "InvitationOut": {
+        "properties": {
+          "accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted At"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "expires_at",
+          "accepted_at",
+          "revoked_at"
+        ],
+        "title": "InvitationOut",
+        "type": "object"
+      },
+      "InvitationValidateResponse": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "workspace_name": {
+            "title": "Workspace Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "role",
+          "workspace_name",
+          "expires_at"
+        ],
+        "title": "InvitationValidateResponse",
+        "type": "object"
+      },
+      "JiraSyncedResponse": {
+        "description": "202 response when the Jira webhook successfully syncs a defect status.",
+        "properties": {
+          "defectId": {
+            "title": "Defectid",
+            "type": "string"
+          },
+          "fromStatus": {
+            "title": "Fromstatus",
+            "type": "string"
+          },
+          "toStatus": {
+            "title": "Tostatus",
+            "type": "string"
+          }
+        },
+        "required": [
+          "defectId",
+          "fromStatus",
+          "toStatus"
+        ],
+        "title": "JiraSyncedResponse",
+        "type": "object"
+      },
+      "JiraTestConnectionRequest": {
+        "additionalProperties": false,
+        "description": "Pre-save credential payload for ``POST /integrations/jira/test-connection``.\n\nNo row is persisted; the router spawns an ephemeral ``jirac-mcp`` adapter\nwith these creds, calls ``test_connection`` (``GET /rest/api/3/myself``),\nand discards the process. ``jira_auth_type`` selects between cloud OAuth\ntoken (``cloud_token``) and PAT (``pat``). M1d ships PAT-only \u2014 OAuth flow\ndeferred to v1.x.",
+        "properties": {
+          "jira_auth_type": {
+            "default": "cloud_token",
+            "enum": [
+              "cloud_token",
+              "pat"
+            ],
+            "title": "Jira Auth Type",
+            "type": "string"
+          },
+          "jira_email": {
+            "minLength": 1,
+            "title": "Jira Email",
+            "type": "string"
+          },
+          "jira_token": {
+            "minLength": 1,
+            "title": "Jira Token",
+            "type": "string"
+          },
+          "jira_url": {
+            "minLength": 1,
+            "title": "Jira Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "jira_url",
+          "jira_email",
+          "jira_token"
+        ],
+        "title": "JiraTestConnectionRequest",
         "type": "object"
       },
       "KpisOut": {
@@ -1841,6 +2746,77 @@
         "title": "PassRateSeriesOut",
         "type": "object"
       },
+      "PasswordResetRequestOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "resetLink": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resetlink"
+          },
+          "used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Used At"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "expires_at",
+          "used_at",
+          "created_at",
+          "resetLink"
+        ],
+        "title": "PasswordResetRequestOut",
+        "type": "object"
+      },
+      "PasswordResetRequestsEnvelope": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PasswordResetRequestOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PasswordResetRequestsEnvelope",
+        "type": "object"
+      },
       "Priority": {
         "enum": [
           "P0",
@@ -1851,6 +2827,47 @@
         "title": "Priority",
         "type": "string"
       },
+      "ProjectCreate": {
+        "additionalProperties": false,
+        "description": "Body for ``POST /projects`` (docs/API.md \u00a73.2).\n\n``slug`` is optional \u2014 when omitted the service derives it from ``name``\nvia :func:`suitest_api.utils.slug.slugify` and retries with a ``-2``\nsuffix once on collision before bubbling 409.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ProjectCreate",
+        "type": "object"
+      },
       "ProjectPublic": {
         "description": "A project, workspace-scoped (docs/API.md \u00a73.2).",
         "properties": {
@@ -1858,6 +2875,11 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "default_mcp_routing": {
+            "additionalProperties": true,
+            "title": "Default Mcp Routing",
+            "type": "object"
           },
           "description": {
             "anyOf": [
@@ -1869,6 +2891,17 @@
               }
             ],
             "title": "Description"
+          },
+          "gating_suite_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gating Suite Id"
           },
           "id": {
             "title": "Id",
@@ -1901,6 +2934,72 @@
           "updated_at"
         ],
         "title": "ProjectPublic",
+        "type": "object"
+      },
+      "ProjectUpdate": {
+        "additionalProperties": false,
+        "description": "Body for ``PATCH /projects/:id`` (docs/API.md \u00a73.2).\n\nSlug is **immutable** post-create \u2014 attempting to PATCH it raises a 400\n``IMMUTABLE_SLUG``. ``gating_suite_id`` must reference a suite that lives\nin this project (cross-project assignments raise 400\n``INVALID_GATING_SUITE``). All fields optional; only\n``model_dump(exclude_unset=True)`` keys are applied.",
+        "properties": {
+          "defaultMcpRouting": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultmcprouting"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "gatingSuiteId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gatingsuiteid"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          }
+        },
+        "title": "ProjectUpdate",
         "type": "object"
       },
       "ReadinessBlocker": {
@@ -1951,6 +3050,62 @@
           "score"
         ],
         "title": "ReadinessOut",
+        "type": "object"
+      },
+      "RequirementCreate": {
+        "additionalProperties": false,
+        "description": "Body for ``POST /requirements`` (docs/API.md \u00a73.7).\n\n``project_id`` is workspace-scoped (cross-workspace ids return 404). The\n``REQ-N`` ``public_id`` is assigned by the ``before_insert`` listener via\n``generate_public_id`` (docs/DATA_MODEL \u00a78) \u2014 never accepted from the caller.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "externalUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Externalurl"
+          },
+          "projectId": {
+            "minLength": 1,
+            "title": "Projectid",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "title": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId",
+          "title"
+        ],
+        "title": "RequirementCreate",
         "type": "object"
       },
       "RequirementDetail": {
@@ -2041,6 +3196,22 @@
         "title": "RequirementDetail",
         "type": "object"
       },
+      "RequirementLinkCreate": {
+        "additionalProperties": false,
+        "description": "Body for ``POST /requirements/:id/links`` \u2014 ``{ \"testCaseId\": \"...\" }``.\n\nAccepts both ``test_case_id`` (Pythonic) and ``testCaseId`` / ``caseId``\n(docs/API.md \u00a73.7 wire shape) for FE compatibility.",
+        "properties": {
+          "testCaseId": {
+            "minLength": 1,
+            "title": "Testcaseid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "testCaseId"
+        ],
+        "title": "RequirementLinkCreate",
+        "type": "object"
+      },
       "RequirementListItem": {
         "description": "List row with a computed ``link_count`` (number of linked cases).",
         "properties": {
@@ -2118,6 +3289,73 @@
           "updated_at"
         ],
         "title": "RequirementListItem",
+        "type": "object"
+      },
+      "RequirementUpdate": {
+        "additionalProperties": false,
+        "description": "Body for ``PATCH /requirements/:id`` \u2014 metadata patch.\n\nAll fields optional; only ``model_dump(exclude_unset=True)`` keys are\napplied. Sending ``null`` explicitly clears the field (description / source\n/ external_url are nullable in the model).",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "externalUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Externalurl"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "RequirementUpdate",
+        "type": "object"
+      },
+      "ResetPasswordResponse": {
+        "properties": {
+          "temporaryPassword": {
+            "title": "Temporarypassword",
+            "type": "string"
+          }
+        },
+        "required": [
+          "temporaryPassword"
+        ],
+        "title": "ResetPasswordResponse",
         "type": "object"
       },
       "Role": {
@@ -2982,6 +4220,46 @@
         "title": "StepReplace",
         "type": "object"
       },
+      "SuiteCreate": {
+        "additionalProperties": false,
+        "description": "Body for ``POST /suites``.\n\n``order`` defaults to ``0``; callers usually leave it blank and let the\nrepository's ``order ASC, created_at DESC`` ordering position the suite.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "order": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Order",
+            "type": "integer"
+          },
+          "projectId": {
+            "minLength": 1,
+            "title": "Projectid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId",
+          "name"
+        ],
+        "title": "SuiteCreate",
+        "type": "object"
+      },
       "SuitePublic": {
         "description": "A suite with its non-deleted ``case_count`` (set by the service).",
         "properties": {
@@ -3037,6 +4315,118 @@
           "updated_at"
         ],
         "title": "SuitePublic",
+        "type": "object"
+      },
+      "SuiteUpdate": {
+        "additionalProperties": false,
+        "description": "Body for ``PATCH /suites/:id`` (docs/API.md \u00a73.4).\n\nAll fields optional; only ``model_dump(exclude_unset=True)`` keys are\napplied. ``case_order`` (when present) drives an atomic reorder of every\nactive case in the suite \u2014 the submitted id set must match the live set\nexactly or a 400 with ``details.missing`` / ``details.unknown`` lands.",
+        "properties": {
+          "caseOrder": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caseorder"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order"
+          }
+        },
+        "title": "SuiteUpdate",
+        "type": "object"
+      },
+      "SyncConflict": {
+        "description": "One entry in :class:`SyncResult.conflicts` \u2014 local state diverges from remote.\n\nSurfaces the defect public id + the local / remote DefectStatus strings so\nthe FE renders a clear \"external system says X but Suitest says Y\" prompt.",
+        "properties": {
+          "defect_public_id": {
+            "title": "Defect Public Id",
+            "type": "string"
+          },
+          "external_id": {
+            "title": "External Id",
+            "type": "string"
+          },
+          "local_status": {
+            "title": "Local Status",
+            "type": "string"
+          },
+          "remote_status": {
+            "title": "Remote Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "defect_public_id",
+          "local_status",
+          "remote_status",
+          "external_id"
+        ],
+        "title": "SyncConflict",
+        "type": "object"
+      },
+      "SyncResult": {
+        "additionalProperties": false,
+        "description": "``POST /integrations/:id/sync`` response.\n\n``synced`` counts defects whose ``status`` was updated to match the remote\nsystem. ``conflicts`` lists defects whose remote state could not be applied\nwithout overwriting a manual change (e.g. local CLOSED, remote OPEN \u2192 the\nsync respects manual override). ``skipped`` counts defects ignored because\nthey were already in a terminal status.",
+        "properties": {
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/SyncConflict"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "skipped": {
+            "default": 0,
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "synced": {
+            "default": 0,
+            "title": "Synced",
+            "type": "integer"
+          }
+        },
+        "title": "SyncResult",
         "type": "object"
       },
       "TargetKind": {
@@ -3486,62 +4876,6 @@
         "title": "TraceabilityMatrix",
         "type": "object"
       },
-      "UserCreate": {
-        "description": "Inbound payload for POST /auth/register.",
-        "properties": {
-          "email": {
-            "format": "email",
-            "title": "Email",
-            "type": "string"
-          },
-          "is_active": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": true,
-            "title": "Is Active"
-          },
-          "is_superuser": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": false,
-            "title": "Is Superuser"
-          },
-          "is_verified": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": false,
-            "title": "Is Verified"
-          },
-          "password": {
-            "title": "Password",
-            "type": "string"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "title": "UserCreate",
-        "type": "object"
-      },
       "UserRead": {
         "description": "Outbound user representation.",
         "properties": {
@@ -3681,17 +5015,123 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "WebhookEnqueuedResponse": {
+        "description": "202 response when the webhook successfully enqueues a gating run.",
+        "properties": {
+          "publicId": {
+            "title": "Publicid",
+            "type": "string"
+          },
+          "runId": {
+            "title": "Runid",
+            "type": "string"
+          },
+          "statusUrl": {
+            "title": "Statusurl",
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId",
+          "publicId",
+          "statusUrl"
+        ],
+        "title": "WebhookEnqueuedResponse",
+        "type": "object"
+      },
+      "WebhookIgnoredResponse": {
+        "description": "200 response when the receiver intentionally drops the event.\n\n``reason`` is a stable machine-readable string so dashboards and CI plugins\ncan branch on it without parsing free-form messages. Known reasons:\n\n* ``duplicate`` \u2014 Redis SETNX dedup hit within the TTL window.\n* ``no_gating_suite`` \u2014 neither ``gating_suite_id`` nor any ``smoke``-tagged\n  cases are configured for the project (Q4 default).\n* ``unsupported_event`` \u2014 webhook event kind isn't one the receiver acts on.\n* ``unsupported_action`` \u2014 Merge Request / PR action that does not enqueue a run.\n* ``branch_deleted`` \u2014 GitHub push with ``deleted=true``.\n* ``unknown_issue`` \u2014 no local defect carries the inbound issue key.\n* ``unmappable_status`` \u2014 adapter's status map returned ``None`` for the\n  external status name.\n* ``no_status_change`` \u2014 mapped status already matches the local defect's\n  status (idempotent replay).",
+        "properties": {
+          "ignored": {
+            "default": true,
+            "title": "Ignored",
+            "type": "boolean"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "WebhookIgnoredResponse",
+        "type": "object"
+      },
+      "WebhookPingResponse": {
+        "description": "200 response to a GitHub ``ping`` event.\n\nGitHub fires ``ping`` when a hook is first registered; returning\n``{pong: true}`` matches GitHub's documented expectation and unblocks the\nhook-config UI's \"Recent Deliveries\" smoke check.",
+        "properties": {
+          "pong": {
+            "default": true,
+            "title": "Pong",
+            "type": "boolean"
+          }
+        },
+        "title": "WebhookPingResponse",
+        "type": "object"
+      },
+      "WorkspaceDeleteAccepted": {
+        "description": "``DELETE /workspaces/:id`` 202 response \u2014 cleanup is asynchronous.",
+        "properties": {
+          "cleanup_job_id": {
+            "title": "Cleanup Job Id",
+            "type": "string"
+          },
+          "status": {
+            "default": "QUEUED",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cleanup_job_id"
+        ],
+        "title": "WorkspaceDeleteAccepted",
+        "type": "object"
+      },
+      "WorkspaceDeleteConfirm": {
+        "additionalProperties": false,
+        "description": "``DELETE /workspaces/:id`` body \u2014 slug-typed-confirm guard.",
+        "properties": {
+          "confirm_slug": {
+            "minLength": 1,
+            "title": "Confirm Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirm_slug"
+        ],
+        "title": "WorkspaceDeleteConfirm",
+        "type": "object"
+      },
       "WorkspaceDetail": {
-        "description": "``GET /workspaces/:id`` \u2014 currently identical to the summary (M1a).",
+        "description": "``GET /workspaces/:id`` \u2014 Settings General tab consumes the extra fields.",
         "properties": {
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "mcp_routing_overrides": {
+            "additionalProperties": true,
+            "title": "Mcp Routing Overrides",
+            "type": "object"
           },
           "name": {
             "title": "Name",
@@ -3704,6 +5144,11 @@
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "strict_zero_validation": {
+            "default": true,
+            "title": "Strict Zero Validation",
+            "type": "boolean"
           },
           "updated_at": {
             "format": "date-time",
@@ -3720,6 +5165,26 @@
           "updated_at"
         ],
         "title": "WorkspaceDetail",
+        "type": "object"
+      },
+      "WorkspaceMemberInvite": {
+        "additionalProperties": false,
+        "description": "``POST /workspaces/:id/members`` body \u2014 invite by email + role.",
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ],
+        "title": "WorkspaceMemberInvite",
         "type": "object"
       },
       "WorkspaceMemberPublic": {
@@ -3755,6 +5220,20 @@
           "joined_at"
         ],
         "title": "WorkspaceMemberPublic",
+        "type": "object"
+      },
+      "WorkspaceMemberRoleUpdate": {
+        "additionalProperties": false,
+        "description": "``PATCH /workspaces/:id/members/:user_id`` body.",
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "WorkspaceMemberRoleUpdate",
         "type": "object"
       },
       "WorkspacePublic": {
@@ -3796,6 +5275,63 @@
           "updated_at"
         ],
         "title": "WorkspacePublic",
+        "type": "object"
+      },
+      "_BulkDeletePayload": {
+        "additionalProperties": false,
+        "description": "``delete`` action \u2014 empty payload. Accept `{}` and absent keys both.",
+        "properties": {},
+        "title": "_BulkDeletePayload",
+        "type": "object"
+      },
+      "_BulkMoveToSuitePayload": {
+        "additionalProperties": false,
+        "description": "``move_to_suite`` action \u2014 target suite id (must be same workspace).",
+        "properties": {
+          "suiteId": {
+            "minLength": 1,
+            "title": "Suiteid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "suiteId"
+        ],
+        "title": "_BulkMoveToSuitePayload",
+        "type": "object"
+      },
+      "_BulkSetPriorityPayload": {
+        "additionalProperties": false,
+        "description": "``set_priority`` action \u2014 wire format uses the :class:`Priority` enum.",
+        "properties": {
+          "priority": {
+            "$ref": "#/components/schemas/Priority"
+          }
+        },
+        "required": [
+          "priority"
+        ],
+        "title": "_BulkSetPriorityPayload",
+        "type": "object"
+      },
+      "_BulkTagsPayload": {
+        "additionalProperties": false,
+        "description": "``add_tags`` / ``remove_tags`` shared payload \u2014 ``tags: list[str]``.",
+        "properties": {
+          "tags": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tags"
+        ],
+        "title": "_BulkTagsPayload",
         "type": "object"
       },
       "suitest_api__routers__mcp_providers__McpProviderPublic": {
@@ -3903,6 +5439,80 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/password-reset-requests": {
+      "get": {
+        "operationId": "list_password_reset_requests_api_v1_admin_password_reset_requests_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordResetRequestsEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Password Reset Requests",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/reset-password": {
+      "post": {
+        "operationId": "reset_user_password_api_v1_admin_users__user_id__reset_password_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetPasswordResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Reset User Password",
+        "tags": [
+          "users"
+        ]
+      }
+    },
     "/api/v1/analytics/coverage": {
       "get": {
         "description": "Coverage by suite (cases with a requirement link) + by requirement.",
@@ -4512,6 +6122,47 @@
         ]
       }
     },
+    "/api/v1/auth/accept-invite": {
+      "post": {
+        "operationId": "accept_invitation_api_v1_auth_accept_invite_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInviteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptInviteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Invitation",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
     "/api/v1/auth/me": {
       "get": {
         "description": "Return the authenticated user plus every workspace membership they hold.",
@@ -4685,6 +6336,69 @@
         "tags": [
           "defects"
         ]
+      },
+      "post": {
+        "description": "Manually file a defect (``SUIT-N`` public id, ``created_by='user:<id>'``).",
+        "operationId": "create_defect_api_v1_defects_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefectCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Create Defect",
+        "tags": [
+          "defects"
+        ]
       }
     },
     "/api/v1/defects/{defect_id}": {
@@ -4746,6 +6460,142 @@
           }
         ],
         "summary": "Get Defect",
+        "tags": [
+          "defects"
+        ]
+      },
+      "patch": {
+        "description": "Patch status / severity / assignee / description; honours the transition matrix.",
+        "operationId": "update_defect_api_v1_defects__defect_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "defect_id",
+            "required": true,
+            "schema": {
+              "title": "Defect Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefectUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Update Defect",
+        "tags": [
+          "defects"
+        ]
+      }
+    },
+    "/api/v1/defects/{defect_id}/sync-external": {
+      "post": {
+        "description": "Force re-sync the defect to the configured external tracker.\n\nReturns 404 for cross-workspace ids before raising 501\n``ADAPTER_NOT_REGISTERED`` \u2014 the adapter registry lands in M1d-11+ and\nwill replace the unconditional 501 with real Jira / Linear dispatch.",
+        "operationId": "sync_defect_external_api_v1_defects__defect_id__sync_external_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "defect_id",
+            "required": true,
+            "schema": {
+              "title": "Defect Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Sync Defect External",
         "tags": [
           "defects"
         ]
@@ -5120,9 +6970,257 @@
         "tags": [
           "integrations"
         ]
+      },
+      "post": {
+        "description": "Connect a new integration. ADMIN/OWNER; secrets AES-GCM encrypted; never echoed.",
+        "operationId": "create_integration_api_v1_integrations_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Create Integration",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/github/test-connection": {
+      "post": {
+        "description": "Validate GitHub App credentials BEFORE persisting. Never logs ``private_key_pem``.",
+        "operationId": "test_github_pre_save_api_v1_integrations_github_test_connection_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitHubTestConnectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionTestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Test Github Pre Save",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/jira/test-connection": {
+      "post": {
+        "description": "Validate Jira credentials BEFORE persisting. Never logs ``jira_token``.",
+        "operationId": "test_jira_pre_save_api_v1_integrations_jira_test_connection_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JiraTestConnectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionTestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Test Jira Pre Save",
+        "tags": [
+          "integrations"
+        ]
       }
     },
     "/api/v1/integrations/{integration_id}": {
+      "delete": {
+        "description": "Hard-delete an integration. ADMIN/OWNER. No body.",
+        "operationId": "delete_integration_api_v1_integrations__integration_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "integration_id",
+            "required": true,
+            "schema": {
+              "title": "Integration Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Delete Integration",
+        "tags": [
+          "integrations"
+        ]
+      },
       "get": {
         "description": "Return an integration with config + REDACTED secrets; 404 if cross-workspace.",
         "operationId": "get_integration_api_v1_integrations__integration_id__get",
@@ -5184,6 +7282,336 @@
         "tags": [
           "integrations"
         ]
+      },
+      "patch": {
+        "description": "Patch an integration. Partial; absent ``secrets`` preserves the existing blob.",
+        "operationId": "update_integration_api_v1_integrations__integration_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "integration_id",
+            "required": true,
+            "schema": {
+              "title": "Integration Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Update Integration",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/{integration_id}/sync": {
+      "post": {
+        "description": "Refetch external statuses for every linked defect; update local status with conflict reporting.",
+        "operationId": "sync_integration_api_v1_integrations__integration_id__sync_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "integration_id",
+            "required": true,
+            "schema": {
+              "title": "Integration Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Sync Integration",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/{integration_id}/test": {
+      "post": {
+        "description": "Smoke-test an existing integration's credentials. Never 500s on bad creds.",
+        "operationId": "test_integration_api_v1_integrations__integration_id__test_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "integration_id",
+            "required": true,
+            "schema": {
+              "title": "Integration Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionTestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Test Integration",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/invitations/validate": {
+      "get": {
+        "operationId": "validate_invitation_api_v1_invitations_validate_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationValidateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Invitation",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{invitation_id}/resend": {
+      "post": {
+        "operationId": "resend_invitation_api_v1_invitations__invitation_id__resend_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Resend Invitation",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/{invitation_id}/revoke": {
+      "post": {
+        "operationId": "revoke_invitation_api_v1_invitations__invitation_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Revoke Invitation",
+        "tags": [
+          "invitations"
+        ]
       }
     },
     "/api/v1/mcp/providers": {
@@ -5243,7 +7671,7 @@
     },
     "/api/v1/projects": {
       "get": {
-        "description": "List the current workspace's projects, keyset-paginated.",
+        "description": "List the current workspace's active projects, keyset-paginated.",
         "operationId": "list_projects_api_v1_projects_get",
         "parameters": [
           {
@@ -5322,11 +7750,139 @@
         "tags": [
           "projects"
         ]
+      },
+      "post": {
+        "description": "Create a project under the active workspace (ADMIN/OWNER only).",
+        "operationId": "create_project_api_v1_projects_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Create Project",
+        "tags": [
+          "projects"
+        ]
       }
     },
     "/api/v1/projects/{project_id}": {
+      "delete": {
+        "description": "Soft-delete the project + cascade child suites + cases (with ``confirmCascade=true``).\n\nReturns 204 on success. Without ``confirmCascade=true`` against a project\nthat has at least one active child suite, returns 409\n``CONFIRM_CASCADE_REQUIRED`` with ``suiteCount`` / ``caseCount`` /\n``resourceType``.",
+        "operationId": "delete_project_api_v1_projects__project_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "confirmCascade",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Confirmcascade",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Delete Project",
+        "tags": [
+          "projects"
+        ]
+      },
       "get": {
-        "description": "Return one project; 404 when it does not belong to the active workspace.",
+        "description": "Return one active project; 404 when cross-workspace or tombstoned.",
         "operationId": "get_project_api_v1_projects__project_id__get",
         "parameters": [
           {
@@ -5383,6 +7939,135 @@
           }
         ],
         "summary": "Get Project",
+        "tags": [
+          "projects"
+        ]
+      },
+      "patch": {
+        "description": "Patch metadata (ADMIN/OWNER only).\n\nSlug is immutable \u2014 PATCH with a ``slug`` field returns 400\n``IMMUTABLE_SLUG``. ``gating_suite_id`` must belong to the target project,\nelse 400 ``INVALID_GATING_SUITE``.",
+        "operationId": "update_project_api_v1_projects__project_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Update Project",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/restore": {
+      "post": {
+        "description": "Revive a soft-deleted project (idempotent; children stay tombstoned).\n\nRe-POST after a successful restore returns 204 (idempotent). Does NOT\nauto-restore child suites + cases \u2014 restore each individually via\n``POST /suites/:id/restore`` / ``POST /test-cases/:id/restore``.",
+        "operationId": "restore_project_api_v1_projects__project_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Restore Project",
         "tags": [
           "projects"
         ]
@@ -5478,11 +8163,129 @@
         "tags": [
           "requirements"
         ]
+      },
+      "post": {
+        "description": "Create a requirement under ``project_id``; ``REQ-N`` public id is assigned by listener.",
+        "operationId": "create_requirement_api_v1_requirements_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequirementCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequirementDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Create Requirement",
+        "tags": [
+          "requirements"
+        ]
       }
     },
     "/api/v1/requirements/{requirement_id}": {
+      "delete": {
+        "description": "Soft-delete; subsequent re-delete returns 404 (the row is already hidden).",
+        "operationId": "delete_requirement_api_v1_requirements__requirement_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requirement_id",
+            "required": true,
+            "schema": {
+              "title": "Requirement Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Delete Requirement",
+        "tags": [
+          "requirements"
+        ]
+      },
       "get": {
-        "description": "Return a requirement with linked case + defect public ids; 404 if cross-ws.",
+        "description": "Return a requirement with linked case + defect public ids; 404 if cross-ws.\n\nSoft-deleted requirements are invisible (404) to keep the public id namespace\nconsistent with the LIST endpoint. Use ``POST /restore`` to bring them back.",
         "operationId": "get_requirement_api_v1_requirements__requirement_id__get",
         "parameters": [
           {
@@ -5539,6 +8342,279 @@
           }
         ],
         "summary": "Get Requirement",
+        "tags": [
+          "requirements"
+        ]
+      },
+      "patch": {
+        "description": "Patch metadata; only present fields are applied (``exclude_unset=True``).",
+        "operationId": "update_requirement_api_v1_requirements__requirement_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requirement_id",
+            "required": true,
+            "schema": {
+              "title": "Requirement Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequirementUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequirementDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Update Requirement",
+        "tags": [
+          "requirements"
+        ]
+      }
+    },
+    "/api/v1/requirements/{requirement_id}/links": {
+      "post": {
+        "description": "Link a requirement to a test case. Same workspace required.\n\nCross-workspace ``test_case_id`` \u2192 400 ``CROSS_WORKSPACE_LINK`` (both ws ids\nin ``details``). Idempotent: re-POSTing an existing pair returns ``201`` with\nthe existing link id (no extra audit / WS row).",
+        "operationId": "create_requirement_link_api_v1_requirements__requirement_id__links_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requirement_id",
+            "required": true,
+            "schema": {
+              "title": "Requirement Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequirementLinkCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Create Requirement Link Api V1 Requirements  Requirement Id  Links Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Create Requirement Link",
+        "tags": [
+          "requirements"
+        ]
+      }
+    },
+    "/api/v1/requirements/{requirement_id}/links/{case_id}": {
+      "delete": {
+        "description": "Remove a link. 404 when the requirement is out-of-scope OR the link is gone.",
+        "operationId": "delete_requirement_link_api_v1_requirements__requirement_id__links__case_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requirement_id",
+            "required": true,
+            "schema": {
+              "title": "Requirement Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Delete Requirement Link",
+        "tags": [
+          "requirements"
+        ]
+      }
+    },
+    "/api/v1/requirements/{requirement_id}/restore": {
+      "post": {
+        "description": "Clear the ``deleted_at`` tombstone. Idempotent on already-active rows.",
+        "operationId": "restore_requirement_api_v1_requirements__requirement_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requirement_id",
+            "required": true,
+            "schema": {
+              "title": "Requirement Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Restore Requirement",
         "tags": [
           "requirements"
         ]
@@ -6356,7 +9432,7 @@
     },
     "/api/v1/suites": {
       "get": {
-        "description": "List suites for a project; 404 when the project is cross-workspace.",
+        "description": "List active (non-deleted) suites for a project; 404 cross-workspace.",
         "operationId": "list_suites_api_v1_suites_get",
         "parameters": [
           {
@@ -6420,9 +9496,137 @@
         "tags": [
           "suites"
         ]
+      },
+      "post": {
+        "description": "Create a suite under an in-scope project (QA+ only).",
+        "operationId": "create_suite_api_v1_suites_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuiteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuitePublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Create Suite",
+        "tags": [
+          "suites"
+        ]
       }
     },
     "/api/v1/suites/{suite_id}": {
+      "delete": {
+        "description": "Soft-delete the suite + cascade child cases (with ``confirmCascade=true``).\n\nReturns 204 on success. Without ``confirmCascade=true`` against a suite\nthat has at least one active child case, returns 409\n``CONFIRM_CASCADE_REQUIRED`` with ``childCount`` + ``resourceType``.",
+        "operationId": "delete_suite_api_v1_suites__suite_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "title": "Suite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "confirmCascade",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Confirmcascade",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Delete Suite",
+        "tags": [
+          "suites"
+        ]
+      },
       "get": {
         "description": "Return one suite with its case_count; 404 when cross-workspace.",
         "operationId": "get_suite_api_v1_suites__suite_id__get",
@@ -6484,11 +9688,140 @@
         "tags": [
           "suites"
         ]
+      },
+      "patch": {
+        "description": "Patch metadata + optional atomic ``case_order`` reorder (QA+ only).",
+        "operationId": "update_suite_api_v1_suites__suite_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "title": "Suite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuiteUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuitePublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Update Suite",
+        "tags": [
+          "suites"
+        ]
+      }
+    },
+    "/api/v1/suites/{suite_id}/restore": {
+      "post": {
+        "description": "Revive a soft-deleted suite (idempotent; children stay tombstoned).\n\nRe-POST after a successful restore returns the same 204 (per\ndocs/API.md \u00a7328). Does not auto-restore child cases \u2014 restore each\nindividually via ``POST /test-cases/:id/restore``.",
+        "operationId": "restore_suite_api_v1_suites__suite_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "title": "Suite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Restore Suite",
+        "tags": [
+          "suites"
+        ]
       }
     },
     "/api/v1/test-cases": {
       "get": {
-        "description": "List cases in a suite with filters; 404 when the suite is cross-workspace.",
+        "description": "List cases in a suite with filters; 404 when the suite is cross-workspace.\n\n``?includeDeleted=true`` surfaces tombstoned rows. Per ``docs/API.md \u00a73.3``\nthat capability is ADMIN/OWNER only \u2014 QA + VIEWER asking for it get 403.\nDefault behaviour (no query param / ``false``) hides every soft-deleted row\nso VIEWER reads remain safe.",
         "operationId": "list_test_cases_api_v1_test_cases_get",
         "parameters": [
           {
@@ -6609,6 +9942,16 @@
             }
           },
           {
+            "in": "query",
+            "name": "includeDeleted",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Includedeleted",
+              "type": "boolean"
+            }
+          },
+          {
             "in": "header",
             "name": "X-Workspace-Id",
             "required": false,
@@ -6721,9 +10064,146 @@
         ]
       }
     },
+    "/api/v1/test-cases/bulk-update": {
+      "post": {
+        "description": "Apply ``action`` (delete / move / priority / tag-add / tag-remove) to \u2264100 cases.\n\nSingle transaction (no partial apply). The Pydantic discriminator already\nnarrowed ``body`` to one variant; the service validates the 100-id cap,\nthe cross-workspace constraint, and the move-target before mutating. On\nsuccess returns ``{updated, auditIds}`` and emits one WS event per affected\ncase AFTER the commit so subscribers never observe a phantom event.",
+        "operationId": "bulk_update_test_cases_api_v1_test_cases_bulk_update_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/BulkDeleteRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BulkMoveToSuiteRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BulkSetPriorityRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BulkAddTagsRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BulkRemoveTagsRequest"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkUpdateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Bulk Update Test Cases",
+        "tags": [
+          "test-cases"
+        ]
+      }
+    },
     "/api/v1/test-cases/{case_id}": {
+      "delete": {
+        "description": "Soft-delete a test case (set ``deleted_at=NOW()``).\n\nReturns 204 on the active -> deleted transition. Returns 404 when the row\nis cross-workspace, never existed, OR is already tombstoned \u2014 re-DELETE is\nindistinguishable from \"no such row\" because the default LIST / GET\nqueries hide tombstones (per ``docs/API.md \u00a73.3``).",
+        "operationId": "delete_test_case_api_v1_test_cases__case_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Delete Test Case",
+        "tags": [
+          "test-cases"
+        ]
+      },
       "get": {
-        "description": "Return a case with its ordered steps (+ executable) and tags; 404 if cross-ws.",
+        "description": "Return a case with its ordered steps (+ executable) and tags; 404 if cross-ws.\n\nTombstoned rows are 404 by default. ADMIN/OWNER can surface them via\n``?includeDeleted=true`` (matches the LIST contract).",
         "operationId": "get_test_case_api_v1_test_cases__case_id__get",
         "parameters": [
           {
@@ -6733,6 +10213,16 @@
             "schema": {
               "title": "Case Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeDeleted",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Includedeleted",
+              "type": "boolean"
             }
           },
           {
@@ -6932,6 +10422,127 @@
           }
         ],
         "summary": "Duplicate Test Case",
+        "tags": [
+          "test-cases"
+        ]
+      }
+    },
+    "/api/v1/test-cases/{case_id}/restore": {
+      "post": {
+        "description": "Restore a soft-deleted test case (clear ``deleted_at``).\n\nIdempotent per ``docs/API.md \u00a73.3``: re-POST after restore returns 204.\nReturns 404 when the row is cross-workspace or never existed.",
+        "operationId": "restore_test_case_api_v1_test_cases__case_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Restore Test Case",
+        "tags": [
+          "test-cases"
+        ]
+      }
+    },
+    "/api/v1/test-cases/{case_id}/run": {
+      "post": {
+        "description": "Ad-hoc shortcut: validate then delegate to M1c ``RunService.create_run``.\n\nPre-flight re-runs :func:`validate_steps` against the CURRENT workspace tier\n+ strict-zero setting (a case authored under LOCAL/CLOUD that later flips to\nZERO+strict must not silently queue an unrunnable run). Validator failures\nsurface through the same canonical envelope as ``POST /test-cases`` so the\nFE editor's error rendering doesn't fork. No ``runs`` row is created when\npre-flight fails \u2014 the validator raises BEFORE we enter ``RunService.create_run``.\n\nOn success returns 202 with ``runId`` / ``publicId`` / ``statusUrl`` /\n``wsRoom`` so the FE can immediately deep-link to ``/runs/<publicId>`` and\nsubscribe to the live ``run:<id>`` channel.",
+        "operationId": "run_test_case_now_api_v1_test_cases__case_id__run_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdHocRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Run Test Case Now",
         "tags": [
           "test-cases"
         ]
@@ -7319,9 +10930,325 @@
         ]
       }
     },
+    "/api/v1/users/me/password": {
+      "patch": {
+        "operationId": "change_own_password_api_v1_users_me_password_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Change Own Password",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/webhooks/github": {
+      "post": {
+        "description": "Handle a GitHub inbound webhook.",
+        "operationId": "receive_github_api_v1_webhooks_github_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Hub-Signature-256",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hub-Signature-256"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-GitHub-Event",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Github-Event"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-GitHub-Delivery",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Github-Delivery"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WebhookEnqueuedResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WebhookIgnoredResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WebhookPingResponse"
+                    }
+                  ],
+                  "title": "Response Receive Github Api V1 Webhooks Github Post"
+                }
+              }
+            },
+            "description": "Event accepted \u2014 either ``ping`` (`{pong: true}`) or an event the receiver intentionally drops (``{ignored: true, reason: ...}``)."
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookEnqueuedResponse"
+                }
+              }
+            },
+            "description": "Gating run enqueued"
+          },
+          "401": {
+            "description": "Signature missing or HMAC mismatch"
+          },
+          "404": {
+            "description": "No matching project for the integration"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Receive Github",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/api/v1/webhooks/gitlab": {
+      "post": {
+        "description": "Handle a GitLab inbound webhook.\n\nFlow:\n\n1. Reject unsigned / wrong-token requests with 401 (constant-time compare\n   lives in :func:`resolve_workspace_by_token`).\n2. Parse the payload according to ``X-Gitlab-Event``; unknown events return\n   200 ``unsupported_event`` without enqueuing.\n3. Resolve the local project from the integration mapping; missing \u2192 404.\n4. SETNX dedup over ``(project_id, commit_sha, trigger=WEBHOOK_GITLAB)``;\n   duplicate \u2192 200 ``duplicate``.\n5. Resolve the gating selection; empty \u2192 200 ``no_gating_suite``.\n6. Enqueue a Run via :class:`RunService.create_run` with\n   ``triggered_by=\"webhook:gitlab\"`` and ``user_id=None``; return 202.",
+        "operationId": "receive_gitlab_api_v1_webhooks_gitlab_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Gitlab-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Gitlab-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Gitlab-Event",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Gitlab-Event"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookIgnoredResponse",
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WebhookEnqueuedResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WebhookIgnoredResponse"
+                    }
+                  ],
+                  "title": "Response Receive Gitlab Api V1 Webhooks Gitlab Post"
+                }
+              }
+            },
+            "description": "Event accepted but no run enqueued"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookEnqueuedResponse"
+                }
+              }
+            },
+            "description": "Gating run enqueued"
+          },
+          "401": {
+            "description": "Token missing or mismatch"
+          },
+          "404": {
+            "description": "No matching project for the integration"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Receive Gitlab",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/api/v1/webhooks/jira": {
+      "post": {
+        "description": "Handle an inbound Jira webhook (M1d-18).",
+        "operationId": "receive_jira_api_v1_webhooks_jira_post",
+        "parameters": [
+          {
+            "description": "URL-embedded webhook secret",
+            "in": "query",
+            "name": "secret",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "URL-embedded webhook secret",
+              "title": "Secret"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookIgnoredResponse",
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/JiraSyncedResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WebhookIgnoredResponse"
+                    }
+                  ],
+                  "title": "Response Receive Jira Api V1 Webhooks Jira Post"
+                }
+              }
+            },
+            "description": "Event accepted but no update applied"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JiraSyncedResponse"
+                }
+              }
+            },
+            "description": "Defect status synced from Jira"
+          },
+          "400": {
+            "description": "Payload failed schema validation"
+          },
+          "401": {
+            "description": "Secret missing or mismatch"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Receive Jira",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
     "/api/v1/workspaces": {
       "get": {
-        "description": "List the workspaces the current user is a member of.",
+        "description": "List the workspaces the current user is a member of (active only).",
         "operationId": "list_workspaces_api_v1_workspaces_get",
         "responses": {
           "200": {
@@ -7351,6 +11278,62 @@
       }
     },
     "/api/v1/workspaces/{workspace_id}": {
+      "delete": {
+        "description": "OWNER-only slug-typed-confirm delete. Tombstones now, cleans up async.",
+        "operationId": "delete_workspace_api_v1_workspaces__workspace_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceDeleteConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDeleteAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Delete Workspace",
+        "tags": [
+          "workspaces"
+        ]
+      },
       "get": {
         "description": "Return one workspace; 403 when the caller is not a member.",
         "operationId": "get_workspace_api_v1_workspaces__workspace_id__get",
@@ -7395,6 +11378,165 @@
         "summary": "Get Workspace",
         "tags": [
           "workspaces"
+        ]
+      },
+      "patch": {
+        "description": "Patch General-tab fields. ADMIN+ required; ``slug`` is immutable.",
+        "operationId": "update_workspace_api_v1_workspaces__workspace_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Raw Body",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Update Workspace",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/invitations": {
+      "get": {
+        "operationId": "list_invitations_api_v1_workspaces__workspace_id__invitations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationListEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "List Invitations",
+        "tags": [
+          "invitations"
+        ]
+      },
+      "post": {
+        "operationId": "create_invitation_api_v1_workspaces__workspace_id__invitations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Create Invitation",
+        "tags": [
+          "invitations"
         ]
       }
     },
@@ -7445,6 +11587,179 @@
           }
         ],
         "summary": "List Workspace Members",
+        "tags": [
+          "workspaces"
+        ]
+      },
+      "post": {
+        "description": "Add a member by email + role. OWNER/ADMIN required; OWNER grant is OWNER-only.",
+        "operationId": "invite_workspace_member_api_v1_workspaces__workspace_id__members_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceMemberInvite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceMemberPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Invite Workspace Member",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/members/{user_id}": {
+      "delete": {
+        "description": "Remove a member. Self-removal is allowed except for the sole OWNER.",
+        "operationId": "remove_workspace_member_api_v1_workspaces__workspace_id__members__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Remove Workspace Member",
+        "tags": [
+          "workspaces"
+        ]
+      },
+      "patch": {
+        "description": "Change one member's role. OWNER/ADMIN required; OWNER grant is OWNER-only.",
+        "operationId": "change_workspace_member_role_api_v1_workspaces__workspace_id__members__user_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceMemberRoleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceMemberPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "summary": "Change Workspace Member Role",
         "tags": [
           "workspaces"
         ]
@@ -7541,6 +11856,45 @@
           }
         ],
         "summary": "Auth:Cookie-Jwt.Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "operationId": "reset_forgot_password_auth_forgot_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_reset_forgot_password_auth_forgot_password_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset:Forgot Password",
         "tags": [
           "auth"
         ]
@@ -7720,26 +12074,24 @@
         ]
       }
     },
-    "/auth/register": {
+    "/auth/reset-password": {
       "post": {
-        "operationId": "register_register_auth_register_post",
+        "operationId": "reset_reset_password_auth_reset_password_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UserCreate"
+                "$ref": "#/components/schemas/Body_reset_reset_password_auth_reset_password_post"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "201": {
+          "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserRead"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -7748,19 +12100,19 @@
             "content": {
               "application/json": {
                 "examples": {
-                  "REGISTER_INVALID_PASSWORD": {
+                  "RESET_PASSWORD_BAD_TOKEN": {
+                    "summary": "Bad or expired token.",
+                    "value": {
+                      "detail": "RESET_PASSWORD_BAD_TOKEN"
+                    }
+                  },
+                  "RESET_PASSWORD_INVALID_PASSWORD": {
                     "summary": "Password validation failed.",
                     "value": {
                       "detail": {
-                        "code": "REGISTER_INVALID_PASSWORD",
-                        "reason": "Password should beat least 3 characters"
+                        "code": "RESET_PASSWORD_INVALID_PASSWORD",
+                        "reason": "Password should be at least 3 characters"
                       }
-                    }
-                  },
-                  "REGISTER_USER_ALREADY_EXISTS": {
-                    "summary": "A user with this email already exists.",
-                    "value": {
-                      "detail": "REGISTER_USER_ALREADY_EXISTS"
                     }
                   }
                 },
@@ -7782,7 +12134,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Register:Register",
+        "summary": "Reset:Reset Password",
         "tags": [
           "auth"
         ]
