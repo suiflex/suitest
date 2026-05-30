@@ -53,6 +53,8 @@ class ProjectOut(DomainModel):
     slug: str
     name: str
     description: str | None = None
+    gating_suite_id: str | None = None
+    default_mcp_routing: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 

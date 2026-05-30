@@ -34,6 +34,18 @@ class Project(Base, TimestampMixin):
     gating_suite_id: Mapped[str | None] = mapped_column(
         String(32), ForeignKey("suites.id", ondelete="SET NULL"), nullable=True
     )
+    # M1d-5: project-scoped MCP routing override map (precedes workspace override).
+    # Shape mirrors ``Workspace.mcp_routing_overrides``:
+    # ``{"<target_kind>": "<mcp_provider_name>"}``.
+    default_mcp_routing: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="'{}'"
+    )
+    # M1d-5: soft-delete tombstone set by DELETE /projects/:id (cascade
+    # soft-delete via confirmCascade=true) and cleared by
+    # POST /projects/:id/restore. List endpoints filter ``deleted_at IS NULL``
+    # by default; admin queries opt-in via ``includeDeleted=true``. 30-day
+    # retention then hard-purge sweeper (deferred to M2+).
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     workspace: Mapped[Workspace] = relationship("Workspace")
     suites: Mapped[list[Suite]] = relationship(
@@ -42,7 +54,15 @@ class Project(Base, TimestampMixin):
         foreign_keys="Suite.project_id",
     )
 
-    __table_args__ = (UniqueConstraint("workspace_id", "slug", name="uq_projects_workspace_slug"),)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "slug", name="uq_projects_workspace_slug"),
+        # Partial index — fast active-only lookups (M1d-5).
+        Index(
+            "ix_projects_workspace_active",
+            "workspace_id",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+    )
 
 
 class Suite(Base, TimestampMixin):
