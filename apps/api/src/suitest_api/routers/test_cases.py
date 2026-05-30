@@ -62,6 +62,24 @@ router = APIRouter(prefix="/api/v1", tags=["test-cases"])
 _WRITER_ROLES: set[Role] = {Role.QA, Role.ADMIN, Role.OWNER}
 _writer_dep = require_role(_WRITER_ROLES)
 
+# Surfacing tombstoned rows via ``?includeDeleted=true`` is an admin operation
+# per ``docs/API.md §3.3`` — QA cannot enumerate soft-deleted cases.
+_ADMIN_ROLES: set[Role] = {Role.ADMIN, Role.OWNER}
+
+
+def _require_admin_for_include_deleted(ctx: TenantContext, include_deleted: bool) -> None:
+    """Raise 403 when a non-ADMIN/OWNER asks for tombstoned rows.
+
+    Kept as a plain function (vs. a dep factory) because ``include_deleted`` is
+    a request-level query param — the gate only fires when the caller asks for
+    tombstones, so the default code path stays VIEWER-friendly.
+    """
+    if include_deleted and ctx.role not in _ADMIN_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="includeDeleted requires ADMIN or OWNER",
+        )
+
 
 def _parse_if_unmodified_since(raw: str | None) -> datetime | None:
     """Parse an ``If-Unmodified-Since`` HTTP-date header.
@@ -194,10 +212,18 @@ async def list_test_cases(
     q: str | None = Query(default=None),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
+    include_deleted: bool = Query(default=False, alias="includeDeleted"),
     ctx: TenantContext = Depends(require_workspace_membership),
     session: AsyncSession = Depends(get_async_session),
 ) -> Page[TestCaseListItem]:
-    """List cases in a suite with filters; 404 when the suite is cross-workspace."""
+    """List cases in a suite with filters; 404 when the suite is cross-workspace.
+
+    ``?includeDeleted=true`` surfaces tombstoned rows. Per ``docs/API.md §3.3``
+    that capability is ADMIN/OWNER only — QA + VIEWER asking for it get 403.
+    Default behaviour (no query param / ``false``) hides every soft-deleted row
+    so VIEWER reads remain safe.
+    """
+    _require_admin_for_include_deleted(ctx, include_deleted)
     if not await _suite_in_scope(session, suite_id, ctx.workspace_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="suite not found")
     decoded = decode_cursor_or_400(cursor)
@@ -210,6 +236,7 @@ async def list_test_cases(
         q=q,
         cursor=decoded,
         limit=limit,
+        include_deleted=include_deleted,
     )
     return Page[TestCaseListItem](
         items=[TestCaseListItem.model_validate(r) for r in rows],
@@ -221,13 +248,27 @@ async def list_test_cases(
 async def get_test_case(
     case_id: str,
     request: Request,
+    include_deleted: bool = Query(default=False, alias="includeDeleted"),
     ctx: TenantContext = Depends(require_workspace_membership),
     session: AsyncSession = Depends(get_async_session),
 ) -> TestCaseDetail:
-    """Return a case with its ordered steps (+ executable) and tags; 404 if cross-ws."""
+    """Return a case with its ordered steps (+ executable) and tags; 404 if cross-ws.
+
+    Tombstoned rows are 404 by default. ADMIN/OWNER can surface them via
+    ``?includeDeleted=true`` (matches the LIST contract).
+    """
+    _require_admin_for_include_deleted(ctx, include_deleted)
     repo = TestCaseRepo(session)
-    case = await repo.get_by_id(case_id)
+    case = (
+        await repo.get_by_id_including_deleted(case_id)
+        if include_deleted
+        else await repo.get_by_id(case_id)
+    )
     if case is None or not await _suite_in_scope(session, case.suite_id, ctx.workspace_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    if not include_deleted and case.deleted_at is not None:
+        # Defensive: ``get_by_id`` already filters tombstones but keeping the
+        # explicit check makes the contract obvious if the repo changes.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
     tier = await resolve_workspace_tier(request, session, ctx.workspace_id)
     steps = await repo.get_steps(case_id)
@@ -523,3 +564,67 @@ async def duplicate_test_case(
         data=outcome.ws_payload,
     )
     return detail
+
+
+# ---------------------------------------------------------------------------
+# M1d-3 soft delete + restore
+# ---------------------------------------------------------------------------
+
+
+@router.delete(
+    "/test-cases/{case_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_test_case(
+    case_id: str,
+    request: Request,
+    ctx: TenantContext = Depends(_writer_dep),
+    session: AsyncSession = Depends(get_async_session),
+) -> None:
+    """Soft-delete a test case (set ``deleted_at=NOW()``).
+
+    Returns 204 on the active -> deleted transition. Returns 404 when the row
+    is cross-workspace, never existed, OR is already tombstoned — re-DELETE is
+    indistinguishable from "no such row" because the default LIST / GET
+    queries hide tombstones (per ``docs/API.md §3.3``).
+    """
+    svc = _build_service(session, ctx)
+    outcome = await svc.soft_delete(case_id)
+    if outcome is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    await session.commit()
+    await publish_event(
+        request,
+        topic=f"workspace:{ctx.workspace_id}",
+        event=outcome.ws_event,
+        data=outcome.ws_payload,
+    )
+
+
+@router.post(
+    "/test-cases/{case_id}/restore",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def restore_test_case(
+    case_id: str,
+    request: Request,
+    ctx: TenantContext = Depends(_writer_dep),
+    session: AsyncSession = Depends(get_async_session),
+) -> None:
+    """Restore a soft-deleted test case (clear ``deleted_at``).
+
+    Idempotent per ``docs/API.md §3.3``: re-POST after restore returns 204.
+    Returns 404 when the row is cross-workspace or never existed.
+    """
+    svc = _build_service(session, ctx)
+    outcome = await svc.restore(case_id)
+    if outcome is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    await session.commit()
+    if outcome.transitioned:
+        await publish_event(
+            request,
+            topic=f"workspace:{ctx.workspace_id}",
+            event=outcome.ws_event,
+            data=outcome.ws_payload,
+        )

@@ -76,8 +76,11 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
         q: str | None = None,
         cursor: tuple[datetime, str] | None = None,
         limit: int = 20,
+        include_deleted: bool = False,
     ) -> tuple[Sequence[TestCase], tuple[datetime, str] | None]:
-        stmt = select(TestCase).where(TestCase.suite_id == suite_id, TestCase.deleted_at.is_(None))
+        stmt = select(TestCase).where(TestCase.suite_id == suite_id)
+        if not include_deleted:
+            stmt = stmt.where(TestCase.deleted_at.is_(None))
         if status is not None:
             stmt = stmt.where(TestCase.status == status)
         if source is not None:
@@ -196,3 +199,49 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
             return []
         stmt = select(TestStep).where(TestStep.case_id == case_id, TestStep.id.in_(list(ids)))
         return list((await self.session.scalars(stmt)).all())
+
+    # -- M1d-3 soft delete + restore -----------------------------------------
+
+    async def get_by_id_including_deleted(self, case_id: str) -> TestCase | None:
+        """Return a case by id without the ``deleted_at IS NULL`` default filter.
+
+        :meth:`AsyncRepository.get_by_id` filters out tombstones; the M1d-3
+        restore + idempotency paths need to surface them so the service can
+        decide between ``404`` (row never existed) and ``204`` (row currently
+        deleted / already active).
+        """
+        stmt = select(TestCase).where(TestCase.id == case_id)
+        row: TestCase | None = await self.session.scalar(stmt)
+        return row
+
+    async def mark_deleted(self, case_id: str, *, deleted_at: datetime) -> bool:
+        """Set ``deleted_at`` on ``case_id`` if it is currently ``NULL``.
+
+        Returns ``True`` when a row transitioned active -> deleted, ``False``
+        when the row was already tombstoned (or does not exist). The caller
+        uses the boolean to drive idempotency: a non-transition means a
+        re-DELETE that should map to 404 per ``docs/API.md §3.3``.
+        """
+        case = await self.get_by_id_including_deleted(case_id)
+        if case is None or case.deleted_at is not None:
+            return False
+        case.deleted_at = deleted_at
+        await self.session.flush()
+        return True
+
+    async def clear_deleted(self, case_id: str) -> bool | None:
+        """Clear ``deleted_at`` on ``case_id``.
+
+        Returns ``True`` when a row transitioned deleted -> active, ``False``
+        when the row exists but is already active (idempotent re-restore), and
+        ``None`` when no such row exists. Callers translate ``None`` to 404 and
+        accept either bool as a 204 per ``docs/API.md §3.3``.
+        """
+        case = await self.get_by_id_including_deleted(case_id)
+        if case is None:
+            return None
+        if case.deleted_at is None:
+            return False
+        case.deleted_at = None
+        await self.session.flush()
+        return True
