@@ -1,8 +1,16 @@
-"""Requirement + traceability response DTOs (docs/API.md §3.7)."""
+"""Requirement + traceability request / response DTOs (docs/API.md §3.7).
+
+Write surface (M1d-6): ``RequirementCreate``, ``RequirementUpdate`` and
+``RequirementLinkCreate``. All write payloads honour ``extra="forbid"`` so
+caller-side typos surface as 422 rather than being silently dropped. JSON wire
+field names use the camelCase aliases documented in ``docs/API.md §3.7`` while
+Python attributes stay snake_case.
+"""
 
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 from suitest_shared.domain.enums import CaseSource, CaseStatus, DefectStatus, Severity
@@ -77,3 +85,64 @@ class TraceabilityMatrix(BaseModel):
     requirements: list[MatrixRequirement] = Field(default_factory=list)
     cases: list[MatrixCase] = Field(default_factory=list)
     defects: list[MatrixDefect] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# M1d-6 write DTOs
+# ---------------------------------------------------------------------------
+
+
+_WRITE_CONFIG = ConfigDict(
+    populate_by_name=True,
+    str_strip_whitespace=True,
+    extra="forbid",
+)
+
+
+class RequirementCreate(BaseModel):
+    """Body for ``POST /requirements`` (docs/API.md §3.7).
+
+    ``project_id`` is workspace-scoped (cross-workspace ids return 404). The
+    ``REQ-N`` ``public_id`` is assigned by the ``before_insert`` listener via
+    ``generate_public_id`` (docs/DATA_MODEL §8) — never accepted from the caller.
+    """
+
+    model_config = _WRITE_CONFIG
+
+    project_id: Annotated[str, Field(min_length=1, alias="projectId")]
+    title: Annotated[str, Field(min_length=1, max_length=255)]
+    description: str | None = None
+    source: str | None = None
+    external_url: str | None = Field(default=None, alias="externalUrl")
+
+
+class RequirementUpdate(BaseModel):
+    """Body for ``PATCH /requirements/:id`` — metadata patch.
+
+    All fields optional; only ``model_dump(exclude_unset=True)`` keys are
+    applied. Sending ``null`` explicitly clears the field (description / source
+    / external_url are nullable in the model).
+    """
+
+    model_config = _WRITE_CONFIG
+
+    title: Annotated[str, Field(min_length=1, max_length=255)] | None = None
+    description: str | None = None
+    source: str | None = None
+    external_url: str | None = Field(default=None, alias="externalUrl")
+
+
+class RequirementLinkCreate(BaseModel):
+    """Body for ``POST /requirements/:id/links`` — ``{ "testCaseId": "..." }``.
+
+    Accepts both ``test_case_id`` (Pythonic) and ``testCaseId`` / ``caseId``
+    (docs/API.md §3.7 wire shape) for FE compatibility.
+    """
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        str_strip_whitespace=True,
+        extra="forbid",
+    )
+
+    test_case_id: Annotated[str, Field(min_length=1, alias="testCaseId")]

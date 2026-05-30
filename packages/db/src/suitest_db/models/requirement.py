@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Index, String, Text, UniqueConstraint
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from suitest_db.base import Base, TimestampMixin
@@ -21,8 +23,21 @@ class Requirement(Base, TimestampMixin):
     description: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str | None] = mapped_column(String(255))
     external_url: Mapped[str | None] = mapped_column(String(500))
+    # M1d-6: soft-delete tombstone. Set by DELETE /requirements/:id, cleared by
+    # POST /requirements/:id/restore. List/GET filter ``deleted_at IS NULL``
+    # by default. Hard purge sweeper deferred to M2+.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    __table_args__ = (Index("ix_requirements_project_id", "project_id"),)
+    __table_args__ = (
+        Index("ix_requirements_project_id", "project_id"),
+        # Partial index — fast active-only lookups (M1d-6).
+        Index(
+            "ix_requirements_project_active",
+            "project_id",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index("ix_requirements_deleted_at", "deleted_at"),
+    )
 
 
 class RequirementLink(Base):
