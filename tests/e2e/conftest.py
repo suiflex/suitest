@@ -132,11 +132,14 @@ async def seeded_case(database_url: str, nginx_test_page_url: str) -> dict[str, 
             "E2E Smoke User",
         )
         await conn.execute(
-            "INSERT INTO workspaces (id, slug, name, region) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO workspaces (id, slug, name, region, strict_zero_validation, mcp_routing_overrides) "
+            "VALUES ($1, $2, $3, $4, $5, $6::jsonb)",
             workspace_id,
             f"e2e-{suffix}",
             f"E2E Workspace {suffix}",
             "ap-southeast-1",
+            True,
+            "{}",
         )
         await conn.execute(
             "INSERT INTO memberships (id, workspace_id, user_id, role) VALUES ($1, $2, $3, 'OWNER')",
@@ -145,21 +148,25 @@ async def seeded_case(database_url: str, nginx_test_page_url: str) -> dict[str, 
             uuid.UUID(user_id),
         )
         await conn.execute(
-            "INSERT INTO projects (id, workspace_id, slug, name) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO projects (id, workspace_id, slug, name, default_mcp_routing) "
+            "VALUES ($1, $2, $3, $4, $5::jsonb)",
             project_id,
             workspace_id,
             f"e2e-proj-{suffix}",
             "E2E Project",
+            "{}",
         )
         await conn.execute(
-            'INSERT INTO suites (id, project_id, name, "order") VALUES ($1, $2, $3, 0)',
+            'INSERT INTO suites (id, project_id, name, "order", mcp_routing_overrides) '
+            'VALUES ($1, $2, $3, 0, $4::jsonb)',
             suite_id,
             project_id,
             "E2E Suite",
+            "{}",
         )
         await conn.execute(
-            "INSERT INTO test_cases (id, suite_id, public_id, name, source) "
-            "VALUES ($1, $2, $3, $4, 'MANUAL')",
+            'INSERT INTO test_cases (id, suite_id, public_id, name, source, status, priority, order_in_suite) '
+            "VALUES ($1, $2, $3, $4, 'MANUAL', 'ACTIVE', 'P2', 0)",
             case_id,
             suite_id,
             f"TC-E2E-{suffix.upper()}",
