@@ -21,7 +21,7 @@ rolled-back write.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import select
@@ -75,6 +75,20 @@ class CaseWriteResult(NamedTuple):
     ws_payload: dict[str, object]
 
 
+class CaseLifecycleResult(NamedTuple):
+    """Soft-delete / restore outcome — no detail body, only the WS event.
+
+    DELETE returns 204 with no body; restore returns 204 per ``docs/API.md §3.3``.
+    The router only needs the WS event + payload after commit; the lifecycle
+    state itself is observable via subsequent ``GET`` requests.
+    """
+
+    ws_event: str
+    ws_payload: dict[str, object]
+    audit_action: str
+    transitioned: bool
+
+
 class TestCaseService:
     __test__ = False  # not a pytest test class
 
@@ -109,6 +123,18 @@ class TestCaseService:
             return None
         return case
 
+    async def _load_case_in_scope_including_deleted(self, case_id: str) -> TestCase | None:
+        """Same as :meth:`_load_case_in_scope` but DOES NOT filter tombstoned rows.
+
+        Used by the M1d-3 soft-delete / restore paths so the service can
+        distinguish "row never existed in this workspace" (404) from "row
+        exists but is currently deleted" (idempotent path).
+        """
+        case = await self._repo.get_by_id_including_deleted(case_id)
+        if case is None or not await self._suite_in_scope(case.suite_id):
+            return None
+        return case
+
     @property
     def _session(self) -> AsyncSession:
         return self._repo.session
@@ -128,6 +154,7 @@ class TestCaseService:
         tag: str | None = None,
         q: str | None = None,
         limit: int = 20,
+        include_deleted: bool = False,
     ) -> list[TestCaseOut] | None:
         if not await self._suite_in_scope(suite_id):
             return None
@@ -139,6 +166,7 @@ class TestCaseService:
             tag=tag,
             q=q,
             limit=limit,
+            include_deleted=include_deleted,
         )
         return [TestCaseOut.model_validate(r) for r in rows]
 
@@ -654,6 +682,100 @@ class TestCaseService:
             },
         )
 
+    # ------------------------------------------------------------------
+    # M1d-3 soft delete + restore
+    # ------------------------------------------------------------------
+
+    @require_tier(TierFlag.ANY)
+    async def soft_delete(self, case_id: str) -> CaseLifecycleResult | None:
+        """Tombstone an active test case.
+
+        Returns ``None`` (router maps to 404) when the row is cross-workspace,
+        does not exist, OR is already deleted. The "already deleted" branch
+        also maps to 404 per ``docs/API.md §3.3`` (re-DELETE is not an
+        idempotent 204 — the row is no longer visible to non-``includeDeleted``
+        queries, so DELETE against it is indistinguishable from "no such row").
+        """
+        case = await self._load_case_in_scope_including_deleted(case_id)
+        if case is None:
+            return None
+        deleted_at = datetime.now(UTC)
+        transitioned = await self._repo.mark_deleted(case.id, deleted_at=deleted_at)
+        if not transitioned:
+            # Already tombstoned — DELETE against a soft-deleted row is 404
+            # because LIST + GET hide tombstones by default.
+            return None
+        await write_audit(
+            self._session,
+            workspace_id=self._ctx.workspace_id,
+            user_id=self._ctx.user_id,
+            action="test_case.soft_deleted",
+            resource_type="test_case",
+            resource_id=case.id,
+            metadata={
+                "publicId": case.public_id,
+                "deletedAt": deleted_at.isoformat(),
+            },
+        )
+        return CaseLifecycleResult(
+            ws_event="case.deleted",
+            ws_payload={
+                "caseId": case.id,
+                "publicId": case.public_id,
+                "suiteId": case.suite_id,
+            },
+            audit_action="test_case.soft_deleted",
+            transitioned=True,
+        )
+
+    @require_tier(TierFlag.ANY)
+    async def restore(self, case_id: str) -> CaseLifecycleResult | None:
+        """Revive a tombstoned test case.
+
+        Returns ``None`` (router maps to 404) when the row is cross-workspace
+        or never existed. Restoring an already-active row is idempotent — it
+        returns a result with ``transitioned=False`` and no audit row, so the
+        router still answers ``204 No Content``.
+        """
+        case = await self._load_case_in_scope_including_deleted(case_id)
+        if case is None:
+            return None
+        restored_at = datetime.now(UTC)
+        outcome = await self._repo.clear_deleted(case.id)
+        if outcome is None:
+            return None
+        if not outcome:
+            # Row exists + already active — idempotent restore, no audit row,
+            # no WS event (nothing changed).
+            return CaseLifecycleResult(
+                ws_event="case.restored",
+                ws_payload={},
+                audit_action="test_case.restored",
+                transitioned=False,
+            )
+        await write_audit(
+            self._session,
+            workspace_id=self._ctx.workspace_id,
+            user_id=self._ctx.user_id,
+            action="test_case.restored",
+            resource_type="test_case",
+            resource_id=case.id,
+            metadata={
+                "publicId": case.public_id,
+                "restoredAt": restored_at.isoformat(),
+            },
+        )
+        return CaseLifecycleResult(
+            ws_event="case.restored",
+            ws_payload={
+                "caseId": case.id,
+                "publicId": case.public_id,
+                "suiteId": case.suite_id,
+            },
+            audit_action="test_case.restored",
+            transitioned=True,
+        )
+
 
 class StepReorderMismatchError(Exception):
     """``PATCH /test-cases/:id/steps/reorder`` body does not match the live step ids."""
@@ -679,6 +801,7 @@ from suitest_api.services.test_case_validator import (  # noqa: E402
 )
 
 __all__ = [
+    "CaseLifecycleResult",
     "CaseWriteResult",
     "ConcurrentModificationError",
     "McpProviderNotRegisteredError",
