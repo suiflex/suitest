@@ -63,15 +63,36 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     notifier_factory_registry.register(IntegrationKind.SLACK, SlackAdapter)
     app.state.notifier_factory_registry = notifier_factory_registry
 
-    # M1d-12+: per-Integration adapters (JiraAdapter / LinearAdapter / GitHub /
-    # ...) are constructed per-request from the workspace's Integration row, so
-    # we register factory callables here rather than singleton instances.
-    # M1d-19's ``IntegrationService.sync_external`` and the M1d-10 auto-filer
-    # look up the factory by IntegrationKind, then call it with the live
-    # ``Integration``. The MCP client + crypto are injected at call-time by the
-    # consumer (the service holds the process-wide McpInvoker + crypto seam).
-    adapter_factories: dict[IntegrationKind, type] = {
+    # Per-Integration adapter factories (M1d-12+). Jira's MCP-backed adapter
+    # is registered as a class (no per-row state needed beyond the live
+    # ``Integration`` row); the Linear / GitHub adapters need one instance per
+    # ``Integration`` row (each carries its own PAT + team_id) so we register
+    # closures. Request handlers (M1d-19 ``sync_external``, M1d-10 auto-filer)
+    # resolve ``app.state.adapter_factories[integration.kind]`` and invoke it
+    # with the loaded :class:`Integration` row + the shared
+    # :class:`httpx.AsyncClient`. The MCP client + crypto seams are injected
+    # at call-time by the consumer.
+    import httpx as _httpx
+    from suitest_db.models.integration import Integration as _IntegrationModel
+
+    from suitest_api.integrations.linear_adapter import LinearAdapter
+
+    def _linear_factory(
+        *, integration: _IntegrationModel, http_client: _httpx.AsyncClient
+    ) -> LinearAdapter:
+        """Build a per-:class:`Integration` :class:`LinearAdapter`.
+
+        Both args are duck-typed at runtime (the body only reads
+        ``integration.config`` / ``.secrets_encrypted`` and the http client's
+        ``.post(...)``), but the signature pins the production callers'
+        intent. Tests inject a ``MagicMock`` shaped like ``Integration`` and
+        a real :class:`httpx.AsyncClient`.
+        """
+        return LinearAdapter(integration=integration, http_client=http_client)
+
+    adapter_factories: dict[IntegrationKind, object] = {
         IntegrationKind.JIRA: JiraAdapter,
+        IntegrationKind.LINEAR: _linear_factory,
     }
     app.state.adapter_factories = adapter_factories
     # Default crypto seam — ``EncryptedBytes`` already returns plaintext on
