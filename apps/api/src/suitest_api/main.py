@@ -34,8 +34,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     by the bootstrap path. Tests inject ``fakeredis.aioredis.FakeRedis`` here;
     production wires a real :class:`redis.asyncio.Redis` from ``SUITEST_REDIS_URL``.
     """
+    from suitest_shared.domain.enums import IntegrationKind
+
     from suitest_api.integrations.jira_adapter import _IdentityCrypto
+    from suitest_api.integrations.notifier_registry import notifier_factory_registry
     from suitest_api.integrations.registry import adapter_registry
+    from suitest_api.integrations.slack_adapter import SlackAdapter
     from suitest_api.ws.manager import WsConnectionManager
 
     if not getattr(app.state, "settings", None):
@@ -66,6 +70,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # read so the production path uses an identity callable. KMS-backed crypto
     # can replace this without touching the adapter code.
     app.state.integration_crypto = _IdentityCrypto()
+
+    # Notifier-adapter factory registry (M1d-15). Notifier adapters are
+    # constructed per-integration-row (each row carries its own webhook secret),
+    # so the registry stores callables rather than singletons. The Slack factory
+    # builds a :class:`~suitest_api.integrations.slack_adapter.SlackAdapter`
+    # from the integration row plus the shared httpx client.
+    notifier_factory_registry.register(IntegrationKind.SLACK, SlackAdapter)
+    app.state.notifier_factory_registry = notifier_factory_registry
 
     ws_manager: WsConnectionManager | None = None
     ws_redis = getattr(app.state, "ws_redis", None)
