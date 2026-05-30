@@ -23,21 +23,25 @@ from datetime import datetime
 from email.utils import parsedate_to_datetime
 from typing import Annotated, Any
 
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.models.case import TestStep
 from suitest_db.repositories.projects import ProjectRepo
+from suitest_db.repositories.runs import RunRepo
 from suitest_db.repositories.suites import SuiteRepo
 from suitest_db.repositories.test_cases import TestCaseRepo
 from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, Role, Tier
 from suitest_shared.schemas.pagination import Page, PageMeta
 
 from suitest_api.auth.db import get_async_session
+from suitest_api.deps.arq import get_arq
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
 from suitest_api.routers._pagination import decode_cursor_or_400, encode_next
 from suitest_api.routers._tier import resolve_workspace_tier
 from suitest_api.schemas.test_case import (
+    AdHocRunResponse,
     StepAppend,
     StepReorderRequest,
     StepReplace,
@@ -47,6 +51,7 @@ from suitest_api.schemas.test_case import (
     TestCaseUpdate,
     TestStepPublic,
 )
+from suitest_api.services.run_service import RunService
 from suitest_api.services.test_case_service import (
     ConcurrentModificationError,
     McpProviderNotRegisteredError,
@@ -55,6 +60,11 @@ from suitest_api.services.test_case_service import (
     TestCaseService,
 )
 from suitest_api.ws.publisher import publish_event
+
+# ARQ queue name shared with :mod:`suitest_api.routers.runs` — must match the
+# runner's ``WorkerSettings.queue_name``. Kept inline (instead of an exported
+# constant) so the test-cases router never imports from the runs router.
+_RUNS_QUEUE = "suitest:runs"
 
 router = APIRouter(prefix="/api/v1", tags=["test-cases"])
 
@@ -496,6 +506,57 @@ async def reorder_test_case_steps(
         data=outcome.ws_payload,
     )
     return detail
+
+
+@router.post(
+    "/test-cases/{case_id}/run",
+    response_model=AdHocRunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def run_test_case_now(
+    case_id: str,
+    request: Request,
+    ctx: TenantContext = Depends(_writer_dep),
+    session: AsyncSession = Depends(get_async_session),
+    arq: ArqRedis = Depends(get_arq),
+) -> AdHocRunResponse:
+    """Ad-hoc shortcut: validate then delegate to M1c ``RunService.create_run``.
+
+    Pre-flight re-runs :func:`validate_steps` against the CURRENT workspace tier
+    + strict-zero setting (a case authored under LOCAL/CLOUD that later flips to
+    ZERO+strict must not silently queue an unrunnable run). Validator failures
+    surface through the same canonical envelope as ``POST /test-cases`` so the
+    FE editor's error rendering doesn't fork. No ``runs`` row is created when
+    pre-flight fails — the validator raises BEFORE we enter ``RunService.create_run``.
+
+    On success returns 202 with ``runId`` / ``publicId`` / ``statusUrl`` /
+    ``wsRoom`` so the FE can immediately deep-link to ``/runs/<publicId>`` and
+    subscribe to the live ``run:<id>`` channel.
+    """
+    svc = _build_service(session, ctx)
+    try:
+        run = await svc.trigger_adhoc_run(case_id)
+    except StepsRequireCodeError as exc:
+        await session.rollback()
+        _raise_step_validation(exc)
+    except McpProviderNotRegisteredError as exc:
+        await session.rollback()
+        _raise_step_validation(exc)
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+
+    job = await arq.enqueue_job("run_test_case", run.id, _queue_name=_RUNS_QUEUE)
+    if job is not None:
+        run_service = RunService(ctx, RunRepo(session), ProjectRepo(session))
+        await run_service.attach_arq_job_id(run.id, job.job_id)
+    await session.commit()
+    await session.refresh(run)
+    return AdHocRunResponse(
+        run_id=run.id,
+        public_id=run.public_id,
+        status_url=f"/runs/{run.public_id}",
+        ws_room=f"run:{run.id}",
+    )
 
 
 @router.post(

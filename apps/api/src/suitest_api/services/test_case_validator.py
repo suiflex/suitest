@@ -19,12 +19,22 @@ envelopes uniformly.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import Protocol
 
 from suitest_shared.domain.enums import Tier
 
-if TYPE_CHECKING:
-    from suitest_api.schemas.test_case import StepAppend, StepCreate
+
+class _StepLike(Protocol):
+    """Structural type the validator needs — both Pydantic DTOs + the SQLAlchemy
+    :class:`TestStep` ORM row satisfy this shape, so the M1d-8 ad-hoc run
+    pre-flight can re-run validation over already-persisted rows without an
+    extra DTO hop.
+    """
+
+    @property
+    def code(self) -> str | None: ...
+    @property
+    def mcp_provider(self) -> str: ...
 
 
 # Bundled MCP providers that are always available even when the workspace
@@ -67,7 +77,7 @@ class McpProviderNotRegisteredError(StepValidationError):
 
 
 def validate_steps(
-    steps: Sequence[StepCreate | StepAppend],
+    steps: Sequence[_StepLike],
     *,
     tier: Tier,
     strict_zero_validation: bool,
