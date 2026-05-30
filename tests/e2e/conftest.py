@@ -139,7 +139,8 @@ async def seeded_case(database_url: str, nginx_test_page_url: str) -> dict[str, 
             "ap-southeast-1",
         )
         await conn.execute(
-            "INSERT INTO memberships (workspace_id, user_id, role) VALUES ($1, $2, 'OWNER')",
+            "INSERT INTO memberships (id, workspace_id, user_id, role) VALUES ($1, $2, $3, 'OWNER')",
+            _cuid_like(),
             workspace_id,
             uuid.UUID(user_id),
         )
