@@ -397,8 +397,8 @@ class TimestampMixin:
 # packages/db/models/tenancy.py
 from __future__ import annotations
 import uuid
-from sqlalchemy import String, ForeignKey, UniqueConstraint, Index, Enum as SAEnum, DateTime, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import String, ForeignKey, UniqueConstraint, Index, Enum as SAEnum, DateTime, Boolean, func, text
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTableUUID
 from .base import Base, TimestampMixin, cuid
@@ -412,6 +412,20 @@ class Workspace(Base, TimestampMixin):
     slug: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     region: Mapped[str] = mapped_column(String(32), default="ap-southeast-1")
+
+    # NEW (M1d) — controls `STEPS_REQUIRE_CODE_IN_ZERO_LLM` enforcement
+    # (see CAPABILITY_TIERS §6.3). When true (default), the ZERO-tier validator
+    # rejects test steps without executable code; flipping to false lets a
+    # workspace stage manual-only cases before the runner is configured.
+    strict_zero_validation: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true",
+    )
+    # NEW (M1d) — workspace-scoped MCP routing override map, per MCP_PLUGINS §4.1.
+    # Shape: {"<target_kind>": "<mcp_provider_name>"}; merged below the
+    # suite-level override (Suite.mcp_routing_overrides) at resolve time.
+    mcp_routing_overrides: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="'{}'",
+    )
 
     memberships: Mapped[list["Membership"]] = relationship(back_populates="workspace", cascade="all, delete-orphan")
     projects: Mapped[list["Project"]] = relationship(back_populates="workspace", cascade="all, delete-orphan")
@@ -476,6 +490,14 @@ class Project(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(String(2048))
 
+    # NEW (M1d) — optional pinned smoke suite used as the gating target for
+    # webhook-triggered runs (M1d-16) and for the autopilot "promote to gating"
+    # action (M1d-26). NULL means project has no gating suite configured;
+    # webhook handler should reject the request with 422 in that case.
+    gating_suite_id: Mapped[str | None] = mapped_column(
+        String(30), ForeignKey("suites.id"), nullable=True,
+    )
+
     workspace: Mapped[Workspace] = relationship(back_populates="projects")
     suites: Mapped[list["Suite"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
@@ -491,9 +513,34 @@ class Suite(Base, TimestampMixin):
     description: Mapped[str | None] = mapped_column(String(2048))
     order: Mapped[int] = mapped_column(default=0)
 
+    # NEW (M1d) — suite-scoped MCP routing override, per MCP_PLUGINS §4.1.
+    # Precedence: suite > workspace > registry default. Shape mirrors
+    # Workspace.mcp_routing_overrides: {"<target_kind>": "<mcp_provider_name>"}.
+    mcp_routing_overrides: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="'{}'",
+    )
+
+    # NEW (M1d) — soft-delete tombstone. Set by `DELETE /suites/:id`
+    # (cascade soft-delete via `confirmCascade=true`) and cleared by
+    # `POST /suites/:id/restore`. List endpoints filter `deleted_at IS NULL`
+    # by default; admin queries opt-in via `includeDeleted=true`. 30-day
+    # retention then hard-purge sweeper (deferred to M2+).
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+
     project: Mapped[Project] = relationship(back_populates="suites")
 
-    __table_args__ = (Index("ix_suites_project_id", "project_id"),)
+    __table_args__ = (
+        Index("ix_suites_project_id", "project_id"),
+        # Partial index — fast lookup of active (non-deleted) suites scoped
+        # by workspace via JOIN to projects. Covers the default list query.
+        Index(
+            "ix_suites_project_active",
+            "project_id",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+    )
 ```
 
 ### 3.4 Test cases, steps (with `mcp_provider`, `target_kind`)
@@ -526,6 +573,13 @@ class TestCase(Base, TimestampMixin):
     estimated_ms: Mapped[int | None] = mapped_column(Integer)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # NEW (M1d) — manual sort key within a suite. Drives the UI drag-reorder
+    # endpoint (M1d-12) and the suite execution order in deterministic runs.
+    # Default 0; ties broken by `created_at` ASC at the service layer.
+    order_in_suite: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0", index=True,
+    )
+
     suite: Mapped[Suite] = relationship()
     steps: Mapped[list["TestStep"]] = relationship(
         back_populates="case", cascade="all, delete-orphan", order_by="TestStep.order",
@@ -536,6 +590,7 @@ class TestCase(Base, TimestampMixin):
         Index("ix_test_cases_suite_status", "suite_id", "status"),
         Index("ix_test_cases_source", "source"),
         Index("ix_test_cases_deleted_at", "deleted_at"),
+        Index("ix_test_cases_suite_order", "suite_id", "order_in_suite"),
     )
 
 
@@ -652,6 +707,20 @@ class Run(Base, TimestampMixin):
         Index("ix_runs_tier", "tier_at_runtime"),
     )
 
+    # --- Run dedup (M1d) ---------------------------------------------------
+    # Webhook-triggered and ad-hoc "run now" requests are de-duplicated at the
+    # **application layer** via Redis SETNX with key
+    #   `dedup:run:{project_id}:{commit_sha}:{trigger}`
+    # and a 60-second TTL. The first request that wins the SETNX proceeds to
+    # create the Run row; subsequent requests within the TTL window return
+    # 409 with the existing run id.
+    #
+    # **No Postgres partial unique index for this case** — Postgres rejects
+    # non-IMMUTABLE expressions (`NOW()`, `CURRENT_TIMESTAMP`, ...) inside
+    # partial-index WHERE clauses, so a TTL-style index like
+    #   `UNIQUE (project_id, commit_sha, trigger) WHERE created_at > NOW() - '60s'`
+    # cannot be created. Redis is the source of truth for the dedup window.
+
 
 class RunStep(Base, TimestampMixin):
     __tablename__ = "run_steps"
@@ -692,6 +761,7 @@ class Artifact(Base, TimestampMixin):
 ```python
 # packages/db/models/defect.py
 import uuid
+from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import UUID
 from packages.shared.domain.enums import Severity, DefectStatus, DiagnosisKind
 
@@ -728,6 +798,16 @@ class Defect(Base, TimestampMixin):
         Index("ix_defects_workspace_status", "workspace_id", "status"),
         Index("ix_defects_severity", "severity"),
         Index("ix_defects_diagnosis_kind", "agent_diagnosis_kind"),
+        # NEW (M1d) — prevents DefectAutoFiler from double-filing the same
+        # (run, case) pair on runner retry. Manual defects on the same pair
+        # are still allowed because the predicate excludes them.
+        Index(
+            "uq_defects_auto_dedup",
+            "run_id",
+            "test_case_id",
+            unique=True,
+            postgresql_where=text("created_by = 'system'"),
+        ),
     )
 
 
@@ -905,6 +985,15 @@ class AuditLog(Base):
     __table_args__ = (Index("ix_audit_logs_workspace_created", "workspace_id", "created_at"),)
 ```
 
+> **Autonomy-extension fields live in `metadata_json`.** The JSONB `metadata`
+> column is the canonical home for the autonomy-overlay fields documented in
+> AUTONOMY.md §12 — `actor_type`, `actor_id`, `target_type`, `target_id`,
+> `autonomy_level_at_time`, `overrides_at_time`, `before`, `after`,
+> `correlation_id`, and `reason`. No schema change is required: writers MUST
+> populate these keys under `metadata_json` rather than introducing new top-level
+> columns. AUTONOMY.md §12 will be revised to reference this schema instead of
+> duplicating it.
+
 ---
 
 ## 4. NEW tables for OSS pivot
@@ -990,6 +1079,19 @@ class McpProvider(Base, TimestampMixin):
     secrets_json_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary)
     is_default_for_target: Mapped[dict] = mapped_column(JSONB, default=dict)
     # e.g. {"BE_REST": true} → autoroute target_kind BE_REST to this provider
+
+    # NEW (M1d) — provenance/version pins recorded at install or first handshake.
+    # See MCP_PLUGINS §13. All four nullable; the resolver writes whichever
+    # the transport exposes (stdio → command_pin + optional git_ref;
+    # docker/image → image_pin; SSE/WS → version_pin from handshake).
+    command_pin: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # e.g. "jirac-mcp@jira-mcp-v2.0.1"
+    image_pin: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # e.g. "ghcr.io/suitest/postgres-mcp:0.7.1"
+    version_pin: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # captured from SSE/WS handshake (server's `serverInfo.version`)
+    git_ref: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # for stdio (git) transport — commit SHA or tag
 
     health_status: Mapped[str] = mapped_column(String(32), default="unknown")
     last_health_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -1106,8 +1208,17 @@ class CodeExport(Base):
 | `document_chunks.embedding` | `Vector(1536)` → `Vector(None)` + per-workspace dim check | variable-dim, see §13 |
 | `defects` | + `agent_diagnosis_kind ENUM diagnosis_kind NOT NULL DEFAULT 'MANUAL_TRIAGE'` | drives auto-action; `MANUAL_TRIAGE` is ZERO default |
 | `runs` | + `tier_at_runtime ENUM tier NOT NULL` | reproducibility |
+| `runs` | dedup via Redis SETNX (app-layer) — **no** Postgres partial unique index | Postgres rejects `NOW()` in partial-index predicates; see §3.6 note |
 | `case_source` enum | + `RECORDER, HEURISTIC_CRAWL` (existing: `MANUAL, AI, MCP, IMPORT`) | deterministic generator sources |
 | `artifacts.url` | semantic: `s3://` (MinIO/S3) **or** `file://` (single-host volume) | OSS-friendly |
+| `workspaces` | + `strict_zero_validation BOOL NOT NULL DEFAULT true` | toggles `STEPS_REQUIRE_CODE_IN_ZERO_LLM` per workspace (CAPABILITY_TIERS §6.3) |
+| `workspaces` | + `mcp_routing_overrides JSONB NOT NULL DEFAULT '{}'` | workspace-scoped MCP routing override (MCP_PLUGINS §4.1) |
+| `projects` | + `gating_suite_id FK suites(id) NULL` | pinned smoke suite for webhook gating (M1d-16, M1d-26) |
+| `suites` | + `mcp_routing_overrides JSONB NOT NULL DEFAULT '{}'` | suite-scoped MCP routing override (precedes workspace) |
+| `suites` | + `deleted_at TIMESTAMPTZ NULL` + partial idx `ix_suites_project_active(project_id) WHERE deleted_at IS NULL` | soft-delete tombstone for `DELETE /suites/:id` + `POST /suites/:id/restore` (M1d-4) |
+| `test_cases` | + `order_in_suite INT NOT NULL DEFAULT 0` (indexed) | drives suite drag-reorder (M1d-12) |
+| `mcp_providers` | + `command_pin / image_pin / version_pin / git_ref` (all NULL) | provenance pins per MCP_PLUGINS §13 |
+| `defects` | partial UNIQUE `(run_id, test_case_id) WHERE created_by = 'system'` | prevents `DefectAutoFiler` double-file on runner retry |
 
 ---
 
@@ -1295,6 +1406,7 @@ class McpTransport(StrEnum):
 | List cases in suite by status | `ix_test_cases_suite_status (suite_id, status)` |
 | Filter cases by source | `ix_test_cases_source (source)` |
 | Cases pending hard-delete | `ix_test_cases_deleted_at (deleted_at)` |
+| Active (non-deleted) suites in project | `ix_suites_project_active (project_id) WHERE deleted_at IS NULL` |
 | Steps by MCP provider (debug routing) | `ix_test_steps_mcp_provider (mcp_provider)` |
 | Steps by target kind | `ix_test_steps_target_kind (target_kind)` |
 | List runs in project by status | `ix_runs_project_status (project_id, status)` |
@@ -1310,6 +1422,15 @@ class McpTransport(StrEnum):
 | MCP provider lookup by kind | `ix_mcp_providers_workspace_kind (workspace_id, kind)` |
 | Generator runs history | `ix_generator_runs_workspace_source (workspace_id, source)` |
 | Agent sessions by provider | `ix_agent_sessions_provider (provider)` |
+| Fast suite-scoped case reorder | `ix_test_cases_suite_order (suite_id, order_in_suite)` |
+
+#### Partial unique indexes
+
+| Constraint | Definition | Purpose |
+|------------|-----------|---------|
+| `uq_defects_auto_dedup` | `UNIQUE ON defects(run_id, test_case_id) WHERE created_by = 'system'` | Prevents `DefectAutoFiler` from double-filing on runner retry. Manual defects on the same `(run, case)` pair are still allowed because the predicate excludes them. |
+
+> **Why not a partial unique index for `runs` dedup?** Postgres rejects partial-index `WHERE` clauses that reference non-IMMUTABLE functions such as `NOW()` / `CURRENT_TIMESTAMP`, so a TTL-style index like `WHERE created_at > NOW() - INTERVAL '60 seconds'` is invalid. Run dedup is therefore enforced at the application layer — see §3.6 note on the Redis SETNX pattern.
 
 ### 7.2 Vector search (pgvector, HNSW)
 
@@ -1391,6 +1512,7 @@ Prefix map: `TC-` (test case), `R-` (run), `REQ-` (requirement), `SUIT-` (defect
 | Table | Policy |
 |-------|--------|
 | `test_cases.deleted_at` | Soft delete, 30-day retention then hard-purge cron |
+| `suites.deleted_at` | Soft delete (cascade via `confirmCascade=true`); 30-day retention then hard-purge cron (sweeper deferred to M2+) |
 | `runs` | Hard-delete after 180 days (configurable via `SUITEST_RUN_RETENTION_DAYS`) |
 | `run_steps`, `artifacts` | Cascade-deleted with `runs`; object storage lifecycle separately |
 | `defects` | **Never** deleted — close via `status=WONT_FIX` or `CLOSED` |

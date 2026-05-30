@@ -26,17 +26,17 @@ Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md
 
 ### Acceptance criteria
 
-- [ ] **M0-1** Monorepo: `uv` workspace untuk Python (`apps/api`, `apps/runner`, `packages/agent`, `packages/db`, `packages/mcp`, `packages/shared`, `packages/core`); `pnpm` workspace untuk FE (`apps/web`)
-- [ ] **M0-2** Lint/format/typecheck: ruff + mypy strict (Python), tsc + eslint + prettier (TS); pre-commit hooks aktif
-- [ ] **M0-3** `apps/web` Vite 6 + React 19 boot ke "Suitest" page dengan shadcn/ui + Tailwind 4 + Geist font loaded
-- [ ] **M0-4** `apps/api` FastAPI boot; `GET /health` returns `{ status: "ok" }`; `GET /capabilities` returns `{ tier: "ZERO", autonomy: "manual", llm_provider: null }`
-- [ ] **M0-5** Docker Compose: postgres-16 + pgvector, redis, minio untuk lokal dev
-- [ ] **M0-6** SQLAlchemy 2 async + Alembic init migration applied (schema kosong dulu, populated di M1)
-- [ ] **M0-7** **Minimal seed only:** create root workspace `Nusantara Retail` with **1 user** (workspace owner) — no projects, no suites, no cases, no integrations. Full seed (suites/cases/runs/defects/requirements/integrations) is **deferred to M1a** — see [`M1a-9`](#m1) below. Rationale: full schema (projects, suites, cases, runs, defects, requirements, integrations) does not land until M1a; a 1-row workspace insert is sufficient at M0 to validate the engine/migration pipeline. See [plan-01 §11.7 + spec-gaps](./superpowers/plans/2026-05-26-plan-01-m0-skeleton.md).
-- [ ] **M0-8** FastAPI-Users dengan email/password + Google OAuth; redirect ke `/dashboard` setelah login
-- [ ] **M0-9** GitHub Actions CI: ruff + mypy + pytest + tsc + vitest + build Docker images per service
-- [ ] **M0-10** `docker compose up` membawa naik seluruh stack (api + web + runner + pg + redis + minio) — single command bootable
-- [ ] **M0-11** Helm chart skeleton di `infra/helm/suitest/` lulus `helm lint`
+- [x] **M0-1** Monorepo: `uv` workspace untuk Python (`apps/api`, `apps/runner`, `packages/agent`, `packages/db`, `packages/mcp`, `packages/shared`, `packages/core`); `pnpm` workspace untuk FE (`apps/web`) (shipped at `e37c486` / tag `v0.1.0-m0`)
+- [x] **M0-2** Lint/format/typecheck: ruff + mypy strict (Python), tsc + eslint + prettier (TS); pre-commit hooks aktif (shipped at `ba03eb2` / tag `v0.1.0-m0`)
+- [x] **M0-3** `apps/web` Vite 6 + React 19 boot ke "Suitest" page dengan shadcn/ui + Tailwind 4 + Geist font loaded (shipped at `6c9b47c` / tag `v0.1.0-m0`)
+- [x] **M0-4** `apps/api` FastAPI boot; `GET /health` returns `{ status: "ok" }`; `GET /capabilities` returns `{ tier: "ZERO", autonomy: "manual", llm_provider: null }` (shipped at `4b1db50` + `f22931d` / tag `v0.1.0-m0`)
+- [x] **M0-5** Docker Compose: postgres-16 + pgvector, redis, minio untuk lokal dev (shipped at `74d74be` / tag `v0.1.0-m0`)
+- [x] **M0-6** SQLAlchemy 2 async + Alembic init migration applied (schema kosong dulu, populated di M1) (shipped at `95d5523` / tag `v0.1.0-m0`)
+- [x] **M0-7** **Minimal seed only:** create root workspace `Nusantara Retail` with **1 user** (workspace owner) — no projects, no suites, no cases, no integrations. Full seed (suites/cases/runs/defects/requirements/integrations) is **deferred to M1a** — see [`M1a-9`](#m1) below. Rationale: full schema (projects, suites, cases, runs, defects, requirements, integrations) does not land until M1a; a 1-row workspace insert is sufficient at M0 to validate the engine/migration pipeline. See [plan-01 §11.7 + spec-gaps](./superpowers/plans/2026-05-26-plan-01-m0-skeleton.md). (shipped at `f8551a7` / tag `v0.1.0-m0`)
+- [x] **M0-8** FastAPI-Users dengan email/password + Google OAuth; redirect ke `/dashboard` setelah login (shipped at `46f910b` + `41984ab` / tag `v0.1.0-m0`)
+- [x] **M0-9** GitHub Actions CI: ruff + mypy + pytest + tsc + vitest + build Docker images per service (shipped at `e9f381d` / tag `v0.1.0-m0`)
+- [x] **M0-10** `docker compose up` membawa naik seluruh stack (api + web + runner + pg + redis + minio) — single command bootable (shipped at `c67954f` / tag `v0.1.0-m0`)
+- [x] **M0-11** Helm chart skeleton di `infra/helm/suitest/` lulus `helm lint` (shipped at `5464569` / tag `v0.1.0-m0`)
 
 ### Definition of done
 
@@ -50,30 +50,29 @@ Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md
 
 ### Acceptance criteria
 
-#### Shell + read-only views (capability-gated)
-
-- [ ] **M1-1** Sidebar dengan nav items + active route highlight + workspace picker
-- [ ] **M1-2** Topbar dengan breadcrumbs dinamis + tier badge (`ZERO`) + ⌘K search palette
-- [ ] **M1-3** AI Panel komponen exists tapi **hidden via `<Gated feature="ai_panel">`** di ZERO
-- [ ] **M1-4** Dashboard: KPIs, pass-rate chart, coverage bars, recent runs, readiness gauge (semua dari API)
-- [ ] **M1-5** Test Cases list + tree + detail panel (read-only mode)
-- [ ] **M1-6** Test Runs list + detail panel + log viewer
-- [ ] **M1-7** Defects list dengan cards
-- [ ] **M1-8** Analytics dengan gauges + pass-rate trend + flaky list + heatmap
-- [ ] **M1-9** Traceability matrix 3-column
-- [ ] **M1-10** Integrations grid
-- [ ] **M1-11** Docs & specs grid
-
-#### Manual TCM
-
-- [ ] **M1-12** Create/edit test case dengan steps (`action` + `code` + `mcp_provider` + `target_kind`)
-- [ ] **M1-13** Suite CRUD + case CRUD + soft delete dengan undo toast
-- [ ] **M1-14** Drag-reorder steps via dnd-kit
-- [ ] **M1-15** Bulk operations (delete, move to suite, change priority)
+### M1a — read-only TCM REST
 
 #### Seed (full)
 
-- [ ] **M1a-9** Full idempotent seed (`uv run python -m packages.db.seed`) builds workspace **Nusantara Retail** with **1 owner + 2 members, 1 project, 4 suites, 18 cases, 5 runs, 3 defects, 6 requirements, 8 integrations** (kinds: `GITHUB` connected, `GITLAB` disconnected, `JENKINS` disconnected, `JIRA` connected, `LINEAR` disconnected, `SLACK` connected, `MCP_PLAYWRIGHT` connected, `MCP_BROWSER_USE` disconnected). Replays cleanly on a populated DB (`INSERT … ON CONFLICT DO NOTHING`). Inherits the deferred work from M0-7. Spec: [DATA_MODEL.md §11](./DATA_MODEL.md#11-seed-data).
+- [x] **M1a-9** Full idempotent seed (`uv run python -m packages.db.seed`) builds workspace **Nusantara Retail** with **1 owner + 2 members, 1 project, 4 suites, 18 cases, 5 runs, 3 defects, 6 requirements, 9 integrations** (kinds as shipped: `GITHUB` active, `JIRA` active, `SLACK` disconnected, `LINEAR` disconnected, `JENKINS` disconnected, `MCP_BROWSER_USE` disconnected, `MCP_PLAYWRIGHT` active, `MCP_API` active, `MCP_POSTGRES` disconnected). Replays cleanly on a populated DB (`INSERT … ON CONFLICT DO NOTHING`). Inherits the deferred work from M0-7. Source: [`packages/db/src/suitest_db/seed.py`](../packages/db/src/suitest_db/seed.py). Spec: [DATA_MODEL.md §11](./DATA_MODEL.md#11-seed-data). (shipped at `05f171e` / tag `v0.2.0-m1a`)
+
+### M1b — read-only shell + screens
+
+#### Shell + read-only views (capability-gated)
+
+- [x] **M1-1** Sidebar dengan nav items + active route highlight + workspace picker (shipped at `80236c3` / tag `v0.3.0-m1b`)
+- [x] **M1-2** Topbar dengan breadcrumbs dinamis + tier badge (`ZERO`) + ⌘K search palette (shipped at `6a88bfe` / tag `v0.3.0-m1b`)
+- [x] **M1-3** AI Panel komponen exists tapi **hidden via `<Gated feature="ai_panel">`** di ZERO (shipped at `ec003ed` / tag `v0.3.0-m1b`)
+- [x] **M1-4** Dashboard: KPIs, pass-rate chart, coverage bars, recent runs, readiness gauge (semua dari API) (shipped at `fe478d2` / tag `v0.3.0-m1b`)
+- [x] **M1-5** Test Cases list + tree + detail panel (read-only mode) (shipped at `591feea` / tag `v0.3.0-m1b`)
+- [x] **M1-6** Test Runs list + detail panel + log viewer (shipped at `364ad6a` / tag `v0.3.0-m1b`)
+- [x] **M1-7** Defects list dengan cards (shipped at `f0d4e7a` / tag `v0.3.0-m1b`)
+- [x] **M1-8** Analytics dengan gauges + pass-rate trend + flaky list + heatmap (shipped at `d5ea096` / tag `v0.3.0-m1b`)
+- [x] **M1-9** Traceability matrix 3-column (shipped at `c66d7b7` / tag `v0.3.0-m1b`)
+- [x] **M1-10** Integrations grid (shipped at `1aacb72` / tag `v0.3.0-m1b`)
+- [x] **M1-11** Docs & specs grid (shipped at `8746302` / tag `v0.3.0-m1b`)
+
+### M1c — runner + MCP routing
 
 #### Runner dengan MCP (deterministic only)
 
@@ -83,10 +82,23 @@ Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md
 - [x] **M1-19** WebSocket log streaming + screenshot capture per step + MinIO artifact upload
 - [x] **M1-20** Run cancel + rerun (scheduled cron runs deferred to M1d)
 
+### M1d — manual TCM writes + integrations
+
+#### Manual TCM
+
+- [ ] **M1-12** Create/edit test case dengan steps (`action` + `code` + `mcp_provider` + `target_kind`)
+- [ ] **M1-13a** Case soft-delete dengan undo toast
+- [ ] **M1-13b** Suite cascade soft-delete dengan undo toast
+- [ ] **M1-13c** Project + requirement soft-delete dengan undo toast
+- [ ] **M1-14** Drag-reorder steps via dnd-kit
+- [ ] **M1-15a** Bulk endpoint backend (delete, move to suite, change priority)
+- [ ] **M1-15b** Bulk-ops sticky bar FE
+
 #### Defect (no AI)
 
 - [ ] **M1-21** Saat step fail → rule-based defect creation, category `MANUAL_TRIAGE` (no diagnosis yet)
-- [ ] **M1-22** Integration Jira / Linear / GitHub via OAuth atau PAT; file issue saat defect lahir
+- [ ] **M1-22a** Integration CRUD + secrets (Jira / Linear / GitHub via OAuth atau PAT)
+- [ ] **M1-22b** Defect sync-external + webhook receiver (file issue saat defect lahir)
 - [ ] **M1-23** Defect status flow (Open → In Progress → Resolved → Closed)
 
 #### Traceability + Analytics + Integrations
@@ -94,7 +106,10 @@ Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md
 - [ ] **M1-24** Requirement CRUD + linking ke case
 - [ ] **M1-25** Traceability matrix fully functional (req ↔ case ↔ defect)
 - [ ] **M1-26** Analytics: pass rate, coverage, flaky (rule-based: outcome variance > 20%), heatmap, readiness
-- [ ] **M1-27** Integration UI untuk CI/CD (GitHub webhook receives PR event → trigger run); Slack notifications
+- [ ] **M1-27a** Slack adapter (notifications)
+- [ ] **M1-27b** GitHub webhook (receives PR event → trigger run)
+- [ ] **M1-27c** GitLab webhook (receives MR event → trigger run)
+- [ ] **M1-27d** Jira webhook sync-back
 
 #### Quality
 
@@ -165,7 +180,7 @@ ZERO tier bisa generate AND test melawan target apapun yang MCP-equipped. Custom
 #### Runtime + diagnosis
 
 - [ ] **M3-10** Action→Code runtime translation: step yang cuma punya `action` di-translate ke MCP call saat execution
-- [ ] **M3-11** AI diagnosis on failure (menggantikan `MANUAL_TRIAGE` → `REGRESSION` / `FLAKE` / `ENVIRONMENT` / `TEST_BUG` + confidence)
+- [ ] **M3-11** AI diagnosis on failure (menggantikan `MANUAL_TRIAGE` → `REGRESSION` / `FLAKE` / `INFRA` / `SPEC_DRIFT` / `MANUAL_TRIAGE` + confidence) (canonical: DATA_MODEL.md §3.x DiagnosisKind enum)
 - [ ] **M3-12** AI panel chat (conversation mode) pakai `assistant-ui` + `@ai-sdk/react`
 - [ ] **M3-13** Streaming: SSE untuk token output + WebSocket untuk tool call events
 

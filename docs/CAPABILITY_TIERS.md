@@ -123,10 +123,10 @@ Setiap fitur memetakan ke `(required_tier, required_autonomy)`. Decorator `@requ
 | AI generation URL semantic | LOCAL | assist | `POST /api/v1/agent/generate/url-semantic` | `503 LLM_DISABLED` di ZERO |
 | MCP tool discovery (LLM-assisted) | LOCAL | assist | `POST /api/v1/agent/generate/mcp-discover` | `503 LLM_DISABLED` di ZERO |
 | Action→Code runtime translate | LOCAL | assist | (internal, runner) | step skipped dgn reason `NO_LLM_FOR_AGENTIC_STEP` di ZERO |
-| AI diagnose run | LOCAL | assist | `POST /api/v1/runs/{id}/diagnose` | `503 LLM_DISABLED` di ZERO |
-| AI auto-defect file | LOCAL | assist | (auto, post-run) | rule-based fallback di ZERO (lihat §9) |
-| AI conversation panel | LOCAL | assist | `POST /api/v1/chat` | `503 LLM_DISABLED` di ZERO; UI hide panel |
-| Semantic search | ZERO* | manual | `GET /api/v1/search?semantic=1` | `409 EMBEDDINGS_DISABLED` kalau embeddings backend = `none` |
+| AI diagnose run (`ai_diagnosis`) | LOCAL | assist | `POST /api/v1/runs/{id}/diagnose` | `503 LLM_DISABLED` di ZERO |
+| AI auto-defect file (`auto_defect_filing_ai`) | LOCAL | assist | (auto, post-run) | rule-based fallback (`auto_defect_filing_rule`) di ZERO (lihat §9) |
+| AI conversation panel (`ai_chat` / `ai_panel`) | LOCAL | assist | `POST /api/v1/chat` | `503 LLM_DISABLED` di ZERO; UI hide panel (`ai_panel=false`) |
+| Semantic search (`embeddings_semantic`) | ZERO* | manual | `GET /api/v1/search?semantic=1` | `409 EMBEDDINGS_DISABLED` kalau embeddings backend = `none` |
 | FTS search | ZERO | manual | `GET /api/v1/search` | always on |
 | Defect file (manual) | ZERO | manual | `POST /api/v1/defects` | always on |
 | Defect file (auto, AI-reasoned) | LOCAL | assist | (auto) | rule-based fallback di ZERO |
@@ -310,10 +310,15 @@ Response example (CLOUD tier + openai embeddings):
     "deterministic_generator_crawler": true,
     "ai_generation": true,
     "ai_execution_agentic": true,
-    "ai_diagnose": true,
-    "ai_conversation": true,
-    "semantic_search": true,
+    "ai_diagnosis": true,
+    "ai_translation": true,
+    "ai_chat": true,
+    "ai_panel": true,
+    "embeddings_semantic": true,
     "fts_search": true,
+    "autonomy_assist": true,
+    "autonomy_semi_auto": true,
+    "autonomy_auto": true,
     "auto_defect_filing_ai": true,
     "auto_defect_filing_rule": true
   },
@@ -345,10 +350,15 @@ ZERO tier response:
     "deterministic_generator_crawler": true,
     "ai_generation": false,
     "ai_execution_agentic": false,
-    "ai_diagnose": false,
-    "ai_conversation": false,
-    "semantic_search": false,
+    "ai_diagnosis": false,
+    "ai_translation": false,
+    "ai_chat": false,
+    "ai_panel": false,
+    "embeddings_semantic": false,
     "fts_search": true,
+    "autonomy_assist": false,
+    "autonomy_semi_auto": false,
+    "autonomy_auto": false,
     "auto_defect_filing_ai": false,
     "auto_defect_filing_rule": true
   },

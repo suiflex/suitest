@@ -44,6 +44,7 @@ Workspace context via `X-Workspace-Id: ws_xxx` header atau path segment `/api/v1
   ```
 - **Timestamps:** ISO 8601 UTC (`2026-05-22T14:32:01.024Z`).
 - **IDs di response:** public ID (`TC-1045`) di field `publicId`, opaque `id` (cuid) tetap ada untuk internal lookups.
+- **Optimistic concurrency:** mutation endpoints on test cases accept an optional `If-Unmodified-Since` request header (HTTP-date). Currently honoured by `PATCH /test-cases/:id` and `PATCH /test-cases/:id/steps`. If the header is older than the row's `updated_at`, the server returns **409 `CONCURRENT_MODIFICATION`** with `details.serverUpdatedAt` so the client can refetch and retry. Header absent → last-write-wins (existing behaviour).
 
 ### 2.1 Capability/tier-aware error codes
 
@@ -57,8 +58,13 @@ Endpoints yang menyentuh AI/MCP/autonomy memunculkan error code khusus supaya FE
 | `MCP_PROVIDER_NOT_REGISTERED` | **404** | Step/run reference MCP provider yang belum terdaftar di workspace | `{"error":{"code":"MCP_PROVIDER_NOT_REGISTERED","message":"MCP provider 'postgres-mcp' not registered.","details":{"name":"postgres-mcp"},"docsUrl":"/docs/mcp-plugins"}}` |
 | `MCP_PROVIDER_UNHEALTHY` | **503** | Provider terdaftar tapi `health_status != healthy` saat dipanggil | `{"error":{"code":"MCP_PROVIDER_UNHEALTHY","message":"MCP provider 'browser-use-mcp' is unhealthy (last check: 2026-05-26T10:12:01Z).","details":{"providerId":"mcp_xxx","lastHealth":"..."}}}` |
 | `TARGET_KIND_UNSUPPORTED_IN_TIER` | **400** | Generator/run mencoba `target_kind` yang butuh LLM di ZERO (mis. `FE_WEB` semantic crawl) | `{"error":{"code":"TARGET_KIND_UNSUPPORTED_IN_TIER","message":"Semantic FE_WEB crawl requires CLOUD or LOCAL tier.","details":{"targetKind":"FE_WEB","tier":"ZERO","alternatives":["/api/v1/generators/crawler"]}}}` |
+| `INVALID_SOURCE_FOR_TIER` | **400** | `/agent/generate/cases` with a `source` whose tier-appropriate counterpart is the deterministic generator (see §3.10) | `{"error":{"code":"INVALID_SOURCE_FOR_TIER","message":"OpenAPI generation is deterministic and available in ZERO tier via /generators/openapi.","details":{"source":"OPENAPI","tier":"ZERO","useEndpoint":"/api/v1/generators/openapi"}}}` |
+| `CONCURRENT_MODIFICATION` | **409** | `If-Unmodified-Since` predates server `updated_at` on a mutating endpoint | `{"error":{"code":"CONCURRENT_MODIFICATION","message":"Test case was modified by another client.","details":{"resourceType":"test_case","id":"TC-1045","serverUpdatedAt":"2026-05-26T07:11:00Z"}}}` |
+| `CROSS_WORKSPACE_LINK` | **400** | Attempt to link a requirement and case that live in different workspaces | `{"error":{"code":"CROSS_WORKSPACE_LINK","message":"Requirement REQ-401 and case TC-1045 belong to different workspaces.","details":{"requirementWorkspaceId":"ws_a","caseWorkspaceId":"ws_b"}}}` |
+| `CROSS_WORKSPACE_IDS` | **400** | Bulk endpoint received one or more ids outside the caller's workspace | `{"error":{"code":"CROSS_WORKSPACE_IDS","message":"3 id(s) belong to a different workspace.","details":{"offendingIds":["TC-2001","TC-2002","TC-2007"]}}}` |
+| `BULK_LIMIT_EXCEEDED` | **400** | Bulk endpoint called with more than the documented cap (currently 100 ids) | `{"error":{"code":"BULK_LIMIT_EXCEEDED","message":"bulk-update accepts at most 100 ids per request.","details":{"received":137,"limit":100}}}` |
 
-FE rule of thumb: any 4xx/5xx with a `code` in the table above → render the **Capability banner** (not toast).
+FE rule of thumb: any 4xx/5xx with a `code` in the table above → render the **Capability banner** (not toast). For `CONCURRENT_MODIFICATION` and `CROSS_WORKSPACE_*`, render inline form error instead.
 
 ---
 
@@ -136,6 +142,43 @@ Surfaces tier + autonomy + MCP + embeddings state. **No auth required** — fron
 | GET | `/workspaces/:id/members` | List members |
 | POST | `/workspaces/:id/members` | Invite member (email + role) |
 | DELETE | `/workspaces/:id/members/:userId` | Remove member |
+| DELETE | `/workspaces/:id` | **OWNER only** — destroy workspace; returns `202 Accepted` + async cleanup job id |
+| GET | `/audit-logs` | Workspace-scoped audit trail, cursor-paginated (`?cursor=&action=&resource_type=&user_id=&from=&to=&limit=50`) |
+
+**DELETE `/workspaces/:id`** body (required):
+```json
+{ "confirm_slug": "acme-prod" }
+```
+`confirm_slug` must equal the workspace's `slug`. Mismatch → `400` with `details.expectedSlug` redacted. On success:
+```json
+{ "jobId": "job_xxx", "status": "QUEUED" }
+```
+Cleanup is asynchronous: tears down MCP provider sessions, deletes artifacts in R2, drops rows in single transaction per resource family. Subscribe to `workspace:<wsId>` for the terminal `workspace.deleted` event (or poll `GET /jobs/:jobId` — out of scope for M1d).
+
+**GET `/audit-logs`** notes:
+- `action` accepts glob (`integration.*`, `case.deleted`, `*`). Defaults to all.
+- `from` / `to` are ISO 8601 UTC, inclusive.
+- `limit` default 50, max 200.
+- Cursor is opaque (encodes `(created_at, id)` pair). When the response omits `next_cursor`, the caller has reached the head of the log.
+- Returns `403` if caller is not at least `ADMIN` in the workspace.
+
+Response:
+```json
+{
+  "items": [
+    {
+      "id": "audit_xxx",
+      "action": "case.updated",
+      "resourceType": "test_case",
+      "resourceId": "TC-1045",
+      "userId": "u_maya",
+      "createdAt": "2026-05-26T07:11:00Z",
+      "details": { "diff": { "priority": ["P1", "P0"] } }
+    }
+  ],
+  "next_cursor": "eyJjcmVhdGVkQXQiOiI..."
+}
+```
 
 ### 3.2 Projects
 
@@ -154,12 +197,75 @@ Surfaces tier + autonomy + MCP + embeddings state. **No auth required** — fron
 | GET | `/test-cases` | List, supports filters: `?suiteId&status&source&priority&tag&q` |
 | POST | `/test-cases` | Create manual case |
 | GET | `/test-cases/:id` | Detail with steps |
-| PATCH | `/test-cases/:id` | Update metadata |
+| PATCH | `/test-cases/:id` | Update metadata (honours `If-Unmodified-Since`) |
 | DELETE | `/test-cases/:id` | Soft delete |
+| POST | `/test-cases/:id/restore` | Revive soft-deleted case; idempotent |
 | POST | `/test-cases/:id/duplicate` | Clone |
 | POST | `/test-cases/:id/run` | Trigger ad-hoc run |
-| PATCH | `/test-cases/:id/steps` | Replace all steps (atomic) |
+| PATCH | `/test-cases/:id/steps` | Replace all steps (atomic, honours `If-Unmodified-Since`) |
+| PATCH | `/test-cases/:id/steps/reorder` | Atomic reorder of existing step ids |
 | POST | `/test-cases/:id/steps` | Append step |
+| POST | `/test-cases/bulk-update` | Bulk action across ≤100 cases (single transaction) |
+| POST | `/steps/test-once` | Dispatch a single step through MCP runner; returns inline result + artifact urls (role: QA+) |
+
+**POST `/test-cases/:id/restore`** — no body. Returns `204 No Content`. Re-POST after a successful restore returns `204` (idempotent). `404` if the case never existed or was hard-deleted.
+
+**POST `/test-cases/bulk-update`** body:
+```json
+{
+  "ids": ["TC-1045", "TC-1046", "TC-1047"],
+  "action": "set_priority",
+  "payload": { "priority": "P0" }
+}
+```
+Valid `action` values: `delete` (soft), `move_to_suite` (`payload.suiteId` required), `set_priority` (`payload.priority`), `add_tags` (`payload.tags: string[]`), `remove_tags` (`payload.tags: string[]`).
+
+- Hard cap **100** ids per request → `400 BULK_LIMIT_EXCEEDED` if exceeded.
+- All ids must belong to caller's workspace → `400 CROSS_WORKSPACE_IDS` with offending ids if not.
+- Runs in a single DB transaction; either all rows mutate or none.
+- Emits one `audit_log` row per mutated case; ids returned in response so the UI can correlate.
+
+Response:
+```json
+{ "updated": 3, "audit_ids": ["audit_a", "audit_b", "audit_c"] }
+```
+
+**PATCH `/test-cases/:id/steps/reorder`** body:
+```json
+{ "step_ids_in_order": ["step_a", "step_c", "step_b"] }
+```
+Atomic: every existing step id must appear exactly once; otherwise `400` with `details.missing` / `details.duplicate` / `details.unknown`. Returns the updated step list (same shape as `GET /test-cases/:id`'s `steps`).
+
+**POST `/steps/test-once`** body:
+```json
+{
+  "step": {
+    "action": "Open /login",
+    "expected": "Login form visible",
+    "mcpProvider": "playwright-mcp",
+    "targetKind": "FE_WEB",
+    "code": "await page.goto('/login'); await expect(page.locator('form')).toBeVisible();"
+  },
+  "context": {
+    "env": "staging",
+    "variables": { "BASE_URL": "https://staging.example.com" }
+  }
+}
+```
+Synchronous: dispatches one step through the MCP runner using the workspace's default routing (override by setting `step.mcpProvider`). Returns:
+```json
+{
+  "outcome": "PASS",
+  "durationMs": 812,
+  "logs": [
+    { "level": "info", "message": "navigation complete", "time": "..." }
+  ],
+  "artifacts": [
+    { "kind": "screenshot", "url": "https://r2.suitest.io/signed/..." }
+  ]
+}
+```
+Role gate: `QA` or higher. Errors propagate as standard MCP errors (`MCP_PROVIDER_NOT_REGISTERED`, `MCP_PROVIDER_UNHEALTHY`, `STEPS_REQUIRE_CODE_IN_ZERO_LLM`). Used by the [UI_SPEC §3.2.2 "Test step now"](./UI_SPEC.md) inline button.
 
 **Sample POST `/test-cases`**:
 ```json
@@ -205,8 +311,21 @@ In all tiers `mcpProvider` is required; missing field → 400 `MCP_PROVIDER_NOT_
 |--------|------|--------|
 | GET | `/suites?projectId=...` | List |
 | POST | `/suites` | Create |
-| PATCH | `/suites/:id` | Rename/reorder |
-| DELETE | `/suites/:id` | Delete (cascade requires confirm) |
+| PATCH | `/suites/:id` | Rename / reorder (optional `case_order: string[]` for atomic case reorder) |
+| DELETE | `/suites/:id` | Soft delete (cascade requires confirm) |
+| POST | `/suites/:id/restore` | Revive soft-deleted suite; idempotent (returns 204) |
+
+**PATCH `/suites/:id`** body fields (all optional, at least one required):
+```json
+{
+  "name": "Smoke — Checkout",
+  "description": "...",
+  "case_order": ["TC-1045", "TC-1046", "TC-1047"]
+}
+```
+When `case_order` is supplied, every case id currently in the suite must appear exactly once; otherwise `400` with `details.missing` / `details.unknown`. Case ids outside this suite → `400 CROSS_WORKSPACE_IDS` if cross-workspace, else `400` with `details.notInSuite`. The reorder runs in the same transaction as any metadata update.
+
+**POST `/suites/:id/restore`** — no body. Returns `204 No Content`. Idempotent: re-POST after restore returns `204`. Does **not** auto-restore child cases — those must be restored individually via `POST /test-cases/:id/restore` (or future `POST /suites/:id/restore?cascade=true`, out of scope for M1d).
 
 ### 3.5 Runs
 
@@ -296,9 +415,42 @@ In all tiers `mcpProvider` is required; missing field → 400 `MCP_PROVIDER_NOT_
 | POST | `/integrations` | Connect new integration |
 | GET | `/integrations/:id` | Detail (secrets redacted) |
 | PATCH | `/integrations/:id` | Update config |
-| POST | `/integrations/:id/test` | Smoke-test connection |
+| POST | `/integrations/:id/test` | Smoke-test connection (existing, persisted integration) |
 | DELETE | `/integrations/:id` | Disconnect |
 | POST | `/integrations/:id/sync` | Trigger manual sync |
+| POST | `/integrations/jira/test-connection` | Validate Jira credentials **before** persisting |
+| POST | `/integrations/github/test-connection` | Validate GitHub App credentials **before** persisting |
+
+**Pre-save credential validation.** The `*/test-connection` endpoints spawn the relevant MCP adapter once with the provided env, hit a cheap "whoami"-style tool, and discard the process. They never persist a row in `integrations`. Used by the Settings → Integrations connect modal to flip the form's status pill before the user clicks Save. M1d Jira ships **PAT / cloud-token only** (no OAuth flow); OAuth is deferred to v1.x.
+
+**POST `/integrations/jira/test-connection`** body:
+```json
+{
+  "jira_url": "https://acme.atlassian.net",
+  "jira_email": "ops@acme.com",
+  "jira_token": "ATATT3xFfGF0...",
+  "jira_auth_type": "cloud_token"
+}
+```
+`jira_auth_type` ∈ `cloud_token | pat`. Spawns `jirac-mcp` with env `JIRA_URL` / `JIRA_EMAIL` / `JIRA_TOKEN` / `JIRA_AUTH_TYPE`, then invokes `jira_api_request` tool against `GET /rest/api/3/myself`. Response:
+```json
+{ "ok": true, "account_id": "5b10ac8d82e05b22cc7d4ef5", "display_name": "Maya Ops" }
+```
+or
+```json
+{ "ok": false, "error": { "code": "JIRA_AUTH", "message": "401 Unauthorized" } }
+```
+
+**POST `/integrations/github/test-connection`** body:
+```json
+{
+  "app_installation_id": "48291023",
+  "private_key_pem": "<PEM-encoded RSA private key — see docs/DEPLOYMENT.md for GitHub App setup>"
+}
+```
+Spawns `github-mcp-server` with the installation token derived from the App private key, calls `get_authenticated_user` (or `list_repositories` if user endpoint unavailable for App tokens). Response shape mirrors Jira: `{ ok, account_id?, display_name?, error? }`. The `private_key_pem` field is never persisted by this endpoint and never logged.
+
+Both endpoints enforce a 10s timeout end-to-end and require role `ADMIN`+.
 
 **MCP integration POST body**:
 ```json
@@ -767,6 +919,11 @@ Wire format: each frame is a JSON envelope `{"type": "<event>", "data": {...}}` 
 | `run.step.completed` | `{ runId, stepIndex, outcome, durationMs, artifacts }` | Step done |
 | `run.completed` | `{ runId, status, summary }` | Run done |
 | `defect.created` | `{ defectId, severity, testCaseId, runId, diagnosisKind }` | Auto-file |
+| `defect.updated` | `{ defect: DefectRead }` | Status / severity / assignee edit. Room: `workspace:<wsId>` |
+| `case.created` | `{ case: TestCaseRead }` | TC successfully created. Room: `workspace:<wsId>` |
+| `case.updated` | `{ case: TestCaseRead }` | Metadata / tag patch on TC. Room: `workspace:<wsId>` |
+| `case.steps.replaced` | `{ case_id, step_count }` | Atomic step replace (`PATCH /test-cases/:id/steps` or `/steps/reorder`). Room: `workspace:<wsId>` |
+| `integration.error` | `{ integration_id, kind, error_code, message }` | Adapter or webhook receiver fails (replaces `integration.status` for hard errors). Room: `workspace:<wsId>` |
 | `agent.message.delta` | `{ sessionId, role, contentDelta }` | Token streaming |
 | `agent.tool.start` | `{ sessionId, toolName, input, mcpProvider? }` | Agent invokes tool |
 | `agent.tool.end` | `{ sessionId, toolName, output, durationMs }` | Tool completes |

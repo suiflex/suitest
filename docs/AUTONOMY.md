@@ -186,17 +186,21 @@ PUT   /workspaces/:id/autonomy
 
 ### Audit
 
-Every `PUT` writes to `AuditLog`:
+Every `PUT` writes a row to `audit_logs` with the diff captured inside `metadata` (see § 12 for the canonical schema):
 
 ```python
-AuditLog(
+audit_logs.insert(
     workspace_id=ws_id,
-    actor_id=user_id,
-    actor_type="user",
+    user_id=user_id,
     action="autonomy.update",
-    before={"level": "assist", "overrides": {}},
-    after={"level": "semi_auto", "overrides": {"defect_close_flaky": False}},
-    reason=request.json.get("reason"),  # optional, recommended for compliance
+    resource_type="workspace",
+    resource_id=ws_id,
+    metadata={
+        "actor_type": "user",
+        "before": {"level": "assist", "overrides": {}},
+        "after":  {"level": "semi_auto", "overrides": {"defect_close_flaky": False}},
+        "reason": request.json.get("reason"),  # optional, recommended for compliance
+    },
 )
 ```
 
@@ -311,7 +315,7 @@ Hardcoded in code paths regardless of level + override. Override flags **cannot*
 | **No autonomous defect close** | `PATCH /defects/:id` with `status=CLOSED` | Agent may set `RESOLVED`; only human can `CLOSED`. |
 | **No push to main** | GitHub App permissions | Agent can open PRs targeting non-default branches only. |
 | **Spend cap respected** | `enforce_budget()` in LiteLLM router ([AI_AGENT.md § 14](./AI_AGENT.md)) | Hard cap returns 429 even in `auto`. |
-| **Audit log for every autonomous action** | `AuditLog` row with `actor='agent'`, `autonomy_level_at_time`, `reason`, `session_id` | Append-only, non-deletable. |
+| **Audit log for every autonomous action** | `audit_logs` row with `user_id=NULL` + `metadata.actor_type='agent'`, `metadata.autonomy_level_at_time`, `metadata.reason`, `metadata.correlation_id` (agent session id) — see § 12 | Append-only, non-deletable. |
 | **PII / secret scrubbing** | All prompt + tool-call logs run through scrubber before persist | Regex + entropy heuristics. |
 | **Conversation mutation confirm** | `tasks/conversation.py` | Mutations from chat always require UI confirm even in `auto`. |
 | **Production target lock** | Workspace setting `is_production=true` adds an extra gate to destructive ops regardless of autonomy | E.g. `DELETE` ops in DB MCP plugin require typed env name in request body. |
@@ -385,31 +389,91 @@ Server: `effective = min(workspace.level, header.value if allowed else workspace
 
 ## 12. Audit & compliance
 
-Every autonomous action writes to `AuditLog` with:
+Every autonomous action writes to the canonical `audit_logs` table (see [DATA_MODEL.md §3.11](./DATA_MODEL.md)). The autonomy-specific context (`actor_type`, `autonomy_level_at_time`, `overrides_at_time`, `before`, `after`, `correlation_id`, `reason`) is emitted **inside the `audit_logs.metadata` JSONB column** — it is **not** a separate table or extra top-level columns.
+
+### 12.1 Canonical schema (read-only summary)
 
 ```python
+# packages/db/src/suitest_db/models/audit_log.py — canonical
 class AuditLog(Base):
-    __tablename__ = "audit_log"
+    __tablename__ = "audit_logs"
     id: Mapped[UUID]
     workspace_id: Mapped[UUID]
-    actor_type: Mapped[str]            # "user" | "agent" | "system"
-    actor_id: Mapped[UUID | None]      # user_id or agent_session_id
-    action: Mapped[str]                # e.g. "case.create", "defect.file"
-    target_type: Mapped[str]           # "test_case", "defect", ...
-    target_id: Mapped[UUID]
-    autonomy_level_at_time: Mapped[str]
-    overrides_at_time: Mapped[dict]    # JSONB snapshot
-    reason: Mapped[str | None]         # provided by user or agent prompt context
-    before: Mapped[dict | None]        # JSONB
-    after: Mapped[dict | None]         # JSONB
-    correlation_id: Mapped[UUID | None]  # agent session id
+    user_id: Mapped[UUID | None]       # NULL when actor is agent or system
+    action: Mapped[str]                # e.g. "case.create", "defect.file", "autonomy.update"
+    resource_type: Mapped[str]         # "test_case", "defect", "workspace", ...
+    resource_id: Mapped[UUID | None]
+    metadata: Mapped[dict]             # JSONB — autonomy + diff context lives here
     created_at: Mapped[datetime]
 ```
 
-- **Append-only**. No `DELETE` privilege on `audit_log` table to any application role.
+### 12.2 Field mapping (legacy → canonical)
+
+| Legacy column (this doc, pre-fix) | Canonical location |
+|-----------------------------------|--------------------|
+| `actor_type` (`user` / `agent` / `system`) | Derived: `metadata.actor_type` (and `user_id IS NULL` ⇒ non-user actor) |
+| `actor_id` | `user_id` when human; otherwise `metadata.actor_id` (e.g. agent session id) |
+| `target_type` | `resource_type` |
+| `target_id` | `resource_id` |
+| `autonomy_level_at_time` | `metadata.autonomy_level_at_time` |
+| `overrides_at_time` | `metadata.overrides_at_time` |
+| `before` | `metadata.before` |
+| `after` | `metadata.after` |
+| `correlation_id` | `metadata.correlation_id` (typically the `agent_session_id`) |
+| `reason` | `metadata.reason` |
+
+### 12.3 Example payload
+
+A `PUT /workspaces/:id/autonomy` from § 6 writes the following row:
+
+```json
+{
+  "id": "01J9ABCD...",
+  "workspace_id": "ws_42",
+  "user_id": "user_17",
+  "action": "autonomy.update",
+  "resource_type": "workspace",
+  "resource_id": "ws_42",
+  "metadata": {
+    "actor_type": "user",
+    "actor_id": "user_17",
+    "autonomy_level_at_time": "assist",
+    "overrides_at_time": {},
+    "before": { "level": "assist", "overrides": {} },
+    "after":  { "level": "semi_auto", "overrides": { "defect_close_flaky": false } },
+    "correlation_id": null,
+    "reason": "CI rollout to staging"
+  },
+  "created_at": "2026-05-30T09:15:42Z"
+}
+```
+
+An autonomous agent action (e.g. agent files a defect under `semi_auto`):
+
+```json
+{
+  "workspace_id": "ws_42",
+  "user_id": null,
+  "action": "defect.file",
+  "resource_type": "defect",
+  "resource_id": "dfk_7831",
+  "metadata": {
+    "actor_type": "agent",
+    "actor_id": "sess_a1b2c3",
+    "autonomy_level_at_time": "semi_auto",
+    "overrides_at_time": { "defect_close_flaky": false },
+    "before": null,
+    "after": { "status": "OPEN", "severity": "P2", "category": "FLAKE" },
+    "correlation_id": "sess_a1b2c3",
+    "reason": "Step 4 failed: assertion mismatch on /orders contract"
+  }
+}
+```
+
+- **Append-only**. No `DELETE` privilege on `audit_logs` table to any application role.
 - **Retention**: default 13 months, configurable per workspace.
 - **Export**: `GET /workspaces/:id/audit?from=&to=&format=csv|jsonl` for SOC2 / ISO27001 evidence collection.
-- **Search**: indexed by `(workspace_id, created_at)`, `(actor_type, action)`, `(target_type, target_id)`.
+- **Search**: indexed by `(workspace_id, created_at)`, `(action)`, `(resource_type, resource_id)`; JSONB GIN index on `metadata` for filters such as `metadata->>'actor_type' = 'agent'`.
 
 Compliance defaults shipped:
 

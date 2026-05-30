@@ -120,7 +120,20 @@ return canDiagnose ? <AgentDiagnosisCard /> : <ManualTriageCard />;
 
 **Capability change:** subscribe WS event `capability.changed` (broadcast saat admin update LLM config) → refetch `/capabilities` → trigger re-render of all `<Gated>` consumers (Zustand subscription).
 
-**Features keys:** `ai_generation`, `ai_diagnosis`, `ai_translation` (action→code), `ai_chat`, `autonomy_assist`, `autonomy_semi_auto`, `autonomy_auto`, `embeddings_semantic`. Deterministic stuff (manual TCM, OpenAPI generator, Recorder, Crawler, MCP runner) **tidak** di-gate — selalu enabled.
+**Features keys (canonical — match `/capabilities` response in [CAPABILITY_TIERS.md § 10](../CAPABILITY_TIERS.md#10-capability-endpoint-contract)):**
+
+- `ai_generation` — PRD / URL semantic / MCP discovery generation
+- `ai_diagnosis` — root-cause narration on failed runs
+- `ai_translation` — action→code at runtime + per-step "Translate to code"
+- `ai_chat` — agent chat composer (text streaming, tool calls)
+- `ai_panel` — whether the AiPanel surface renders at all (false in ZERO → shell reflows to 2-column grid; lihat § 2.3)
+- `embeddings_semantic` — semantic search via embeddings (independent dial; can be true in ZERO if `fastembed` opt-in)
+- `fts_search` — FTS fallback search (always true)
+- `autonomy_assist`, `autonomy_semi_auto`, `autonomy_auto` — autonomy levels surfaced in Settings → Automation
+- `auto_defect_filing_ai` — AI-reasoned auto-file (CLOUD/LOCAL only)
+- `auto_defect_filing_rule` — rule-based auto-file (always true; works in ZERO)
+
+Deterministic stuff (manual TCM, OpenAPI generator, Recorder, Crawler, MCP runner) **tidak** di-gate — selalu enabled.
 
 ### 1.6 Tier badge (topbar)
 
@@ -292,6 +305,57 @@ Lihat juga: [GENERATORS.md](../GENERATORS.md).
 - `GET /api/v1/test-cases?suiteId=...`
 - `GET /api/v1/test-cases/:id` (selected detail)
 
+#### 3.2.0a Multi-select column (cases list)
+
+Leftmost column of the case list table (when list view is active) and a checkbox slot prepended to tree-item rows (when tree view is active). Used by M1d-20..M1d-28 bulk-ops flows.
+
+**Header cell:**
+
+- Indeterminate-state checkbox = **select-all (current page only)**.
+- Clicking when 0 rows checked → check all rows on the visible page.
+- Clicking when some rows checked → uncheck all on page.
+- Clicking when all rows on page checked → uncheck all on page.
+- Tooltip on hover: "Select all on this page (N items)".
+
+**Per-row cell:**
+
+- Standard shadcn `<Checkbox>`. Click toggles inclusion in selection set.
+- Click does **not** open detail panel (event stopped on the cell).
+- `Shift+Click` selects range from last-checked row (TanStack Table `shift-click` pattern).
+
+**Selection persistence:**
+
+- Selection set stored in Zustand `useCaseSelection` keyed by `case.id` (Set<string>) — survives pagination boundary so users can bulk-act across pages.
+- Selection cleared on filter change, tab change, or explicit "Clear selection" action.
+- URL search param `?sel=ids` not used (selection is ephemeral and can exceed URL length).
+
+**Visual:** row with `checked` state gets `bg-accent-dim` background, leaves text color unchanged.
+
+**Tier behavior:** none — selection itself is tier-agnostic.
+
+#### 3.2.0b Bulk-ops sticky action bar
+
+Appears when multi-select column has ≥1 row checked. Sticky to viewport bottom of the main content area (above any global footer), `bg-elev-1 border-t border-border`, height 56px, full width of main column. Slides up 200ms on first selection, slides down on clear.
+
+**Layout (left → right):**
+
+- Selection count chip: `"N selected"` (mono, `text-fg-1`); shows "N of M loaded" when filtered set > selection.
+- Divider.
+- **Action buttons:**
+  - **Delete (soft)** — destructive variant. Confirms in inline popover ("Archive N cases? They can be restored within 30 days."). On confirm → `POST /api/v1/test-cases/bulk-archive` body `{ ids: string[] }`; success → `undoToast("N cases archived", restore)`.
+  - **Move to suite** — opens suite picker popover (combobox of workspace suites). On pick → `POST /api/v1/test-cases/bulk-move` body `{ ids, suiteId }`; success toast.
+  - **Change priority** — opens priority popover (P0/P1/P2/P3). On pick → `POST /api/v1/test-cases/bulk-priority` body `{ ids, priority }`.
+  - **Add/Remove tags** — opens dual-list popover: "Add" tag input + "Remove" tag chips picked from common tags across selection. On apply → `POST /api/v1/test-cases/bulk-tags` body `{ ids, add: [], remove: [] }`.
+- Right cluster: "Clear selection" text button (`text-fg-3 hover:text-fg-1`).
+
+**100-id cap:**
+
+- When selection count exceeds 100, all action buttons become disabled with `<DisabledTooltip reason="Bulk actions limited to 100 items. Narrow your selection or use filters.">`.
+- The count chip turns amber (`text-amber`) and shows `"100+ selected · over limit"`.
+- This cap is enforced server-side too (`400 BULK_LIMIT_EXCEEDED`) — UI just prevents the round-trip.
+
+**Tier behavior:** none — all bulk ops are deterministic and ZERO-compatible.
+
 #### 3.2.1 GenerateModal (Dialog) — legacy 4-step flow
 
 > Catatan: flow ini di-superseded oleh **3.2.1.5** (target-first 5-step). Section ini disimpan sebagai referensi historis dari mockup `Suitest.html`; **implementasi v1.0 pakai 3.2.1.5**.
@@ -436,6 +500,36 @@ Path: `/defects`. Component: `app/(app)/defects/page.tsx`.
 **Data:**
 - `GET /api/v1/defects?status=open&sort=createdAt:desc`
 
+#### 3.4.1 Interactive defect card (M1d-20..M1d-28)
+
+Defect cards become directly editable in the grid — no detail drawer required for common QA triage. All edits PATCH `/api/v1/defects/:id` (optimistic, with rollback toast on 4xx/5xx).
+
+**Inline controls (top row of each card, replacing static badges where applicable):**
+
+| Control | Component | Behavior |
+|---------|-----------|----------|
+| Status combobox | shadcn `<Select>` over enum `OPEN` / `IN_PROGRESS` / `RESOLVED` / `CLOSED` / `WONT_FIX` | Transitions follow `OPEN → IN_PROGRESS → RESOLVED → CLOSED → WONT_FIX` (forward). Backward transitions allowed for **role ≥ QA**, gated by a confirm dialog ("Reopen this defect? Move CLOSED → IN_PROGRESS"). For role=DEV/VIEWER, backward options are disabled with `<DisabledTooltip reason="QA role required to reopen">`. |
+| Assignee picker | shadcn combobox over workspace users + sentinel `"Unassigned"` | Search by name/email. Avatar + name display. On change → PATCH `assigneeId`. |
+| Severity edit | shadcn `<Select>` over `LOW` / `MEDIUM` / `HIGH` / `CRITICAL` | Color of badge updates immediately (`text-fg-3` / `text-amber` / `text-red` / `text-red` bold). |
+| "Sync to tracker" button | secondary button with tracker logo (Jira/Linear/GitHub) | **Only enabled when an integration is connected for this workspace**. Disabled state uses `<DisabledTooltip reason="No tracker connected. Settings → Integrations">`. Label shows tracker name dynamically: "Sync to Jira", "Sync to Linear", etc. Click → POST `/api/v1/defects/:id/sync` body `{ tracker: 'jira' }`; success → toast with external link ("Filed as PROJ-1234 [Open in Jira ↗]"). |
+
+**"Auto-filed" badge:** small violet pill `AUTO` (mono, `text-violet bg-violet/10 border-violet/20`) appears next to the title when `defect.created_by === 'system'`. Hover tooltip: "Filed automatically by {ruleEngine|agent} on {timestamp}".
+
+#### 3.4.2 Filter chips (above grid)
+
+Sticky row of filter chips between page header and the defect cards grid:
+
+| Chip | Type | Multi-select | Behavior |
+|------|------|--------------|----------|
+| Status | multi-select chip group | yes | OPEN / IN_PROGRESS / RESOLVED / CLOSED / WONT_FIX. Default: `OPEN`. |
+| Severity | multi-select chip group | yes | LOW / MEDIUM / HIGH / CRITICAL. |
+| `assigneeMine` toggle | single toggle pill | n/a | "Assigned to me" on/off. Persists per-user via localStorage. |
+| "Auto-filed only" toggle | single toggle pill | n/a | When on, filters `created_by=system`. |
+
+Chips drive `GET /api/v1/defects?...` query string. Active chips use `bg-accent-dim text-fg-1 border-accent/30`. Inactive: `bg-elev-2 text-fg-3 border-border`. A "Clear filters" link sits at the right end when any chip is active.
+
+**Tier behavior:** all defect card interactions are deterministic and ZERO-compatible. The Agent diagnosis section inside the card body still gates per § 3.9.
+
 ### 3.5 Analytics
 
 Path: `/analytics`. Component: `app/(app)/analytics/page.tsx`.
@@ -474,7 +568,78 @@ Path: `/integrations`. Component: `src/routes/(app)/integrations.tsx`.
 
 MCP servers get green-tinted logo bg (highlight). "MCP Server" section has "Agent runtime" badge next to category label.
 
-#### 3.7.5 Settings → LLM
+#### 3.7.1 Integration card actions (Connect / Configure / Disconnect)
+
+Per integration card, footer button morphs by state — one workspace can hold at most one config per integration kind (lihat § 3.7.4 default-tracker toggle for multi-tracker behavior).
+
+| State | Button | Click action |
+|-------|--------|--------------|
+| Not connected | "Connect" (primary, `bg-accent`) | Opens per-kind config dialog (§ 3.7.2). |
+| Connected, healthy | "Configure" (secondary) + tiny ⋯ overflow → "Disconnect" | Configure → opens dialog pre-filled (masked secrets). Disconnect → confirm popover, then `DELETE /api/v1/integrations/:kind`. |
+| Connected, unhealthy | "Configure" + red status dot | Hover dot → tooltip showing last error from `test-connection`. |
+
+Status badge mirrors the green/amber/red dot pattern used elsewhere (lihat § 4.13 McpProviderPill semantics).
+
+#### 3.7.2 Per-kind config dialogs
+
+shadcn `<Dialog>`, max-w 560px. Field sets per integration kind:
+
+| Kind | Fields | Notes |
+|------|--------|-------|
+| **Jira** | `url` (text), `email` (text), `token` (password, write-only), `auth_type` (select: `basic` / `pat` / `oauth_token`) | OAuth flow callback handled by § 3.7.5. |
+| **Linear** | `pat` (password, write-only, `lin_api_...`) | |
+| **GitHub** | `app_id` (text), `installation_id` (text, optional), `private_key` (file upload PEM `.pem`) | PEM stored AES-GCM encrypted server-side. |
+| **Slack** | `webhook_url` (password, write-only) | URL kept secret (post-only). |
+| **GitLab** | `url` (text, default `https://gitlab.com`), `project_id` (text), `webhook_secret` (password, write-only) | |
+
+Common to all dialogs:
+
+- All secret fields use `<input type="password">`. On open in Configure mode, fields are placeholder `"••••••••"`; user types a new value only if rotating.
+- **"Test connection"** button (left of footer Cancel) → `POST /api/v1/integrations/:kind/test-connection` body = current form draft (server never persists). Returns `{ ok, latencyMs, detail }`. Shows inline result strip below button:
+  - Success: green pill `Connected · 320ms · {detail}` (e.g., "user: badrus", "repo: org/proj").
+  - Failure: red pill `Failed · {reason}` (mapped from server error code).
+- **"Set as default tracker"** toggle (per-kind, only on tracker kinds: Jira / Linear / GitHub / GitLab) — see § 3.7.4.
+- Save → `POST /api/v1/integrations/:kind` (create) or `PATCH /api/v1/integrations/:kind` (update); secrets AES-GCM at rest.
+
+#### 3.7.3 Test connection API contract
+
+Endpoint: `POST /api/v1/integrations/:kind/test-connection` (see API.md fix for full schema). Body mirrors save schema; response shape:
+
+```json
+{ "ok": true, "latencyMs": 320, "detail": "Authenticated as badrus@example.com" }
+```
+
+Failures use `{ "ok": false, "errorCode": "INVALID_TOKEN" | "UNREACHABLE" | "FORBIDDEN", "message": "..." }`.
+
+UI maps `errorCode` to actionable hint ("Check API token" / "Provider unreachable, check URL" / "Token lacks required scopes").
+
+#### 3.7.4 Default tracker toggle
+
+Within tracker-kind dialogs (Jira / Linear / GitHub / GitLab), a "Set as default tracker for this workspace" toggle. **Only one tracker default per workspace** — flipping it on automatically flips off the previously default tracker (with toast: "Default tracker changed: Jira → Linear").
+
+The default tracker is the destination used by:
+
+- Auto-filed defects (rule-based or AI) — `created_by=system` defects flow there unless overridden per-suite.
+- "Sync to tracker" button on defect cards (§ 3.4.1) — label updates to default tracker name.
+
+If no tracker is set as default, "Sync to tracker" button stays disabled with `<DisabledTooltip reason="No default tracker. Settings → Integrations">`.
+
+Persisted via `PUT /api/v1/integrations/:kind/default`.
+
+#### 3.7.5 OAuth callback route
+
+Path: `/integrations/oauth-callback`. Component: `src/routes/integrations/oauth-callback.tsx`. Standalone route (no app shell), full-bleed.
+
+Handles future OAuth flows for any tracker kind. For M1d, **all flows are token-based**, so the callback is a **placeholder**:
+
+- Reads URL query params: `?state=...&code=...&error=...&error_description=...`.
+- If `error` present → renders error card: title "Connection failed", body = `error_description`, primary CTA "Back to Integrations" (→ `/integrations`).
+- If `code` present → renders success card: "Connection successful. You can close this window." + auto-close attempt after 3s if opened in a popup (`window.close()`), else CTA "Back to Integrations".
+- No actual token exchange happens here in M1d — placeholder copy reflects the source param verbatim for debugging.
+
+Layout: centered card 480px wide, dark background, logo at top. No sidebar/topbar (this route is outside the app shell).
+
+#### 3.7.6 Settings → LLM
 
 Path: `/settings/llm` (sub-route di Settings layout — Settings sidebar pakai shadcn `<Tabs>` vertical atau second-level nav).
 
@@ -500,7 +665,7 @@ Path: `/settings/llm` (sub-route di Settings layout — Settings sidebar pakai s
 
 Lihat juga: [CAPABILITY_TIERS.md](../CAPABILITY_TIERS.md).
 
-#### 3.7.6 Settings → Automation
+#### 3.7.7 Settings → Automation
 
 Path: `/settings/automation`.
 
@@ -526,6 +691,74 @@ Default selection per tier: ZERO → `manual` (locked); LOCAL/CLOUD first sessio
 **"Audit log"** link at bottom → `/settings/audit?filter=autonomy.changed`. Shows historical autonomy changes (who, when, from→to).
 
 **Confirmation rule:** changing `assist` → `semi_auto` or higher requires **typed confirmation** ("type SEMI_AUTO to confirm"). Downgrades don't require typing.
+
+#### 3.7.8 Settings → Audit log
+
+Path: `/settings/audit`. Component: `src/routes/(app)/settings/audit.tsx`. **Admin-only route** — for role < admin, render `<EmptyState>` with "Audit log requires admin role" + back link.
+
+**Layout:**
+
+- Page header (18px title) "Audit log" + subtitle "Workspace mutations and security-relevant events".
+- Filter bar (sticky, `border-b border-border`, 14px padding):
+  - `action` glob input — text, accepts `*` wildcard (e.g., `autonomy.*`, `defect.created`, `mcp.*.health`).
+  - `actor` combobox — search workspace users + `system` sentinel + "Any".
+  - `resource_type` select — enum (`test_case` / `suite` / `run` / `defect` / `mcp_provider` / `integration` / `workspace` / `llm_config` / `autonomy` / "Any").
+  - Date range picker (shadcn `<DateRangePicker>`) — defaults to "Last 7 days".
+  - "Clear" link, "Export CSV" secondary button (calls `GET /api/v1/audit-logs?...&format=csv`).
+- **Virtualized table** (TanStack Virtual `useVirtualizer`, row height 44px):
+
+| Column | Width | Content |
+|--------|-------|---------|
+| When | 160px | `formatDistanceToNow(ts)` + hover tooltip ISO timestamp (mono). |
+| Actor | 180px | Avatar + name; for `system`, sparkle icon + "System". |
+| Action | 220px | mono code-style chip (e.g. `defect.status.changed`). |
+| Resource type | 120px | enum pill. |
+| Resource ID | 160px | mono link → resource detail (e.g. `TC-1045` → `/cases/TC-1045`). |
+| Diff | 80px | "View diff" button → opens drawer (§ below). |
+
+**Diff drawer:** shadcn `<Sheet side="right" className="w-[640px]">`. Shows before/after JSON side-by-side (or unified). Uses a JSON diff renderer with `bg-accent-dim` for additions, `bg-red/10` for deletions. Header: who, when, action, resource link.
+
+**Pagination:** cursor-based via `GET /api/v1/audit-logs?cursor=...&limit=100`. Infinite scroll triggered when virtualizer reaches bottom; "Load more" fallback button below table.
+
+**No tier gating** — audit log is deterministic.
+
+#### 3.7.9 Settings → Workspace
+
+Path: `/settings` (root settings page). Component: `src/routes/(app)/settings/index.tsx`. Tabs at top (shadcn `<Tabs>`):
+
+**Tab 1: General**
+
+| Field | Editable by | Notes |
+|-------|-------------|-------|
+| Workspace name | OWNER, ADMIN | text input; PATCH `/api/v1/workspaces/:id` |
+| Slug | nobody (display only) | mono, immutable. Tooltip: "Slug is immutable after creation." |
+| Description | OWNER, ADMIN | multi-line textarea, 500 char limit |
+| Default LLM provider chip | nobody (read-only) | `<TierBadge>`-style chip showing `${SUITEST_LLM_PROVIDER}` resolved by capability resolver. Hover: "Set via env. See Settings → LLM to configure workspace override." Links to § 3.7.6. |
+
+**Tab 2: Members**
+
+- "Invite member" button (top-right) → opens dialog: `email` input + `role` select (`OWNER` / `ADMIN` / `QA` / `DEV` / `VIEWER`). Submit → `POST /api/v1/workspaces/:id/invitations`. Success toast "Invitation sent".
+- Members list table:
+
+| Column | Content |
+|--------|---------|
+| User | avatar + name + email |
+| Role | inline `<Select>` (OWNER, ADMIN, QA, DEV, VIEWER); PATCH `/api/v1/workspaces/:id/members/:userId` |
+| Joined | relative timestamp |
+| Actions | "Remove" button → confirm popover → `DELETE /api/v1/workspaces/:id/members/:userId` |
+
+**Self-protection rules:**
+- The current user **cannot remove themselves** if they are the workspace OWNER. The Remove button is disabled with `<DisabledTooltip reason="OWNER cannot remove self. Transfer ownership first.">`.
+- The current user **cannot downgrade their own role** below their current role (UI hides forbidden options).
+
+**Tab 3: Danger Zone** (OWNER-only — for non-OWNER roles, tab is hidden entirely)
+
+- Card with destructive styling: `border-red/30 bg-red/5`.
+- Title: "Delete workspace". Body: warning about cascade (test cases, runs, defects, integrations, audit logs all purged after 30-day grace period).
+- **Type-slug-to-confirm input:** user must type the workspace slug exactly to enable the "Delete workspace permanently" button (`<Button variant="destructive">`).
+- On click → `DELETE /api/v1/workspaces/:id` → redirect to workspace picker / new-workspace screen. Toast: "Workspace {slug} scheduled for deletion in 30 days. [Undo]" — undo button calls `POST /api/v1/workspaces/:id/restore` during grace period.
+
+**Tier behavior:** all workspace settings are deterministic and ZERO-compatible. "Default LLM provider chip" simply shows `none` in ZERO with link to Settings → LLM (§ 3.7.6).
 
 ### 3.8 Integrations expansion — MCP Servers tab
 
@@ -634,16 +867,18 @@ Item types depend on capability:
 
 ## 4. Shared components
 
+> Component-name catalog — names listed here match exactly what spec subsections (M1d-20..M1d-28 included) reference. When adding a new component, register it in this section first and import its name from screen specs rather than inventing siblings ad-hoc.
+
 ### 4.1 StatusBadge
 Props: `status: 'pass' | 'fail' | 'warn' | 'info' | 'ai' | 'running' | 'neutral'`, optional `label`. Renders pill with colored dot + label.
 
 ### 4.2 KpiCard
-Props: `label, value, delta?, deltaDirection?, icon`. 
+Props: `label, value, delta?, deltaDirection?, icon`.
 
 ### 4.3 SourceDot
 Tiny status dot used in tree items. Color from case `status`.
 
-### 4.4 SourcePill  
+### 4.4 SourcePill
 Source label pill (MANUAL/AI/MCP/IMPORT) with appropriate tint.
 
 ### 4.5 ProgressBar
@@ -695,6 +930,185 @@ Usage display. Props: `tokens: number`, `cost: number`, `currency?: 'USD'`. Rend
 
 ### 4.16 DisabledPlaceholder
 Fallback for `<Gated>`. Props: `reason: string`, `cta?: { label, href }`. Renders muted card with lock icon + reason + optional CTA link (e.g., "Configure LLM" → `/settings/llm`).
+
+### 4.17 SplitGenerateButton
+
+Primary "Generate" CTA in Test Cases header (replaces solo "Generate with AI"). shadcn `<DropdownMenu>` attached to a split-button: left half = default action, right half = chevron dropdown. Used by M1d-20..M1d-28.
+
+**Props:**
+
+| Prop | Type | Notes |
+|------|------|-------|
+| `defaultAction` | `'manual' \| 'openapi' \| 'recorder' \| 'crawler' \| 'ai'` | Defaults to `'manual'` in ZERO, `'ai'` in CLOUD/LOCAL (capability-aware). |
+| `suiteId?` | `string` | Pre-fills suite picker in any modal opened. |
+| `onPickGenerator?` | `(kind) => void` | Optional override; default routes to ModalRouter. |
+
+**Menu items (top → bottom):**
+
+| Item | Icon | Action | Enabled when | Gate |
+|------|------|--------|--------------|------|
+| Manual | pencil | Opens `<ManualCreateModal>` | always | none |
+| Generate from OpenAPI | `{ }` | Opens `<GenerateModal>` step 2 source=`openapi`, strategy=`deterministic` locked | M2+ | `<DisabledTooltip reason="Available in M2">` until shipped |
+| Record from browser | red dot | Opens Browser Recorder flow (deterministic) | M2+ | `<DisabledTooltip reason="Available in M2">` until shipped |
+| Crawl URL | link icon | Opens Crawler flow (heuristic, deterministic) | M2+ | `<DisabledTooltip reason="Available in M2">` until shipped |
+| Generate with AI | sparkle (violet) | Opens `<GenerateModal>` step 4 strategy=`ai_only` | CLOUD/LOCAL | `<Gated feature="ai_generation">` wrapper around item; in ZERO shows `<DisabledTooltip reason="LLM not configured. Settings → LLM">` |
+
+**Visual:** primary button styling (`bg-accent text-accent-fg`), chevron divider uses `border-accent-fg/20`. Hover row inside dropdown: `bg-elev-2`. AI item gets a violet sparkle icon (`text-violet`) to mark capability provenance.
+
+**Tier behavior:** the button itself **never hides** — only individual menu items are disabled. ZERO users still see "Generate" + 3 deterministic options (currently M2-pending) + 1 disabled AI option, so the affordance is discoverable.
+
+### 4.18 ManualCreateModal
+
+shadcn `<Dialog>`, max-w 520px. Opened from `<SplitGenerateButton>` "Manual" item and from Test Cases empty state.
+
+**Fields:**
+
+| Field | Type | Validation |
+|-------|------|------------|
+| `name` | text input | required, 1-200 chars |
+| `suiteId` | suite picker combobox (search by name) | required; defaults to current suite if route has one |
+| `priority` | select `P0` / `P1` / `P2` / `P3` | default `P2` |
+| `tags` | tag input (`<MultiInput>` of slug chips) | optional, max 16 |
+| `owner` | user picker combobox (workspace members + "Unassigned") | default = current user |
+
+**Footer:** Cancel · "Create + Open editor" (primary, `bg-accent`).
+
+**Behavior:**
+
+- Submit → `POST /api/v1/test-cases` body `{ name, suiteId, priority, tags, ownerId }` → on 201, router push `/cases/:id/edit` (opens `<CaseEditor>`).
+- Optimistic close + spinner on button; rollback toast on 4xx/5xx.
+- `Cmd/Ctrl+Enter` submits.
+- No tier gating — manual create is ZERO-compatible.
+
+### 4.19 CaseEditor (route component)
+
+Full-screen editor mounted at route `/cases/:id/edit`. Component: `src/routes/(app)/cases/$caseId/edit.tsx`. Not a modal — replaces main content area entirely (Sidebar + Topbar remain).
+
+**Header (sticky, 56px, `border-b border-border`):**
+
+- Left: editable title (inline, click-to-edit), tags pill row, priority badge (click → inline select).
+- Center: save status indicator — `<SaveStatusPill>` showing `Saved · 12s ago` / `Saving…` (spinner) / `Unsaved changes` (amber dot) / `Conflict` (red dot, see below).
+- Right: "Run now" button (top-right action toolbar; same placement as detail view §3.2:282), overflow menu (Duplicate, Archive, Delete).
+
+**Tabs (shadcn `<Tabs>`):** Steps · Assertions · Requirements · Metadata.
+
+**Steps tab:**
+
+- `@dnd-kit/sortable` list of step cards. Drag handle = 6-dot grip (left).
+- Each step row uses `<MonacoCodeEditor>` lazy-mounted for `code` field, with `<TextareaPlaceholder>` rendered until Monaco resolves.
+- "Add step" button at end of list → POST `/test-cases/:id/steps` then scroll into view + focus action input.
+- Reorder persists via PATCH `/test-cases/:id/steps/reorder` (batch).
+
+**Assertions tab:** list of assertion rows (kind select, target locator, expected value).
+
+**Requirements tab:** linked requirement IDs (combobox add, chip remove). Calls `PUT /test-cases/:id/requirements`.
+
+**Metadata tab:** owner, suite, source (read-only pill), `created_at`, `updated_at`, audit log link.
+
+**Save behavior:**
+
+- **Cmd/Ctrl+S** triggers explicit save (PATCH `/test-cases/:id` with full draft). Toast on success.
+- Autosave debounced 800ms on field blur (PATCH).
+- **Optimistic updates with rollback:** Zustand-backed local draft; on PATCH failure, revert + `undoToast` with reason.
+- **`If-Unmodified-Since` header** sent with `updated_at` of last fetched state. On `409 Conflict`, show toast: "Someone else edited this case. [View diff] [Discard mine] [Keep mine]" — diff drawer opens `/test-cases/:id/history`.
+- **`useBlocker` guard** (TanStack Router) on dirty navigation: prompt "You have unsaved changes. Discard?" with Cancel / Discard.
+
+**Tier behavior:** editor itself is ZERO-compatible. Per-step "Translate to code" button gated via `<Gated feature="ai_translation">` (existing in § 3.2.2). "AI: suggest edge cases" gated via `<Gated feature="ai_generation">`.
+
+### 4.20 MonacoCodeEditor
+
+Wrapper around `@monaco-editor/react`, **lazy-loaded** to keep initial bundle small (Monaco is ~3MB).
+
+```tsx
+const MonacoCodeEditor = React.lazy(() => import("@monaco-editor/react").then(m => ({ default: wrap(m.default) })));
+
+<Suspense fallback={<TextareaPlaceholder value={code} onChange={onChange} rows={6} />}>
+  <MonacoCodeEditor value={code} onChange={onChange} language={lang} />
+</Suspense>
+```
+
+**Props:**
+
+| Prop | Type | Notes |
+|------|------|-------|
+| `value` | `string` | Source code. |
+| `onChange` | `(v: string) => void` | Debounced upstream. |
+| `language` | `'typescript' \| 'python' \| 'json'` | Default `'typescript'`. From `mcpProvider.language` hint. |
+| `height` | `number \| string` | Default `'auto'` (clamp 96px–480px). |
+| `readOnly?` | `boolean` | For history diff view. |
+
+**Theme:** custom Monaco theme `suitest-dark` registered on first mount — `editor.background: #111111` (`bg-elev-1`), `editor.foreground: #fafafa` (`fg-1`), `editor.lineHighlightBackground: #161616` (`bg-elev-2`), `editorLineNumber.foreground: #525252` (`fg-5`), accent `#4ade80` for selection.
+
+**Options:** `accessibilitySupport: "on"`, `minimap.enabled: false`, `scrollBeyondLastLine: false`, `fontFamily: 'Geist Mono'`, `fontSize: 12`, `tabSize: 2`.
+
+**No tier gating** — editor is ZERO-compatible (used for manual code authoring).
+
+### 4.21 TextareaPlaceholder
+
+Minimal fallback rendered inside `<Suspense>` while Monaco bundle resolves. Same `height` and typeface (`font-mono text-[11.5px]`, line-height matching Monaco's). Submits identically (same `onChange` contract).
+
+**Props:**
+
+| Prop | Type | Notes |
+|------|------|-------|
+| `value` | `string` | |
+| `onChange` | `(v: string) => void` | |
+| `rows?` | `number` | Default 6. |
+| `placeholder?` | `string` | Default "Loading editor…". |
+
+**Visual:** `bg-elev-1`, `border border-border`, `rounded-md`, `p-2`, no syntax highlight. A tiny "Loading editor…" eyebrow (`text-[11px] text-fg-5`) sits top-right inside the field.
+
+### 4.22 Toaster
+
+Sonner-based global toast surface. Mounted once in `__root.tsx` of TanStack Router tree.
+
+```tsx
+<Toaster richColors closeButton position="bottom-right" />
+```
+
+**Props (passthrough to sonner):** `richColors`, `closeButton`, `position` fixed to `bottom-right` (don't move — interactions feel anchored).
+
+**Token usage:** sonner's theme inherits design tokens via CSS variables; override in `globals.css`:
+
+```css
+[data-sonner-toaster] {
+  --normal-bg: var(--bg-elev-1);
+  --normal-border: var(--border);
+  --normal-text: var(--fg-1);
+  --success-bg: rgba(74,222,128,.12);
+  --error-bg: rgba(248,113,113,.12);
+}
+```
+
+No tier gating.
+
+### 4.23 undoToast(label, onUndo, ttlMs=8000)
+
+Helper that fires a sonner toast with an "Undo" button. Used by soft-delete actions on **case, suite, project, requirement, defect**.
+
+**Signature:**
+
+```ts
+undoToast(label: string, onUndo: () => Promise<void> | void, ttlMs: number = 8000): void
+```
+
+**Behavior:**
+
+- Renders toast with body = `label` (e.g. `"Test case TC-1045 archived"`) + action button "Undo".
+- Clicking "Undo" calls `onUndo()` then `toast.dismiss()`; on rejection, replace with error toast `"Undo failed: {reason}"`.
+- Auto-dismisses at `ttlMs` (default 8s, matches sonner default for actionable toasts).
+- After dismiss without undo, soft-delete becomes permanent (server-side: `deleted_at` flag stays; cleanup worker reaps after 30d retention — see API.md).
+
+**Usage example:**
+
+```ts
+async function archiveCase(id: string) {
+  await api.testCases.archive(id);
+  undoToast(`Test case ${id} archived`, () => api.testCases.unarchive(id));
+}
+```
+
+No tier gating.
 
 ---
 

@@ -134,8 +134,12 @@ These providers ship inside the main Suitest image (see [DEPLOYMENT.md](./DEPLOY
 | `kubernetes-mcp` | infra | stdio | INFRA | K8s resource assertions, port-forward, log tail | kubeconfig (mounted) |
 | `appium-mcp` | mobile | stdio | FE_MOBILE | iOS / Android UI tests | appium server URL |
 | `computer-use-mcp` | desktop | stdio (Anthropic computer-use) | FE_DESKTOP (v1.x preview, v2 stable) | Desktop app tests | OS-level (VNC / X11 / Wayland) |
+| `jirac-mcp` | issue-tracker | stdio | EXTERNAL_TOOL | Jira issue tracker (file defect, transition, comment, JQL search) | cloud-token / DC PAT |
+| `github-mcp` | issue-tracker | stdio | EXTERNAL_TOOL | GitHub Issues + labels + comments | github-app-installation-token / PAT |
 
 > `api-http-mcp` runs **in-process** (same Python process as the runner). It is implemented as an MCP server with stdio transport but launched via an internal channel for zero subprocess overhead. All other built-ins spawn out-of-process for isolation.
+>
+> `jirac-mcp` bundled from `mulhamna/jira-commands@jira-mcp-v2.0.1`; `github-mcp` bundled from `github/github-mcp-server@v1.1.2`. See `DEPLOYMENT.md §15` for binary bundling Dockerfile pattern.
 
 ---
 
@@ -268,7 +272,7 @@ async def invoke(provider_name, tool, args, ctx) -> ToolResult:
             raise McpProviderUnavailable(provider_name)
 
     async with pool.acquire(provider) as session:
-        secrets = await secrets_store.decrypt(provider.secrets_ref)
+        secrets = await secrets_store.decrypt(provider.secrets_json_encrypted)
         await session.ensure_context(secrets)
 
         with tracer.start_span("mcp.invoke") as span:
@@ -355,7 +359,7 @@ MCP plugins extend Suitest's attack surface. The security model is layered.
 
 ### 9.2 Secrets
 
-- Per-provider secrets stored AES-GCM encrypted (`mcp_providers.secrets_ref` → row in `encrypted_secrets`).
+- Per-provider secrets stored AES-GCM encrypted inline on the provider row (`mcp_providers.secrets_json_encrypted`, LargeBinary blob). No separate `encrypted_secrets` table — the encrypted blob lives directly on `mcp_providers`. Matches [DATA_MODEL.md](./DATA_MODEL.md) canonical schema.
 - Master key from `SUITEST_SECRET_KEY` env var (or KMS-derived in Helm via `extraEnv`).
 - Secrets decrypted only at invocation time, only in memory, never logged.
 - UI write-only — once saved, the cleartext is unrecoverable through the app.
@@ -572,14 +576,14 @@ When a new MCP provider is registered, a background job (`mcp_migration_suggest`
 
 Trust hinges on reproducibility. Each provider registration pins a version.
 
-| Transport | Version pin field | Example |
-|-----------|-------------------|---------|
-| stdio (npm) | `command_pin` | `npx @playwright/mcp@1.42.0` |
-| stdio (image) | `image_pin` | `ghcr.io/suitest/postgres-mcp:0.7.1` |
-| stdio (git) | `git_ref` | `https://github.com/acme/mcp@v0.3.4` |
-| SSE / WS | `version_header` | Server returns `X-MCP-Version: 2.1.0` during handshake; recorded |
+| Transport | Version pin column | Example |
+|-----------|--------------------|---------|
+| stdio (npm) | `mcp_providers.command_pin` | `npx @playwright/mcp@1.42.0` |
+| stdio (image) | `mcp_providers.image_pin` | `ghcr.io/suitest/postgres-mcp:0.7.1` |
+| stdio (git) | `mcp_providers.git_ref` | `https://github.com/acme/mcp@v0.3.4` |
+| SSE / WS | `version_header` (recorded into `mcp_providers.version_pin`) | Server returns `X-MCP-Version: 2.1.0` during handshake; recorded |
 
-Recorded into `mcp_providers.version_pin` and surfaced in every run's metadata so traces are reproducible across upgrades.
+`command_pin`, `image_pin`, `version_pin`, and `git_ref` are first-class columns on `mcp_providers` (added in [DATA_MODEL.md §4.3](./DATA_MODEL.md) fix). Previously these were stored inside `config_json`; that is **no longer** the source of truth — readers MUST consult the dedicated columns. Surfaced in every run's metadata so traces are reproducible across upgrades.
 
 Upgrade flow:
 

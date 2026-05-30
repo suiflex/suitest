@@ -294,7 +294,7 @@ END
 ```
 gather_context (logs + recent commits + test code + history)
    ↓
-classify_category (REGRESSION / FLAKE / INFRA / SPEC-DRIFT)
+classify_category (REGRESSION / FLAKE / INFRA / SPEC_DRIFT / MANUAL_TRIAGE)
    ↓
 draft_diagnosis (structured output via Pydantic)
    ↓
@@ -651,7 +651,7 @@ gather_context:
   - prior runs of same test case (was it always failing?)
   - test code if available
 
-classify_category → REGRESSION | FLAKE | INFRA | SPEC-DRIFT
+classify_category → REGRESSION | FLAKE | INFRA | SPEC_DRIFT | MANUAL_TRIAGE
 
 draft_diagnosis → Pydantic-validated structured output:
 ```
