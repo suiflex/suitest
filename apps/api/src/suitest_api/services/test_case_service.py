@@ -22,24 +22,27 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from sqlalchemy import select
 from suitest_core.capabilities import TierFlag
 from suitest_db.audit import write_audit
 from suitest_db.models.case import CaseTag, TestCase, TestStep
+from suitest_db.models.run import Run as RunRow
 from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.mcp_providers import McpProviderRepo
 from suitest_db.repositories.projects import ProjectRepo
+from suitest_db.repositories.runs import RunRepo
 from suitest_db.repositories.suites import SuiteRepo
 from suitest_db.repositories.test_cases import TestCaseRepo
 from suitest_db.repositories.workspaces import WorkspaceRepo
-from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, Tier
+from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, RunTrigger, Tier
 from suitest_shared.schemas.responses import TestCaseDetailOut, TestCaseOut, TestStepOut
 
 from suitest_api.deps.scope import TenantContext
 from suitest_api.deps.tier import require_tier
-from suitest_api.services.test_case_validator import validate_steps
+from suitest_api.services.run_service import RunService
+from suitest_api.services.test_case_validator import _StepLike, validate_steps
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -656,6 +659,67 @@ class TestCaseService:
             ),
             None,
         )
+
+    @require_tier(TierFlag.ANY)
+    async def trigger_adhoc_run(self, case_id: str) -> RunRow | None:
+        """Validate + enqueue a one-case run via M1c :class:`RunService.create_run`.
+
+        Pre-flight re-runs the per-step validator against the workspace's
+        CURRENT tier + strict-zero flag — a case authored under a permissive
+        tier that later flips to ZERO+strict must not silently run. Failure
+        bubbles the typed validator exception untouched (router maps to the
+        canonical envelope) and NO ``runs`` row is created.
+
+        Cross-workspace / soft-deleted case ids return ``None`` so the router
+        translates to 404 without an enumeration oracle.
+        """
+        case = await self._load_case_in_scope(case_id)
+        if case is None:
+            return None
+
+        suite = await self._suite_repo.get_by_id(case.suite_id)
+        if suite is None:
+            return None  # pragma: no cover — scope check already loaded suite
+
+        steps = await self._repo.get_steps(case.id)
+        tier, strict = await self._resolve_tier_and_settings()
+        registered = await self._registered_mcp_names()
+        # ``TestStep`` carries the ``code`` + ``mcp_provider`` attrs the
+        # validator's ``_StepLike`` protocol describes — explicit cast keeps
+        # mypy happy under its invariant ``Sequence`` view of ORM rows.
+        validate_steps(
+            cast("Sequence[_StepLike]", steps),
+            tier=tier,
+            strict_zero_validation=strict,
+            registered_mcp_names=registered,
+        )
+
+        run_service = RunService(self._ctx, RunRepo(self._session), self._project_repo)
+        run = await run_service.create_run(
+            project_id=suite.project_id,
+            name=f"Ad-hoc: {case.name}",
+            selection=[{"case_id": case.id}],
+            branch=None,
+            commit_sha=None,
+            env="staging",
+            trigger=RunTrigger.MANUAL,
+            user_id=self._ctx.user_id,
+            mcp_routing_override=None,
+        )
+        await write_audit(
+            self._session,
+            workspace_id=self._ctx.workspace_id,
+            user_id=self._ctx.user_id,
+            action="test_case.run_now",
+            resource_type="test_case",
+            resource_id=case.id,
+            metadata={
+                "publicId": case.public_id,
+                "runId": run.id,
+                "runPublicId": run.public_id,
+            },
+        )
+        return run
 
     @require_tier(TierFlag.ANY)
     async def duplicate(self, case_id: str) -> CaseWriteResult | None:

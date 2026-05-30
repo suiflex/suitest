@@ -312,3 +312,22 @@ class BulkUpdateResponse(BaseModel):
 
     updated: int
     audit_ids: list[str] = Field(alias="auditIds", default_factory=list)
+
+
+class AdHocRunResponse(BaseModel):
+    """Response shape for ``POST /test-cases/:id/run`` (docs/API.md §3.3).
+
+    A thin descriptor the FE uses to deep-link the newly queued run + open the
+    matching live-events room. ``statusUrl`` is path-relative to the API root so
+    the client can reuse its existing ``apiClient`` base URL; ``wsRoom`` follows
+    the canonical ``run:<id>`` channel name shared with the live-events gateway.
+    """
+
+    __test__ = False  # not a pytest test class
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    run_id: str = Field(serialization_alias="runId")
+    public_id: str = Field(serialization_alias="publicId")
+    status_url: str = Field(serialization_alias="statusUrl")
+    ws_room: str = Field(serialization_alias="wsRoom")
