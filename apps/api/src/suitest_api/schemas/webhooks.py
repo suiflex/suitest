@@ -1,13 +1,19 @@
-"""Inbound webhook payload models (M1d-17 GitLab; M1d-16 GitHub to follow).
+"""Inbound webhook payload models (M1d-17 GitLab + M1d-16 GitHub).
 
 These are intentionally **permissive**: external systems shape their payloads
 freely and we only care about the discriminator fields needed to (a) trigger a
-gating run, and (b) attribute the run back to a commit / branch / MR.
+gating run, and (b) attribute the run back to a commit / branch / MR / PR.
 
 GitLab payload shapes follow the public webhook docs at
 https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html —
 fields we don't read are accepted via ``model_config["extra"] = "allow"`` so
 new GitLab fields land silently rather than 422-ing.
+
+GitHub payload shapes follow the public webhook docs at
+https://docs.github.com/en/webhooks/webhook-events-and-payloads — same
+``extra="allow"`` policy applies; we only validate the discriminator fields the
+receiver actually branches on (``ref``, ``after``, ``action``, ``head.sha``,
+``head.ref``, ``repository.full_name``).
 """
 
 from __future__ import annotations
@@ -97,6 +103,85 @@ class GitlabMergeRequestPayload(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# GitHub — Push event
+# ---------------------------------------------------------------------------
+
+
+class GithubRepositoryRef(BaseModel):
+    """The ``repository`` block embedded in every GitHub webhook payload.
+
+    ``full_name`` (``owner/repo``) is the only field the receiver branches on;
+    everything else is accepted for replay-debug purposes.
+    """
+
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    id: int | None = None
+    full_name: str | None = Field(default=None, alias="full_name")
+    name: str | None = None
+
+
+class GithubPushPayload(BaseModel):
+    """GitHub ``push`` event body.
+
+    GitHub sends one push payload per branch update; ``after`` is the new tip
+    SHA (``"0" * 40`` on a branch delete — we don't enqueue runs for deletes,
+    those land as ``deleted: true`` which the receiver inspects).
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    ref: str | None = None
+    before: str | None = None
+    after: str | None = None
+    deleted: bool | None = None
+    repository: GithubRepositoryRef | None = None
+
+
+# ---------------------------------------------------------------------------
+# GitHub — Pull Request event
+# ---------------------------------------------------------------------------
+
+
+class GithubPullRequestHead(BaseModel):
+    """The ``pull_request.head`` block (source side of the PR).
+
+    ``sha`` is the commit the gating run executes against; ``ref`` is the
+    source branch name (without ``refs/heads/`` prefix per GitHub convention).
+    """
+
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    sha: str | None = None
+    ref: str | None = None
+
+
+class GithubPullRequest(BaseModel):
+    """The ``pull_request`` block — only the fields the receiver consumes."""
+
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    number: int | None = None
+    head: GithubPullRequestHead | None = None
+
+
+class GithubPullRequestPayload(BaseModel):
+    """GitHub ``pull_request`` event body.
+
+    ``action`` drives the gating decision: ``opened`` / ``synchronize`` /
+    ``reopened`` enqueue a run; everything else (``closed``, ``edited``,
+    ``labeled``, …) returns 200 ignored.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    action: str | None = None
+    number: int | None = None
+    pull_request: GithubPullRequest | None = None
+    repository: GithubRepositoryRef | None = None
+
+
+# ---------------------------------------------------------------------------
 # Receiver response shapes
 # ---------------------------------------------------------------------------
 
@@ -109,6 +194,17 @@ class WebhookEnqueuedResponse(BaseModel):
     run_id: str = Field(serialization_alias="runId")
     public_id: str = Field(serialization_alias="publicId")
     status_url: str = Field(serialization_alias="statusUrl")
+
+
+class WebhookPingResponse(BaseModel):
+    """200 response to a GitHub ``ping`` event.
+
+    GitHub fires ``ping`` when a hook is first registered; returning
+    ``{pong: true}`` matches GitHub's documented expectation and unblocks the
+    hook-config UI's "Recent Deliveries" smoke check.
+    """
+
+    pong: bool = True
 
 
 class WebhookIgnoredResponse(BaseModel):
