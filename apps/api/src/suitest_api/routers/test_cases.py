@@ -1,31 +1,91 @@
-"""Test case read endpoints (docs/API.md §3.3) — scoped via suite -> project -> ws.
+"""Test case read + write endpoints (docs/API.md §3.3) — scoped via suite -> project -> ws.
 
 Each ``TestStepPublic.executable`` is stamped from the workspace's effective tier:
 a step is executable when it has explicit ``code`` (deterministic), or the tier is
 LOCAL/CLOUD (action -> code translated at run time). The tier is resolved once per
 request via :func:`resolve_workspace_tier`.
+
+Write surface (M1d-2) covers ``POST /test-cases``, ``PATCH /test-cases/:id``,
+``PATCH /test-cases/:id/steps``, ``POST /test-cases/:id/steps``,
+``PATCH /test-cases/:id/steps/reorder`` and ``POST /test-cases/:id/duplicate``.
+All write endpoints are gated by ``Role.QA / ADMIN / OWNER`` per ``docs/API.md
+§3.3`` — VIEWER reads but never mutates. Concurrency uses ``If-Unmodified-Since``
+(409 ``CONCURRENT_MODIFICATION``). Per-step validation (`STEPS_REQUIRE_CODE_IN_ZERO_LLM`
++ `MCP_PROVIDER_NOT_REGISTERED`) lives in
+:mod:`suitest_api.services.test_case_validator` and surfaces here through the
+canonical ``{"error": {"code", "message", "details"}}`` envelope.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
+from email.utils import parsedate_to_datetime
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.models.case import TestStep
 from suitest_db.repositories.projects import ProjectRepo
 from suitest_db.repositories.suites import SuiteRepo
 from suitest_db.repositories.test_cases import TestCaseRepo
-from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, Tier
+from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, Role, Tier
 from suitest_shared.schemas.pagination import Page, PageMeta
 
 from suitest_api.auth.db import get_async_session
+from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
 from suitest_api.routers._pagination import decode_cursor_or_400, encode_next
 from suitest_api.routers._tier import resolve_workspace_tier
-from suitest_api.schemas.test_case import TestCaseDetail, TestCaseListItem, TestStepPublic
+from suitest_api.schemas.test_case import (
+    StepAppend,
+    StepReorderRequest,
+    StepReplace,
+    TestCaseCreate,
+    TestCaseDetail,
+    TestCaseListItem,
+    TestCaseUpdate,
+    TestStepPublic,
+)
+from suitest_api.services.test_case_service import (
+    ConcurrentModificationError,
+    McpProviderNotRegisteredError,
+    StepReorderMismatchError,
+    StepsRequireCodeError,
+    TestCaseService,
+)
+from suitest_api.ws.publisher import publish_event
 
 router = APIRouter(prefix="/api/v1", tags=["test-cases"])
+
+# Role gate shared by every mutating endpoint per docs/API.md §3.3.
+_WRITER_ROLES: set[Role] = {Role.QA, Role.ADMIN, Role.OWNER}
+_writer_dep = require_role(_WRITER_ROLES)
+
+
+def _parse_if_unmodified_since(raw: str | None) -> datetime | None:
+    """Parse an ``If-Unmodified-Since`` HTTP-date header.
+
+    Accepts the canonical RFC 7231 IMF-fixdate form
+    (``Sun, 06 Nov 1994 08:49:37 GMT``) plus ISO-8601 (so test fixtures + JS
+    clients can stay direct). Returns ``None`` for an absent header. Invalid
+    formats raise 400 so a typo never silently degrades to last-write-wins.
+    """
+    if raw is None:
+        return None
+    try:
+        parsed = parsedate_to_datetime(raw)
+    except (TypeError, ValueError):
+        parsed = None
+    if parsed is None:
+        try:
+            parsed = datetime.fromisoformat(raw)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="invalid If-Unmodified-Since header — expected HTTP-date or ISO-8601",
+            ) from exc
+    return parsed
 
 
 def _step_executable(step: TestStep, tier: Tier) -> bool:
@@ -56,6 +116,72 @@ async def _suite_in_scope(session: AsyncSession, suite_id: str, workspace_id: st
         return False
     project = await ProjectRepo(session).get_by_id(suite.project_id)
     return project is not None and project.workspace_id == workspace_id
+
+
+def _build_service(session: AsyncSession, ctx: TenantContext) -> TestCaseService:
+    """Compose a :class:`TestCaseService` from a session + tenant context."""
+    return TestCaseService(
+        ctx,
+        TestCaseRepo(session),
+        SuiteRepo(session),
+        ProjectRepo(session),
+    )
+
+
+async def _refresh_steps_public(
+    request: Request,
+    session: AsyncSession,
+    workspace_id: str,
+    case_id: str,
+) -> list[TestStepPublic]:
+    """Re-load + tier-stamp every step on ``case_id`` after a write."""
+    tier = await resolve_workspace_tier(request, session, workspace_id)
+    repo = TestCaseRepo(session)
+    steps = await repo.get_steps(case_id)
+    return [_step_public(s, tier) for s in steps]
+
+
+async def _detail_with_steps(
+    request: Request,
+    session: AsyncSession,
+    workspace_id: str,
+    case_id: str,
+) -> TestCaseDetail:
+    """Build a :class:`TestCaseDetail` payload re-loaded from the DB.
+
+    Used by the write handlers post-commit so the response reflects the same
+    canonical shape as ``GET /test-cases/:id`` — single response model on the
+    wire reduces the schema drift surface for the FE editor.
+    """
+    repo = TestCaseRepo(session)
+    case = await repo.get_by_id(case_id)
+    if case is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="case missing"
+        )
+    steps = await _refresh_steps_public(request, session, workspace_id, case.id)
+    tags = await repo.get_tags(case.id)
+    return TestCaseDetail(
+        id=case.id,
+        suite_id=case.suite_id,
+        public_id=case.public_id,
+        name=case.name,
+        description=case.description,
+        preconditions=case.preconditions,
+        source=case.source,
+        status=case.status,
+        priority=case.priority,
+        owner_id=case.owner_id,
+        created_at=case.created_at,
+        updated_at=case.updated_at,
+        steps=steps,
+        tags=tags,
+    )
+
+
+def _error_envelope(code: str, message: str, details: dict[str, Any]) -> dict[str, Any]:
+    """Canonical ``{"error": {...}}`` payload per docs/API.md §3."""
+    return {"error": {"code": code, "message": message, "details": details}}
 
 
 @router.get("/test-cases", response_model=Page[TestCaseListItem])
@@ -139,3 +265,261 @@ async def get_test_case_steps(
     tier = await resolve_workspace_tier(request, session, ctx.workspace_id)
     steps: Sequence[TestStep] = await repo.get_steps(case_id)
     return [_step_public(s, tier) for s in steps]
+
+
+# ---------------------------------------------------------------------------
+# M1d-2 write endpoints
+# ---------------------------------------------------------------------------
+
+
+def _raise_step_validation(exc: StepsRequireCodeError | McpProviderNotRegisteredError) -> None:
+    """Translate a validator exception into the canonical envelope + status."""
+    if isinstance(exc, StepsRequireCodeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_error_envelope(
+                "STEPS_REQUIRE_CODE_IN_ZERO_LLM",
+                f"Step #{exc.step_index} has no executable code. "
+                "ZERO tier cannot translate action -> MCP call at runtime.",
+                {"stepIndex": exc.step_index},
+            ),
+        )
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=_error_envelope(
+            "MCP_PROVIDER_NOT_REGISTERED",
+            f"MCP provider '{exc.name}' not registered.",
+            {"name": exc.name, "stepIndex": exc.step_index},
+        ),
+    )
+
+
+def _raise_concurrent(exc: ConcurrentModificationError) -> None:
+    """Translate a concurrency failure into the canonical 409 envelope."""
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=_error_envelope(
+            "CONCURRENT_MODIFICATION",
+            "Test case was modified by another client.",
+            {
+                "resourceType": "test_case",
+                "id": exc.public_id,
+                "serverUpdatedAt": exc.server_updated_at.isoformat(),
+            },
+        ),
+    )
+
+
+def _raise_reorder_mismatch(exc: StepReorderMismatchError) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=_error_envelope(
+            "INVALID_STEP_REORDER",
+            "Reorder body must contain every existing step id exactly once.",
+            {
+                "duplicate": exc.duplicates,
+                "missing": exc.missing,
+                "unknown": exc.unknown,
+            },
+        ),
+    )
+
+
+@router.post(
+    "/test-cases",
+    response_model=TestCaseDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_test_case(
+    body: TestCaseCreate,
+    request: Request,
+    ctx: TenantContext = Depends(_writer_dep),
+    session: AsyncSession = Depends(get_async_session),
+) -> TestCaseDetail:
+    """Create a test case + its steps + its tag set atomically."""
+    svc = _build_service(session, ctx)
+    try:
+        outcome = await svc.create(body)
+    except StepsRequireCodeError as exc:
+        await session.rollback()
+        _raise_step_validation(exc)
+    except McpProviderNotRegisteredError as exc:
+        await session.rollback()
+        _raise_step_validation(exc)
+    if outcome is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="suite not found")
+    await session.commit()
+    detail = await _detail_with_steps(request, session, ctx.workspace_id, outcome.detail.id)
+    await publish_event(
+        request,
+        topic=f"workspace:{ctx.workspace_id}",
+        event=outcome.ws_event,
+        data=outcome.ws_payload,
+    )
+    return detail
+
+
+@router.patch("/test-cases/{case_id}", response_model=TestCaseDetail)
+async def update_test_case(
+    case_id: str,
+    body: TestCaseUpdate,
+    request: Request,
+    if_unmodified_since: Annotated[str | None, Header(alias="If-Unmodified-Since")] = None,
+    ctx: TenantContext = Depends(_writer_dep),
+    session: AsyncSession = Depends(get_async_session),
+) -> TestCaseDetail:
+    """Patch metadata + tag set; honours ``If-Unmodified-Since``."""
+    parsed_ius = _parse_if_unmodified_since(if_unmodified_since)
+    svc = _build_service(session, ctx)
+    try:
+        outcome = await svc.update(case_id, body, if_unmodified_since=parsed_ius)
+    except ConcurrentModificationError as exc:
+        await session.rollback()
+        _raise_concurrent(exc)
+    if outcome is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    await session.commit()
+    detail = await _detail_with_steps(request, session, ctx.workspace_id, outcome.detail.id)
+    await publish_event(
+        request,
+        topic=f"workspace:{ctx.workspace_id}",
+        event=outcome.ws_event,
+        data=outcome.ws_payload,
+    )
+    return detail
+
+
+@router.patch("/test-cases/{case_id}/steps", response_model=TestCaseDetail)
+async def replace_test_case_steps(
+    case_id: str,
+    body: StepReplace,
+    request: Request,
+    if_unmodified_since: Annotated[str | None, Header(alias="If-Unmodified-Since")] = None,
+    ctx: TenantContext = Depends(_writer_dep),
+    session: AsyncSession = Depends(get_async_session),
+) -> TestCaseDetail:
+    """Atomic replace-all-steps; honours ``If-Unmodified-Since``."""
+    parsed_ius = _parse_if_unmodified_since(if_unmodified_since)
+    svc = _build_service(session, ctx)
+    try:
+        outcome = await svc.replace_steps(case_id, list(body.steps), if_unmodified_since=parsed_ius)
+    except ConcurrentModificationError as exc:
+        await session.rollback()
+        _raise_concurrent(exc)
+    except StepsRequireCodeError as exc:
+        await session.rollback()
+        _raise_step_validation(exc)
+    except McpProviderNotRegisteredError as exc:
+        await session.rollback()
+        _raise_step_validation(exc)
+    if outcome is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    await session.commit()
+    detail = await _detail_with_steps(request, session, ctx.workspace_id, outcome.detail.id)
+    await publish_event(
+        request,
+        topic=f"workspace:{ctx.workspace_id}",
+        event=outcome.ws_event,
+        data=outcome.ws_payload,
+    )
+    return detail
+
+
+@router.post(
+    "/test-cases/{case_id}/steps",
+    response_model=TestCaseDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+async def append_test_case_step(
+    case_id: str,
+    body: StepAppend,
+    request: Request,
+    ctx: TenantContext = Depends(_writer_dep),
+    session: AsyncSession = Depends(get_async_session),
+) -> TestCaseDetail:
+    """Append one step using a row-locked ``SELECT MAX(order)`` for race safety."""
+    svc = _build_service(session, ctx)
+    try:
+        outcome = await svc.append_step(case_id, body)
+    except StepsRequireCodeError as exc:
+        await session.rollback()
+        _raise_step_validation(exc)
+    except McpProviderNotRegisteredError as exc:
+        await session.rollback()
+        _raise_step_validation(exc)
+    if outcome is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    await session.commit()
+    detail = await _detail_with_steps(request, session, ctx.workspace_id, outcome.detail.id)
+    await publish_event(
+        request,
+        topic=f"workspace:{ctx.workspace_id}",
+        event=outcome.ws_event,
+        data=outcome.ws_payload,
+    )
+    return detail
+
+
+@router.patch("/test-cases/{case_id}/steps/reorder", response_model=TestCaseDetail)
+async def reorder_test_case_steps(
+    case_id: str,
+    body: StepReorderRequest,
+    request: Request,
+    if_unmodified_since: Annotated[str | None, Header(alias="If-Unmodified-Since")] = None,
+    ctx: TenantContext = Depends(_writer_dep),
+    session: AsyncSession = Depends(get_async_session),
+) -> TestCaseDetail:
+    """Atomic step reorder."""
+    parsed_ius = _parse_if_unmodified_since(if_unmodified_since)
+    svc = _build_service(session, ctx)
+    try:
+        outcome_pair = await svc.reorder_steps(
+            case_id,
+            list(body.step_ids_in_order),
+            if_unmodified_since=parsed_ius,
+        )
+    except ConcurrentModificationError as exc:
+        await session.rollback()
+        _raise_concurrent(exc)
+    except StepReorderMismatchError as exc:
+        await session.rollback()
+        _raise_reorder_mismatch(exc)
+    if outcome_pair is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    outcome, _ = outcome_pair
+    await session.commit()
+    detail = await _detail_with_steps(request, session, ctx.workspace_id, outcome.detail.id)
+    await publish_event(
+        request,
+        topic=f"workspace:{ctx.workspace_id}",
+        event=outcome.ws_event,
+        data=outcome.ws_payload,
+    )
+    return detail
+
+
+@router.post(
+    "/test-cases/{case_id}/duplicate",
+    response_model=TestCaseDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+async def duplicate_test_case(
+    case_id: str,
+    request: Request,
+    ctx: TenantContext = Depends(_writer_dep),
+    session: AsyncSession = Depends(get_async_session),
+) -> TestCaseDetail:
+    """Clone a case + its steps + tags inside the same suite (new public id)."""
+    svc = _build_service(session, ctx)
+    outcome = await svc.duplicate(case_id)
+    if outcome is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    await session.commit()
+    detail = await _detail_with_steps(request, session, ctx.workspace_id, outcome.detail.id)
+    await publish_event(
+        request,
+        topic=f"workspace:{ctx.workspace_id}",
+        event=outcome.ws_event,
+        data=outcome.ws_payload,
+    )
+    return detail
