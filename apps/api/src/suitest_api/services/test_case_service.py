@@ -89,6 +89,52 @@ class CaseLifecycleResult(NamedTuple):
     transitioned: bool
 
 
+class BulkLimitExceededError(Exception):
+    """``POST /test-cases/bulk-update`` received more than the cap (100) ids."""
+
+    def __init__(self, *, received: int, limit: int) -> None:
+        super().__init__(f"bulk-update accepts at most {limit} ids per request")
+        self.received = received
+        self.limit = limit
+
+
+class CrossWorkspaceIdsError(Exception):
+    """``POST /test-cases/bulk-update`` body mixes ids across workspaces."""
+
+    def __init__(self, *, offending_ids: list[str]) -> None:
+        super().__init__("bulk-update ids span multiple workspaces or do not exist")
+        self.offending_ids = offending_ids
+
+
+class InvalidBulkTargetSuiteError(Exception):
+    """``move_to_suite`` target lives in another workspace (or does not exist)."""
+
+    def __init__(self, *, suite_id: str) -> None:
+        super().__init__("move_to_suite target suite is not in the caller's workspace")
+        self.suite_id = suite_id
+
+
+class BulkPerCaseAudit(NamedTuple):
+    """Per-case audit + WS event payload to emit after commit."""
+
+    audit_id: str
+    case_id: str
+    public_id: str
+    ws_event: str
+    ws_payload: dict[str, object]
+
+
+class BulkUpdateResult(NamedTuple):
+    """Bundle returned by :meth:`TestCaseService.bulk_update`.
+
+    ``audits`` holds one entry per affected case; the router commits the
+    transaction, returns ``{updated, audit_ids}`` and emits the WS events.
+    """
+
+    affected_count: int
+    audits: list[BulkPerCaseAudit]
+
+
 class TestCaseService:
     __test__ = False  # not a pytest test class
 
@@ -683,6 +729,171 @@ class TestCaseService:
         )
 
     # ------------------------------------------------------------------
+    # M1d-7 bulk update
+    # ------------------------------------------------------------------
+
+    @require_tier(TierFlag.ANY)
+    async def bulk_update(
+        self,
+        body: object,
+    ) -> BulkUpdateResult:
+        """Execute a bulk action across ``≤100`` test cases in one transaction.
+
+        Validation order (each step short-circuits with a typed exception):
+          1. ``BulkLimitExceededError`` when ``len(ids) > 100``.
+          2. ``CrossWorkspaceIdsError`` when any id is missing or lives in
+             another workspace — body lists every offending id so the FE can
+             highlight them.
+          3. ``InvalidBulkTargetSuiteError`` when ``move_to_suite`` targets a
+             suite outside the caller's workspace.
+
+        On success the service applies the action, instantiates one
+        :class:`AuditLog` row per affected case (so the response can return
+        ``audit_ids``), and returns a :class:`BulkUpdateResult` whose
+        ``audits`` list drives the post-commit WS broadcast.
+        """
+        from suitest_db.ids import new_id
+        from suitest_db.models.audit import AuditLog
+
+        from suitest_api.schemas.test_case import (
+            BULK_LIMIT,
+            BulkAction,
+            BulkAddTagsRequest,
+            BulkDeleteRequest,
+            BulkMoveToSuiteRequest,
+            BulkRemoveTagsRequest,
+            BulkSetPriorityRequest,
+        )
+
+        # Pydantic discriminator already narrowed the body to one variant —
+        # widen the static type back to the union for the dispatch below.
+        ids_attr = getattr(body, "ids", None)
+        action_attr = getattr(body, "action", None)
+        if not isinstance(ids_attr, list) or action_attr is None:
+            raise TypeError("bulk_update received an unexpected body shape")
+        ids: list[str] = list(ids_attr)
+        action: BulkAction = action_attr
+
+        if len(ids) > BULK_LIMIT:
+            raise BulkLimitExceededError(received=len(ids), limit=BULK_LIMIT)
+
+        # Cross-workspace check fail-fast: any id missing OR in another
+        # workspace lands in ``offending_ids``. We treat "missing" + "wrong ws"
+        # identically so the response never leaks the existence of foreign
+        # cases the caller would not otherwise be allowed to see.
+        ws_for = await self._repo.workspace_ids_for(ids)
+        offending = [cid for cid in ids if ws_for.get(cid) != self._ctx.workspace_id]
+        if offending:
+            raise CrossWorkspaceIdsError(offending_ids=offending)
+
+        # Load the live cases so we can stamp ``publicId`` into audit + WS
+        # payloads. Tombstoned rows are excluded — bulk actions only apply to
+        # active cases (re-applying a soft-delete to an already-tombstoned row
+        # would be a no-op anyway).
+        cases = await self._repo.list_active_by_ids(ids)
+        by_id: dict[str, TestCase] = {c.id: c for c in cases}
+
+        # ------------------------------------------------------------------
+        # Per-action execution
+        # ------------------------------------------------------------------
+        affected_ids: list[str] = []
+        audit_action: str
+        ws_event: str
+        extra_payload: dict[str, object] = {}
+
+        if action is BulkAction.DELETE:
+            assert isinstance(body, BulkDeleteRequest)
+            deleted_at = datetime.now(UTC)
+            affected_ids = list(
+                await self._repo.bulk_soft_delete([c.id for c in cases], deleted_at=deleted_at)
+            )
+            audit_action = "test_case.bulk_deleted"
+            ws_event = "case.deleted"
+            extra_payload = {"deletedAt": deleted_at.isoformat()}
+        elif action is BulkAction.MOVE_TO_SUITE:
+            assert isinstance(body, BulkMoveToSuiteRequest)
+            target_ws = await self._repo.suite_workspace_id(body.payload.target_suite_id)
+            if target_ws != self._ctx.workspace_id:
+                raise InvalidBulkTargetSuiteError(suite_id=body.payload.target_suite_id)
+            affected_ids = list(
+                await self._repo.bulk_move_to_suite(
+                    [c.id for c in cases], target_suite_id=body.payload.target_suite_id
+                )
+            )
+            audit_action = "test_case.bulk_moved"
+            ws_event = "case.updated"
+            extra_payload = {"targetSuiteId": body.payload.target_suite_id}
+        elif action is BulkAction.SET_PRIORITY:
+            assert isinstance(body, BulkSetPriorityRequest)
+            affected_ids = list(
+                await self._repo.bulk_set_priority(
+                    [c.id for c in cases], priority=body.payload.priority
+                )
+            )
+            audit_action = "test_case.bulk_priority_changed"
+            ws_event = "case.updated"
+            extra_payload = {"priority": body.payload.priority.value}
+        elif action is BulkAction.ADD_TAGS:
+            assert isinstance(body, BulkAddTagsRequest)
+            affected_ids = list(
+                await self._repo.bulk_add_tags([c.id for c in cases], tags=body.payload.tags)
+            )
+            audit_action = "test_case.bulk_tags_added"
+            ws_event = "case.updated"
+            extra_payload = {"tags": list(body.payload.tags)}
+        elif action is BulkAction.REMOVE_TAGS:
+            assert isinstance(body, BulkRemoveTagsRequest)
+            affected_ids = list(
+                await self._repo.bulk_remove_tags([c.id for c in cases], tags=body.payload.tags)
+            )
+            audit_action = "test_case.bulk_tags_removed"
+            ws_event = "case.updated"
+            extra_payload = {"tags": list(body.payload.tags)}
+        else:
+            raise TypeError(f"unsupported bulk action: {action!r}")
+
+        # ------------------------------------------------------------------
+        # Audit + WS payload assembly (one row per affected case)
+        # ------------------------------------------------------------------
+        audits: list[BulkPerCaseAudit] = []
+        for case_id in affected_ids:
+            case = by_id.get(case_id)
+            if case is None:
+                # Defensive — the repo only ever returns ids drawn from ``ids``.
+                continue
+            ws_payload: dict[str, object] = {
+                "caseId": case.id,
+                "publicId": case.public_id,
+                "suiteId": case.suite_id,
+                **extra_payload,
+            }
+            audit_row = AuditLog(
+                id=new_id(),
+                workspace_id=self._ctx.workspace_id,
+                user_id=self._ctx.user_id,
+                action=audit_action,
+                resource_type="test_case",
+                resource_id=case.id,
+                metadata_json={"publicId": case.public_id, **extra_payload},
+            )
+            self._session.add(audit_row)
+            audits.append(
+                BulkPerCaseAudit(
+                    audit_id=audit_row.id,
+                    case_id=case.id,
+                    public_id=case.public_id,
+                    ws_event=ws_event,
+                    ws_payload=ws_payload,
+                )
+            )
+        # Flush so the audit rows + any deferred constraint checks settle
+        # within the same transaction the router commits. The flush is
+        # intentional so an audit-side IntegrityError (extremely unlikely —
+        # ids are CUIDs) surfaces here, not at commit time.
+        await self._session.flush()
+        return BulkUpdateResult(affected_count=len(affected_ids), audits=audits)
+
+    # ------------------------------------------------------------------
     # M1d-3 soft delete + restore
     # ------------------------------------------------------------------
 
@@ -801,9 +1012,14 @@ from suitest_api.services.test_case_validator import (  # noqa: E402
 )
 
 __all__ = [
+    "BulkLimitExceededError",
+    "BulkPerCaseAudit",
+    "BulkUpdateResult",
     "CaseLifecycleResult",
     "CaseWriteResult",
     "ConcurrentModificationError",
+    "CrossWorkspaceIdsError",
+    "InvalidBulkTargetSuiteError",
     "McpProviderNotRegisteredError",
     "StepReorderMismatchError",
     "StepsRequireCodeError",

@@ -38,6 +38,8 @@ from suitest_api.deps.scope import TenantContext, require_workspace_membership
 from suitest_api.routers._pagination import decode_cursor_or_400, encode_next
 from suitest_api.routers._tier import resolve_workspace_tier
 from suitest_api.schemas.test_case import (
+    BulkUpdateRequest,
+    BulkUpdateResponse,
     StepAppend,
     StepReorderRequest,
     StepReplace,
@@ -48,7 +50,10 @@ from suitest_api.schemas.test_case import (
     TestStepPublic,
 )
 from suitest_api.services.test_case_service import (
+    BulkLimitExceededError,
     ConcurrentModificationError,
+    CrossWorkspaceIdsError,
+    InvalidBulkTargetSuiteError,
     McpProviderNotRegisteredError,
     StepReorderMismatchError,
     StepsRequireCodeError,
@@ -598,6 +603,89 @@ async def delete_test_case(
         topic=f"workspace:{ctx.workspace_id}",
         event=outcome.ws_event,
         data=outcome.ws_payload,
+    )
+
+
+# ---------------------------------------------------------------------------
+# M1d-7 bulk update
+# ---------------------------------------------------------------------------
+
+
+def _raise_bulk_limit(exc: BulkLimitExceededError) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=_error_envelope(
+            "BULK_LIMIT_EXCEEDED",
+            f"bulk-update accepts at most {exc.limit} ids per request.",
+            {"received": exc.received, "limit": exc.limit},
+        ),
+    )
+
+
+def _raise_cross_workspace_ids(exc: CrossWorkspaceIdsError) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=_error_envelope(
+            "CROSS_WORKSPACE_IDS",
+            "One or more ids do not belong to the caller's workspace.",
+            {"offendingIds": exc.offending_ids},
+        ),
+    )
+
+
+def _raise_invalid_target_suite(exc: InvalidBulkTargetSuiteError) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=_error_envelope(
+            "INVALID_TARGET_SUITE",
+            "Target suite is not in the caller's workspace (or does not exist).",
+            {"suiteId": exc.suite_id},
+        ),
+    )
+
+
+@router.post(
+    "/test-cases/bulk-update",
+    response_model=BulkUpdateResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def bulk_update_test_cases(
+    body: BulkUpdateRequest,
+    request: Request,
+    ctx: TenantContext = Depends(_writer_dep),
+    session: AsyncSession = Depends(get_async_session),
+) -> BulkUpdateResponse:
+    """Apply ``action`` (delete / move / priority / tag-add / tag-remove) to ≤100 cases.
+
+    Single transaction (no partial apply). The Pydantic discriminator already
+    narrowed ``body`` to one variant; the service validates the 100-id cap,
+    the cross-workspace constraint, and the move-target before mutating. On
+    success returns ``{updated, auditIds}`` and emits one WS event per affected
+    case AFTER the commit so subscribers never observe a phantom event.
+    """
+    svc = _build_service(session, ctx)
+    try:
+        outcome = await svc.bulk_update(body)
+    except BulkLimitExceededError as exc:
+        await session.rollback()
+        _raise_bulk_limit(exc)
+    except CrossWorkspaceIdsError as exc:
+        await session.rollback()
+        _raise_cross_workspace_ids(exc)
+    except InvalidBulkTargetSuiteError as exc:
+        await session.rollback()
+        _raise_invalid_target_suite(exc)
+    await session.commit()
+    for audit in outcome.audits:
+        await publish_event(
+            request,
+            topic=f"workspace:{ctx.workspace_id}",
+            event=audit.ws_event,
+            data=audit.ws_payload,
+        )
+    return BulkUpdateResponse(
+        updated=outcome.affected_count,
+        audit_ids=[a.audit_id for a in outcome.audits],
     )
 
 
