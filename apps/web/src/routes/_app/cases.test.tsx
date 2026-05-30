@@ -121,6 +121,6 @@ describe("Test Cases screen", () => {
     expect(
       await screen.findByTestId("case-detail", undefined, { timeout: 3000 }),
     ).toBeInTheDocument();
-    expect(screen.getAllByTestId("case-step").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("step-row").length).toBeGreaterThan(0);
   });
 });

@@ -190,6 +190,63 @@ export const handlers: HttpHandler[] = [
   }),
   http.get(`${BASE}/test-cases/:caseId/steps`, () => HttpResponse.json({ items: [] })),
 
+  // M1-12: step write endpoints — thin stubs (per-test overrides via server.use)
+  http.post(`${BASE}/test-cases/:caseId/steps`, ({ params }) => {
+    const publicId = String(params["caseId"]);
+    return HttpResponse.json(
+      {
+        id: `case_${publicId}`,
+        public_id: publicId,
+        name: "Checkout flow rejects expired cards",
+        description: null,
+        preconditions: null,
+        priority: "P1",
+        status: "ACTIVE",
+        source: "MANUAL",
+        suite_id: "ste_smoke",
+        owner_id: null,
+        tags: [],
+        steps: [
+          {
+            id: "stp_new",
+            case_id: `case_${publicId}`,
+            order: 1,
+            action: "",
+            expected: "",
+            executable: true,
+            mcp_provider: "playwright-mcp",
+            target_kind: "FE_WEB",
+            code: null,
+            data: null,
+          },
+        ],
+        created_at: "2026-05-01T08:00:00Z",
+        updated_at: "2026-05-25T14:30:00Z",
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.patch(`${BASE}/test-cases/:caseId/steps`, ({ params }) => {
+    const publicId = String(params["caseId"]);
+    return HttpResponse.json({
+      id: `case_${publicId}`,
+      public_id: publicId,
+      name: "Checkout flow rejects expired cards",
+      description: null,
+      preconditions: null,
+      priority: "P1",
+      status: "ACTIVE",
+      source: "MANUAL",
+      suite_id: "ste_smoke",
+      owner_id: null,
+      tags: [],
+      steps: [],
+      created_at: "2026-05-01T08:00:00Z",
+      updated_at: "2026-05-25T14:30:00Z",
+    });
+  }),
+
   // Defects
   http.get(`${BASE}/defects`, () => HttpResponse.json(defects)),
   http.get(`${BASE}/defects/:defectId`, ({ params }) =>

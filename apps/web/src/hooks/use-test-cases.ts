@@ -1,6 +1,9 @@
 import {
+  useMutation,
   useQuery,
+  useQueryClient,
   useSuspenseQuery,
+  type UseMutationResult,
   type UseQueryResult,
   type UseSuspenseQueryResult,
 } from "@tanstack/react-query";
@@ -11,6 +14,7 @@ import type { components } from "@/lib/api-types";
 type CasesPage = components["schemas"]["Page_TestCaseListItem_"];
 type CaseDetail = components["schemas"]["TestCaseDetail"];
 type SuitesPage = { items: components["schemas"]["SuitePublic"][] };
+type TargetKind = components["schemas"]["TargetKind"];
 
 export function useSuites(): UseSuspenseQueryResult<SuitesPage> {
   return useSuspenseQuery({
@@ -41,6 +45,63 @@ export function useTestCase(caseId: string | undefined): UseQueryResult<CaseDeta
     queryFn: async () => {
       const res = await api.get<CaseDetail>(`/test-cases/${caseId ?? ""}`);
       return res.data;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Write mutations — M1-12 step editor
+// ---------------------------------------------------------------------------
+
+interface StepAppendPayload {
+  action: string;
+  expected: string;
+  code: string | null;
+  mcpProvider: string;
+  targetKind: TargetKind;
+}
+
+interface StepReplacePayload {
+  steps: Array<{
+    action: string;
+    expected: string;
+    code: string | null;
+    mcpProvider: string;
+    targetKind: TargetKind;
+    order: number;
+  }>;
+}
+
+/**
+ * Append a single step to a test case via ``POST /test-cases/:id/steps``.
+ * Automatically invalidates the case query on success.
+ */
+export function useAddStep(caseId: string): UseMutationResult<CaseDetail, Error, StepAppendPayload> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: StepAppendPayload) => {
+      const res = await api.post<CaseDetail>(`/test-cases/${caseId}/steps`, payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["test-cases", caseId] });
+    },
+  });
+}
+
+/**
+ * Bulk-replace all steps via ``PATCH /test-cases/:id/steps``.
+ * Automatically invalidates the case query on success.
+ */
+export function useReplaceSteps(caseId: string): UseMutationResult<CaseDetail, Error, StepReplacePayload> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: StepReplacePayload) => {
+      const res = await api.patch<CaseDetail>(`/test-cases/${caseId}/steps`, payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["test-cases", caseId] });
     },
   });
 }
