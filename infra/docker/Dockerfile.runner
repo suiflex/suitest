@@ -3,9 +3,13 @@
 FROM python:3.12-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates build-essential libpq-dev \
+    curl ca-certificates build-essential libpq-dev nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir uv==0.11.8
+# Preinstall the bundled Playwright MCP provider + Chromium so the runner can
+# execute FE_WEB steps inside CI without depending on a cold npx/npm bootstrap.
+RUN npm install -g @playwright/mcp@latest \
+    && npx -y playwright install --with-deps chromium
 
 WORKDIR /app
 COPY pyproject.toml uv.lock* ./
