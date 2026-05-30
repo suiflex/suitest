@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any
+from enum import StrEnum
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag
 from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, TargetKind
 
 
@@ -172,3 +173,142 @@ class StepReorderRequest(BaseModel):
     model_config = _WRITE_CONFIG
 
     step_ids_in_order: list[str] = Field(alias="stepIdsInOrder", default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# M1d-7 bulk update DTOs
+# ---------------------------------------------------------------------------
+#
+# ``POST /test-cases/bulk-update`` accepts a discriminated union over ``action``.
+# Each variant validates its own ``payload`` so unknown / wrong-shape payloads
+# turn into a Pydantic 422 BEFORE the service opens a transaction. The 100-id
+# cap lives on ``ids`` so an oversize body short-circuits at parse time too —
+# the router still surfaces it as the canonical ``BULK_LIMIT_EXCEEDED`` 400
+# (see ``BULK_LIMIT`` constant) by wrapping the ValidationError.
+
+
+class BulkAction(StrEnum):
+    """Discriminator values for :class:`BulkUpdateRequest`."""
+
+    DELETE = "delete"
+    MOVE_TO_SUITE = "move_to_suite"
+    SET_PRIORITY = "set_priority"
+    ADD_TAGS = "add_tags"
+    REMOVE_TAGS = "remove_tags"
+
+
+# Hard cap from docs/API.md §3.3. Single source of truth — the router
+# materialises it in the ``BULK_LIMIT_EXCEEDED`` error envelope.
+BULK_LIMIT: int = 100
+
+
+class _BulkDeletePayload(BaseModel):
+    """``delete`` action — empty payload. Accept `{}` and absent keys both."""
+
+    model_config = _WRITE_CONFIG
+
+
+class _BulkMoveToSuitePayload(BaseModel):
+    """``move_to_suite`` action — target suite id (must be same workspace)."""
+
+    model_config = _WRITE_CONFIG
+
+    target_suite_id: Annotated[str, Field(min_length=1, alias="suiteId")]
+
+
+class _BulkSetPriorityPayload(BaseModel):
+    """``set_priority`` action — wire format uses the :class:`Priority` enum."""
+
+    model_config = _WRITE_CONFIG
+
+    priority: Priority
+
+
+class _BulkTagsPayload(BaseModel):
+    """``add_tags`` / ``remove_tags`` shared payload — ``tags: list[str]``."""
+
+    model_config = _WRITE_CONFIG
+
+    tags: list[Annotated[str, Field(min_length=1, max_length=64)]]
+
+
+class BulkDeleteRequest(BaseModel):
+    """``action = "delete"`` variant."""
+
+    model_config = _WRITE_CONFIG
+
+    action: Literal[BulkAction.DELETE]
+    ids: list[str]
+    payload: _BulkDeletePayload = Field(default_factory=_BulkDeletePayload)
+
+
+class BulkMoveToSuiteRequest(BaseModel):
+    """``action = "move_to_suite"`` variant."""
+
+    model_config = _WRITE_CONFIG
+
+    action: Literal[BulkAction.MOVE_TO_SUITE]
+    ids: list[str]
+    payload: _BulkMoveToSuitePayload
+
+
+class BulkSetPriorityRequest(BaseModel):
+    """``action = "set_priority"`` variant."""
+
+    model_config = _WRITE_CONFIG
+
+    action: Literal[BulkAction.SET_PRIORITY]
+    ids: list[str]
+    payload: _BulkSetPriorityPayload
+
+
+class BulkAddTagsRequest(BaseModel):
+    """``action = "add_tags"`` variant."""
+
+    model_config = _WRITE_CONFIG
+
+    action: Literal[BulkAction.ADD_TAGS]
+    ids: list[str]
+    payload: _BulkTagsPayload
+
+
+class BulkRemoveTagsRequest(BaseModel):
+    """``action = "remove_tags"`` variant."""
+
+    model_config = _WRITE_CONFIG
+
+    action: Literal[BulkAction.REMOVE_TAGS]
+    ids: list[str]
+    payload: _BulkTagsPayload
+
+
+def _bulk_discriminator(value: object) -> str | None:
+    """Return the ``action`` field so Pydantic can pick the right variant.
+
+    Accept both a parsed model (during model_validate(obj)) and a raw dict
+    (during JSON parse). Returning ``None`` surfaces as a Pydantic
+    discriminator error → 422.
+    """
+    if isinstance(value, dict):
+        action = value.get("action")
+        return str(action) if action is not None else None
+    return getattr(value, "action", None)
+
+
+BulkUpdateRequest = Annotated[
+    Annotated[BulkDeleteRequest, Tag(BulkAction.DELETE.value)]
+    | Annotated[BulkMoveToSuiteRequest, Tag(BulkAction.MOVE_TO_SUITE.value)]
+    | Annotated[BulkSetPriorityRequest, Tag(BulkAction.SET_PRIORITY.value)]
+    | Annotated[BulkAddTagsRequest, Tag(BulkAction.ADD_TAGS.value)]
+    | Annotated[BulkRemoveTagsRequest, Tag(BulkAction.REMOVE_TAGS.value)],
+    Discriminator(_bulk_discriminator),
+]
+
+
+class BulkUpdateResponse(BaseModel):
+    """``POST /test-cases/bulk-update`` 200 body (docs/API.md §3.3)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    updated: int
+    audit_ids: list[str] = Field(alias="auditIds", default_factory=list)

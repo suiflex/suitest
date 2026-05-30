@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import selectinload
 from suitest_db.models.case import CaseTag, TestCase, TestStep
-from suitest_db.models.project import Suite
+from suitest_db.models.project import Project, Suite
 from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.base import AsyncRepository
 from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority
@@ -228,6 +228,167 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
         case.deleted_at = deleted_at
         await self.session.flush()
         return True
+
+    # -- M1d-7 bulk update ----------------------------------------------------
+
+    async def list_active_by_ids(self, ids: Sequence[str]) -> Sequence[TestCase]:
+        """Return ACTIVE (non-tombstoned) :class:`TestCase` rows matching ``ids``.
+
+        Order is undefined — callers index by id. Empty input → empty result
+        without round-tripping the DB.
+        """
+        if not ids:
+            return []
+        stmt = select(TestCase).where(TestCase.id.in_(list(ids)), TestCase.deleted_at.is_(None))
+        return list((await self.session.scalars(stmt)).all())
+
+    async def workspace_ids_for(self, ids: Sequence[str]) -> dict[str, str]:
+        """Return ``{case_id: workspace_id}`` for every case in ``ids``.
+
+        Resolves workspace via ``test_cases -> suites -> projects``. Missing
+        ids are omitted from the mapping (caller treats them as 404). Used by
+        bulk-update to fail-fast on cross-workspace ids in a single query.
+        """
+        if not ids:
+            return {}
+        stmt = (
+            select(TestCase.id, Project.workspace_id)
+            .join(Suite, Suite.id == TestCase.suite_id)
+            .join(Project, Project.id == Suite.project_id)
+            .where(TestCase.id.in_(list(ids)))
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return {case_id: ws_id for case_id, ws_id in rows}
+
+    async def suite_workspace_id(self, suite_id: str) -> str | None:
+        """Return the workspace id owning ``suite_id`` (or ``None`` when missing).
+
+        Mirrors :meth:`workspace_ids_for` for a single suite; used by the
+        ``move_to_suite`` bulk action to validate the target before mutating.
+        Filters tombstoned suites — moving cases into a deleted suite is
+        disallowed.
+        """
+        stmt = (
+            select(Project.workspace_id)
+            .join(Suite, Suite.project_id == Project.id)
+            .where(Suite.id == suite_id, Suite.deleted_at.is_(None))
+        )
+        ws_id: str | None = await self.session.scalar(stmt)
+        return ws_id
+
+    async def bulk_soft_delete(self, ids: Sequence[str], *, deleted_at: datetime) -> Sequence[str]:
+        """Tombstone every ACTIVE case in ``ids`` in one statement.
+
+        Returns the ids that transitioned (a row already tombstoned is
+        skipped). Uses ``UPDATE … WHERE deleted_at IS NULL`` so the operation
+        is idempotent at the SQL layer.
+        """
+        if not ids:
+            return []
+        stmt = (
+            update(TestCase)
+            .where(TestCase.id.in_(list(ids)), TestCase.deleted_at.is_(None))
+            .values(deleted_at=deleted_at)
+            .returning(TestCase.id)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def bulk_move_to_suite(
+        self, ids: Sequence[str], *, target_suite_id: str
+    ) -> Sequence[str]:
+        """Re-parent every ACTIVE case in ``ids`` to ``target_suite_id``.
+
+        Returns the ids actually moved (skipping rows already in the target
+        or tombstoned). ``order_in_suite`` is reset to ``0`` per plan-05b
+        Task M1d-7 ("resets order in suite") so the moved cases land at the
+        top of the new suite's order — FE can re-rank afterwards via the
+        normal drag-reorder flow.
+        """
+        if not ids:
+            return []
+        stmt = (
+            update(TestCase)
+            .where(TestCase.id.in_(list(ids)), TestCase.deleted_at.is_(None))
+            .values(suite_id=target_suite_id, order_in_suite=0)
+            .returning(TestCase.id)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def bulk_set_priority(self, ids: Sequence[str], *, priority: Priority) -> Sequence[str]:
+        """Set ``priority`` on every ACTIVE case in ``ids``.
+
+        Returns the affected ids. Uses a single ``UPDATE`` so the audit
+        listener sees the whole batch within one flush.
+        """
+        if not ids:
+            return []
+        stmt = (
+            update(TestCase)
+            .where(TestCase.id.in_(list(ids)), TestCase.deleted_at.is_(None))
+            .values(priority=priority)
+            .returning(TestCase.id)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def bulk_add_tags(self, ids: Sequence[str], *, tags: Sequence[str]) -> Sequence[str]:
+        """Add ``tags`` to every case in ``ids`` (dedupe via the unique constraint).
+
+        Returns the ids that received at least one new tag. A tag already
+        present on the case is skipped (no duplicate :class:`CaseTag` row).
+        ``tags`` itself is deduplicated in Python first so we never issue a
+        within-batch dupe.
+        """
+        if not ids or not tags:
+            return []
+        # Existing tag set per case (load once vs. N queries).
+        existing_stmt = select(CaseTag.case_id, CaseTag.tag).where(CaseTag.case_id.in_(list(ids)))
+        existing: dict[str, set[str]] = {}
+        for case_id, tag in (await self.session.execute(existing_stmt)).all():
+            existing.setdefault(case_id, set()).add(tag)
+
+        # Dedupe input tags, preserving the caller's order for reproducibility.
+        seen: set[str] = set()
+        unique_tags: list[str] = []
+        for tag in tags:
+            if tag in seen:
+                continue
+            seen.add(tag)
+            unique_tags.append(tag)
+
+        affected: set[str] = set()
+        for case_id in ids:
+            had = existing.get(case_id, set())
+            for tag in unique_tags:
+                if tag in had:
+                    continue
+                self.session.add(CaseTag(case_id=case_id, tag=tag))
+                affected.add(case_id)
+        if affected:
+            await self.session.flush()
+        return list(affected)
+
+    async def bulk_remove_tags(self, ids: Sequence[str], *, tags: Sequence[str]) -> Sequence[str]:
+        """Remove ``tags`` from every case in ``ids``.
+
+        Returns the ids that had at least one matching tag removed. Tags
+        absent from a case are a silent no-op for that case (per plan-05b
+        ``test_bulk_remove_tags_no_op_if_tag_absent``).
+        """
+        if not ids or not tags:
+            return []
+        existing_stmt = select(CaseTag.case_id).where(
+            CaseTag.case_id.in_(list(ids)), CaseTag.tag.in_(list(tags))
+        )
+        affected = list(set((await self.session.scalars(existing_stmt)).all()))
+        del_stmt = delete(CaseTag).where(
+            CaseTag.case_id.in_(list(ids)), CaseTag.tag.in_(list(tags))
+        )
+        await self.session.execute(del_stmt)
+        await self.session.flush()
+        return affected
 
     async def clear_deleted(self, case_id: str) -> bool | None:
         """Clear ``deleted_at`` on ``case_id``.
