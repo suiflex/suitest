@@ -50,6 +50,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # by appending ``adapter_registry.register(...)`` lines below this one.
     app.state.adapter_registry = adapter_registry
 
+    # Issue-tracker adapter FACTORY registry (M1d-12..15). Concrete adapters
+    # (JiraAdapter, GitHubAdapter, …) carry per-:class:`Integration`-row state
+    # (workspace_id, decrypted credentials, App installation id) so the
+    # ``IntegrationService.sync_external`` call site builds one fresh per
+    # request instead of registering a singleton instance on the M1d-11
+    # ``adapter_registry``. ``app.state.adapter_factories`` maps
+    # :class:`IntegrationKind` → callable returning a constructed adapter for
+    # a given ``Integration`` row. Wired here so request handlers can resolve
+    # the factory via ``request.app.state.adapter_factories[kind]`` without
+    # touching module-level state directly.
+    app.state.adapter_factories = _build_adapter_factories()
+
     ws_manager: WsConnectionManager | None = None
     ws_redis = getattr(app.state, "ws_redis", None)
     if ws_redis is None:
@@ -236,6 +248,28 @@ def _exempt_anonymous_routes(app: FastAPI) -> None:
             continue
         name = f"{endpoint.__module__}.{endpoint.__name__}"
         limiter._exempt_routes.add(name)
+
+
+def _build_adapter_factories() -> dict[object, object]:
+    """Return the :class:`IntegrationKind` → adapter-factory map (M1d-12..15).
+
+    Each value is a callable accepting keyword args
+    ``integration`` / ``mcp_client`` / ``crypto`` / ``http_client`` and returning
+    a fully-constructed :class:`IssueTrackerAdapter`. The call site (e.g.
+    :meth:`IntegrationService.sync_external`) builds the adapter once per
+    request — keeping per-row state (decrypted credentials, App installation
+    id, token cache) bounded to that request's lifetime.
+
+    The return annotation is ``dict[object, object]`` rather than
+    ``dict[IntegrationKind, AdapterFactory]`` so this helper can ship before
+    every adapter lands without forcing each call site to know the union of
+    constructor signatures.
+    """
+    from suitest_shared.domain.enums import IntegrationKind
+
+    from suitest_api.integrations.github_adapter import GitHubAdapter
+
+    return {IntegrationKind.GITHUB: GitHubAdapter}
 
 
 def _build_default_ws_redis() -> object | None:
