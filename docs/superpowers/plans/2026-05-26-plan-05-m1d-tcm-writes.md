@@ -1,5 +1,11 @@
 # M1d — ZERO Manual TCM Writes + Defects + Integrations Implementation Plan
 
+> **STATUS: SUPERSEDED 2026-05-30 by [`2026-05-30-plan-05b-m1d-manual-tcm-writes.md`](./2026-05-30-plan-05b-m1d-manual-tcm-writes.md).**
+> Reason: pre-pivot draft. Did not account for `jirac-mcp` + `github-mcp` adoption, MCP-native integration shift, or the 32-PR breakdown in the 2026-05-30 spec.
+> Kept for history. Do not implement from this file.
+
+---
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make ZERO tier fully usable end-to-end — author/edit test cases with Monaco step.code editor, suite CRUD, drag-reorder steps via dnd-kit, soft-delete with undo, bulk operations, requirement linking, run trigger from UI, manual defect creation + rule-based auto-defect on run failure, full Jira/Linear/GitHub integration adapters (file external issue + sync status), Slack notifications, GitHub webhook trigger.

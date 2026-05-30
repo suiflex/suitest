@@ -13,12 +13,12 @@ Why now: M1a shipped read-only REST, M1b shipped read-only UI, M1c (commits `828
 - **Bulk endpoint** — `POST /test-cases/bulk-update` for delete / move-to-suite / change priority / add+remove tags, 100-id cap, single transaction.
 - **Defects** — manual `POST /defects`, `PATCH /defects/:id` status flow (OPEN → IN_PROGRESS → RESOLVED → CLOSED → WONT_FIX), `POST /defects/:id/sync-external`. Plus **`DefectAutoFiler`** wired into the M1c `on_run_step_failed` runner hook with a regex `DefectCategorizer` covering REGRESSION / FLAKE / INFRA / SPEC_DRIFT / MANUAL_TRIAGE fallback, severity by case priority, dedup via partial unique index on `(run_id, test_case_id) WHERE created_by='system'`.
 - **Integration adapter Protocol** (`packages/agent`-style: `apps/api/src/suitest_api/integrations/`) — `IssueTrackerAdapter` Protocol + registry + contract test, then concrete `JiraAdapter` (**thin wrapper over bundled `jirac-mcp@jira-mcp-v2.0.1`** — owns Cloud-API-token / DC-PAT storage via AES-GCM; tool execution delegated via `packages/mcp/client`; **no OAuth 3LO support upstream**, see § "MCP-native integration shift"), `LinearAdapter` (PAT + GraphQL `issueCreate` — **STAYS httpx** for v1.0; no viable self-host MCP candidate), `GitHubAdapter` (**thin wrapper over bundled `github-mcp-server@v1.1.2`** — owns GitHub App installation token mint + 50-min cache + AES-GCM; tool execution delegated via `packages/mcp/client` with `GITHUB_TOOLSETS=issues`), `SlackAdapter` (incoming webhook — httpx). `JiraAdapter`/`GitHubAdapter` test via mocked MCP session (`packages/mcp/client` test double), `LinearAdapter`/`SlackAdapter` via `respx` + VCR cassette. All non-MCP HTTP through one `httpx.AsyncClient` with `timeout=10s` + connection pool.
-- **Webhook receivers** — `POST /webhooks/github` (HMAC sha256, push + PR opened/sync/reopened), `POST /webhooks/gitlab` (X-Gitlab-Token), `POST /webhooks/jira` (issue_updated status sync). Per-workspace secret lookup, constant-time compare, 60-second dedup partial index on `(project_id, commit_sha, trigger)`.
+- **Webhook receivers** — `POST /webhooks/github` (HMAC sha256, push + PR opened/sync/reopened), `POST /webhooks/gitlab` (X-Gitlab-Token), `POST /webhooks/jira` (issue_updated status sync). Per-workspace secret lookup, constant-time compare, 60-second dedup via Redis `SETNX dedup:run:{project_id}:{commit_sha}:{trigger}` (app-layer — Postgres rejects `NOW()` in partial-index predicates, see `docs/DATA_MODEL.md §3.6`).
 - **Integration CRUD** — `POST/PATCH/DELETE /integrations/:id` with AES-GCM secret encryption via `packages/core/crypto` (already exists), `POST /integrations/:id/test`, `POST /integrations/:id/sync`. Secrets never echoed in `IntegrationRead`.
 - **Frontend writes** — Cases list `<SplitGenerateButton>` (Manual enabled; Recorder/OpenAPI/Crawler disabled with M2 tooltip; "Generate with AI" disabled with `<Gated feature="ai_generation">` upgrade hint per CLAUDE §4), `<ManualCreateModal>`, full `<CaseEditor>` route with React Hook Form + Zod + `@dnd-kit/sortable` reorder + **lazy-loaded** `@monaco-editor/react` for `step.code`, `Cmd+S` save, optimistic updates with rollback, unsaved-changes guard, `If-Unmodified-Since` 409 conflict detection.
 - **FE defects/integrations/run trigger/bulk/undo** — interactive defect cards, sonner `<Toaster>` with 8s undo toast on soft-delete, "Run now" button on case detail, gating-suite picker dialog on Dashboard, integrations page connect/configure/disconnect with OAuth callback route.
 - **Workspace admin** — Audit log UI (admin-only route, virtualized table, filters), workspace settings General / Members / Danger Zone (slug-type-to-confirm deletion).
-- **Migrations** — `add_public_id_sequences`, `add_workspace_settings.strict_zero_validation`, `add_suite_order.order_in_suite`, `runs_dedup` partial idx, `defects_auto_dedup` partial idx, `projects_gating_suite_id` (nullable FK). All idempotent, `downgrade()` round-trip tested.
+- **Migrations** — `add_workspace_settings.strict_zero_validation`, `add_workspace_mcp_routing_overrides`, `add_suite_mcp_routing_overrides`, `add_suite_deleted_at` (+ partial idx `ix_suites_project_active`), `add_test_case_order_in_suite`, `add_project_gating_suite_id` (nullable FK), `add_mcp_provider_pins` (`command_pin/image_pin/version_pin/git_ref`), `defects_auto_dedup` partial idx, bundled `jirac-mcp` + `github-mcp` seed rows. **No new public-id sequences** — uses the dynamic `pubid_<wsid>_<prefix>` sequences via `generate_public_id(prefix, workspace_id)` helper from `docs/DATA_MODEL.md §8`. **No `ix_runs_dedup_recent` partial unique index** — Postgres rejects `NOW()` predicates; run dedup is enforced application-side via Redis `SETNX dedup:run:{project_id}:{commit_sha}:{trigger}` with 60s TTL (see `docs/DATA_MODEL.md §3.6` Run dedup note). All migrations idempotent, `downgrade()` round-trip tested.
 - **M1 quality bar** — `M1-28` golden-path Playwright E2E (login → create case → run via MCP → see result), `M1-29` visual-regression ≥95% for Cases edit + Defects + Integrations vs `Suitest.html` mockup, `M1-30` loading/empty/error states audit.
 - **Auto-defect E2E** — `apps/api/tests/e2e/test_auto_defect_e2e.py` proves runner → fail → categorize → persist → Jira mock → Slack mock chain green.
 
@@ -38,28 +38,40 @@ Why now: M1a shipped read-only REST, M1b shipped read-only UI, M1c (commits `828
 
 Each box = one squash-merged PR per CLAUDE §6 / ROADMAP cross-cutting rule.
 
-- [ ] **M1d-1** Migrations land + Alembic round-trip test green (`add_public_id_sequences`, `strict_zero_validation`, `order_in_suite`, `runs_dedup`, `defects_auto_dedup`, `projects_gating_suite_id`). Also seeds **bundled `jirac-mcp` row** (`kind=issue-tracker`, `command_pin=jirac-mcp@jira-mcp-v2.0.1`, `transport=stdio`, `enabled=false`) and **bundled `github-mcp` row** (`kind=issue-tracker`, `command_pin=github-mcp-server@v1.1.2`, `transport=stdio`, `enabled=false`) into `mcp_providers`. Both flip to `enabled=true` once integration is connected.
+- [ ] **M1d-1** Migrations land + Alembic round-trip test green. Columns/indexes/seeds:
+   - `workspaces.strict_zero_validation BOOL NOT NULL DEFAULT TRUE`
+   - `workspaces.mcp_routing_overrides JSONB NOT NULL DEFAULT '{}'`
+   - `suites.mcp_routing_overrides JSONB NOT NULL DEFAULT '{}'`
+   - `suites.deleted_at TIMESTAMPTZ NULL` + partial idx `ix_suites_project_active(project_id) WHERE deleted_at IS NULL`
+   - `test_cases.order_in_suite INT NOT NULL DEFAULT 0` (indexed)
+   - `projects.gating_suite_id UUID NULL` FK → `suites(id)`
+   - `mcp_providers.command_pin / image_pin / version_pin / git_ref` (all NULL)
+   - Partial UNIQUE `uq_defects_auto_dedup ON defects(run_id, test_case_id) WHERE created_by = 'system'`
+   - Bundled `jirac-mcp` row (`kind=issue-tracker`, `command_pin=jirac-mcp@jira-mcp-v2.0.1`, `transport=stdio`, `enabled=false`)
+   - Bundled `github-mcp` row (`kind=issue-tracker`, `command_pin=github-mcp-server@v1.1.2`, `transport=stdio`, `enabled=false`)
+
+   Public-id generation uses the existing `generate_public_id(prefix, workspace_id)` helper per `docs/DATA_MODEL.md §8` — **no new sequences in M1d-1**. Run dedup uses Redis `SETNX dedup:run:{project_id}:{commit_sha}:{trigger}` with 60s TTL (app-layer) — **no `ix_runs_dedup_recent` partial unique index** (Postgres rejects `NOW()` in partial-index predicates). Both bundled MCP rows flip to `enabled=true` once their corresponding integration is connected.
 - [ ] **M1d-2** Test case writes: `POST /test-cases` + `PATCH /test-cases/:id` (metadata + tag replace) + `PATCH /test-cases/:id/steps` (atomic replace) + `POST /test-cases/:id/steps` (append, `SELECT MAX(order) FOR UPDATE`) + `POST /test-cases/:id/duplicate`. ZERO `STEPS_REQUIRE_CODE_IN_ZERO_LLM` error returns `details.stepIndex`. Cross-workspace = 404, never 403. (Closes #M1-12)
-- [ ] **M1d-3** Soft delete + restore: `DELETE /test-cases/:id` (204, idempotent re-DELETE → 404), `POST /test-cases/:id/restore`, list excludes `deleted_at IS NOT NULL` by default. (Closes #M1-13 part)
-- [ ] **M1d-4** Suite CRUD with `case_order` reorder + `confirmCascade=true` cascade soft-delete; `POST /suites/:id/restore`. (Closes #M1-13)
-- [ ] **M1d-5** Project CRUD ADMIN/OWNER-gated with slug autogen + cascade-confirm. (Closes #M1-13)
-- [ ] **M1d-6** Requirement CRUD + Link CRUD with `CROSS_WORKSPACE_LINK` 400. `REQ-N` public id sequence. (Closes #M1-24, supports #M1-25)
-- [ ] **M1d-7** `POST /test-cases/bulk-update` (delete / suite move / priority / tag add+remove), 100-id cap, single transaction, one audit row per case. (Closes #M1-15)
-- [ ] **M1d-8** `POST /test-cases/:id/run` ad-hoc shortcut delegates to M1c `RunService.create`, pre-flight re-validates `STEPS_REQUIRE_CODE_IN_ZERO_LLM`, returns `{runId, publicId, statusUrl, wsRoom}`. (Closes #M1-20 ad-hoc path)
-- [ ] **M1d-9** Defects: manual `POST /defects` (`SUIT-N`), `PATCH /defects/:id` status flow with `resolved_at` flip, `POST /defects/:id/sync-external`. (Closes #M1-23)
-- [ ] **M1d-10** `DefectAutoFiler` + regex `DefectCategorizer` wired into runner `on_run_step_failed` hook from M1c task 12. Dedup partial unique index. ≥1 test per rule. Severity from case priority. Emits WS `defect.created` exactly once. (Closes #M1-21)
+- [ ] **M1d-3** Soft delete + restore: `DELETE /test-cases/:id` (204, idempotent re-DELETE → 404), `POST /test-cases/:id/restore`, list excludes `deleted_at IS NOT NULL` by default. (Closes #M1-13a (case soft-delete))
+- [ ] **M1d-4** Suite CRUD with `case_order` reorder + `confirmCascade=true` cascade soft-delete; `POST /suites/:id/restore`. (Closes #M1-13b (suite cascade soft-delete))
+- [ ] **M1d-5** Project CRUD ADMIN/OWNER-gated with slug autogen + cascade-confirm. (Closes #M1-13c (project+requirement soft-delete))
+- [ ] **M1d-6** Requirement CRUD + Link CRUD with `CROSS_WORKSPACE_LINK` 400. `REQ-N` public id via `generate_public_id('REQ', workspace_id)` per `docs/DATA_MODEL.md §8`. (Closes #M1-24, supports #M1-25)
+- [ ] **M1d-7** `POST /test-cases/bulk-update` (delete / suite move / priority / tag add+remove), 100-id cap, single transaction, one audit row per case. (Closes #M1-15a (bulk endpoint backend))
+- [ ] **M1d-8** `POST /test-cases/:id/run` ad-hoc shortcut delegates to M1c `RunService.create`, pre-flight re-validates `STEPS_REQUIRE_CODE_IN_ZERO_LLM`, returns `{runId, publicId, statusUrl, wsRoom}`. Implements ad-hoc run shortcut on top of #M1-20 RunService (M1-20 already complete in M1c).
+- [ ] **M1d-9** Defects: manual `POST /defects` (`SUIT-N`), `PATCH /defects/:id` status flow with `resolved_at` flip, `POST /defects/:id/sync-external`. (Closes #M1-22b (defect sync-external + webhook sync-back), shared with M1d-18)
+- [ ] **M1d-10** `DefectAutoFiler` + regex `DefectCategorizer` wired into runner `on_run_step_failed` hook from M1c task 12. Categorizer emits canonical `DiagnosisKind` ∈ `{REGRESSION, FLAKE, INFRA, SPEC_DRIFT, MANUAL_TRIAGE}` per `docs/DATA_MODEL.md §6` (line ~1366). Dedup partial unique index. ≥1 test per rule. Severity from case priority. Emits WS `defect.created` exactly once. (Closes #M1-21)
 - [ ] **M1d-11** Integration adapter Protocol + registry + contract test in `apps/api/src/suitest_api/integrations/`. Zero concrete adapters registered makes contract test pass with 0 iterations.
 - [ ] **M1d-12** `JiraAdapter` thin wrapper over `jirac-mcp@jira-mcp-v2.0.1`. Auth: Cloud API token (Basic `email:token`) or DC PAT only — **no OAuth 3LO upstream** (confirmed via binary inspection). UI form collects `JIRA_URL` + `JIRA_EMAIL` + `JIRA_TOKEN` + `JIRA_AUTH_TYPE` ∈ `cloud_api_token`/`datacenter_pat`/`datacenter_basic`. Suitest stores via AES-GCM. Tool execution delegates: `jira_issue_create`, `jira_issue_update`, `jira_issue_transition` (+ `jira_issue_transitions_list` for discovery), `jira_issue_list` (JQL), `jira_comment_add`, `jira_issue_link_create`, `jira_issue_view`. Status + severity maps Python-side. Test via mocked MCP session. Bundle by direct GitHub Release download (`https://github.com/mulhamna/jira-commands/releases/download/jira-mcp-v2.0.1/jirac-mcp-<arch>.tar.gz`) — **npm package `@mulham28/jirac-mcp` postinstall is broken**; do not use. Env override via `pool.acquire(provider, env_overrides={JIRA_URL, JIRA_EMAIL, JIRA_TOKEN, JIRA_AUTH_TYPE})`; never write `~/.config/jira/config.toml`.
 - [ ] **M1d-13** `LinearAdapter` (PAT, `issueCreate` GraphQL, state-name → DefectStatus map, severity → priority 1..4).
 - [ ] **M1d-14** `GitHubAdapter` thin wrapper over `github-mcp-server@v1.1.2` (Go binary, `ghcr.io/github/github-mcp-server` or direct release). Owns GitHub App installation token mint + 50-min cache + AES-GCM (Python). Tool execution delegates: `issue_write` (create+update), `add_issue_comment`, `label_write`, `search_issues`, `list_issues`. `severity:<low>` label applied Python-side. Env: `GITHUB_PERSONAL_ACCESS_TOKEN=<installation-token>` + `GITHUB_TOOLSETS=issues` for context trim. Test via mocked MCP session. Bundle Go binary into main image via Dockerfile stage. Seed row in `mcp_providers` per M1d-1.
-- [ ] **M1d-15** `SlackAdapter` (incoming webhook, blocks + severity color, `test_connection`). Wired to `DefectAutoFiler` arq job `send_slack_notification` with exponential retry. (Closes #M1-27 Slack)
-- [ ] **M1d-16** `POST /webhooks/github` HMAC sha256 constant-time verify, push + PR opened/sync/reopened, `ping → 200`, gating suite via `project.gating_suite_id` else `smoke`-tagged cases, 60s dedup. (Closes #M1-27 CI/CD)
-- [ ] **M1d-17** `POST /webhooks/gitlab` X-Gitlab-Token verify + push + MR scaffolding.
-- [ ] **M1d-18** `POST /webhooks/jira` issue_updated status sync → local defect status via `JiraAdapter.map_external_status_to_defect_status` + audit `defect.status_synced_from_jira`. (Closes #M1-22 sync-back)
-- [ ] **M1d-19** Integration CRUD + `POST /integrations/:id/test` + `POST /integrations/:id/sync`, secrets via AES-GCM, `IntegrationRead` never returns secret material. ADMIN/OWNER gated. (Closes #M1-22)
+- [ ] **M1d-15** `SlackAdapter` (incoming webhook, blocks + severity color, `test_connection`). Wired to `DefectAutoFiler` arq job `send_slack_notification` with exponential retry. (Closes #M1-27a (Slack adapter))
+- [ ] **M1d-16** `POST /webhooks/github` HMAC sha256 constant-time verify, push + PR opened/sync/reopened, `ping → 200`, gating suite via `project.gating_suite_id` else `smoke`-tagged cases, 60s dedup. (Closes #M1-27b (GitHub webhook))
+- [ ] **M1d-17** `POST /webhooks/gitlab` X-Gitlab-Token verify + push + MR scaffolding. (Closes #M1-27c (GitLab webhook))
+- [ ] **M1d-18** `POST /webhooks/jira` issue_updated status sync → local defect status via `JiraAdapter.map_external_status_to_defect_status` + audit `defect.status_synced_from_jira`. (Closes #M1-22b (defect sync-external + webhook sync-back), shared with M1d-9; Closes #M1-27d (Jira webhook sync-back))
+- [ ] **M1d-19** Integration CRUD + `POST /integrations/:id/test` + `POST /integrations/:id/sync`, secrets via AES-GCM, `IntegrationRead` never returns secret material. ADMIN/OWNER gated. (Closes #M1-22a (integration CRUD + secrets))
 - [ ] **M1d-20** FE `<SplitGenerateButton>` + `<ManualCreateModal>` (Manual enabled; Recorder/OpenAPI/Crawler disabled w/ M2 tooltip; AI option wrapped in `<Gated feature="ai_generation">`).
-- [ ] **M1d-21** FE `<CaseEditor>` route — RHF+Zod + `useFieldArray` + `@dnd-kit/sortable` reorder + lazy `<MonacoCodeEditor>` (Suspense fallback `<TextareaPlaceholder/>`) + `Cmd/Ctrl+S` save + `useBlocker` unsaved guard + `If-Unmodified-Since` 409 conflict toast.
-- [ ] **M1d-22** FE bulk-ops sticky action bar + multi-select column + optimistic update + rollback. (Closes #M1-15 FE)
+- [ ] **M1d-21** FE `<CaseEditor>` route — RHF+Zod + `useFieldArray` + `@dnd-kit/sortable` reorder + lazy `<MonacoCodeEditor>` (Suspense fallback `<TextareaPlaceholder/>`) + `Cmd/Ctrl+S` save + `useBlocker` unsaved guard + `If-Unmodified-Since` 409 conflict toast. (Closes #M1-14 dnd-kit reorder)
+- [ ] **M1d-22** FE bulk-ops sticky action bar + multi-select column + optimistic update + rollback. (Closes #M1-15b (bulk-ops sticky bar FE))
 - [ ] **M1d-23** FE `<Toaster richColors closeButton position="bottom-right">` + `undoToast` helper wired to case/suite/project/requirement deletes. (Closes #M1-13 FE)
 - [ ] **M1d-24** FE Defect cards interactive: status combobox, assignee picker, severity edit, "Sync to tracker" button, filter chips + "auto-filed only" toggle. (Closes #M1-23 FE)
 - [ ] **M1d-25** FE Integrations page Connect/Configure/Disconnect per kind + OAuth callback route at `/integrations/oauth-callback` + "Set as default tracker" toggle.
@@ -69,7 +81,8 @@ Each box = one squash-merged PR per CLAUDE §6 / ROADMAP cross-cutting rule.
 - [ ] **M1d-29** E2E `apps/api/tests/e2e/test_auto_defect_e2e.py` — testcontainers PG seed → ad-hoc run → step fails on row-count assertion → defect auto-filed REGRESSION → mock Jira receives POST → mock Slack receives POST. Gates the milestone.
 - [ ] **M1d-30** Golden-path Playwright E2E in CI: login → create case → "Run now" → see result. (Closes #M1-28)
 - [ ] **M1d-31** Visual-regression ≥95% match for Cases edit / Defects / Integrations vs `Suitest.html`. Loading/empty/error states audited per screen. (Closes #M1-29, #M1-30)
-- [ ] **M1d-32** Tag `v0.5.0-m1c+1` → release notes + CHANGELOG.md entry → tag `v0.5.0-m1d` after all boxes green.
+- [ ] **M1d-32** Tag `v0.5.0-m1c+1` → release notes + CHANGELOG.md entry → tag `v0.5.0-m1d` after all M1d-1..M1d-33 boxes green.
+- [ ] **M1d-33** UI rewire — remove stale `<DisabledTooltip reason="Cancel ships in M1c">` and `"Re-run ships in M1c"` on `apps/web/src/routes/_app/runs.tsx:398,404` and `defects.tsx:90`. Wire `Cancel` to `POST /runs/:id/cancel` and `Re-run` to `POST /runs/:id/rerun` (both shipped in M1c).
 
 DoD: `SUITEST_LLM_PROVIDER=none` deploy authors cases via Monaco editor, runs them through M1c MCP runner, sees rule-based auto-defect filed to Jira mock + Slack mock, traceability matrix from M1a/M1b still green. **Zero LLM calls ever made.**
 
@@ -85,7 +98,7 @@ DoD: `SUITEST_LLM_PROVIDER=none` deploy authors cases via Monaco editor, runs th
 - **Validator** `apps/api/src/suitest_api/services/test_case_validator.py` houses `validate_steps(steps, tier, workspace_settings, registered_mcp_names)` reused by create / replace / append / ad-hoc-run pre-flight.
 - **Existing services extended** — `test_case_service.py`, `suite_service.py`, `project_service.py`, `requirement_service.py`, `defect_service.py`, `integration_service.py` get write methods; reuse `RunService` from M1c.
 - **Shared schemas** added per entity under `packages/shared/suitest_shared/schemas/` (test_case, suite, project, requirement, defect, integration, webhooks_github, webhooks_gitlab). Matching Zod schemas under `packages/shared/src/schemas/` (manual mirror until M4 codegen).
-- **DB columns / sequences added** — `workspaces.strict_zero_validation BOOLEAN DEFAULT TRUE`, `test_cases.order_in_suite INTEGER DEFAULT 0`, `projects.gating_suite_id UUID NULL`, sequences `test_case_public_seq`, `defect_public_seq`, `requirement_public_seq`, `run_public_seq`. Partial unique idx `uq_defects_auto_dedup ON defects(run_id, test_case_id) WHERE created_by='system'`. Partial unique idx `ix_runs_dedup_recent ON runs(project_id, commit_sha, trigger) WHERE created_at > NOW() - INTERVAL '60 seconds'`. (Confirm against `docs/DATA_MODEL.md §11` — see Open Questions.)
+- **DB columns added** — `workspaces.strict_zero_validation BOOLEAN DEFAULT TRUE`, `workspaces.mcp_routing_overrides JSONB DEFAULT '{}'`, `suites.mcp_routing_overrides JSONB DEFAULT '{}'`, `suites.deleted_at TIMESTAMPTZ NULL`, `test_cases.order_in_suite INTEGER DEFAULT 0`, `projects.gating_suite_id UUID NULL`, `mcp_providers.command_pin / image_pin / version_pin / git_ref` (all NULL). Partial unique idx `uq_defects_auto_dedup ON defects(run_id, test_case_id) WHERE created_by='system'`. Partial idx `ix_suites_project_active ON suites(project_id) WHERE deleted_at IS NULL`. **No new public-id sequences** — uses dynamic per-workspace `pubid_<wsid>_<prefix>` sequences via the existing `generate_public_id(prefix, workspace_id)` Postgres function (`docs/DATA_MODEL.md §8`). **No `ix_runs_dedup_recent`** — Postgres rejects partial-index `WHERE` clauses that reference `NOW()` / `CURRENT_TIMESTAMP`; run dedup is enforced application-side via Redis `SETNX dedup:run:{project_id}:{commit_sha}:{trigger}` with 60s TTL (`docs/DATA_MODEL.md §3.6`). All columns align with `docs/DATA_MODEL.md §11` table (Wave 1 audit verified 2026-05-30).
 - **Audit log** — every write hits `packages/db/audit.py` with `(workspace_id, user_id, action, resource_type, resource_id, metadata)`; no UPDATE/DELETE endpoint on `audit_logs`.
 - **Crypto** — `Integration.secrets_encrypted` and webhook secret via existing `packages/core/crypto.aes_gcm_encrypt`. Master key from `SUITEST_ENCRYPTION_KEY` env, 32-byte base64, validated at app startup.
 - **WS events** added: `case.created`, `case.updated`, `case.steps.replaced`, `defect.created`, `defect.updated`, `integration.error`. Emitted to room `workspace:{workspaceId}` through existing M1b WS gateway.
@@ -127,7 +140,7 @@ DoD: `SUITEST_LLM_PROVIDER=none` deploy authors cases via Monaco editor, runs th
 
 One acceptance criterion per PR per CLAUDE §6 + ROADMAP cross-cutting. Suggested order (parallelizable groups in brackets):
 
-1. **PR-1 → M1d-1** — Alembic migrations (sequences, `strict_zero_validation`, `order_in_suite`, gating_suite_id, dedup indices) + round-trip test.
+1. **PR-1 → M1d-1** — Alembic migrations (`strict_zero_validation`, `workspaces/suites.mcp_routing_overrides`, `suites.deleted_at` + `ix_suites_project_active`, `order_in_suite`, `gating_suite_id`, `mcp_providers` pins, `uq_defects_auto_dedup`, bundled `jirac-mcp` + `github-mcp` seed rows) + round-trip test. **No new public-id sequences, no `ix_runs_dedup_recent`** — see § "Architecture / data model touchpoints".
 2. **PR-2 → M1d-2** — `POST/PATCH /test-cases` + `validate_steps` + atomic step replace + append + duplicate + tag normalization. Pytest matrix per `STEPS_REQUIRE_CODE_IN_ZERO_LLM`, cross-tenant 404, concurrency. *(Depends PR-1.)*
 3. **PR-3 → M1d-3** — soft delete + restore + list filter + audit. *(Depends PR-2.)*
 4. **PR-4 → M1d-4** — Suite CRUD + reorder + cascade.
@@ -142,7 +155,7 @@ One acceptance criterion per PR per CLAUDE §6 + ROADMAP cross-cutting. Suggeste
 13. **PR-13 → M1d-13** — Linear adapter (PAT + GraphQL).
 14. **PR-14 → M1d-14** — GitHub adapter (App installation token mint + cache Python-side) **as thin wrapper over bundled `github-mcp-server@v1.1.2`**. Also lands `packages/mcp/suitest_mcp/bundled/github.py`, updates `docs/MCP_PLUGINS.md §3` table, updates `docs/DEPLOYMENT.md §15`, and adds Dockerfile stage to bundle `github-mcp-server` Go binary. *(After PR-11; parallel-safe with PR-12.)*
 15. **PR-15 → M1d-15** — Slack adapter + `send_slack_notification` ARQ job wired to `DefectAutoFiler`.
-16. **PR-16 → M1d-16** — GitHub webhook receiver + HMAC + gating-suite selector + 60s dedup idx.
+16. **PR-16 → M1d-16** — GitHub webhook receiver + HMAC + gating-suite selector + 60s Redis SETNX dedup (`dedup:run:{project_id}:{commit_sha}:{trigger}`).
 17. **PR-17 → M1d-17** — GitLab webhook scaffolding.
 18. **PR-18 → M1d-18** — Jira webhook status sync-back.
 19. **PR-19 → M1d-19** — Integration CRUD + test + sync (secrets redaction).
@@ -158,7 +171,8 @@ One acceptance criterion per PR per CLAUDE §6 + ROADMAP cross-cutting. Suggeste
 29. **PR-29 → M1d-29** — E2E `test_auto_defect_e2e.py` (testcontainers + mock Jira/Slack).
 30. **PR-30 → M1d-30** — Playwright golden-path E2E in CI.
 31. **PR-31 → M1d-31** — Visual-regression baselines + loading/empty/error pass.
-32. **PR-32 → M1d-32** — CHANGELOG + tag `v0.5.0-m1d`.
+32. **PR-32 → M1d-33** — UI rewire of stale "ships in M1c" tooltips on `apps/web/src/routes/_app/runs.tsx` and `defects.tsx` to the shipped M1c `POST /runs/:id/cancel` + `POST /runs/:id/rerun` endpoints. *(Independent — parallel with any FE PR.)*
+33. **PR-33 → M1d-32** — CHANGELOG + tag `v0.5.0-m1d` after all M1d-1..M1d-33 boxes green.
 
 Parallel-safe clusters: {PR-4, PR-5, PR-6, PR-11} after PR-1; **{PR-12 [Jira+jirac-mcp], PR-13 [Linear httpx], PR-14 [GitHub+github-mcp], PR-15 [Slack httpx]} after PR-11** — note PR-12 and PR-14 each bundle a new MCP binary into the image, so their Dockerfile changes must merge sequentially even if code review is parallel; {PR-17, PR-18} after PR-16; {PR-23, PR-24, PR-26, PR-27} after their backend deps. PR-29 is the final gate before tag.
 
@@ -181,14 +195,14 @@ Per `docs/MCP_PLUGINS.md §1` — "Every step that touches an external system go
 
 ## Open questions for the user
 
-1. **`DiagnosisKind` enum exact set** — the M1d plan-05 reference uses `REGRESSION / FLAKE / INFRA / SPEC_DRIFT / MANUAL_TRIAGE`, while `docs/superpowers/specs/2026-05-26-…-pivot-design.md §4` AUTONOMY table names `FLAKE / REGRESSION / ENVIRONMENT / TEST_BUG`. **Which is canonical in `docs/DATA_MODEL.md`?** Please confirm before PR-10 so the migration ships the right enum values (SPEC_DRIFT vs TEST_BUG, INFRA vs ENVIRONMENT). I will not invent — flag blocker on PR-10 if unanswered.
+1. **~~`DiagnosisKind` enum exact set~~** — RESOLVED 2026-05-30 (Wave 1 audit): canonical set is `REGRESSION / FLAKE / INFRA / SPEC_DRIFT / MANUAL_TRIAGE` per `docs/DATA_MODEL.md §6` (line ~1366). `ROADMAP.md` M3-11 and `docs/AI_AGENT.md §4.5 / §10` have been updated to match. The pivot memo §4 wording `ENVIRONMENT / TEST_BUG` is stale — use the canonical set throughout M1d-10.
 2. **`STEPS_REQUIRE_CODE_IN_ZERO_LLM` strictness default** — pivot memo §10 says "optional saat workspace setting strict=true". Should `workspaces.strict_zero_validation` default `TRUE` (safer; matches plan-05) or `FALSE` (more lenient for action-only authoring + future tier-upgrade)? Defaulting `TRUE` for v1.0 unless told otherwise.
 3. **GitHub App vs PAT for `GitHubAdapter`** — plan-05 picks GitHub App (richer, but requires `SUITEST_GITHUB_APP_*` env + install URL). Is the GitHub App route acceptable for v1.0 self-host, or should v1.0 ship PAT-based Issues for simpler ZERO setup with App deferred to M5? Affects deployment docs in `docs/DEPLOYMENT.md`.
 4. **Gating-suite fallback semantics** — when project has neither `gating_suite_id` nor any `smoke`-tagged case, do we return `200 { ignored: true }` (plan-05) or `400 NO_GATING_SUITE` (stricter, visible-error)? Webhook UX implication.
-5. **`tier_at_runtime` column on `runs`** — plan-05 task 1g references it but DATA_MODEL needs verification. If absent, add to migration PR-1 or drop the snapshot field; I will not invent the column.
+5. **~~`tier_at_runtime` column on `runs`~~** — RESOLVED 2026-05-30 (Wave 1 audit): column already exists in `docs/DATA_MODEL.md` at line 677 (ORM) and line 1192 (§11 migration table). **No new column needed in PR-1 migration.** Snapshot field stays as-is.
 6. **Public id format collision with seed** — `M1a-9` seed builds `Nusantara Retail` with N cases already at `TC-…`. Sequence start value needs alignment so seeded ids don't collide with newly-authored ids. Confirm preferred sequence min-value (e.g., `START WITH 10000`).
 7. **Bulk endpoint role gate** — should bulk `delete` require ADMIN/OWNER or QA+? Plan-05 implies QA+ since case CRUD is QA+; confirm before PR-7.
-8. **`docs/UI_SPEC.md` "Run now" placement** — pivot memo §11 has Generation modal but does not call out the case-detail "Run now" location explicitly. Use top-right action toolbar (plan-05) or row-level icon? Default: top-right action toolbar; flag if `docs/UI_SPEC.md` says otherwise.
+8. **~~`docs/UI_SPEC.md` "Run now" placement~~** — RESOLVED 2026-05-30 (Wave 1 audit): `docs/UI_SPEC.md §3.2` line 282 already specifies top-right action toolbar on the case-detail page. M1d-26 implements that placement.
 9. **Slack adapter `test_connection` payload visibility** — posting a "Suitest connection test" to the configured channel is intrusive. Acceptable for v1.0, or use Slack's `chat.scheduleMessage` dry-run? Defaulting to intrusive test message with confirm dialog in UI.
 10. **Visual-regression baseline owner** — `Suitest.html` is read-only and slated for deletion when M1-29 ≥95% match (CLAUDE §1 note). After M1d hits 95%, do we delete `Suitest.html` immediately or wait for M2's generator UI completeness? Default: keep through M2.
 11. **~~`jirac-mcp` OAuth 3LO support~~** — RESOLVED 2026-05-30: binary inspection of `jira-mcp-v2.0.1` confirms only `cloud_api_token` / `datacenter_pat` / `datacenter_basic` auth types. No OAuth refresh/access tokens. M1d "Connect to Jira" UI asks for Cloud API token or DC PAT directly — no browser redirect. Upstream PR for 3LO tracked separately.
@@ -203,11 +217,27 @@ Per `docs/MCP_PLUGINS.md §1` — "Every step that touches an external system go
 - 2026-05-30 `6e64724` docs(m1d): add milestone plan with jirac-mcp integration shift (local, not pushed)
 - 2026-05-30 ruflo swarm `swarm-1780100026735-vmp9rq` dispatched 3 agents: jirac-mcp probe (resolves Q11/12/13), commit-agent (landed `6e64724`), linear/gh-mcp audit (resolves Q14 + recommends github-mcp adoption)
 - M1d plan amended with github-mcp adoption parallel to jirac-mcp; Linear stays httpx
+- 2026-05-30 Wave 1 doc audit + fix: `docs/DATA_MODEL.md`, `docs/API.md`, `docs/UI_SPEC.md`, `docs/CAPABILITY_TIERS.md`, `docs/ROADMAP.md`, `docs/AI_AGENT.md`, `docs/MCP_PLUGINS.md`, `docs/AUTONOMY.md` all updated. Q1/Q5/Q8 resolved canonically. `suites.deleted_at` + `ix_suites_project_active` added to DATA_MODEL §3.3 + §11 + §7.1 + §9 (this spec's PR-1 lands the matching Alembic migration).
+- Stale code debt absorbed into M1d: `apps/web/src/routes/_app/runs.tsx` Cancel/Re-run buttons + `defects.tsx` "ships in M1c" tooltips need to point at shipped endpoints — added as **M1d-33** (UI rewire) — see task M1d-33.
 
 ### Critical files for implementation
+
+Canonical contract references (Wave 1 doc audit verified 2026-05-30 — all writes must align):
+
+- `docs/DATA_MODEL.md §3.2` (Workspace ORM + `strict_zero_validation` + `mcp_routing_overrides`)
+- `docs/DATA_MODEL.md §3.3` (Project + Suite ORM, incl. `gating_suite_id`, `suites.mcp_routing_overrides`, `suites.deleted_at`)
+- `docs/DATA_MODEL.md §3.4` (TestCase + TestStep ORM, incl. `order_in_suite`, `mcp_provider`, `target_kind`)
+- `docs/DATA_MODEL.md §6` (canonical enums — `DiagnosisKind`, `DefectStatus`, `Severity`, `Role`, `TargetKind`)
+- `docs/DATA_MODEL.md §8` (`generate_public_id(prefix, workspace_id)` helper — do NOT invent sequences)
+- `docs/DATA_MODEL.md §11` (migration table — column-by-column truth source for PR-1)
+- `docs/API.md §3.x` (test-case, suite, project, requirement, defect, integration endpoint contracts incl. `/restore` semantics)
+- `docs/UI_SPEC.md §3.2` (case-detail "Run now" placement — top-right action toolbar) and `§4` (case editor + bulk-ops sticky bar layout)
+
+Implementation files:
 
 - `apps/api/src/suitest_api/routers/test_cases.py`
 - `apps/api/src/suitest_api/services/defect_service.py`
 - `apps/runner/src/suitest_runner/handlers/step_handler.py`
 - `apps/web/src/components/cases/CaseEditor.tsx` (new — to be created)
+- `apps/web/src/routes/_app/runs.tsx` + `defects.tsx` (M1d-33 rewire)
 - `packages/db/suitest_db/migrations/versions/` (new Alembic revisions for M1d-1)
