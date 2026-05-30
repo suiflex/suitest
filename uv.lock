@@ -2045,6 +2045,7 @@ dependencies = [
     { name = "structlog" },
     { name = "suitest-core" },
     { name = "suitest-db" },
+    { name = "suitest-mcp" },
     { name = "suitest-shared" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -2072,6 +2073,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=24.4.0" },
     { name = "suitest-core", editable = "packages/core" },
     { name = "suitest-db", editable = "packages/db" },
+    { name = "suitest-mcp", editable = "packages/mcp" },
     { name = "suitest-shared", editable = "packages/shared" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0" },
 ]
