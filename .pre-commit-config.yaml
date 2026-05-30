@@ -65,6 +65,10 @@ repos:
           - psycopg-pool>=3.2
           - alembic>=1.14.0
           - testcontainers[postgres]>=4.8.0
+          # M1d-15 + M1d-29: respx is consumed by the slack adapter unit test
+          # AND the auto-defect E2E to intercept Slack webhook POSTs without
+          # touching the network. Without it the pre-commit mypy hook resolves
+          # ``import respx`` to Any and trips ``disallow_any_unimported``.
           - respx>=0.21.0
         args: ["--config-file=pyproject.toml"]
         files: ^(apps|packages)/.*\.py$
