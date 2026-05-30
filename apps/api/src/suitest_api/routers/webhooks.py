@@ -1,7 +1,7 @@
 """Inbound webhook receivers — provider-specific endpoints under ``/api/v1/webhooks``.
 
-M1d-17 ships the GitLab handler; M1d-16 (GitHub) and M1d-18 (Jira) plug into
-the same router. All handlers share the helpers in
+M1d-17 ships the GitLab handler and M1d-16 the GitHub handler; M1d-18 (Jira)
+plugs into the same router. All handlers share the helpers in
 :mod:`suitest_api.services.webhook_receiver_service` for HMAC / token verify,
 Redis SETNX dedup, and gating-suite selection resolution.
 
@@ -31,17 +31,22 @@ from suitest_api.deps.arq import get_arq
 from suitest_api.deps.dedup_redis import get_dedup_redis
 from suitest_api.deps.scope import TenantContext
 from suitest_api.schemas.webhooks import (
+    GithubPullRequestPayload,
+    GithubPushPayload,
     GitlabMergeRequestPayload,
     GitlabPushPayload,
     WebhookEnqueuedResponse,
     WebhookIgnoredResponse,
+    WebhookPingResponse,
 )
 from suitest_api.services.run_service import RunService
 from suitest_api.services.webhook_receiver_service import (
     resolve_gating_selection,
+    resolve_github_project,
     resolve_project_from_payload,
     resolve_workspace_by_token,
     setnx_dedup,
+    verify_github_hmac,
 )
 
 router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
@@ -56,6 +61,13 @@ _GITLAB_PUSH_EVENT = "Push Hook"
 _GITLAB_MR_EVENT = "Merge Request Hook"
 # Per plan-05b §M1d-17 only these MR actions enqueue a run.
 _GITLAB_MR_ACTIONS_TRIGGERING_RUN: frozenset[str] = frozenset({"open", "reopen", "update"})
+
+# GitHub webhook event identifiers (the value sent in ``X-GitHub-Event``).
+_GITHUB_PING_EVENT = "ping"
+_GITHUB_PUSH_EVENT = "push"
+_GITHUB_PULL_REQUEST_EVENT = "pull_request"
+# Per plan-05b §M1d-16 only these PR actions enqueue a run.
+_GITHUB_PR_ACTIONS_TRIGGERING_RUN: frozenset[str] = frozenset({"opened", "synchronize", "reopened"})
 
 
 def _status_url(run_id: str) -> str:
@@ -240,6 +252,207 @@ async def receive_gitlab(
             "branch": branch,
             "commit_sha": commit_sha or None,
             "merge_request_iid": mr_iid,
+        },
+    )
+
+    await session.commit()
+    response.status_code = status.HTTP_202_ACCEPTED
+    return WebhookEnqueuedResponse(
+        run_id=run.id, public_id=run.public_id, status_url=_status_url(run.id)
+    )
+
+
+# ---------------------------------------------------------------------------
+# GitHub
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/github",
+    responses={
+        200: {
+            "description": (
+                "Event accepted — either ``ping`` (`{pong: true}`) or an event "
+                "the receiver intentionally drops (``{ignored: true, reason: ...}``)."
+            ),
+        },
+        202: {"model": WebhookEnqueuedResponse, "description": "Gating run enqueued"},
+        401: {"description": "Signature missing or HMAC mismatch"},
+        404: {"description": "No matching project for the integration"},
+    },
+)
+async def receive_github(
+    request: Request,
+    response: Response,
+    x_hub_signature_256: Annotated[str | None, Header(alias="X-Hub-Signature-256")] = None,
+    x_github_event: Annotated[str | None, Header(alias="X-GitHub-Event")] = None,
+    x_github_delivery: Annotated[str | None, Header(alias="X-GitHub-Delivery")] = None,
+    session: AsyncSession = Depends(get_async_session),
+    arq: ArqRedis = Depends(get_arq),
+    dedup_redis: object = Depends(get_dedup_redis),
+) -> WebhookEnqueuedResponse | WebhookIgnoredResponse | WebhookPingResponse:
+    """Handle a GitHub inbound webhook.
+
+    Flow:
+
+    1. Reject unsigned / wrong-HMAC requests with 401 (constant-time compare
+       lives in :func:`verify_github_hmac`). The raw request body is read once
+       and reused for both the signature check and JSON parse so the bytes
+       hashed match the bytes GitHub signed.
+    2. ``X-GitHub-Event: ping`` → 200 ``{pong: true}`` (no Run).
+    3. ``push`` → enqueue a gating run on ``after``. ``ref`` becomes the
+       branch label (``refs/heads/main`` → ``main``).
+    4. ``pull_request`` with action in ``{opened, synchronize, reopened}`` →
+       enqueue a gating run on ``pull_request.head.sha``; other actions
+       (``closed``, ``labeled``, …) return 200 ``unsupported_action``.
+    5. Other events → 200 ``unsupported_event``.
+    6. Unknown repo (``github_repo`` mismatch or project absent) → 404.
+    7. SETNX dedup over ``(project_id, commit_sha, trigger=WEBHOOK)`` keeps
+       PR ``synchronize`` from re-firing inside the TTL when GitHub retries.
+    """
+    # ---- 0. read body once for HMAC + JSON parse --------------------------
+    body_bytes = await request.body()
+
+    # ---- 1. HMAC verify ---------------------------------------------------
+    if not x_hub_signature_256:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="missing X-Hub-Signature-256"
+        )
+    tenant = await verify_github_hmac(
+        session, body=body_bytes, signature_header=x_hub_signature_256
+    )
+    if tenant is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid X-Hub-Signature-256"
+        )
+
+    # ---- 2. ping → short circuit ------------------------------------------
+    if x_github_event == _GITHUB_PING_EVENT:
+        response.status_code = status.HTTP_200_OK
+        return WebhookPingResponse(pong=True)
+
+    # ---- 3. parse payload by event kind -----------------------------------
+    try:
+        raw_body = await request.json()
+    except ValueError as exc:  # pragma: no cover — FastAPI surfaces this
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="invalid json body"
+        ) from exc
+
+    branch: str | None
+    commit_sha: str
+    pr_number: int | None = None
+    repo_full_name: str | None = None
+    name: str
+
+    if x_github_event == _GITHUB_PUSH_EVENT:
+        try:
+            push = GithubPushPayload.model_validate(raw_body)
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="invalid push payload"
+            ) from exc
+        # GitHub sets ``deleted=true`` for branch deletes — we don't gate on
+        # those because ``after`` will be the zero-SHA and the runner has
+        # nothing to check out.
+        if push.deleted is True:
+            response.status_code = status.HTTP_200_OK
+            return WebhookIgnoredResponse(reason="branch_deleted")
+        branch = push.ref.removeprefix("refs/heads/") if push.ref else None
+        commit_sha = push.after or ""
+        repo_full_name = push.repository.full_name if push.repository is not None else None
+        name = f"GitHub Push: {branch}" if branch else "GitHub Push"
+    elif x_github_event == _GITHUB_PULL_REQUEST_EVENT:
+        try:
+            pr = GithubPullRequestPayload.model_validate(raw_body)
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="invalid pull_request payload"
+            ) from exc
+        action = (pr.action or "").lower()
+        if action not in _GITHUB_PR_ACTIONS_TRIGGERING_RUN:
+            response.status_code = status.HTTP_200_OK
+            return WebhookIgnoredResponse(reason="unsupported_action")
+        head = pr.pull_request.head if pr.pull_request is not None else None
+        commit_sha = head.sha if head is not None and head.sha else ""
+        branch = head.ref if head is not None else None
+        pr_number = pr.number or (pr.pull_request.number if pr.pull_request is not None else None)
+        repo_full_name = pr.repository.full_name if pr.repository is not None else None
+        name = f"GitHub PR #{pr_number}: {branch}" if pr_number else "GitHub PR"
+    else:
+        response.status_code = status.HTTP_200_OK
+        return WebhookIgnoredResponse(reason="unsupported_event")
+
+    # ---- 4. project lookup -------------------------------------------------
+    project = await resolve_github_project(session, tenant=tenant, repo_full_name=repo_full_name)
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project not found")
+
+    trigger_label = RunTrigger.WEBHOOK.value
+
+    # ---- 5. dedup ----------------------------------------------------------
+    fresh = await setnx_dedup(
+        dedup_redis,  # type: ignore[arg-type]
+        project_id=project.id,
+        commit_sha=commit_sha,
+        trigger=trigger_label,
+    )
+    if not fresh:
+        response.status_code = status.HTTP_200_OK
+        return WebhookIgnoredResponse(reason="duplicate")
+
+    # ---- 6. gating selection ----------------------------------------------
+    selection = await resolve_gating_selection(session, project=project)
+    if selection is None:
+        response.status_code = status.HTTP_200_OK
+        return WebhookIgnoredResponse(reason="no_gating_suite")
+
+    # ---- 7. enqueue run + audit -------------------------------------------
+    ctx = TenantContext(workspace_id=tenant.workspace_id, user_id="", role=Role.OWNER)
+    svc = RunService(
+        ctx=ctx,
+        repo=RunRepo(session),
+        project_repo=ProjectRepo(session),
+    )
+    try:
+        run = await svc.create_run(
+            project_id=project.id,
+            name=name,
+            selection=selection,
+            branch=branch,
+            commit_sha=commit_sha or None,
+            env="staging",
+            trigger=RunTrigger.WEBHOOK,
+            user_id=None,
+            mcp_routing_override=None,
+            triggered_by="webhook:github",
+        )
+    except ValueError as exc:
+        # See the GitLab handler: a soft-deleted case between selection +
+        # create_run is a transient race CI will re-emit, so we soft-fail to
+        # 200 ignored rather than a hard 4xx.
+        response.status_code = status.HTTP_200_OK
+        return WebhookIgnoredResponse(reason=f"selection_invalid: {exc}")
+
+    job = await arq.enqueue_job("run_test_case", run.id, _queue_name=_RUNS_QUEUE)
+    if job is not None:
+        await svc.attach_arq_job_id(run.id, job.job_id)
+
+    await write_audit(
+        session,
+        workspace_id=tenant.workspace_id,
+        user_id=None,
+        action="webhook.github.received",
+        resource_type="run",
+        resource_id=run.id,
+        metadata={
+            "event": x_github_event,
+            "delivery": x_github_delivery,
+            "integration_id": tenant.integration.id,
+            "repository": repo_full_name,
+            "branch": branch,
+            "commit_sha": commit_sha or None,
+            "pull_request_number": pr_number,
         },
     )
 

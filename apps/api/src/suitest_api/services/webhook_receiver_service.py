@@ -1,18 +1,22 @@
 """Shared utilities for inbound CI/git-provider webhook receivers.
 
-Implements three primitives reused by M1d-16 (GitHub) and M1d-17 (GitLab):
+Implements four primitives reused by M1d-16 (GitHub) and M1d-17 (GitLab):
 
 1. **Workspace resolution by integration secret** — the workspace whose
    :class:`Integration` row carries the matching encrypted secret is the tenant
    on whose behalf the run is enqueued. Constant-time comparison is used
    against every candidate so a wrong-secret reply cannot be timed.
 
-2. **Run dedup via Redis SETNX** — keyed by ``project_id`` + ``commit_sha`` +
+2. **GitHub HMAC verify** — :func:`verify_github_hmac` resolves the integration
+   row whose secret HMAC-SHA256s the raw body to the supplied
+   ``X-Hub-Signature-256`` header. Constant-time across every candidate.
+
+3. **Run dedup via Redis SETNX** — keyed by ``project_id`` + ``commit_sha`` +
    ``trigger``, TTL configurable (60 s default per plan-05b §M1d-16). The
    helper returns ``True`` on first call, ``False`` on dedup hit; the receiver
    short-circuits to a 200 ``ignored`` response on dedup hit.
 
-3. **Gating-suite selection resolution** — returns either the project's pinned
+4. **Gating-suite selection resolution** — returns either the project's pinned
    ``gating_suite_id`` (preferred) or, falling back, every active case tagged
    ``smoke``. ``None`` when neither is configured (Q4 default → 200 ignored).
 
@@ -22,6 +26,7 @@ a request scope and can be re-used by future webhook handlers (Jenkins, Jira).
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
@@ -35,6 +40,12 @@ from suitest_shared.domain.enums import IntegrationKind
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+
+# GitHub signature header prefix. Constant exported so the router can branch
+# on a mis-prefixed header (e.g. someone sent the legacy ``sha1=`` variant)
+# without re-hardcoding the literal.
+GITHUB_SIGNATURE_PREFIX = "sha256="
 
 
 # Smoke fallback tag — cases carrying this tag are auto-selected when the
@@ -148,6 +159,92 @@ async def resolve_workspace_by_token(
         if hmac.compare_digest(secret_bytes, token_bytes) and matched is None:
             matched = WebhookTenant(workspace_id=row.workspace_id, integration=row)
     return matched
+
+
+async def verify_github_hmac(
+    session: AsyncSession, *, body: bytes, signature_header: str
+) -> WebhookTenant | None:
+    """Return the GitHub tenant whose secret HMAC-signs ``body`` to ``signature_header``.
+
+    ``signature_header`` is the raw value of ``X-Hub-Signature-256``, i.e.
+    ``"sha256=<hex>"``. The function:
+
+    1. Strips the ``sha256=`` prefix (returns ``None`` if absent — GitHub
+       always sends it, so a missing prefix is treated as malformed).
+    2. Scans every ``Integration`` of kind ``GITHUB``, computes the expected
+       digest with that integration's secret, and runs
+       :func:`hmac.compare_digest`. First match wins.
+    3. Continues looping on a match so the response time carries no
+       information about *which* integration matched (or whether one did).
+
+    Returns ``None`` when no integration matches; the router maps that to 401.
+    """
+    if not signature_header.startswith(GITHUB_SIGNATURE_PREFIX):
+        # Still iterate at least once so a malformed header doesn't return
+        # measurably faster than a wrong-secret one. We do this by hashing the
+        # body against itself once below before returning None.
+        hmac.new(b"\x00", body, hashlib.sha256).hexdigest()
+        return None
+    supplied_hex = signature_header[len(GITHUB_SIGNATURE_PREFIX) :]
+    supplied_bytes = supplied_hex.encode("ascii")
+    stmt = select(Integration).where(Integration.kind == IntegrationKind.GITHUB)
+    rows: Sequence[Integration] = (await session.scalars(stmt)).all()
+    matched: WebhookTenant | None = None
+    for row in rows:
+        secret_plain = row.secrets_encrypted
+        if secret_plain is None:
+            # Keep the loop length stable: pay an equivalent HMAC cost so
+            # a row without a secret doesn't shortcut the timing budget.
+            hmac.new(b"\x00", body, hashlib.sha256).hexdigest()
+            hmac.compare_digest(supplied_bytes, supplied_bytes)
+            continue
+        secret_bytes = secret_plain.encode("utf-8")
+        expected_hex = hmac.new(secret_bytes, body, hashlib.sha256).hexdigest()
+        expected_bytes = expected_hex.encode("ascii")
+        if hmac.compare_digest(expected_bytes, supplied_bytes) and matched is None:
+            matched = WebhookTenant(workspace_id=row.workspace_id, integration=row)
+    return matched
+
+
+async def resolve_github_project(
+    session: AsyncSession,
+    *,
+    tenant: WebhookTenant,
+    repo_full_name: str | None,
+) -> Project | None:
+    """Resolve the local :class:`Project` for an inbound GitHub event.
+
+    Resolution order, mirroring :func:`resolve_project_from_payload` but
+    accepting GitHub's repo-shaped key:
+
+    1. ``integration.config["local_project_id"]`` if pinned and the project
+       lives under the integration's workspace.
+    2. ``integration.config["github_repo"]`` must match ``repo_full_name`` —
+       returns ``None`` otherwise so a wrong-secret-but-right-repo or
+       right-secret-but-wrong-repo combination still 404s.
+
+    The ``github_repo`` check is *additional* to the workspace scope: if the
+    integration row has no ``github_repo`` config we fall through and let the
+    pinned ``local_project_id`` alone decide (back-compat with M1d-17
+    integration rows that only set ``local_project_id``).
+    """
+    cfg = tenant.integration.config or {}
+    if not isinstance(cfg, dict):
+        return None
+    local_id = cfg.get("local_project_id")
+    if not isinstance(local_id, str):
+        return None
+    expected_repo = cfg.get("github_repo")
+    if (
+        isinstance(expected_repo, str)
+        and expected_repo
+        and (repo_full_name is None or expected_repo != repo_full_name)
+    ):
+        return None
+    project = await session.get(Project, local_id)
+    if project is None or project.workspace_id != tenant.workspace_id:
+        return None
+    return project
 
 
 async def resolve_project_from_payload(
