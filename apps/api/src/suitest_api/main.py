@@ -36,6 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     from suitest_shared.domain.enums import IntegrationKind
 
+    from suitest_api.integrations.jira_adapter import JiraAdapter, _IdentityCrypto
     from suitest_api.integrations.notifier_registry import notifier_factory_registry
     from suitest_api.integrations.registry import adapter_registry
     from suitest_api.integrations.slack_adapter import SlackAdapter
@@ -61,6 +62,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # from the integration row plus the shared httpx client.
     notifier_factory_registry.register(IntegrationKind.SLACK, SlackAdapter)
     app.state.notifier_factory_registry = notifier_factory_registry
+
+    # M1d-12+: per-Integration adapters (JiraAdapter / LinearAdapter / GitHub /
+    # ...) are constructed per-request from the workspace's Integration row, so
+    # we register factory callables here rather than singleton instances.
+    # M1d-19's ``IntegrationService.sync_external`` and the M1d-10 auto-filer
+    # look up the factory by IntegrationKind, then call it with the live
+    # ``Integration``. The MCP client + crypto are injected at call-time by the
+    # consumer (the service holds the process-wide McpInvoker + crypto seam).
+    adapter_factories: dict[IntegrationKind, type] = {
+        IntegrationKind.JIRA: JiraAdapter,
+    }
+    app.state.adapter_factories = adapter_factories
+    # Default crypto seam — ``EncryptedBytes`` already returns plaintext on
+    # read so the production path uses an identity callable. KMS-backed crypto
+    # can replace this without touching the adapter code.
+    app.state.integration_crypto = _IdentityCrypto()
 
     ws_manager: WsConnectionManager | None = None
     ws_redis = getattr(app.state, "ws_redis", None)
