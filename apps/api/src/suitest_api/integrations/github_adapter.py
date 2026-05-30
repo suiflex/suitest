@@ -501,6 +501,20 @@ class GitHubAdapter:
         output = await self._invoke("issue_write", arguments)
         return self._to_external_issue(output)
 
+    async def fetch_external_issue(self, external_key: str) -> ExternalIssue:
+        """Read-only ``issue_read`` to refresh the live :class:`ExternalIssue`."""
+        issue_number = _parse_issue_number(external_key)
+        output = await self._invoke(
+            "issue_read",
+            {
+                "action": "get",
+                "owner": self._owner,
+                "repo": self._repo,
+                "issue_number": issue_number,
+            },
+        )
+        return self._to_external_issue(output)
+
     async def transition_status(self, external_key: str, new_status: DefectStatus) -> None:
         """Move an issue to ``open`` / ``closed`` per the :class:`StatusMap`.
 

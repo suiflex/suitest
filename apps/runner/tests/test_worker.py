@@ -20,6 +20,7 @@ from arq.worker import Worker
 from suitest_runner.jobs.file_external_issue import file_external_issue
 from suitest_runner.jobs.run_test_case import run_test_case
 from suitest_runner.jobs.send_slack_notification import send_slack_notification
+from suitest_runner.jobs.workspace_cleanup import workspace_cleanup
 from suitest_runner.settings import RunnerSettings
 from suitest_runner.worker import WorkerSettings, shutdown, startup
 
@@ -33,11 +34,12 @@ def test_worker_settings_class_attributes() -> None:
 
 
 def test_worker_functions_registry() -> None:
-    """ARQ-registered job list — M1c run job + M1d-15 Slack + M1d-10 external-issue."""
+    """ARQ-registered job list — run job + Slack + external-issue + workspace cleanup."""
     assert WorkerSettings.functions == [
         run_test_case,
         send_slack_notification,
         file_external_issue,
+        workspace_cleanup,
     ]
 
 

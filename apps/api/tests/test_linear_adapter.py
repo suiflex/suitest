@@ -697,6 +697,13 @@ async def test_full_contract_suite_passes_with_mocked_transport() -> None:
                         200,
                         json={"data": {"issueUpdate": {"success": True, "issue": issue_payload}}},
                     )
+                if "IssueFetch" in query or (
+                    "issue(" in query and "issueCreate" not in query and "issueUpdate" not in query
+                ):
+                    return httpx.Response(
+                        200,
+                        json={"data": {"issue": issue_payload}},
+                    )
                 return httpx.Response(500, json={"errors": [{"message": "unhandled"}]})
 
             router.post(LINEAR_GRAPHQL_URL).mock(side_effect=_responder)

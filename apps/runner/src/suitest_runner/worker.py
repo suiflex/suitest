@@ -34,6 +34,7 @@ from suitest_runner.deps import build_defect_auto_filer
 from suitest_runner.jobs.file_external_issue import file_external_issue
 from suitest_runner.jobs.run_test_case import run_test_case
 from suitest_runner.jobs.send_slack_notification import send_slack_notification
+from suitest_runner.jobs.workspace_cleanup import workspace_cleanup
 from suitest_runner.observability import setup_observability
 from suitest_runner.settings import RunnerSettings, get_settings
 
@@ -160,15 +161,16 @@ class WorkerSettings:
     ``WorkerSettings.__dict__`` directly.
     """
 
-    # ARQ reads ``functions`` as a class attribute. The runner currently owns
-    # two jobs: the canonical run executor (M1c) and the Slack notifier
-    # (M1d-15). The Slack job uses its own retry/backoff schedule baked into
-    # the function body rather than the worker-level ``max_tries`` so the
-    # exponential backoff doesn't bleed into ``run_test_case``.
+    # ARQ reads ``functions`` as a class attribute. Jobs owned by the runner:
+    # - ``run_test_case`` (M1c) — canonical run executor
+    # - ``send_slack_notification`` (M1d-15) — outbound Slack with own retry
+    # - ``file_external_issue`` (M1d-10) — defect auto-filer
+    # - ``workspace_cleanup`` (M1d-28) — async workspace tear-down job
     functions = [  # noqa: RUF012 — ARQ reads this as a class attribute
         run_test_case,
         send_slack_notification,
         file_external_issue,
+        workspace_cleanup,
     ]
     queue_name: str = "suitest:runs"
     max_jobs: int = _settings.max_jobs_concurrent
