@@ -66,14 +66,26 @@ repos:
         args: ["--config-file=pyproject.toml"]
         files: ^(apps|packages)/.*\.py$
         # mirrors-mypy passes the staged files in a single invocation. With
-        # pytest's importlib import mode there is no `tests/__init__.py`, so the
-        # two per-package `conftest.py` files both resolve to the top-level
-        # module `conftest`. If a commit stages both at once, mypy aborts with
-        # "Duplicate module named conftest". Exclude packages/db/tests/conftest.py
-        # from the per-file hook to keep that case from breaking; both conftests
-        # are still fully type-checked by the authoritative `mypy apps`/`mypy
-        # packages` split in CI (.github/workflows/ci.yml).
-        exclude: ^(.*/alembic/versions/.*|packages/db/tests/conftest\.py)$
+        # pytest's importlib import mode there is no `tests/__init__.py`, so
+        # same-named test/conftest modules across packages all resolve to the
+        # same top-level module name. If a commit stages more than one at
+        # once, mypy aborts with "Duplicate module named …". Exclude the
+        # `packages/<pkg>/tests/` siblings here so the canonical
+        # `apps/<app>/tests/` copy stays type-checked at the per-file hook;
+        # every excluded file is still fully type-checked by the authoritative
+        # `mypy apps`/`mypy packages` split in CI (.github/workflows/ci.yml).
+        # Known duplicate-named files (M1c → M1d):
+        #   - conftest.py            (db, mcp)
+        #   - test_health.py         (mcp)
+        #   - test_capabilities.py   (core)
+        exclude: |
+          (?x)^(
+            .*/alembic/versions/.*
+            | packages/db/tests/conftest\.py
+            | packages/mcp/tests/conftest\.py
+            | packages/mcp/tests/test_health\.py
+            | packages/core/tests/test_capabilities\.py
+          )$
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.21.2

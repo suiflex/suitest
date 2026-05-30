@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -20,8 +20,9 @@ class McpProvider(Base, TimestampMixin):
     __tablename__ = "mcp_providers"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
-    workspace_id: Mapped[str] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
+    # NULL for bundled/global providers; FK to workspace for user-registered
+    workspace_id: Mapped[str | None] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=True
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     # browser-use | playwright | api | postgres | kubernetes | graphql | grpc |
@@ -45,7 +46,15 @@ class McpProvider(Base, TimestampMixin):
 
     health_status: Mapped[str] = mapped_column(String(32), default="unknown", nullable=False)
     last_health_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # false = registered but not active in routing (e.g. bundled jirac-mcp before integration connect)
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
 
+    # NOTE: Postgres treats NULLs as distinct in unique indexes, so this
+    # constraint does not collide on bundled providers (workspace_id IS NULL).
+    # Bundled-provider name uniqueness, if desired later, should be enforced
+    # via a partial unique idx `(name) WHERE workspace_id IS NULL`.
     __table_args__ = (
         Index("ix_mcp_providers_workspace_kind", "workspace_id", "kind"),
         UniqueConstraint("workspace_id", "name", name="uq_mcp_providers_workspace_name"),

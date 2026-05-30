@@ -1066,7 +1066,10 @@ class McpProvider(Base, TimestampMixin):
     __tablename__ = "mcp_providers"
 
     id: Mapped[str] = mapped_column(String(30), primary_key=True, default=cuid)
-    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
+    # NULL for bundled/global providers; FK to workspace for user-registered
+    workspace_id: Mapped[str | None] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=True,
+    )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     kind: Mapped[str] = mapped_column(String(64), nullable=False)
     # browser-use | playwright | api | postgres | kubernetes | graphql | grpc |
@@ -1095,9 +1098,18 @@ class McpProvider(Base, TimestampMixin):
 
     health_status: Mapped[str] = mapped_column(String(32), default="unknown")
     last_health_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # false = registered but not active in routing (e.g. bundled jirac-mcp before integration connect)
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true",
+    )
 
     __table_args__ = (
         Index("ix_mcp_providers_workspace_kind", "workspace_id", "kind"),
+        # Postgres treats NULLs as distinct in unique indexes, so bundled rows
+        # (workspace_id IS NULL) can repeat the same `name` without collision.
+        # If you need to forbid duplicate bundled names, swap to a partial
+        # unique index `WHERE workspace_id IS NOT NULL` plus a second partial
+        # unique index `(name) WHERE workspace_id IS NULL`.
         UniqueConstraint("workspace_id", "name", name="uq_mcp_providers_workspace_name"),
     )
 ```
@@ -1218,6 +1230,8 @@ class CodeExport(Base):
 | `suites` | + `deleted_at TIMESTAMPTZ NULL` + partial idx `ix_suites_project_active(project_id) WHERE deleted_at IS NULL` | soft-delete tombstone for `DELETE /suites/:id` + `POST /suites/:id/restore` (M1d-4) |
 | `test_cases` | + `order_in_suite INT NOT NULL DEFAULT 0` (indexed) | drives suite drag-reorder (M1d-12) |
 | `mcp_providers` | + `command_pin / image_pin / version_pin / git_ref` (all NULL) | provenance pins per MCP_PLUGINS §13 |
+| `mcp_providers` | `workspace_id` → nullable | NULL = bundled/global provider; NOT NULL = workspace-scoped (M1d-1) |
+| `mcp_providers` | + `enabled BOOLEAN NOT NULL DEFAULT TRUE` | false = registered but inactive in routing (M1d-1; bundled `jirac-mcp` + `github-mcp` seeded `enabled=false`) |
 | `defects` | partial UNIQUE `(run_id, test_case_id) WHERE created_by = 'system'` | prevents `DefectAutoFiler` double-file on runner retry |
 
 ---
@@ -1420,6 +1434,7 @@ class McpTransport(StrEnum):
 | Audit history | `ix_audit_logs_workspace_created (workspace_id, created_at DESC)` |
 | Active LLM config per workspace | `ix_llm_configs_workspace_active (workspace_id, is_active)` |
 | MCP provider lookup by kind | `ix_mcp_providers_workspace_kind (workspace_id, kind)` |
+| Active MCP providers (routing) | `ix_mcp_providers_active (workspace_id) WHERE enabled = true` (optional partial idx — add when routing hot-path requires it) |
 | Generator runs history | `ix_generator_runs_workspace_source (workspace_id, source)` |
 | Agent sessions by provider | `ix_agent_sessions_provider (provider)` |
 | Fast suite-scoped case reorder | `ix_test_cases_suite_order (suite_id, order_in_suite)` |

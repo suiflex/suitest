@@ -101,13 +101,14 @@ Bird's-eye view of every Alembic revision M1d ships, what columns/indexes/seed r
 
 | Task | Alembic revision filename (suggested) | DDL summary | Rollback risk |
 |------|--------------------------------------|--------------|----------------|
-| M1d-1 | `2026XXXX_m1d_01_workspace_strict_zero_and_mcp_overrides.py` | `ALTER TABLE workspaces ADD COLUMN strict_zero_validation BOOL NOT NULL DEFAULT TRUE`, `ALTER TABLE workspaces ADD COLUMN mcp_routing_overrides JSONB NOT NULL DEFAULT '{}'` | LOW — column with NOT NULL DEFAULT is a single ALTER; downgrade drops columns |
+| M1d-1 | `2026XXXX_m1d_01_workspace_strict_zero_and_mcp_overrides.py` | `ALTER TABLE workspaces ADD COLUMN strict_zero_validation BOOLEAN NOT NULL DEFAULT 'true'`, `ALTER TABLE workspaces ADD COLUMN mcp_routing_overrides JSONB NOT NULL DEFAULT '{}'` | LOW — column with NOT NULL DEFAULT is a single ALTER; downgrade drops columns |
 | M1d-1 | `2026XXXX_m1d_02_suite_mcp_overrides_and_soft_delete.py` | `ALTER TABLE suites ADD COLUMN mcp_routing_overrides JSONB NOT NULL DEFAULT '{}'`, `ALTER TABLE suites ADD COLUMN deleted_at TIMESTAMPTZ NULL`, `CREATE INDEX ix_suites_project_active ON suites(project_id) WHERE deleted_at IS NULL` | LOW — additive |
-| M1d-1 | `2026XXXX_m1d_03_test_case_order_in_suite.py` | `ALTER TABLE test_cases ADD COLUMN order_in_suite INT NOT NULL DEFAULT 0`, `CREATE INDEX ix_test_cases_suite_order ON test_cases(suite_id, order_in_suite)` | LOW — additive |
-| M1d-1 | `2026XXXX_m1d_04_project_gating_suite.py` | `ALTER TABLE projects ADD COLUMN gating_suite_id UUID NULL REFERENCES suites(id) ON DELETE SET NULL` | LOW — nullable FK |
-| M1d-1 | `2026XXXX_m1d_05_mcp_provider_pins.py` | `ALTER TABLE mcp_providers ADD COLUMN command_pin TEXT NULL, ADD COLUMN image_pin TEXT NULL, ADD COLUMN version_pin TEXT NULL, ADD COLUMN git_ref TEXT NULL` | LOW — additive |
+| M1d-1 | `2026XXXX_m1d_03_test_case_order_in_suite.py` | `ALTER TABLE test_cases ADD COLUMN order_in_suite INT NOT NULL DEFAULT 0`, `CREATE INDEX ix_test_cases_suite_order ON test_cases(suite_id, order_in_suite)` (composite); the single-column inline `index=True` on `order_in_suite` is autonamed by Alembic (`ix_test_cases_order_in_suite`) — do **not** duplicate as a third manual index | LOW — additive |
+| M1d-1 | `2026XXXX_m1d_04_project_gating_suite.py` | `ALTER TABLE projects ADD COLUMN gating_suite_id VARCHAR(32) NULL REFERENCES suites(id) ON DELETE SET NULL` (matches actual `suites.id = String(32)` in `20260527_0004_projects_suites.py`) | LOW — nullable FK |
+| M1d-1 | `2026XXXX_m1d_05_mcp_provider_pins.py` | `ALTER TABLE mcp_providers ADD COLUMN command_pin VARCHAR(200) NULL, ADD COLUMN image_pin VARCHAR(200) NULL, ADD COLUMN version_pin VARCHAR(100) NULL, ADD COLUMN git_ref VARCHAR(100) NULL` | LOW — additive |
 | M1d-1 | `2026XXXX_m1d_06_defect_auto_dedup.py` | `CREATE UNIQUE INDEX uq_defects_auto_dedup ON defects(run_id, test_case_id) WHERE created_by = 'system'` | LOW — partial idx; downgrade drops |
-| M1d-1 | `2026XXXX_m1d_07_seed_bundled_jirac_and_github_mcp.py` | `INSERT INTO mcp_providers (name, kind, transport, command_pin, enabled, …)` × 2 (jirac-mcp, github-mcp; both `enabled=false`) | LOW — data-only seed; downgrade `DELETE WHERE name IN ('jirac-mcp', 'github-mcp')` |
+| M1d-1 | `2026XXXX_m1d_07_mcp_provider_workspace_nullable_and_enabled.py` | `ALTER TABLE mcp_providers ALTER COLUMN workspace_id DROP NOT NULL`, `ALTER TABLE mcp_providers ADD COLUMN enabled BOOLEAN NOT NULL DEFAULT 'true'` | LOW — additive col + relaxed FK |
+| M1d-1 | `2026XXXX_m1d_08_seed_bundled_jirac_and_github_mcp.py` | `INSERT INTO mcp_providers (workspace_id=NULL, name, kind, transport, command_pin, enabled=false, …)` × 2 (jirac-mcp, github-mcp; both `enabled=false`) | LOW — data-only seed; downgrade `DELETE WHERE workspace_id IS NULL AND name IN ('jirac-mcp', 'github-mcp')` |
 | M1d-10 | (shares M1d-1's `_06_defect_auto_dedup.py`) | n/a — index already lives in M1d-1 | n/a |
 | Others | no new DDL | — | — |
 
@@ -131,15 +132,48 @@ All migrations are idempotent (`IF NOT EXISTS` on indexes; `ADD COLUMN IF NOT EX
 - `test_projects_gating_suite_id_nullable_fk_on_delete_set_null` — create suite, set as gating; delete suite; assert `projects.gating_suite_id IS NULL`.
 - `test_mcp_provider_pins_all_nullable` — INSERT row with all four pin columns NULL; assert no constraint violation.
 - `test_defects_auto_dedup_partial_unique_scoped_to_system` — INSERT defect (`run_id=r1, case_id=c1, created_by='system'`); INSERT second with same `(r1, c1, 'system')` → `IntegrityError`. INSERT third with `(r1, c1, 'user_u1')` → succeeds (partial idx doesn't apply).
-- `test_seeded_jirac_mcp_row_disabled` — `SELECT enabled, command_pin FROM mcp_providers WHERE name='jirac-mcp'` → `(False, 'jirac-mcp@jira-mcp-v2.0.1')`.
-- `test_seeded_github_mcp_row_disabled` — `SELECT enabled, command_pin FROM mcp_providers WHERE name='github-mcp'` → `(False, 'github-mcp-server@v1.1.2')`.
+- `test_mcp_providers_workspace_id_nullable_post_m1d` — INSERT a row with `workspace_id=NULL`; assert no NOT NULL constraint violation.
+- `test_mcp_providers_enabled_defaults_true_post_m1d` — INSERT a row without specifying `enabled`; assert `SELECT enabled` returns `TRUE`.
+- `test_seeded_jirac_mcp_row_disabled` — `SELECT enabled, command_pin, workspace_id FROM mcp_providers WHERE name='jirac-mcp'` → `(False, 'jirac-mcp@jira-mcp-v2.0.1', None)`.
+- `test_seeded_github_mcp_row_disabled` — `SELECT enabled, command_pin, workspace_id FROM mcp_providers WHERE name='github-mcp'` → `(False, 'github-mcp-server@v1.1.2', None)`.
+- `test_bundled_mcp_providers_post_upgrade_query` — verification query `SELECT name, enabled, workspace_id FROM mcp_providers WHERE workspace_id IS NULL ORDER BY name` returns exactly 2 rows: `('github-mcp', False, None)` and `('jirac-mcp', False, None)`.
 - `test_no_new_global_public_id_sequences` — `SELECT relname FROM pg_class WHERE relkind='S' AND relname LIKE 'pubid_%global%'` returns 0 rows (helper-managed dynamic sequences only).
 - `test_no_ix_runs_dedup_recent_index` — `SELECT indexname FROM pg_indexes WHERE indexname='ix_runs_dedup_recent'` returns 0 rows.
 
 **Implementation:**
 
-- Create 7 Alembic revisions under `packages/db/suitest_db/migrations/versions/` per the Migration summary table above. Each revision: `revision = "…"`, `down_revision = "<previous>"`, `branch_labels = None`, `depends_on = None`, plus `upgrade()` + `downgrade()` that are exact inverses.
+- Create 8 Alembic revisions under `packages/db/alembic/versions/` per the Migration summary table above. Each revision: `revision = "…"`, `down_revision = "<previous>"`, `branch_labels = None`, `depends_on = None`, plus `upgrade()` + `downgrade()` that are exact inverses.
+- The **first** M1d revision pins `down_revision = "0015_run_step_logs"` (the head of M1c, file `20260529_0015_run_step_logs.py`). Subsequent revisions chain to the previous M1d rev.
 - Revision filenames are `YYYYMMDDHHMM_m1d_<NN>_<short_desc>.py` style; use `alembic revision -m "m1d 01 workspace strict zero"` to generate the boilerplate, then hand-edit.
+- For `projects.gating_suite_id` use `sa.String(length=32)` (NOT `UUID`) to match the actual `suites.id` width declared in `20260527_0004_projects_suites.py:51`. Add the FK with `ondelete="SET NULL"` so deleting a gating suite nulls the project pointer rather than cascading:
+  ```
+  op.add_column("projects", sa.Column("gating_suite_id", sa.String(length=32), nullable=True))
+  op.create_foreign_key("fk_projects_gating_suite_id", "projects", "suites",
+                        ["gating_suite_id"], ["id"], ondelete="SET NULL")
+  ```
+- For `mcp_providers` pin columns use exact `sa.String(length=N)` (NOT `Text`):
+  ```
+  op.add_column("mcp_providers", sa.Column("command_pin", sa.String(length=200), nullable=True))
+  op.add_column("mcp_providers", sa.Column("image_pin",   sa.String(length=200), nullable=True))
+  op.add_column("mcp_providers", sa.Column("version_pin", sa.String(length=100), nullable=True))
+  op.add_column("mcp_providers", sa.Column("git_ref",     sa.String(length=100), nullable=True))
+  ```
+- For `mcp_providers.workspace_id` nullable + `enabled` add (in revision `_07`):
+  ```
+  op.alter_column("mcp_providers", "workspace_id", existing_type=sa.String(length=32),
+                  nullable=True)
+  op.add_column("mcp_providers", sa.Column(
+      "enabled", sa.Boolean(), nullable=False, server_default=sa.text("'true'"),
+  ))
+  ```
+  Inverse `downgrade()`:
+  ```
+  op.drop_column("mcp_providers", "enabled")
+  op.alter_column("mcp_providers", "workspace_id", existing_type=sa.String(length=32),
+                  nullable=False)
+  ```
+  Note: downgrade of `workspace_id nullable=True → nullable=False` will fail if bundled rows (workspace_id IS NULL) exist; the downgrade must first DELETE bundled rows (handled by the seed revision's own downgrade running first via the linear chain).
+- For Boolean `server_default`, use the lowercase SQL literal `sa.text("'true'")` — Alembic / SQLAlchemy normalises to a string, not the Python keyword `True`. Same for `strict_zero_validation`.
 - For `suites.deleted_at` + partial idx, use:
   ```
   op.add_column("suites", sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True))
@@ -151,28 +185,36 @@ All migrations are idempotent (`IF NOT EXISTS` on indexes; `ADD COLUMN IF NOT EX
   op.create_index("uq_defects_auto_dedup", "defects", ["run_id", "test_case_id"],
                   unique=True, postgresql_where=sa.text("created_by = 'system'"))
   ```
-- For seed rows, use `op.bulk_insert(mcp_providers_table, [...])` with `workspace_id=NULL` (or a sentinel `_builtin_` matching the M1c registry convention), `kind="issue-tracker"`, `transport="stdio"`, `enabled=False`, `command_pin` as per spec.
+- For seed rows, use `op.bulk_insert(mcp_providers_table, [...])` with `workspace_id=None` (Python) / `NULL` (SQL) — `mcp_providers.workspace_id` is now nullable for bundled/global providers, so **no `_builtin_` sentinel workspace is needed**. Both bundled rows ship with `enabled=False`, `kind="issue-tracker"`, `transport="stdio"`, and the spec'd `command_pin`. Downgrade: `DELETE FROM mcp_providers WHERE workspace_id IS NULL AND name IN ('jirac-mcp', 'github-mcp')`.
 - ORM updates in `packages/db/suitest_db/models/workspace.py`, `project.py`, `suite.py`, `test_case.py`, `mcp_provider.py`, `defect.py` to add the new mapped columns. Use `Mapped[bool]`, `Mapped[dict[str, Any]]` (JSONB), `Mapped[datetime | None]`, `Mapped[int]`, `Mapped[uuid.UUID | None]`, `Mapped[str | None]` respectively.
 - Bump `packages/db/pyproject.toml` version to `0.5.0` to signal schema bump.
 
 **Verification:**
 
 - `uv run alembic upgrade head` against a clean Postgres returns clean.
-- `uv run alembic downgrade -7` returns clean (rolls back all 7 M1d revisions).
+- `uv run alembic downgrade -8` returns clean (rolls back all 8 M1d revisions).
 - `uv run alembic upgrade head` again returns clean.
+- After `upgrade head`, run:
+  ```sql
+  SELECT name, enabled, workspace_id
+  FROM mcp_providers
+  WHERE workspace_id IS NULL
+  ORDER BY name;
+  ```
+  Expected: exactly 2 rows — `('github-mcp', false, NULL)` and `('jirac-mcp', false, NULL)`.
 - `uv run pytest apps/api/tests/db/test_m1d_migrations.py -q` → all green.
 - `uv run mypy packages/db` → 0 errors.
 
 **Done when:**
 
-- [ ] 7 Alembic revisions added under `packages/db/suitest_db/migrations/versions/`.
-- [ ] All ORM models updated with new typed columns.
+- [ ] 8 Alembic revisions added under `packages/db/alembic/versions/` (first chains to `down_revision = "0015_run_step_logs"`).
+- [ ] All ORM models updated with new typed columns (incl. `McpProvider.workspace_id: Mapped[str | None]` and `McpProvider.enabled: Mapped[bool]`).
 - [ ] Round-trip migration test green.
-- [ ] Seeded `jirac-mcp` + `github-mcp` rows present after `upgrade head` (verified by test).
+- [ ] Seeded `jirac-mcp` + `github-mcp` rows present after `upgrade head` with `workspace_id IS NULL` and `enabled=false` (verified by test + the SQL query above).
 - [ ] `mypy --strict packages/db` clean.
-- [ ] Commit message: `feat(db): m1d migrations — strict_zero, mcp_overrides, soft-delete, defect-dedup, bundled MCP seeds`.
+- [ ] Commit message: `feat(db): m1d migrations — strict_zero, mcp_overrides, soft-delete, defect-dedup, mcp workspace nullable + enabled, bundled MCP seeds`.
 
-**Cross-refs:** `docs/DATA_MODEL.md §3.2` (Workspace), `§3.3` (Project, Suite + deleted_at), `§3.4` (TestCase + order_in_suite), `§6` (enums), `§8` (`generate_public_id` helper), `§11` (migration table), `docs/MCP_PLUGINS.md §3` (bundled providers list).
+**Cross-refs:** `docs/DATA_MODEL.md §3.2` (Workspace), `§3.3` (Project, Suite + deleted_at), `§3.4` (TestCase + order_in_suite), `§4.3` (McpProvider — workspace_id nullable + enabled), `§5` (Modified tables delta), `§6` (enums), `§8` (`generate_public_id` helper), `docs/MCP_PLUGINS.md §3` (bundled providers list).
 
 ---
 
@@ -927,7 +969,7 @@ Add the following methods (each typed signature only — bodies are straightforw
   ```
   JIRA_SPEC = McpProviderConfig(
       id="builtin:jirac-mcp",
-      workspace_id="_builtin_",
+      workspace_id=None,  # bundled/global — DB column is nullable post-M1d-1
       name="jirac-mcp",
       kind="issue-tracker",
       transport=McpTransport.STDIO,
@@ -1095,7 +1137,7 @@ Add the following methods (each typed signature only — bodies are straightforw
 - Bundled provider config at `packages/mcp/suitest_mcp/bundled/github.py`:
   ```
   GITHUB_SPEC = McpProviderConfig(
-      id="builtin:github-mcp", workspace_id="_builtin_", name="github-mcp",
+      id="builtin:github-mcp", workspace_id=None, name="github-mcp",  # bundled/global
       kind="issue-tracker", transport=McpTransport.STDIO,
       command=["github-mcp-server", "stdio", "--toolsets", "issues"],
       env={}, config_json={"version_pin": "v1.1.2"},
@@ -2012,9 +2054,11 @@ Add the following methods (each typed signature only — bodies are straightforw
   - `suites.deleted_at` + `ix_suites_project_active`
   - `test_cases.order_in_suite`
   - `projects.gating_suite_id`
-  - `mcp_providers.{command_pin, image_pin, version_pin, git_ref}`
+  - `mcp_providers.{command_pin, image_pin, version_pin, git_ref}` (all `VARCHAR(200/100)`)
+  - `mcp_providers.workspace_id` → nullable (bundled/global providers carry `NULL`)
+  - `mcp_providers.enabled BOOLEAN NOT NULL DEFAULT 'true'`
   - `uq_defects_auto_dedup` partial unique index
-  - Seed rows: `jirac-mcp`, `github-mcp` (both `enabled=false`)
+  - Seed rows: `jirac-mcp`, `github-mcp` (both `workspace_id=NULL`, `enabled=false`)
 
   ### Notes
   - First Jira/GitHub connect flips bundled MCP `enabled=true`.

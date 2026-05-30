@@ -3716,4 +3716,3 @@ These need confirmation before merging the PR that closes M4:
   - M1d → [`plan-05-m1d-tcm-writes.md`](./2026-05-26-plan-05-m1d-tcm-writes.md)
   - M2 → [`plan-06-m2-generators-mcp-expansion.md`](./2026-05-26-plan-06-m2-generators-mcp-expansion.md)
   - M3 → `plan-07-m3-llm-cloud-tier.md` (assumed; verify exists before starting M4)
-
