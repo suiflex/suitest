@@ -31,7 +31,6 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 import pytest
@@ -74,20 +73,6 @@ def nginx_test_page_url() -> str:
     From the host (local debugging) the service publishes port ``8090``.
     """
     return _env("SUITEST_E2E_NGINX_URL", _DEFAULT_NGINX_URL)
-
-
-@pytest.fixture(scope="session")
-def auth_secret() -> str:
-    """JWT signing secret shared with the api container.
-
-    Required — there is no sensible default in production code paths. The
-    fixture raises ``pytest.skip`` rather than hard-failing so a smoke run
-    against a partially-bootstrapped stack reports cleanly.
-    """
-    secret = os.environ.get("SUITEST_AUTH_SECRET")
-    if not secret:
-        pytest.skip("SUITEST_AUTH_SECRET not set — E2E requires a real api secret")
-    return secret
 
 
 @pytest.fixture(scope="session")
@@ -196,45 +181,46 @@ async def seeded_case(database_url: str, nginx_test_page_url: str) -> dict[str, 
     }
 
 
-@pytest.fixture
-def auth_token(auth_secret: str, seeded_case: dict[str, str]) -> str:
-    """Mint a FastAPI-Users-compatible JWT for the seeded test user.
+@pytest_asyncio.fixture
+async def auth_token(seeded_case: dict[str, str]) -> str:
+    """Mint a real FastAPI-Users JWT via the app's configured strategy."""
+    from suitest_api.auth.manager import get_jwt_strategy
 
-    Mirrors :func:`fastapi_users.authentication.JWTStrategy.write_token` so
-    the api container accepts the token via the same ``get_jwt_strategy``
-    code path the WS gateway uses. We use the ``audience`` claim
-    ``fastapi-users:auth`` which is the library default.
-    """
-    import jwt as pyjwt
-
-    now = datetime.now(tz=UTC)
-    payload = {
-        "sub": seeded_case["user_id"],
-        "aud": ["fastapi-users:auth"],
-        "exp": int((now + timedelta(minutes=30)).timestamp()),
-        "iat": int(now.timestamp()),
-    }
-    return pyjwt.encode(payload, auth_secret, algorithm="HS256")
+    strategy = get_jwt_strategy()
+    return await strategy.write_token(_TokenSubject(seeded_case["user_id"]))  # type: ignore[arg-type]
 
 
 @pytest_asyncio.fixture
 async def api_client(
     api_base_url: str, auth_token: str, seeded_case: dict[str, str]
 ) -> AsyncIterator[AsyncClient]:
-    """httpx ``AsyncClient`` bound to the live api with auth + workspace headers."""
+    """httpx ``AsyncClient`` bound to the live api with session cookie + workspace header."""
     from httpx import AsyncClient
 
     headers = {
-        "Authorization": f"Bearer {auth_token}",
         "X-Workspace-Id": seeded_case["workspace_id"],
     }
-    async with AsyncClient(base_url=api_base_url, headers=headers, timeout=30.0) as c:
+    cookies = {"suitest_session": auth_token}
+    async with AsyncClient(
+        base_url=api_base_url,
+        headers=headers,
+        cookies=cookies,
+        timeout=30.0,
+    ) as c:
         yield c
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+class _TokenSubject:
+    """Minimal duck-type for ``JWTStrategy.write_token`` (only ``.id`` is read)."""
+
+    def __init__(self, user_id: str) -> None:
+        self.id = user_id
+
 
 
 def _cuid_like() -> str:

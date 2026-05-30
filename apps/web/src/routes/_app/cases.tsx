@@ -3,16 +3,17 @@ import { formatDistanceToNow } from "date-fns";
 import {
   AlertTriangle,
   ChevronDown,
-  Code,
   FileText,
   FolderTree,
   ListChecks,
+  Trash2,
 } from "lucide-react";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CasesSkeleton } from "@/components/cases/skeleton";
-import { DisabledPlaceholder } from "@/components/gating/DisabledPlaceholder";
+import { StepEditor } from "@/components/cases/StepEditor";
+import type { DraftStep } from "@/components/cases/StepEditor";
 import { Gated } from "@/components/gating/Gated";
 import { AgentInsightCallout } from "@/components/shared/AgentInsightCallout";
 import { DisabledTooltip } from "@/components/shared/DisabledTooltip";
@@ -25,8 +26,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFeatureEnabled } from "@/hooks/use-feature-enabled";
 import { useCreateRun } from "@/hooks/use-runs";
-import { useSuites, useTestCase, useTestCases } from "@/hooks/use-test-cases";
+import {
+  useDeleteTestCase,
+  useRestoreTestCase,
+  useSuites,
+  useTestCase,
+  useTestCases,
+} from "@/hooks/use-test-cases";
 import type { components } from "@/lib/api-types";
+import { undoToast } from "@/lib/undo-toast";
 import { cn } from "@/lib/utils";
 
 type Case = components["schemas"]["TestCaseListItem"];
@@ -193,6 +201,53 @@ function CaseDetailPanel({
   const { data: detail, isLoading, isError } = useTestCase(publicId ?? undefined);
   const navigate = useNavigate();
   const createRun = useCreateRun();
+  const deleteCase = useDeleteTestCase();
+  const restoreCase = useRestoreTestCase();
+
+  // Local draft state for the step editor — seeded from the server response
+  // and kept in sync when the server data refreshes (via key on detail?.id).
+  const [draftSteps, setDraftSteps] = useState<DraftStep[]>([]);
+
+  // Sync draftSteps when the server data arrives or changes
+  const serverSteps = detail?.steps ?? [];
+
+  // Use a derived key to detect when serverSteps identity changes so we can
+  // reset the draft. We compare by serialised IDs only to avoid infinite loops.
+  const serverStepIds = serverSteps.map((s) => s.id).join(",");
+
+  // We need a stable reference to avoid re-creating on every render
+  const syncedRef = useMemo(() => serverStepIds, [serverStepIds]);
+
+  // When server step IDs change (new fetch, add/remove success), seed draft
+  // We do this via useMemo so no extra render cycle is needed for derivation
+  const effectiveSteps = useMemo<DraftStep[]>(() => {
+    return serverSteps.map((s) => ({
+      id: s.id,
+      order: s.order,
+      action: s.action,
+      expected: s.expected,
+      code: s.code ?? null,
+      mcp_provider: s.mcp_provider,
+      target_kind: s.target_kind,
+    }));
+    // syncedRef is the same as serverStepIds but stable reference for deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncedRef]);
+
+  // Merge: prefer draftSteps if they diverge from server (user editing),
+  // but reset if the case selection changes or server fetch refreshes with
+  // different step IDs (add/remove confirmed by server).
+  //
+  // Strategy: if draftSteps is empty OR server IDs changed → use effectiveSteps
+  const stepsToShow = draftSteps.length === 0 && effectiveSteps.length === 0
+    ? []
+    : draftSteps.length > 0
+    ? draftSteps
+    : effectiveSteps;
+
+  const handleStepsChange = useCallback((next: DraftStep[]) => {
+    setDraftSteps(next);
+  }, []);
 
   if (!publicId) {
     return (
@@ -217,7 +272,6 @@ function CaseDetailPanel({
   }
 
   const sourcePill = caseSourceToPill(detail.source);
-  const steps = detail.steps ?? [];
   // ``TestCaseDetail`` exposes ``suite_id`` but not ``project_id``; derive the
   // latter from the cached suites list so ``POST /runs`` can be addressed to
   // the right project without an extra round-trip.
@@ -241,6 +295,33 @@ function CaseDetailPanel({
     );
   };
 
+  const deletePending = deleteCase.isPending || restoreCase.isPending;
+  const handleDelete = (): void => {
+    const targetId = detail.public_id;
+    deleteCase.mutate(targetId, {
+      onSuccess: () => {
+        // Drop the ?case= param so the panel returns to the empty state.
+        void navigate({ to: "/cases", search: {} });
+        void undoToast({
+          label: `Deleted ${targetId}`,
+          onUndo: () =>
+            new Promise<void>((resolve, reject) => {
+              restoreCase.mutate(targetId, {
+                onSuccess: () => {
+                  resolve();
+                },
+                onError: (err) => {
+                  reject(err);
+                },
+              });
+            }),
+          undoSuccessMessage: `Restored ${targetId}`,
+          undoErrorMessage: `Failed to restore ${targetId}`,
+        });
+      },
+    });
+  };
+
   return (
     <div className="flex flex-col gap-4" data-testid="case-detail">
       <div
@@ -258,11 +339,19 @@ function CaseDetailPanel({
           <SourcePill source={sourcePill} />
         </div>
         <div className="flex items-center gap-1.5">
-          <DisabledTooltip reason="Editing comes in M1d">
-            <Button type="button" size="sm" variant="outline" disabled>
-              Edit
-            </Button>
-          </DisabledTooltip>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            data-testid="case-delete-btn"
+            disabled={deletePending}
+            onClick={handleDelete}
+            className="text-fg-3 hover:text-red"
+            aria-label="Delete case"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+            {deleteCase.isPending ? "Deleting…" : "Delete"}
+          </Button>
           <Button
             type="button"
             size="sm"
@@ -293,39 +382,13 @@ function CaseDetailPanel({
         <Meta label="Updated" value={formatDistanceToNow(new Date(detail.updated_at), { addSuffix: true })} />
       </dl>
 
-      <section className="flex flex-col gap-2" data-testid="case-steps">
-        <h4 className="text-[13px] font-semibold text-fg-1">Steps</h4>
-        {steps.length === 0 ? (
-          <DisabledPlaceholder reason="No steps yet" />
-        ) : (
-          <ol className="flex flex-col gap-2">
-            {steps.map((step) => (
-              <li
-                key={step.id}
-                className="rounded-md border border-border bg-bg-elev-1 p-3"
-                data-testid="case-step"
-              >
-                <div className="mb-1 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-bg-elev-2 font-mono text-[10.5px] text-fg-4">
-                      {step.order}
-                    </span>
-                    <span className="text-[12.5px] font-medium text-fg-1">{step.action}</span>
-                  </div>
-                  <span className="font-mono text-[10.5px] text-fg-5">{step.mcp_provider}</span>
-                </div>
-                <p className="text-[12px] text-fg-3">Expected: {step.expected}</p>
-                {step.code ? (
-                  <pre className="mt-2 overflow-x-auto rounded-md bg-[#060606] p-2 font-mono text-[11px] text-fg-3">
-                    <Code className="mr-1 inline h-3 w-3 align-text-bottom" aria-hidden="true" />
-                    <code>{step.code}</code>
-                  </pre>
-                ) : null}
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
+      <div data-testid="case-steps">
+        <StepEditor
+          caseId={detail.public_id}
+          steps={stepsToShow}
+          onStepsChange={handleStepsChange}
+        />
+      </div>
 
       <Gated feature="ai_diagnose" fallback={null}>
         <AgentInsightCallout
