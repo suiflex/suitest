@@ -1,0 +1,85 @@
+# syntax=docker/dockerfile:1.7
+#
+# MCP servers bundling prototype for Suitest M1d PR-12 + PR-14.
+# NOT shipped — this file is a pattern reference only.
+#
+# Demonstrates how to bundle two third-party MCP server binaries into the
+# Suitest API/runner image:
+#   - jirac-mcp           (Rust, glibc-dynamic)  — PR-12
+#   - github-mcp-server   (Go,   static)         — PR-14
+#
+# Multi-stage layout:
+#   1. jirac-mcp   extractor — alpine, downloads + extracts + renames asset
+#   2. github-mcp  extractor — alpine, downloads + extracts
+#   3. final                 — python:3.12-slim (mirrors infra/docker/Dockerfile.api)
+#
+# Extractor stages run on $BUILDPLATFORM but download $TARGETARCH-specific
+# assets, so `docker buildx build --platform linux/amd64,linux/arm64` works
+# without cross-execution. We do NOT exec the Rust binary inside the alpine
+# extractor (musl libc has no glibc loader); the smoke test runs in the
+# final python:3.12-slim stage instead.
+
+ARG JIRAC_VERSION=jira-mcp-v2.0.1
+ARG GH_MCP_VERSION=v1.1.2
+
+# ---------------------------------------------------------------------------
+# 1) jirac-mcp extractor
+# ---------------------------------------------------------------------------
+FROM --platform=$BUILDPLATFORM alpine:3.19 AS jirac-mcp
+ARG TARGETARCH
+ARG JIRAC_VERSION
+RUN apk add --no-cache curl tar \
+ && case "$TARGETARCH" in \
+      amd64) asset="jirac-mcp-linux-x86_64.tar.gz";  binname="jirac-mcp-linux-x86_64"  ;; \
+      arm64) asset="jirac-mcp-linux-aarch64.tar.gz"; binname="jirac-mcp-linux-aarch64" ;; \
+      *) echo "unsupported arch: $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+ && curl -fsSL -o /tmp/jirac.tar.gz \
+      "https://github.com/mulhamna/jira-commands/releases/download/${JIRAC_VERSION}/${asset}" \
+ && mkdir -p /out \
+ && tar -xzf /tmp/jirac.tar.gz -C /out \
+ && install -m 0755 "/out/${binname}" /usr/local/bin/jirac-mcp \
+ && rm -rf /tmp/jirac.tar.gz /out
+# NOTE: cannot run `jirac-mcp --version` here — Rust binary is glibc-linked,
+# alpine ships musl. Smoke test deferred to final stage.
+
+# ---------------------------------------------------------------------------
+# 2) github-mcp-server extractor
+# ---------------------------------------------------------------------------
+FROM --platform=$BUILDPLATFORM alpine:3.19 AS github-mcp
+ARG TARGETARCH
+ARG GH_MCP_VERSION
+RUN apk add --no-cache curl tar \
+ && case "$TARGETARCH" in \
+      amd64) asset="github-mcp-server_Linux_x86_64.tar.gz" ;; \
+      arm64) asset="github-mcp-server_Linux_arm64.tar.gz"  ;; \
+      *) echo "unsupported arch: $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+ && curl -fsSL -o /tmp/gh-mcp.tar.gz \
+      "https://github.com/github/github-mcp-server/releases/download/${GH_MCP_VERSION}/${asset}" \
+ && mkdir -p /out \
+ && tar -xzf /tmp/gh-mcp.tar.gz -C /out \
+ && install -m 0755 /out/github-mcp-server /usr/local/bin/github-mcp-server \
+ && rm -rf /tmp/gh-mcp.tar.gz /out
+# go binary is statically linked; the version check below would succeed even
+# under alpine. We still defer it to the final stage for parity.
+
+# ---------------------------------------------------------------------------
+# 3) Final stage — mirror infra/docker/Dockerfile.api base
+# ---------------------------------------------------------------------------
+FROM python:3.12-slim AS final
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+
+# ca-certificates is needed for the MCP servers to call out (Jira, GitHub APIs).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --from=jirac-mcp  /usr/local/bin/jirac-mcp         /usr/local/bin/jirac-mcp
+COPY --from=github-mcp /usr/local/bin/github-mcp-server /usr/local/bin/github-mcp-server
+
+# Build-time smoke test — fails the build if either binary cannot start.
+RUN /usr/local/bin/jirac-mcp --version \
+ && /usr/local/bin/github-mcp-server --version
+
+# No CMD — this image is a pattern reference, not a runnable service.
