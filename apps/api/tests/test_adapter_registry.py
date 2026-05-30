@@ -105,6 +105,20 @@ class _MockAdapter:
         self._issues[external_key] = updated
         return updated
 
+    async def fetch_external_issue(self, external_key: str) -> ExternalIssue:
+        existing = self._issues.get(external_key)
+        if existing is not None:
+            return existing
+        # Synthesise a stub for unknown keys so the contract test's "fetch
+        # by external_key derived from create" path works regardless of the
+        # adapter's in-memory cache.
+        return ExternalIssue(
+            external_id=external_key,
+            external_key=external_key,
+            external_url=f"https://mock.example/{external_key}",
+            external_status="Open",
+        )
+
     async def transition_status(self, external_key: str, new_status: DefectStatus) -> None:
         self.transitions.append((external_key, new_status))
         ext_name = self._status_map.defect_to_external(new_status)
