@@ -11,13 +11,16 @@ import uuid
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import Row, select
 from suitest_db.models.audit import AuditLog
+from suitest_db.models.user import User
 from suitest_db.repositories.base import AsyncRepository
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from datetime import datetime
+
+    from sqlalchemy.orm import InstrumentedAttribute
 
 
 class AuditLogCreate(BaseModel):
@@ -59,6 +62,69 @@ class AuditLogRepo(AsyncRepository[AuditLog, AuditLogCreate, AuditLogUpdate]):
             page = rows[:limit]
             last = page[-1]
             next_cursor: tuple[datetime, str] | None = (last.created_at, last.id)
+        else:
+            page = rows
+            next_cursor = None
+        return page, next_cursor
+
+    async def list_paginated_filtered(
+        self,
+        *,
+        workspace_id: str,
+        cursor: tuple[datetime, str] | None = None,
+        action_pattern: str | None = None,
+        resource_type: str | None = None,
+        user_id: uuid.UUID | None = None,
+        from_ts: datetime | None = None,
+        to_ts: datetime | None = None,
+        limit: int = 50,
+    ) -> tuple[Sequence[Row[tuple[AuditLog, str | None]]], tuple[datetime, str] | None]:
+        """Cursor-paginated workspace audit list with full M1d-27 filter set.
+
+        ``action_pattern`` is a pre-translated SQL ``LIKE`` pattern (caller
+        converts ``integration.*`` glob → ``integration.%``). ``from_ts`` and
+        ``to_ts`` are inclusive datetime bounds. Joins ``users`` to surface the
+        actor email; returns ``Row[(AuditLog, email_or_None)]`` pairs so the
+        caller does not need a second round-trip.
+        """
+        # ``User`` inherits ``email`` from FastAPI-Users' base which types the
+        # attribute as a plain ``str`` for the ORM mixin — at runtime SQLAlchemy
+        # rebinds it as an ``InstrumentedAttribute``. The cast keeps mypy happy
+        # without ``# type: ignore`` litter on every column reference.
+        # The outer join makes the email column nullable in the result row.
+        user_email_col: InstrumentedAttribute[str | None] = User.__table__.c.email  # type: ignore[assignment]
+        user_id_col: InstrumentedAttribute[uuid.UUID] = User.__table__.c.id  # type: ignore[assignment]
+        stmt = (
+            select(AuditLog, user_email_col)
+            .outerjoin(User, AuditLog.user_id == user_id_col)
+            .where(AuditLog.workspace_id == workspace_id)
+        )
+        if cursor is not None:
+            cursor_ts, cursor_id = cursor
+            stmt = stmt.where(
+                (AuditLog.created_at < cursor_ts)
+                | ((AuditLog.created_at == cursor_ts) & (AuditLog.id < cursor_id))
+            )
+        if action_pattern is not None:
+            # Pattern already includes SQL wildcards (% / _). Escape the literal
+            # backslash to keep ``\%`` / ``\_`` working as escapes (Postgres default).
+            stmt = stmt.where(AuditLog.action.like(action_pattern, escape="\\"))
+        if resource_type is not None:
+            stmt = stmt.where(AuditLog.resource_type == resource_type)
+        if user_id is not None:
+            stmt = stmt.where(AuditLog.user_id == user_id)
+        if from_ts is not None:
+            stmt = stmt.where(AuditLog.created_at >= from_ts)
+        if to_ts is not None:
+            stmt = stmt.where(AuditLog.created_at <= to_ts)
+
+        stmt = stmt.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).limit(limit + 1)
+
+        rows = list((await self.session.execute(stmt)).all())
+        if len(rows) > limit:
+            page = rows[:limit]
+            last_audit: AuditLog = page[-1][0]
+            next_cursor: tuple[datetime, str] | None = (last_audit.created_at, last_audit.id)
         else:
             page = rows
             next_cursor = None
