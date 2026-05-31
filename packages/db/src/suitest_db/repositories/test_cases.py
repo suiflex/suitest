@@ -118,6 +118,25 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
         stmt = select(CaseTag.tag).where(CaseTag.case_id == case_id).order_by(CaseTag.tag.asc())
         return list((await self.session.scalars(stmt)).all())
 
+    async def get_by_public_id(self, public_id: str, workspace_id: str) -> TestCase | None:
+        """Resolve a non-deleted case by its per-workspace public id (``TC-1000``).
+
+        Public ids are unique per workspace, so the lookup is scoped through the
+        case's ``suite → project → workspace`` chain. Returns ``None`` when no
+        live case matches (caller raises 404).
+        """
+        stmt = (
+            select(TestCase)
+            .join(Suite, Suite.id == TestCase.suite_id)
+            .join(Project, Project.id == Suite.project_id)
+            .where(
+                TestCase.public_id == public_id,
+                Project.workspace_id == workspace_id,
+                TestCase.deleted_at.is_(None),
+            )
+        )
+        return (await self.session.scalars(stmt)).first()
+
     async def list_by_project(self, project_id: str) -> Sequence[TestCase]:
         """All non-deleted cases in a project (via its suites) — for the matrix."""
         stmt = (

@@ -81,7 +81,8 @@ export function Heatmap({ cells }: { cells: Cell[] }): React.ReactElement {
         <span>More</span>
       </div>
       <div className="text-[11.5px] text-fg-3" data-testid="heatmap-peak">
-        Peak hour: <span className="font-mono text-fg-1">{peak.toString().padStart(2, "0")}:00</span>
+        Peak hour:{" "}
+        <span className="font-mono text-fg-1">{peak.toString().padStart(2, "0")}:00</span>
       </div>
     </div>
   );

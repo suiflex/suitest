@@ -23,7 +23,12 @@ export interface McpProvidersPage {
 export function useIntegrations(): UseSuspenseQueryResult<IntegrationsPage> {
   return useSuspenseQuery({
     queryKey: ["integrations"] as const,
-    queryFn: async () => (await api.get<IntegrationsPage>("/integrations")).data,
+    // Backend returns a bare `IntegrationListItem[]`; wrap as `{ items }` so
+    // consumers (which read `integrations.items`) don't crash on `undefined`.
+    queryFn: async () => {
+      const res = await api.get<components["schemas"]["IntegrationListItem"][]>("/integrations");
+      return { items: res.data };
+    },
   });
 }
 

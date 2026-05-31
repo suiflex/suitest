@@ -2,6 +2,7 @@ import { useSuspenseQuery, type UseSuspenseQueryResult } from "@tanstack/react-q
 
 import { api } from "@/lib/api-client";
 import type { components } from "@/lib/api-types";
+import { useActiveProject } from "@/stores/use-active-project";
 
 type Coverage = components["schemas"]["CoverageOut"];
 type Readiness = components["schemas"]["ReadinessOut"];
@@ -10,39 +11,58 @@ type Flaky = { items: components["schemas"]["FlakyCaseOut"][] };
 type Heatmap = { cells: components["schemas"]["HeatmapCell"][] };
 
 export function useAnalyticsReadiness(): UseSuspenseQueryResult<Readiness> {
+  const projectId = useActiveProject((s) => s.projectId);
   return useSuspenseQuery({
-    queryKey: ["analytics", "readiness"] as const,
-    queryFn: async () => (await api.get<Readiness>("/analytics/readiness")).data,
+    queryKey: ["analytics", "readiness", projectId] as const,
+    queryFn: async () =>
+      (await api.get<Readiness>("/analytics/readiness", { params: { projectId } })).data,
   });
 }
 
 export function useAnalyticsCoverage(): UseSuspenseQueryResult<Coverage> {
+  const projectId = useActiveProject((s) => s.projectId);
   return useSuspenseQuery({
-    queryKey: ["analytics", "coverage"] as const,
-    queryFn: async () => (await api.get<Coverage>("/analytics/coverage")).data,
+    queryKey: ["analytics", "coverage", projectId] as const,
+    queryFn: async () =>
+      (await api.get<Coverage>("/analytics/coverage", { params: { projectId } })).data,
   });
 }
 
 export function useAnalyticsPassRate(period = "14d"): UseSuspenseQueryResult<PassRate> {
+  const projectId = useActiveProject((s) => s.projectId);
   return useSuspenseQuery({
-    queryKey: ["analytics", "pass-rate", period] as const,
+    queryKey: ["analytics", "pass-rate", projectId, period] as const,
     queryFn: async () =>
-      (await api.get<PassRate>("/analytics/pass-rate", { params: { period } })).data,
+      (await api.get<PassRate>("/analytics/pass-rate", { params: { projectId, period } })).data,
   });
 }
 
 export function useAnalyticsFlaky(limit = 5): UseSuspenseQueryResult<Flaky> {
+  const projectId = useActiveProject((s) => s.projectId);
   return useSuspenseQuery({
-    queryKey: ["analytics", "flaky", limit] as const,
-    queryFn: async () =>
-      (await api.get<Flaky>("/analytics/flaky", { params: { limit } })).data,
+    queryKey: ["analytics", "flaky", projectId, limit] as const,
+    // Backend returns a bare `FlakyCaseOut[]`; wrap it so consumers can read
+    // `.items` (and stay stable if the endpoint later paginates).
+    queryFn: async () => {
+      const res = await api.get<components["schemas"]["FlakyCaseOut"][]>("/analytics/flaky", {
+        params: { projectId, limit },
+      });
+      return { items: res.data };
+    },
   });
 }
 
 export function useAnalyticsHeatmap(days = 14): UseSuspenseQueryResult<Heatmap> {
+  const projectId = useActiveProject((s) => s.projectId);
   return useSuspenseQuery({
-    queryKey: ["analytics", "heatmap", days] as const,
-    queryFn: async () =>
-      (await api.get<Heatmap>("/analytics/heatmap", { params: { days } })).data,
+    queryKey: ["analytics", "heatmap", projectId, days] as const,
+    // Backend returns a bare `HeatmapCell[]`; wrap it as `{ cells }` for the
+    // `<Heatmap cells={...} />` consumer.
+    queryFn: async () => {
+      const res = await api.get<components["schemas"]["HeatmapCell"][]>("/analytics/heatmap", {
+        params: { projectId, days },
+      });
+      return { cells: res.data };
+    },
   });
 }

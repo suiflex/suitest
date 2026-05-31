@@ -379,9 +379,11 @@ function CaseTree({
                     )}
                   >
                     <SourceDot status={c.status === "DEPRECATED" ? "warn" : "pass"} />
-                    <span className="font-mono text-[11px] text-fg-4">{c.public_id}</span>
-                    <span className="truncate">{c.name}</span>
-                    <span className="ml-auto">
+                    <span className="shrink-0 whitespace-nowrap font-mono text-[11px] text-fg-4">
+                      {c.public_id}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                    <span className="ml-auto shrink-0">
                       <SourcePill source={caseSourceToPill(c.source)} />
                     </span>
                   </button>

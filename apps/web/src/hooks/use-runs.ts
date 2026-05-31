@@ -10,6 +10,7 @@ import {
 
 import { api } from "@/lib/api-client";
 import type { components } from "@/lib/api-types";
+import { useActiveProject } from "@/stores/use-active-project";
 
 type RunsPage = components["schemas"]["Page_RunListItem_"];
 type RunDetail = components["schemas"]["RunDetail"];
@@ -64,10 +65,11 @@ export interface NetworkEvent {
 }
 
 export function useRunsList(limit = 50): UseSuspenseQueryResult<RunsPage> {
+  const projectId = useActiveProject((s) => s.projectId);
   return useSuspenseQuery({
-    queryKey: ["runs", { limit }] as const,
+    queryKey: ["runs", { projectId, limit }] as const,
     queryFn: async () => {
-      const res = await api.get<RunsPage>("/runs", { params: { limit } });
+      const res = await api.get<RunsPage>("/runs", { params: { projectId, limit } });
       return res.data;
     },
   });
@@ -77,8 +79,27 @@ export function useRunsSummary(): UseSuspenseQueryResult<RunsSummary> {
   return useSuspenseQuery({
     queryKey: ["runs", "summary"] as const,
     queryFn: async () => {
-      const res = await api.get<RunsSummary>("/runs/summary");
-      return res.data;
+      // The backend `RunSummary` schema uses `active`/`queued`; the FE-facing
+      // shape (consumed by SummaryBar) uses `activeNow`/`queue`. Map the two
+      // field names here so the component reads defined values instead of
+      // crashing on `undefined.toString()`.
+      const res = await api.get<{
+        active: number;
+        today: number;
+        passed: number;
+        failed: number;
+        avgDurationMs: number;
+        queued: number;
+      }>("/runs/summary");
+      const d = res.data;
+      return {
+        activeNow: d.active,
+        today: d.today,
+        passed: d.passed,
+        failed: d.failed,
+        avgDurationMs: d.avgDurationMs,
+        queue: d.queued,
+      } satisfies RunsSummary;
     },
   });
 }
@@ -127,7 +148,9 @@ export function useRunArtifacts(runId: string | undefined): UseQueryResult<Artif
   });
 }
 
-export function useRunNetwork(runId: string | undefined): UseQueryResult<{ items: NetworkEvent[] }> {
+export function useRunNetwork(
+  runId: string | undefined,
+): UseQueryResult<{ items: NetworkEvent[] }> {
   return useQuery({
     queryKey: ["runs", runId, "network"] as const,
     enabled: Boolean(runId),
@@ -146,11 +169,7 @@ export function useRunNetwork(runId: string | undefined): UseQueryResult<{ items
  * the optimistic queue badge). Invalidates the runs list + summary so the new
  * row pops in immediately on the Runs screen.
  */
-export function useCreateRun(): UseMutationResult<
-  RunPublicResponse,
-  Error,
-  CreateRunInput
-> {
+export function useCreateRun(): UseMutationResult<RunPublicResponse, Error, CreateRunInput> {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: CreateRunInput) => {

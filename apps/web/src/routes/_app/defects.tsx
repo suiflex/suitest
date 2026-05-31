@@ -32,11 +32,7 @@ function severityClass(sev: Defect["severity"]): string {
   }
 }
 
-function statusBadgeForDefect(status: Defect["status"]):
-  | "fail"
-  | "warn"
-  | "neutral"
-  | "pass" {
+function statusBadgeForDefect(status: Defect["status"]): "fail" | "warn" | "neutral" | "pass" {
   switch (status) {
     case "OPEN":
       return "fail";
@@ -73,8 +69,7 @@ function DefectCard({ defect }: { defect: Defect }): React.ReactElement {
     });
   };
   const openRunPending = fetchDetail.isPending;
-  const noLinkedRun =
-    fetchDetail.isSuccess && fetchDetail.data?.run_public_id == null;
+  const noLinkedRun = fetchDetail.isSuccess && fetchDetail.data?.run_public_id == null;
 
   return (
     <article
@@ -139,9 +134,7 @@ function DefectCard({ defect }: { defect: Defect }): React.ReactElement {
           data-testid="defect-stack"
         >
           <code>
-            <span className="text-red">
-              AssertionError: expected 200 got 500
-            </span>
+            <span className="text-red">AssertionError: expected 200 got 500</span>
             {"\n  at apps/api/src/routers/checkout.py:142"}
             {"\n  at validate_card(payload=...)"}
             {"\n  at checkout_request(POST /checkout)"}
@@ -168,9 +161,7 @@ function DefectCard({ defect }: { defect: Defect }): React.ReactElement {
       <footer className="flex flex-wrap items-center gap-3 border-t border-border pt-3 font-mono text-[11px] text-fg-4">
         <span>Component: {defect.component ?? "—"}</span>
         <span>Assignee: {defect.assignee_id ?? "—"}</span>
-        <span>
-          Updated {formatDistanceToNow(new Date(defect.updated_at), { addSuffix: true })}
-        </span>
+        <span>Updated {formatDistanceToNow(new Date(defect.updated_at), { addSuffix: true })}</span>
       </footer>
     </article>
   );
@@ -188,15 +179,15 @@ function ManualTriageCard({
     >
       <div className="text-[12.5px] font-semibold text-fg-1">Manual triage needed</div>
       <p className="text-[12px]">
-        Rule-based hint: pattern matched <span className="font-mono text-fg-4">{kind}</span>.
-        Open the run for stack trace + step context.
+        Rule-based hint: pattern matched <span className="font-mono text-fg-4">{kind}</span>. Open
+        the run for stack trace + step context.
       </p>
     </div>
   );
 }
 
 function DefectsList(): React.ReactElement {
-  const { data } = useDefects({ status: "open" });
+  const { data } = useDefects({ status: "OPEN" });
   const items = data.items;
 
   if (items.length === 0) {
@@ -223,7 +214,9 @@ function DefectsHeader(): React.ReactElement {
   return (
     <header className="flex items-center justify-between" data-testid="defects-header">
       <div className="flex items-center gap-2.5">
-        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">{t("defects.title")}</h2>
+        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">
+          {t("defects.title")}
+        </h2>
         <Suspense fallback={null}>
           <OpenCountBadge />
         </Suspense>
@@ -238,7 +231,7 @@ function DefectsHeader(): React.ReactElement {
 }
 
 function OpenCountBadge(): React.ReactElement | null {
-  const { data } = useDefects({ status: "open" });
+  const { data } = useDefects({ status: "OPEN" });
   if (data.items.length === 0) return null;
   return (
     <span

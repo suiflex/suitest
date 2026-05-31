@@ -12,6 +12,7 @@ import { bulkUpdate, reorderSteps } from "@/lib/api-client";
 import type { BulkUpdateRequest, BulkUpdateResponse } from "@/lib/api-client";
 import { api } from "@/lib/api-client";
 import type { components } from "@/lib/api-types";
+import { useActiveProject } from "@/stores/use-active-project";
 
 type CasesPage = components["schemas"]["Page_TestCaseListItem_"];
 type CaseDetail = components["schemas"]["TestCaseDetail"];
@@ -19,22 +20,30 @@ type SuitesPage = { items: components["schemas"]["SuitePublic"][] };
 type TargetKind = components["schemas"]["TargetKind"];
 
 export function useSuites(): UseSuspenseQueryResult<SuitesPage> {
+  const projectId = useActiveProject((s) => s.projectId);
   return useSuspenseQuery({
-    queryKey: ["suites"] as const,
+    queryKey: ["suites", projectId] as const,
+    // Backend returns a bare `SuitePublic[]`; wrap as `{ items }` so consumers
+    // (which read `suites.items`) get an iterable instead of `undefined`.
     queryFn: async () => {
-      const res = await api.get<SuitesPage>("/suites");
-      return res.data;
+      const res = await api.get<components["schemas"]["SuitePublic"][]>("/suites", {
+        params: { projectId },
+      });
+      return { items: res.data };
     },
   });
 }
 
 export function useTestCases(suiteId?: string): UseSuspenseQueryResult<CasesPage> {
+  const projectId = useActiveProject((s) => s.projectId);
   return useSuspenseQuery({
-    queryKey: ["test-cases", { suiteId }] as const,
+    queryKey: ["test-cases", { suiteId, projectId }] as const,
     queryFn: async () => {
-      const res = await api.get<CasesPage>("/test-cases", {
-        params: suiteId ? { suiteId } : undefined,
-      });
+      // The backend requires exactly one of suiteId / projectId. When the
+      // caller scopes to a suite, send that; otherwise list every case in the
+      // active project (the Cases tree groups them under their suites).
+      const params = suiteId ? { suiteId } : { projectId };
+      const res = await api.get<CasesPage>("/test-cases", { params });
       return res.data;
     },
   });

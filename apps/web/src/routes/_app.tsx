@@ -5,8 +5,12 @@ import { Sidebar } from "@/components/shell/Sidebar";
 import { Topbar } from "@/components/shell/Topbar";
 import { useCurrentUser, type CurrentUser } from "@/hooks/use-current-user";
 import { api } from "@/lib/api-client";
+import { useActiveProject } from "@/stores/use-active-project";
 import { useActiveWorkspace } from "@/stores/use-active-workspace";
 import { useCapabilities } from "@/stores/use-capabilities";
+import type { components } from "@/lib/api-types";
+
+type ProjectsPage = components["schemas"]["Page_ProjectPublic_"];
 
 /**
  * Pathless protected layout. Every authenticated route nests under this so
@@ -41,12 +45,38 @@ export const Route = createFileRoute("/_app")({
       if (me.must_change_password && location.pathname !== "/settings") {
         throw redirect({ to: "/settings", search: { force_password: "1" } });
       }
-      // Seed active workspace if the user hasn't picked one yet.
+      // Seed the active workspace when the user hasn't picked one yet, OR when
+      // the persisted id is stale (e.g. the DB was reseeded and workspace ids
+      // regenerated). Without this reconciliation the api-client keeps sending
+      // a dead `X-Workspace-Id`, and every authed endpoint returns 403
+      // "user is not a member of the requested workspace".
       const ws = useActiveWorkspace.getState();
-      if (ws.workspaceId === null && me.memberships.length > 0) {
+      const validIds = new Set(me.memberships.map((m) => m.workspace_id));
+      if ((ws.workspaceId === null || !validIds.has(ws.workspaceId)) && me.memberships.length > 0) {
         const first = me.memberships[0];
         if (first) {
           ws.setWorkspaceId(first.workspace_id);
+        }
+      }
+      // Seed / reconcile the active project. Every project-scoped endpoint
+      // (`/analytics/*`, `/suites`, `/runs`, `/traceability/matrix`) returns
+      // 422 without a `projectId`, so the active project MUST be resolved
+      // before the shell renders. The persisted id may be null (first login),
+      // stale (DB reseed), or belong to a different workspace, so we always
+      // reconcile it against the freshly-fetched project list.
+      const projects = await context.queryClient.ensureQueryData<ProjectsPage>({
+        queryKey: ["projects"],
+        queryFn: async () => (await api.get<ProjectsPage>("/projects")).data,
+      });
+      const proj = useActiveProject.getState();
+      const validProjectIds = new Set(projects.items.map((p) => p.id));
+      if (
+        (proj.projectId === null || !validProjectIds.has(proj.projectId)) &&
+        projects.items.length > 0
+      ) {
+        const firstProject = projects.items[0];
+        if (firstProject) {
+          proj.setProjectId(firstProject.id);
         }
       }
       // Capabilities boot — block render until we know the tier so the

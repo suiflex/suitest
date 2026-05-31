@@ -156,6 +156,6 @@ env: ## Copy .env.example to .env if not exists
 	@test -f .env || cp .env.example .env && echo ".env created from .env.example"
 
 seed: ## Seed DB with default data
-	uv run python -m scripts.seed
+	uv run python -m suitest_db.seed
 
 setup: env install migrate seed ## Full fresh setup: env → deps → migrate → seed

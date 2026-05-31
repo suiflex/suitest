@@ -151,6 +151,26 @@ async def _suite_in_scope(session: AsyncSession, suite_id: str, workspace_id: st
     return project is not None and project.workspace_id == workspace_id
 
 
+async def _resolve_case_internal_id(
+    session: AsyncSession, workspace_id: str, case_id: str
+) -> str | None:
+    """Map a path id to the internal case id, scoped to ``workspace_id``.
+
+    The detail screen + FE editor address cases by their human-facing public id
+    (``TC-1000``), but the service layer keys writes off the internal id via
+    ``get_by_id``. Resolve here so every step/write endpoint accepts either form
+    (matching ``GET /test-cases/:id``). Returns ``None`` when no live in-scope
+    case matches — the caller raises 404.
+    """
+    repo = TestCaseRepo(session)
+    case = await repo.get_by_id(case_id)
+    if case is None:
+        case = await repo.get_by_public_id(case_id, workspace_id)
+    if case is None or not await _suite_in_scope(session, case.suite_id, workspace_id):
+        return None
+    return case.id
+
+
 def _build_service(session: AsyncSession, ctx: TenantContext) -> TestCaseService:
     """Compose a :class:`TestCaseService` from a session + tenant context."""
     return TestCaseService(
@@ -219,7 +239,8 @@ def _error_envelope(code: str, message: str, details: dict[str, Any]) -> dict[st
 
 @router.get("/test-cases", response_model=Page[TestCaseListItem])
 async def list_test_cases(
-    suite_id: str = Query(alias="suiteId"),
+    suite_id: str | None = Query(default=None, alias="suiteId"),
+    project_id: str | None = Query(default=None, alias="projectId"),
     status_: CaseStatus | None = Query(default=None, alias="status"),
     source: CaseSource | None = Query(default=None),
     priority: Priority | None = Query(default=None),
@@ -231,7 +252,13 @@ async def list_test_cases(
     ctx: TenantContext = Depends(require_workspace_membership),
     session: AsyncSession = Depends(get_async_session),
 ) -> Page[TestCaseListItem]:
-    """List cases in a suite with filters; 404 when the suite is cross-workspace.
+    """List cases by suite (filtered, paginated) or by project (all suites).
+
+    Pass exactly one of ``suiteId`` or ``projectId``. The per-suite path applies
+    the full filter/keyset-pagination contract; the per-project path returns
+    every non-deleted case across the project's suites (used by the Cases tree
+    which groups cases under their suites). Both 404 when the target is
+    cross-workspace.
 
     ``?includeDeleted=true`` surfaces tombstoned rows. Per ``docs/API.md §3.3``
     that capability is ADMIN/OWNER only — QA + VIEWER asking for it get 403.
@@ -239,10 +266,29 @@ async def list_test_cases(
     so VIEWER reads remain safe.
     """
     _require_admin_for_include_deleted(ctx, include_deleted)
+    if (suite_id is None) == (project_id is None):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="pass exactly one of suiteId or projectId",
+        )
+
+    # Per-project path — flat list across all of the project's suites.
+    if project_id is not None:
+        project = await ProjectRepo(session).get_by_id(project_id)
+        if project is None or project.workspace_id != ctx.workspace_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project not found")
+        rows = await TestCaseRepo(session).list_by_project(project_id)
+        return Page[TestCaseListItem](
+            items=[TestCaseListItem.model_validate(r) for r in rows],
+            meta=PageMeta(next_cursor=None, limit=len(rows)),
+        )
+
+    # Per-suite path — filtered + keyset-paginated.
+    assert suite_id is not None  # narrowed by the XOR guard above
     if not await _suite_in_scope(session, suite_id, ctx.workspace_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="suite not found")
     decoded = decode_cursor_or_400(cursor)
-    rows, next_keyset = await TestCaseRepo(session).list_by_suite_filtered(
+    rows_page, next_keyset = await TestCaseRepo(session).list_by_suite_filtered(
         suite_id,
         status=status_,
         source=source,
@@ -254,7 +300,7 @@ async def list_test_cases(
         include_deleted=include_deleted,
     )
     return Page[TestCaseListItem](
-        items=[TestCaseListItem.model_validate(r) for r in rows],
+        items=[TestCaseListItem.model_validate(r) for r in rows_page],
         meta=PageMeta(next_cursor=encode_next(next_keyset), limit=limit),
     )
 
@@ -279,6 +325,12 @@ async def get_test_case(
         if include_deleted
         else await repo.get_by_id(case_id)
     )
+    # The detail screen addresses cases by their human-facing public id
+    # (``TC-1000``), so fall back to a workspace-scoped public-id lookup when the
+    # path segment isn't an internal id. ``includeDeleted`` keeps the internal-id
+    # path (tombstones are only addressable by internal id).
+    if case is None and not include_deleted:
+        case = await repo.get_by_public_id(case_id, ctx.workspace_id)
     if case is None or not await _suite_in_scope(session, case.suite_id, ctx.workspace_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
     if not include_deleted and case.deleted_at is not None:
@@ -315,11 +367,11 @@ async def get_test_case_steps(
 ) -> list[TestStepPublic]:
     """Return a case's steps only (step editor pre-load); 404 when cross-workspace."""
     repo = TestCaseRepo(session)
-    case = await repo.get_by_id(case_id)
-    if case is None or not await _suite_in_scope(session, case.suite_id, ctx.workspace_id):
+    internal_id = await _resolve_case_internal_id(session, ctx.workspace_id, case_id)
+    if internal_id is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
     tier = await resolve_workspace_tier(request, session, ctx.workspace_id)
-    steps: Sequence[TestStep] = await repo.get_steps(case_id)
+    steps: Sequence[TestStep] = await repo.get_steps(internal_id)
     return [_step_public(s, tier) for s in steps]
 
 
@@ -426,6 +478,10 @@ async def update_test_case(
 ) -> TestCaseDetail:
     """Patch metadata + tag set; honours ``If-Unmodified-Since``."""
     parsed_ius = _parse_if_unmodified_since(if_unmodified_since)
+    internal_id = await _resolve_case_internal_id(session, ctx.workspace_id, case_id)
+    if internal_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    case_id = internal_id
     svc = _build_service(session, ctx)
     try:
         outcome = await svc.update(case_id, body, if_unmodified_since=parsed_ius)
@@ -456,6 +512,10 @@ async def replace_test_case_steps(
 ) -> TestCaseDetail:
     """Atomic replace-all-steps; honours ``If-Unmodified-Since``."""
     parsed_ius = _parse_if_unmodified_since(if_unmodified_since)
+    internal_id = await _resolve_case_internal_id(session, ctx.workspace_id, case_id)
+    if internal_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    case_id = internal_id
     svc = _build_service(session, ctx)
     try:
         outcome = await svc.replace_steps(case_id, list(body.steps), if_unmodified_since=parsed_ius)
@@ -494,6 +554,10 @@ async def append_test_case_step(
     session: AsyncSession = Depends(get_async_session),
 ) -> TestCaseDetail:
     """Append one step using a row-locked ``SELECT MAX(order)`` for race safety."""
+    internal_id = await _resolve_case_internal_id(session, ctx.workspace_id, case_id)
+    if internal_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    case_id = internal_id
     svc = _build_service(session, ctx)
     try:
         outcome = await svc.append_step(case_id, body)
@@ -527,6 +591,10 @@ async def reorder_test_case_steps(
 ) -> TestCaseDetail:
     """Atomic step reorder."""
     parsed_ius = _parse_if_unmodified_since(if_unmodified_since)
+    internal_id = await _resolve_case_internal_id(session, ctx.workspace_id, case_id)
+    if internal_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    case_id = internal_id
     svc = _build_service(session, ctx)
     try:
         outcome_pair = await svc.reorder_steps(
@@ -579,6 +647,10 @@ async def run_test_case_now(
     ``wsRoom`` so the FE can immediately deep-link to ``/runs/<publicId>`` and
     subscribe to the live ``run:<id>`` channel.
     """
+    internal_id = await _resolve_case_internal_id(session, ctx.workspace_id, case_id)
+    if internal_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    case_id = internal_id
     svc = _build_service(session, ctx)
     try:
         run = await svc.trigger_adhoc_run(case_id)
@@ -617,6 +689,10 @@ async def duplicate_test_case(
     session: AsyncSession = Depends(get_async_session),
 ) -> TestCaseDetail:
     """Clone a case + its steps + tags inside the same suite (new public id)."""
+    internal_id = await _resolve_case_internal_id(session, ctx.workspace_id, case_id)
+    if internal_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    case_id = internal_id
     svc = _build_service(session, ctx)
     outcome = await svc.duplicate(case_id)
     if outcome is None:
@@ -654,6 +730,10 @@ async def delete_test_case(
     indistinguishable from "no such row" because the default LIST / GET
     queries hide tombstones (per ``docs/API.md §3.3``).
     """
+    internal_id = await _resolve_case_internal_id(session, ctx.workspace_id, case_id)
+    if internal_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+    case_id = internal_id
     svc = _build_service(session, ctx)
     outcome = await svc.soft_delete(case_id)
     if outcome is None:
