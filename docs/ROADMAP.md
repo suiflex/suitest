@@ -121,6 +121,23 @@ Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md
 
 ZERO-tier deploy = TestRail+Playwright replacement yang competent. Maya bisa author cases, run via MCP, lihat defects, traceability. **Tidak ada AI, tidak ada LLM call ever dibuat.**
 
+### M1e — local auth + invite-only onboarding
+
+#### Self-host account management
+
+- [ ] **M1e-1** First-install super-admin bootstrap from `SUITEST_SUPERADMIN_EMAIL` + `SUITEST_SUPERADMIN_PASSWORD`, idempotent when users already exist.
+- [ ] **M1e-2** Password login is primary; Google OAuth remains optional secondary; public `/auth/register` disabled.
+- [ ] **M1e-3** Stateful invitations: create/list/revoke/resend, token hash storage, ADMIN+ gate, raw link returned once.
+- [ ] **M1e-4** `/accept-invite` public route creates user + workspace membership + session cookie.
+- [ ] **M1e-5** Current user password change endpoint and Settings -> Account flow; `must_change_password` enforced after admin reset.
+- [ ] **M1e-6** Super-admin password reset returns one-time temporary password and stores only password hash.
+- [ ] **M1e-7** Interim forgot-password flow stores encrypted reset links for super-admin review until SMTP exists.
+- [ ] **M1e-8** Docs/OpenAPI updated and ZERO-mode login/invite tests pass.
+
+### Definition of done
+
+Self-host install can be operated without OAuth: bootstrap super-admin logs in with password, invites users by copyable link, and users can accept invites and manage passwords. **No LLM/MCP behavior changes.**
+
 ---
 
 ## M2 — Generators + MCP plugin expansion (3 minggu)

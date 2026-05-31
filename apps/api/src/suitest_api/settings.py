@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     database_url: str = Field(default="postgresql+asyncpg://suitest:suitest@localhost:5432/suitest")
     oauth_google_client_id: str = Field(default="")
     oauth_google_client_secret: str = Field(default="")
+    superadmin_email: str = Field(default="")
+    superadmin_password: str = Field(default="", repr=False)
+    superadmin_workspace_name: str = Field(default="Default Workspace")
+    invite_ttl_hours: int = Field(default=168)
 
     # Session cookie security. ``False`` for local dev over plain HTTP; production
     # behind HTTPS MUST set ``SUITEST_COOKIE_SECURE=true`` so the cookie is only

@@ -62,7 +62,8 @@ function createClient(): AxiosInstance {
       if (
         status === 401 &&
         typeof window !== "undefined" &&
-        !window.location.pathname.startsWith("/login")
+        !window.location.pathname.startsWith("/login") &&
+        !window.location.pathname.startsWith("/accept-invite")
       ) {
         const next = encodeURIComponent(window.location.pathname);
         window.location.assign(`/login?next=${next}`);
@@ -161,4 +162,32 @@ export async function fetchMcpProviders(): Promise<McpProviderSummary[]> {
 export async function fetchMcpProvider(id: string): Promise<McpProviderDetail> {
   const res = await api.get<McpProviderDetail>(`/mcp/providers/${id}`);
   return res.data;
+}
+
+// ---------------------------------------------------------------------------
+// Public invitation onboarding (M1e).
+// ---------------------------------------------------------------------------
+
+export interface InvitationValidation {
+  email: string;
+  workspace_name: string;
+  role: "ADMIN" | "QA" | "VIEWER";
+  expires_at: string;
+}
+
+export interface AcceptInviteInput {
+  token: string;
+  name: string;
+  password: string;
+}
+
+export async function validateInvitation(token: string): Promise<InvitationValidation> {
+  const res = await api.get<InvitationValidation>("/invitations/validate", {
+    params: { token },
+  });
+  return res.data;
+}
+
+export async function acceptInvitation(input: AcceptInviteInput): Promise<void> {
+  await api.post("/auth/accept-invite", input);
 }

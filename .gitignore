@@ -67,6 +67,10 @@ apps/web/tailwindcss-*.log
 apps/web/playwright-report/
 apps/web/test-results/
 apps/web/blob-report/
+# Playwright visual-regression snapshot baselines (M1d-31)
+# Baselines are generated in CI via --update-snapshots; not committed from local sandbox
+apps/web/e2e/**-snapshots/
+apps/web/e2e/__screenshots__/
 apps/api/.coverage
 apps/runner/.coverage
 

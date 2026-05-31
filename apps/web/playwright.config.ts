@@ -1,4 +1,4 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 /**
  * Playwright config for the M1b DoD smoke E2E.
@@ -21,6 +21,9 @@ export default defineConfig({
     baseURL: "http://localhost:3000",
     trace: "retain-on-failure",
   },
+  // Single pinned project so `--project=chromium` (used by the m1d-e2e
+  // workflow) resolves, and visual-regression baselines render on one engine.
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     command: "pnpm --filter @suitest/web dev",
     url: "http://localhost:3000",

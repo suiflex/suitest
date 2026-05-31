@@ -46,6 +46,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = get_settings()
     app.state.started_at = time.monotonic()
     app.state.capabilities = build_base_capabilities()
+    if app.state.settings.superadmin_email and app.state.settings.superadmin_password:
+        from suitest_api.auth.db import async_session_maker
+        from suitest_api.services.bootstrap import bootstrap_first_install_superadmin
+
+        async with async_session_maker() as session:
+            created = await bootstrap_first_install_superadmin(session, app.state.settings)
+            if created:
+                await session.commit()
 
     # Issue-tracker adapter registry (M1d-11). The singleton is constructed at
     # import time; lifespan only stashes it on ``app.state`` so request handlers
@@ -103,6 +111,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Construct the FastAPI app. Pure factory — no side effects at import."""
     from suitest_api.auth.router import router as auth_router
+    from suitest_api.routers.admin_users import router as admin_users_router
     from suitest_api.routers.analytics import router as analytics_router
     from suitest_api.routers.audit_logs import router as audit_logs_router
     from suitest_api.routers.auth_me import router as auth_me_router
@@ -111,6 +120,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from suitest_api.routers.documents import router as documents_router
     from suitest_api.routers.inbox import router as inbox_router
     from suitest_api.routers.integrations import router as integrations_router
+    from suitest_api.routers.invitations import router as invitations_router
     from suitest_api.routers.mcp_providers import router as mcp_providers_router
     from suitest_api.routers.projects import router as projects_router
     from suitest_api.routers.requirements import requirements_router, traceability_router
@@ -183,7 +193,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(capabilities_router)
     app.include_router(auth_router)
+    app.include_router(admin_users_router)
     app.include_router(auth_me_router)
+    app.include_router(invitations_router)
     app.include_router(workspaces_router)
     app.include_router(projects_router)
     app.include_router(suites_router)

@@ -233,6 +233,40 @@ Lihat juga: [AI_AGENT.md](../AI_AGENT.md), [AUTONOMY.md](../AUTONOMY.md).
 
 ## 3. Screen specs
 
+### 3.0 Public auth routes
+
+#### Login (`/login`)
+
+M1e makes email/password login the primary path. The screen is a compact centered auth form using existing dark tokens:
+
+- brand mark `suitest`
+- email input
+- password input
+- primary "Sign in" button posting to `/auth/cookie/login`
+- inline error for invalid credentials
+- secondary Google OAuth button only when OAuth is configured
+
+Public self-registration is not rendered. New users join through invitation links.
+
+#### Accept invite (`/accept-invite?token=...`)
+
+Public invitation route:
+
+- validates token against `/api/v1/invitations/validate`
+- shows workspace name, invited email, and role
+- collects display name and password
+- posts to `/api/v1/auth/accept-invite`
+- redirects to `/dashboard` after the API sets the session cookie
+- expired, revoked, accepted, or invalid tokens render an error state instead of a form
+
+#### Account password
+
+Settings -> Account contains a change-password form with current password and new password fields. If `must_change_password=true`, the app routes the user to this screen after login and blocks normal navigation until the password is changed.
+
+#### Members invitations
+
+Workspace Settings -> Members keeps the members table and adds an ADMIN+ "Invite" action. The invite modal collects email and role (`ADMIN`, `QA`, `VIEWER`), returns a copyable link once, and shows pending invitations with resend/revoke actions.
+
 ### 3.1 Dashboard
 
 Path: `/dashboard`. Component: `app/(app)/dashboard/page.tsx`.
