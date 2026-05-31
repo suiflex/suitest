@@ -124,3 +124,52 @@ async def test_invalid_json_marks_error() -> None:
     assert result.error_message is not None
     assert "INVALID_STEP_CODE" in result.error_message
     inv.invoke.assert_not_awaited()
+
+
+async def test_legacy_browser_tools_are_normalized() -> None:
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={}, stdout="ok", duration_ms=42)
+    )
+    code = json.dumps({"tool": "browser.navigate", "arguments": {"url": "https://example.com"}})
+    result = await execute_step(
+        invoker=inv,
+        test_step=_step(code, provider="playwright-mcp", target=TargetKind.FE_WEB),
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        tier=Tier.ZERO,
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    assert inv.invoke.await_args.kwargs["tool"] == "browser_navigate"
+
+
+async def test_legacy_browser_assert_text_uses_snapshot() -> None:
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        side_effect=[
+            McpToolResult(ok=True, output={}, stdout="page loaded", duration_ms=42),
+            McpToolResult(ok=True, output={}, stdout="Hello Suitest", duration_ms=42),
+        ]
+    )
+    code = json.dumps(
+        {
+            "tool": "browser.navigate",
+            "arguments": {"url": "https://example.com"},
+            "assertions": [
+                {"tool": "browser.assert_text", "arguments": {"contains": "Hello Suitest"}}
+            ],
+        }
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=_step(code, provider="playwright-mcp", target=TargetKind.FE_WEB),
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        tier=Tier.ZERO,
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    assert inv.invoke.await_args_list[1].kwargs["tool"] == "browser_snapshot"

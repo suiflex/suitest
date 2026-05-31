@@ -38,9 +38,10 @@ layer. The Dockerfile update is tracked separately.
 Tool catalog
 ------------
 :data:`DECLARED_TOOLS` mirrors the upstream ``@playwright/mcp`` advertised
-surface as of the time this module was written. ``start_recording`` /
-``stop_recording`` are advertised but are M2-tier features (codegen recorder);
-the runner does not invoke them today.
+surface. The package moved from dotted names (``browser.navigate``) to
+underscore names (``browser_navigate``), so this catalog tracks the current
+runtime contract while the runner keeps a small compatibility shim for legacy
+stored steps.
 """
 
 from __future__ import annotations
@@ -55,16 +56,16 @@ PLAYWRIGHT_COMMAND: list[str] = ["npx", "-y", "@playwright/mcp@latest"]
 #: Informational tool catalog. Authoritative list comes from
 #: ``McpSession.list_tools()`` at runtime; this is for docs / UI hints only.
 DECLARED_TOOLS: list[McpToolSchema] = [
-    McpToolSchema(name="browser.navigate", description="Navigate to a URL"),
-    McpToolSchema(name="browser.click", description="Click on a DOM element"),
-    McpToolSchema(name="browser.type", description="Type into a focused field"),
-    McpToolSchema(name="browser.screenshot", description="Capture a screenshot artifact"),
-    McpToolSchema(name="browser.evaluate", description="Evaluate JS in the page context"),
-    McpToolSchema(name="browser.wait_for", description="Wait for a selector / state"),
-    McpToolSchema(name="browser.get_dom", description="Return serialized DOM for a selector"),
-    McpToolSchema(name="browser.start_recording", description="Start codegen recording (M2)"),
-    McpToolSchema(name="browser.stop_recording", description="Stop codegen recording (M2)"),
-    McpToolSchema(name="browser.network_logs", description="Return HAR-style network log"),
+    McpToolSchema(name="browser_navigate", description="Navigate to a URL"),
+    McpToolSchema(name="browser_click", description="Click on a DOM element"),
+    McpToolSchema(name="browser_type", description="Type into a focused field"),
+    McpToolSchema(name="browser_take_screenshot", description="Capture a screenshot artifact"),
+    McpToolSchema(name="browser_evaluate", description="Evaluate JS in the page context"),
+    McpToolSchema(name="browser_wait_for", description="Wait for a selector / state"),
+    McpToolSchema(name="browser_snapshot", description="Return an accessibility snapshot"),
+    McpToolSchema(name="browser_hover", description="Hover a DOM element"),
+    McpToolSchema(name="browser_press_key", description="Press a keyboard key"),
+    McpToolSchema(name="browser_select_option", description="Select an option in a form control"),
 ]
 
 

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
 import pytest
 from api_harness import ApiDb
 from fastapi_users.password import PasswordHelper
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
 from suitest_api.auth.db import get_async_session
 from suitest_api.auth.manager import current_active_user
 from suitest_api.main import create_app
@@ -16,12 +17,18 @@ from suitest_db.models.user import User
 async def _client_for(api_db: ApiDb, user: User) -> AsyncClient:
     app = create_app()
 
-    async def _override_session():
+    async def _override_session() -> AsyncIterator[object]:
         async with api_db.maker() as session:
             yield session
 
+    async def _override_current_user() -> User:
+        async with api_db.maker() as session:
+            db_user = await session.get(User, user.id)
+            assert db_user is not None
+            return db_user
+
     app.dependency_overrides[get_async_session] = _override_session
-    app.dependency_overrides[current_active_user] = lambda: user
+    app.dependency_overrides[current_active_user] = _override_current_user
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
 
@@ -49,7 +56,7 @@ async def test_change_own_password_requires_current_password(api_db: ApiDb) -> N
         assert good.status_code == 204
 
     async with api_db.maker() as session:
-        changed = await session.scalar(select(User).where(User.id == user.id))
+        changed = await session.get(User, user.id)
         assert changed is not None
         assert PasswordHelper().verify_and_update("new-password", changed.hashed_password)[0]
         assert changed.must_change_password is False
