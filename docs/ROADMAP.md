@@ -90,9 +90,9 @@ Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md
 - [ ] **M1-13a** Case soft-delete dengan undo toast
 - [ ] **M1-13b** Suite cascade soft-delete dengan undo toast
 - [ ] **M1-13c** Project + requirement soft-delete dengan undo toast
-- [ ] **M1-14** Drag-reorder steps via dnd-kit
+- [x] **M1-14** Drag-reorder steps via dnd-kit
 - [ ] **M1-15a** Bulk endpoint backend (delete, move to suite, change priority)
-- [ ] **M1-15b** Bulk-ops sticky bar FE
+- [x] **M1-15b** Bulk-ops sticky bar FE
 
 #### Defect (no AI)
 

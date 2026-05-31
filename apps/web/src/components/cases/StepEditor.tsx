@@ -1,5 +1,6 @@
 /**
  * StepEditor — M1-12 inline step editor for test case detail panel.
+ * M1-14 — drag-reorder via dnd-kit.
  *
  * Props:
  *   caseId       — the public_id of the test case (e.g. "TC-101")
@@ -8,14 +9,32 @@
  *                   update its own state so the list re-renders
  *
  * API contracts used:
- *   POST  /test-cases/:id/steps         — body: StepAppend (camelCase aliases)
- *   PATCH /test-cases/:id/steps         — body: StepReplace { steps: [...] }
+ *   POST  /test-cases/:id/steps                — body: StepAppend (camelCase aliases)
+ *   PATCH /test-cases/:id/steps                — body: StepReplace { steps: [...] }
+ *   PATCH /test-cases/:id/steps/reorder        — body: { stepIdsInOrder: string[] }
  *
  * ZERO-tier compatible: no LLM calls, no capability gating needed.
  */
 
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Code, Plus, Trash2 } from "lucide-react";
+import { Code, GripVertical, Plus, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -81,6 +100,11 @@ const TARGET_KINDS: TargetKind[] = [
   "INFRA",
   "CUSTOM",
 ];
+
+/** Returns true when a step id is a real server-persisted id (not a draft). */
+function isPersisted(id: string): boolean {
+  return !id.startsWith("__new__");
+}
 
 // ---------------------------------------------------------------------------
 // StepEditor component
@@ -163,6 +187,37 @@ export function StepEditor({ caseId, steps, onStepsChange }: StepEditorProps): R
   });
 
   // ------------------------------------------------------------------
+  // PATCH /test-cases/:id/steps/reorder — M1-14 drag reorder
+  // ------------------------------------------------------------------
+  const reorderMutation = useMutation({
+    mutationFn: async (stepIdsInOrder: string[]) => {
+      const res = await api.patch<TestCaseDetail>(
+        `/test-cases/${caseId}/steps/reorder`,
+        { stepIdsInOrder },
+      );
+      return res.data;
+    },
+    onSuccess: (detail) => {
+      const serverSteps: DraftStep[] = (detail.steps ?? []).map((s) => ({
+        id: s.id,
+        order: s.order,
+        action: s.action,
+        expected: s.expected,
+        code: s.code ?? null,
+        mcp_provider: s.mcp_provider,
+        target_kind: s.target_kind,
+      }));
+      onStepsChange(serverSteps);
+      void queryClient.invalidateQueries({ queryKey: ["test-cases", caseId] });
+      setError(null);
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Failed to reorder steps";
+      setError(msg);
+    },
+  });
+
+  // ------------------------------------------------------------------
   // Local field update — no network call; caller re-renders
   // ------------------------------------------------------------------
   const handleFieldChange = useCallback(
@@ -209,7 +264,56 @@ export function StepEditor({ caseId, steps, onStepsChange }: StepEditorProps): R
     replaceStepsMutation.mutate(steps);
   }, [steps, replaceStepsMutation]);
 
-  const saving = replaceStepsMutation.isPending || addStepMutation.isPending;
+  // ------------------------------------------------------------------
+  // dnd-kit drag sensors
+  // ------------------------------------------------------------------
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  // ------------------------------------------------------------------
+  // Drag end handler — M1-14
+  // Only reorder when both active and over are persisted step ids.
+  // ------------------------------------------------------------------
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const activeId = String(active.id);
+      const overId = String(over.id);
+
+      // Guard: both must be persisted
+      if (!isPersisted(activeId) || !isPersisted(overId)) return;
+
+      const oldIndex = steps.findIndex((s) => s.id === activeId);
+      const newIndex = steps.findIndex((s) => s.id === overId);
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const reordered = arrayMove(steps, oldIndex, newIndex).map((s, idx) => ({
+        ...s,
+        order: idx + 1,
+      }));
+
+      // Optimistic local update
+      onStepsChange(reordered);
+
+      // Only reorder persisted steps — all current steps must be persisted
+      const allPersisted = reordered.every((s) => isPersisted(s.id));
+      if (!allPersisted) return;
+
+      reorderMutation.mutate(reordered.map((s) => s.id));
+    },
+    [steps, onStepsChange, reorderMutation],
+  );
+
+  const saving = replaceStepsMutation.isPending || addStepMutation.isPending || reorderMutation.isPending;
+
+  // Only persisted steps can participate in drag (no unpersisted drafts)
+  const sortableIds = steps.filter((s) => isPersisted(s.id)).map((s) => s.id);
 
   return (
     <section className="flex flex-col gap-2" data-testid="step-editor">
@@ -255,43 +359,85 @@ export function StepEditor({ caseId, steps, onStepsChange }: StepEditorProps): R
           No steps yet. Click "+ New step" to add one.
         </div>
       ) : (
-        <ol className="flex flex-col gap-2">
-          {steps.map((step, idx) => (
-            <StepRow
-              key={step.id}
-              step={step}
-              index={idx}
-              disabled={saving}
-              onFieldChange={handleFieldChange}
-              onRemove={handleRemove}
-            />
-          ))}
-        </ol>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+            <ol className="flex flex-col gap-2">
+              {steps.map((step, idx) => (
+                <StepRow
+                  key={step.id}
+                  step={step}
+                  index={idx}
+                  disabled={saving}
+                  sortable={isPersisted(step.id)}
+                  onFieldChange={handleFieldChange}
+                  onRemove={handleRemove}
+                />
+              ))}
+            </ol>
+          </SortableContext>
+        </DndContext>
       )}
     </section>
   );
 }
 
 // ---------------------------------------------------------------------------
-// StepRow — a single editable step
+// StepRow — a single editable step, with optional sortable drag handle
 // ---------------------------------------------------------------------------
 
 interface StepRowProps {
   step: DraftStep;
   index: number;
   disabled: boolean;
+  sortable: boolean;
   onFieldChange: (stepId: string, field: keyof DraftStep, value: string) => void;
   onRemove: (stepId: string) => void;
 }
 
-function StepRow({ step, index, disabled, onFieldChange, onRemove }: StepRowProps): React.ReactElement {
+function StepRow({ step, index, disabled, sortable, onFieldChange, onRemove }: StepRowProps): React.ReactElement {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: step.id, disabled: !sortable || disabled });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+  };
+
   return (
     <li
+      ref={setNodeRef}
+      style={style}
       data-testid="step-row"
       className="rounded-md border border-border bg-bg-elev-1 p-3"
     >
-      {/* Header row: order badge + action input + remove button */}
+      {/* Header row: drag handle + order badge + action input + remove button */}
       <div className="mb-2 flex items-center gap-2">
+        {sortable ? (
+          <button
+            type="button"
+            data-testid="step-drag-handle"
+            className={cn(
+              "shrink-0 cursor-grab text-fg-4 hover:text-fg-3 active:cursor-grabbing",
+              disabled && "pointer-events-none opacity-50",
+            )}
+            aria-label="Drag to reorder"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        ) : null}
         <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-bg-elev-2 font-mono text-[10.5px] text-fg-4">
           {index + 1}
         </span>

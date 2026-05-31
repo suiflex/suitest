@@ -8,7 +8,7 @@ import {
   ListChecks,
   Trash2,
 } from "lucide-react";
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CasesSkeleton } from "@/components/cases/skeleton";
@@ -23,10 +23,12 @@ import { SourceDot } from "@/components/shared/SourceDot";
 import { SourcePill } from "@/components/shared/SourcePill";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useFeatureEnabled } from "@/hooks/use-feature-enabled";
 import { useCreateRun } from "@/hooks/use-runs";
 import {
+  useBulkUpdate,
   useDeleteTestCase,
   useRestoreTestCase,
   useSuites,
@@ -39,8 +41,12 @@ import { cn } from "@/lib/utils";
 
 type Case = components["schemas"]["TestCaseListItem"];
 type Suite = components["schemas"]["SuitePublic"];
+type Priority = components["schemas"]["Priority"];
 
 type Tab = "all" | "manual" | "ai" | "mcp" | "failing";
+
+const BULK_LIMIT = 100;
+const PRIORITIES: Priority[] = ["P0", "P1", "P2", "P3"];
 
 function caseSourceToPill(source: Case["source"]): "MANUAL" | "AI" | "MCP" | "IMPORT" {
   if (source === "AI") return "AI";
@@ -111,17 +117,187 @@ function CasesHeader({
   );
 }
 
+// ---------------------------------------------------------------------------
+// BulkActionBar — sticky bar when ≥1 case selected
+// ---------------------------------------------------------------------------
+
+interface BulkActionBarProps {
+  selectedIds: Set<string>;
+  suites: Suite[];
+  onClear: () => void;
+}
+
+function BulkActionBar({
+  selectedIds,
+  suites,
+  onClear,
+}: BulkActionBarProps): React.ReactElement | null {
+  const bulkUpdate = useBulkUpdate();
+
+  const ids = [...selectedIds];
+  const count = ids.length;
+  const overLimit = count > BULK_LIMIT;
+
+  if (count === 0) return null;
+
+  const handleDelete = (): void => {
+    // Delay-delete pattern: optimistically hide, commit on toast expire.
+    // This mirrors the single-case handleDelete in CaseDetailPanel:
+    // show undoToast first; onUndo = restore; if toast auto-closes without
+    // undo → fire the actual bulk delete.
+    //
+    // Since there is no bulk-restore endpoint, we implement delete-on-expire:
+    // the actual DELETE fires only after the undo window closes (same timing
+    // as the single-case pattern which also uses undoToast).
+
+    void undoToast({
+      label: `Deleted ${count} case${count === 1 ? "" : "s"}`,
+      onUndo: () => {
+        // No bulk restore — undo is a no-op (items weren't deleted yet).
+        // The toast resolve(true) means user clicked Undo before delete fired.
+        return Promise.resolve();
+      },
+      undoSuccessMessage: "Delete cancelled",
+    }).then((undone) => {
+      if (!undone) {
+        // Toast expired without undo → commit the delete
+        bulkUpdate.mutate(
+          { action: "delete", ids, payload: {} },
+          { onSuccess: onClear },
+        );
+      }
+    });
+  };
+
+  const handleMoveToSuite = (suiteId: string): void => {
+    if (!suiteId) return;
+    bulkUpdate.mutate(
+      { action: "move_to_suite", ids, payload: { suiteId } },
+      { onSuccess: onClear },
+    );
+  };
+
+  const handleSetPriority = (priority: string): void => {
+    if (!priority) return;
+    bulkUpdate.mutate(
+      {
+        action: "set_priority",
+        ids,
+        payload: { priority: priority as Priority },
+      },
+      { onSuccess: onClear },
+    );
+  };
+
+  return (
+    <div
+      data-testid="bulk-action-bar"
+      className={cn(
+        "sticky bottom-0 z-10 flex items-center gap-3 rounded-t-md border border-border bg-bg-elev-2 px-4 py-2",
+        "border-b-0 shadow-[0_-2px_8px_rgba(0,0,0,.4)]",
+      )}
+    >
+      <span className="shrink-0 font-mono text-[12px] text-fg-3">
+        {count} selected
+      </span>
+      {overLimit ? (
+        <span className="text-[11px] text-amber">Max {BULK_LIMIT} at a time</span>
+      ) : null}
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          data-testid="bulk-delete-btn"
+          disabled={overLimit || bulkUpdate.isPending}
+          className="text-fg-3 hover:text-red"
+          onClick={handleDelete}
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+          Delete
+        </Button>
+
+        <select
+          data-testid="bulk-move-suite-select"
+          defaultValue=""
+          disabled={overLimit || bulkUpdate.isPending}
+          onChange={(e) => {
+            handleMoveToSuite(e.target.value);
+            e.target.value = "";
+          }}
+          className={cn(
+            "h-8 rounded-md border border-border bg-bg-elev-1 px-2 text-[12px] text-fg-3",
+            "focus:outline-none focus:ring-1 focus:ring-accent/40",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+          )}
+        >
+          <option value="" disabled>Move to suite…</option>
+          {suites.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+
+        <select
+          data-testid="bulk-priority-select"
+          defaultValue=""
+          disabled={overLimit || bulkUpdate.isPending}
+          onChange={(e) => {
+            handleSetPriority(e.target.value);
+            e.target.value = "";
+          }}
+          className={cn(
+            "h-8 rounded-md border border-border bg-bg-elev-1 px-2 text-[12px] text-fg-3",
+            "focus:outline-none focus:ring-1 focus:ring-accent/40",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+          )}
+        >
+          <option value="" disabled>Set priority…</option>
+          {PRIORITIES.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+      </div>
+
+      <button
+        type="button"
+        data-testid="bulk-clear-btn"
+        className="ml-auto text-[11px] text-fg-4 hover:text-fg-1"
+        onClick={onClear}
+      >
+        Clear
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CaseTree — with selection checkboxes
+// ---------------------------------------------------------------------------
+
 function CaseTree({
   suites,
   cases,
   selectedId,
+  selectedIds,
   onSelect,
+  onToggleSelection,
+  onToggleAll,
 }: {
   suites: Suite[];
   cases: Case[];
   selectedId: string | null;
+  selectedIds: Set<string>;
   onSelect: (publicId: string) => void;
+  onToggleSelection: (id: string) => void;
+  onToggleAll: (ids: string[]) => void;
 }): React.ReactElement {
+  const allIds = cases.map((c) => c.id);
+  const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
+  const someSelected = !allSelected && allIds.some((id) => selectedIds.has(id));
+
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
+  // Sync indeterminate via ref (Checkbox component handles this internally)
   const grouped = useMemo(() => {
     const map = new Map<string, Case[]>();
     for (const s of suites) map.set(s.id, []);
@@ -149,6 +325,23 @@ function CaseTree({
 
   return (
     <nav className="flex flex-col gap-3" data-testid="cases-tree">
+      {/* Select-all header */}
+      <div className="flex items-center gap-2 px-1">
+        <Checkbox
+          ref={headerCheckboxRef}
+          data-testid="select-all-checkbox"
+          checked={allSelected}
+          indeterminate={someSelected}
+          aria-label="Select all cases"
+          onCheckedChange={() => {
+            onToggleAll(allIds);
+          }}
+        />
+        <span className="text-[11px] text-fg-4">
+          {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
+        </span>
+      </div>
+
       {[...grouped.entries()].map(([suiteId, items]) => {
         const suite = suites.find((s) => s.id === suiteId);
         return (
@@ -160,7 +353,20 @@ function CaseTree({
             </div>
             <ul className="flex flex-col">
               {items.map((c) => (
-                <li key={c.id}>
+                <li key={c.id} className="flex items-center">
+                  <Checkbox
+                    data-testid="case-row-checkbox"
+                    checked={selectedIds.has(c.id)}
+                    aria-label={`Select ${c.public_id}`}
+                    className="ml-1 mr-1 shrink-0"
+                    onCheckedChange={() => {
+                      onToggleSelection(c.id);
+                    }}
+                    onClick={(e) => {
+                      // Prevent the checkbox click from bubbling to the row button
+                      e.stopPropagation();
+                    }}
+                  />
                   <button
                     type="button"
                     data-testid="cases-tree-row"
@@ -170,7 +376,7 @@ function CaseTree({
                       onSelect(c.public_id);
                     }}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[12.5px] text-fg-1 hover:bg-bg-elev-2",
+                      "flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-[12.5px] text-fg-1 hover:bg-bg-elev-2",
                       c.public_id === selectedId && "bg-bg-elev-2",
                     )}
                   >
@@ -431,6 +637,10 @@ function CasesBody(): React.ReactElement {
 
   const [active, setActive] = useState<Tab>("all");
 
+  // Selection state: Set of internal case IDs (case.id, not public_id).
+  // The bulk endpoint expects internal UUIDs.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   const counts = useMemo<Record<Tab, number>>(() => {
     const all = cases.items.length;
     const manual = cases.items.filter((c) => c.source === "MANUAL").length;
@@ -456,6 +666,36 @@ function CasesBody(): React.ReactElement {
 
   const selectedId = search.case ?? null;
 
+  const handleToggleSelection = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleAll = useCallback((ids: string[]) => {
+    setSelectedIds((prev) => {
+      const allSelected = ids.every((id) => prev.has(id));
+      if (allSelected) {
+        // Deselect all
+        const next = new Set(prev);
+        for (const id of ids) next.delete(id);
+        return next;
+      }
+      // Select all
+      return new Set([...prev, ...ids]);
+    });
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
   return (
     <>
       <CasesHeader
@@ -476,9 +716,17 @@ function CasesBody(): React.ReactElement {
             suites={suites.items}
             cases={filtered}
             selectedId={selectedId}
+            selectedIds={selectedIds}
             onSelect={(publicId) => {
               void navigate({ search: { case: publicId } });
             }}
+            onToggleSelection={handleToggleSelection}
+            onToggleAll={handleToggleAll}
+          />
+          <BulkActionBar
+            selectedIds={selectedIds}
+            suites={suites.items}
+            onClear={handleClearSelection}
           />
         </aside>
         <section

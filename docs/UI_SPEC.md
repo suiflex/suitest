@@ -332,61 +332,78 @@ Lihat juga: [GENERATORS.md](../GENERATORS.md).
 4. Steps section: heading + "Add step" + "AI: suggest edge cases" buttons, then numbered step cards
 5. **Agent insight callout**: violet-tinted card with sparkle icon + diagnosis text
 
-**Step card:** numbered circle + action + expected (mono, with green left border + "Expected" label) + optional code snippet
+**Step card:** numbered circle + drag handle (GripVertical icon, persisted steps only) + action + expected (mono, with green left border + "Expected" label) + optional code snippet
+
+#### 3.2.0 Step drag-reorder (M1-14)
+
+Persisted steps (those with a server-assigned `id`, not `__new__*` drafts) are reorderable via drag-and-drop using **dnd-kit** (`@dnd-kit/core` + `@dnd-kit/sortable`).
+
+**Interaction:**
+- Each step row exposes a `GripVertical` drag handle on the left (visible only for persisted steps, hidden for unpersisted drafts).
+- Dragging a row reorders the list optimistically in local state (`arrayMove`), then commits via `PATCH /api/v1/test-cases/:id/steps/reorder` with body `{ stepIdsInOrder: string[] }` (full ordered id list, every existing step exactly once).
+- Server response (`TestCaseDetail`) is the source of truth — the query is invalidated on success.
+- On error, the optimistic update stays (server is re-fetched on next focus/invalidation); an error banner appears.
+- If any step in the list is a draft (no server id), drag-reorder is disabled for that step; the remaining persisted steps are still sortable.
+- ZERO-tier compatible: no LLM, no capability gating.
+
+**API contract:**
+- `PATCH /api/v1/test-cases/{case_id}/steps/reorder` — body `{ stepIdsInOrder: string[] }` — returns `TestCaseDetail`.
+- Errors: 409 (conflict / mismatch — duplicates, missing, or unknown ids).
+
+**Component:** `StepEditor` (`apps/web/src/components/cases/StepEditor.tsx`) wraps the step list in `<DndContext sensors collisionDetection={closestCenter}>` + `<SortableContext items strategy={verticalListSortingStrategy}>`. Each `StepRow` uses `useSortable({id})` with CSS transform/transition from `@dnd-kit/utilities`.
 
 **Data:**
 - `GET /api/v1/suites?projectId={current}`
 - `GET /api/v1/test-cases?suiteId=...`
 - `GET /api/v1/test-cases/:id` (selected detail)
+- `PATCH /api/v1/test-cases/:id/steps/reorder` (on drag end)
 
-#### 3.2.0a Multi-select column (cases list)
+#### 3.2.0a Multi-select column (cases list) — M1-15b
 
-Leftmost column of the case list table (when list view is active) and a checkbox slot prepended to tree-item rows (when tree view is active). Used by M1d-20..M1d-28 bulk-ops flows.
+A `<Checkbox>` (dep-free native `<input type="checkbox">` — `apps/web/src/components/ui/checkbox.tsx`) is prepended to each tree-item row. A select-all checkbox appears in the tree header.
 
-**Header cell:**
+**Header checkbox:**
 
-- Indeterminate-state checkbox = **select-all (current page only)**.
-- Clicking when 0 rows checked → check all rows on the visible page.
-- Clicking when some rows checked → uncheck all on page.
-- Clicking when all rows on page checked → uncheck all on page.
-- Tooltip on hover: "Select all on this page (N items)".
+- Indeterminate state when some (but not all) visible cases are selected.
+- Clicking when 0 rows checked → selects all visible cases.
+- Clicking when some/all rows checked → deselects all.
+- Label: "Select all" when nothing selected, "N selected" when selection is active.
 
-**Per-row cell:**
+**Per-row checkbox:**
 
-- Standard shadcn `<Checkbox>`. Click toggles inclusion in selection set.
-- Click does **not** open detail panel (event stopped on the cell).
-- `Shift+Click` selects range from last-checked row (TanStack Table `shift-click` pattern).
+- Native `<input type="checkbox">` styled with design tokens (border-border, bg-bg-elev-2, accent-accent).
+- `onClick` calls `stopPropagation()` — clicking the checkbox does **not** open the detail panel.
+- `onCheckedChange` toggles the case's internal `id` (UUID) in the selection `Set<string>`.
 
-**Selection persistence:**
+**Selection state:**
 
-- Selection set stored in Zustand `useCaseSelection` keyed by `case.id` (Set<string>) — survives pagination boundary so users can bulk-act across pages.
-- Selection cleared on filter change, tab change, or explicit "Clear selection" action.
-- URL search param `?sel=ids` not used (selection is ephemeral and can exceed URL length).
+- Stored in local React `useState<Set<string>>` in `CasesBody` — keyed by `case.id` (internal UUID, not `public_id`), matching what the bulk endpoint expects.
+- Selection cleared on explicit "Clear" button click. Not persisted to URL.
 
-**Visual:** row with `checked` state gets `bg-accent-dim` background, leaves text color unchanged.
+**Tier behavior:** none — selection is tier-agnostic.
 
-**Tier behavior:** none — selection itself is tier-agnostic.
+#### 3.2.0b Bulk-ops sticky action bar — M1-15b
 
-#### 3.2.0b Bulk-ops sticky action bar
-
-Appears when multi-select column has ≥1 row checked. Sticky to viewport bottom of the main content area (above any global footer), `bg-elev-1 border-t border-border`, height 56px, full width of main column. Slides up 200ms on first selection, slides down on clear.
+Appears (`data-testid="bulk-action-bar"`) when ≥1 row is checked. Rendered inside the left tree pane with `sticky bottom-0`, `bg-bg-elev-2 border border-border`, matching the pane background. Hidden when selection is empty.
 
 **Layout (left → right):**
 
-- Selection count chip: `"N selected"` (mono, `text-fg-1`); shows "N of M loaded" when filtered set > selection.
-- Divider.
-- **Action buttons:**
-  - **Delete (soft)** — destructive variant. Confirms in inline popover ("Archive N cases? They can be restored within 30 days."). On confirm → `POST /api/v1/test-cases/bulk-archive` body `{ ids: string[] }`; success → `undoToast("N cases archived", restore)`.
-  - **Move to suite** — opens suite picker popover (combobox of workspace suites). On pick → `POST /api/v1/test-cases/bulk-move` body `{ ids, suiteId }`; success toast.
-  - **Change priority** — opens priority popover (P0/P1/P2/P3). On pick → `POST /api/v1/test-cases/bulk-priority` body `{ ids, priority }`.
-  - **Add/Remove tags** — opens dual-list popover: "Add" tag input + "Remove" tag chips picked from common tags across selection. On apply → `POST /api/v1/test-cases/bulk-tags` body `{ ids, add: [], remove: [] }`.
-- Right cluster: "Clear selection" text button (`text-fg-3 hover:text-fg-1`).
+- Selection count: `"N selected"` (mono, `text-fg-3`).
+- Over-limit warning: `"Max 100 at a time"` (amber) when N > 100.
+- **Action controls:**
+  - **Delete button** (`data-testid="bulk-delete-btn"`) — uses the delay-delete undo pattern (mirrors single-case delete): `undoToast` opens an 8s undo window; the actual `POST /api/v1/test-cases/bulk-update` with `action: "delete"` fires only when the toast auto-dismisses without undo. If the user clicks Undo, the delete is cancelled (no bulk-restore endpoint exists).
+  - **Move to suite** (`data-testid="bulk-move-suite-select"`) — native `<select>` populated from `useSuites()`. On change → `POST /test-cases/bulk-update` with `{ action: "move_to_suite", ids, payload: { suiteId } }`.
+  - **Set priority** (`data-testid="bulk-priority-select"`) — native `<select>` with P0/P1/P2/P3. On change → `POST /test-cases/bulk-update` with `{ action: "set_priority", ids, payload: { priority } }`.
+- **Clear button** (`data-testid="bulk-clear-btn"`) — resets selection set to empty.
 
 **100-id cap:**
 
-- When selection count exceeds 100, all action buttons become disabled with `<DisabledTooltip reason="Bulk actions limited to 100 items. Narrow your selection or use filters.">`.
-- The count chip turns amber (`text-amber`) and shows `"100+ selected · over limit"`.
-- This cap is enforced server-side too (`400 BULK_LIMIT_EXCEEDED`) — UI just prevents the round-trip.
+- When selection count exceeds 100, Delete/Move/Priority controls are `disabled`.
+- The count area shows amber `"Max 100 at a time"`.
+- Enforced server-side too (`400 BULK_LIMIT_EXCEEDED`) — the UI prevents the round-trip.
+
+**API contract:**
+- `POST /api/v1/test-cases/bulk-update` — discriminated union body (`BulkDeleteRequest | BulkMoveToSuiteRequest | BulkSetPriorityRequest | BulkAddTagsRequest | BulkRemoveTagsRequest`) — returns `{ updated: number, auditIds: string[] }`.
 
 **Tier behavior:** none — all bulk ops are deterministic and ZERO-compatible.
 

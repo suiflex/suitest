@@ -297,6 +297,57 @@ export const handlers: HttpHandler[] = [
   http.delete(`${BASE}/test-cases/:caseId`, () => new HttpResponse(null, { status: 204 })),
   http.post(`${BASE}/test-cases/:caseId/restore`, () => new HttpResponse(null, { status: 204 })),
 
+  // M1-14: step reorder — returns the updated TestCaseDetail
+  http.patch(`${BASE}/test-cases/:caseId/steps/reorder`, ({ params }) => {
+    const publicId = String(params["caseId"]);
+    return HttpResponse.json({
+      id: `case_${publicId}`,
+      public_id: publicId,
+      name: "Checkout flow rejects expired cards",
+      description: null,
+      preconditions: null,
+      priority: "P1",
+      status: "ACTIVE",
+      source: "MANUAL",
+      suite_id: "ste_smoke",
+      owner_id: null,
+      tags: [],
+      steps: [
+        {
+          id: "stp_02",
+          case_id: `case_${publicId}`,
+          order: 1,
+          action: "Enter card 4000 0000 0000 0002 (expired)",
+          expected: "Form shows 'expired card' error",
+          executable: true,
+          mcp_provider: "playwright-mcp",
+          target_kind: "FE_WEB",
+          code: null,
+          data: null,
+        },
+        {
+          id: "stp_01",
+          case_id: `case_${publicId}`,
+          order: 2,
+          action: "Navigate to /checkout",
+          expected: "Checkout page loads",
+          executable: true,
+          mcp_provider: "playwright-mcp",
+          target_kind: "FE_WEB",
+          code: null,
+          data: null,
+        },
+      ],
+      created_at: "2026-05-01T08:00:00Z",
+      updated_at: "2026-05-25T14:30:00Z",
+    });
+  }),
+
+  // M1-15b: bulk update test cases
+  http.post(`${BASE}/test-cases/bulk-update`, () =>
+    HttpResponse.json({ updated: 1, auditIds: ["aud_01"] }),
+  ),
+
   // Defects
   http.get(`${BASE}/defects`, () => HttpResponse.json(defects)),
   http.get(`${BASE}/defects/:defectId`, ({ params }) => {

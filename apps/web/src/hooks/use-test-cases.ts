@@ -8,6 +8,8 @@ import {
   type UseSuspenseQueryResult,
 } from "@tanstack/react-query";
 
+import { bulkUpdate, reorderSteps } from "@/lib/api-client";
+import type { BulkUpdateRequest, BulkUpdateResponse } from "@/lib/api-client";
 import { api } from "@/lib/api-client";
 import type { components } from "@/lib/api-types";
 
@@ -140,6 +142,42 @@ export function useRestoreTestCase(): UseMutationResult<void, Error, string> {
     onSuccess: (_data, caseId) => {
       void queryClient.invalidateQueries({ queryKey: ["test-cases"] });
       void queryClient.invalidateQueries({ queryKey: ["test-cases", caseId] });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Step reorder — M1-14
+// ---------------------------------------------------------------------------
+
+/**
+ * Reorder steps via ``PATCH /test-cases/:id/steps/reorder``.
+ * Automatically invalidates the case query on success.
+ */
+export function useReorderSteps(caseId: string): UseMutationResult<CaseDetail, Error, string[]> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (stepIdsInOrder: string[]) => reorderSteps(caseId, stepIdsInOrder),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["test-cases", caseId] });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Bulk operations — M1-15b
+// ---------------------------------------------------------------------------
+
+/**
+ * Bulk-update test cases via ``POST /test-cases/bulk-update``.
+ * Automatically invalidates the full test-cases query on success.
+ */
+export function useBulkUpdate(): UseMutationResult<BulkUpdateResponse, Error, BulkUpdateRequest> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: BulkUpdateRequest) => bulkUpdate(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["test-cases"] });
     },
   });
 }

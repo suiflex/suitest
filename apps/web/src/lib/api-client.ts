@@ -251,6 +251,47 @@ export async function revokeInvitation(invitationId: string): Promise<void> {
   await api.post(`/invitations/${invitationId}/revoke`);
 }
 
+// ---------------------------------------------------------------------------
+// Test step reorder (M1-14).
+// ---------------------------------------------------------------------------
+
+type TestCaseDetail = components["schemas"]["TestCaseDetail"];
+
+/**
+ * ``PATCH /test-cases/:id/steps/reorder`` — atomic step reorder.
+ * Body must contain every existing step id exactly once.
+ */
+export async function reorderSteps(
+  caseId: string,
+  stepIdsInOrder: string[],
+): Promise<TestCaseDetail> {
+  const res = await api.patch<TestCaseDetail>(
+    `/test-cases/${caseId}/steps/reorder`,
+    { stepIdsInOrder },
+  );
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
+// Bulk test-case operations (M1-15b).
+// ---------------------------------------------------------------------------
+
+type BulkUpdateRequest =
+  | components["schemas"]["BulkDeleteRequest"]
+  | components["schemas"]["BulkMoveToSuiteRequest"]
+  | components["schemas"]["BulkSetPriorityRequest"]
+  | components["schemas"]["BulkAddTagsRequest"]
+  | components["schemas"]["BulkRemoveTagsRequest"];
+type BulkUpdateResponse = components["schemas"]["BulkUpdateResponse"];
+
+export type { BulkUpdateRequest, BulkUpdateResponse };
+
+/** ``POST /test-cases/bulk-update`` — bulk delete / move / priority / tags. */
+export async function bulkUpdate(body: BulkUpdateRequest): Promise<BulkUpdateResponse> {
+  const res = await api.post<BulkUpdateResponse>("/test-cases/bulk-update", body);
+  return res.data;
+}
+
 /** ``POST /invitations/:id/resend`` — rotate token + TTL, returns new link. */
 export async function resendInvitation(invitationId: string): Promise<InvitationOut> {
   const res = await api.post<InvitationOut>(`/invitations/${invitationId}/resend`);
