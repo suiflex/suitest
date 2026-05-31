@@ -191,10 +191,9 @@ export function StepEditor({ caseId, steps, onStepsChange }: StepEditorProps): R
   // ------------------------------------------------------------------
   const reorderMutation = useMutation({
     mutationFn: async (stepIdsInOrder: string[]) => {
-      const res = await api.patch<TestCaseDetail>(
-        `/test-cases/${caseId}/steps/reorder`,
-        { stepIdsInOrder },
-      );
+      const res = await api.patch<TestCaseDetail>(`/test-cases/${caseId}/steps/reorder`, {
+        stepIdsInOrder,
+      });
       return res.data;
     },
     onSuccess: (detail) => {
@@ -310,7 +309,8 @@ export function StepEditor({ caseId, steps, onStepsChange }: StepEditorProps): R
     [steps, onStepsChange, reorderMutation],
   );
 
-  const saving = replaceStepsMutation.isPending || addStepMutation.isPending || reorderMutation.isPending;
+  const saving =
+    replaceStepsMutation.isPending || addStepMutation.isPending || reorderMutation.isPending;
 
   // Only persisted steps can participate in drag (no unpersisted drafts)
   const sortableIds = steps.filter((s) => isPersisted(s.id)).map((s) => s.id);
@@ -359,11 +359,7 @@ export function StepEditor({ caseId, steps, onStepsChange }: StepEditorProps): R
           No steps yet. Click "+ New step" to add one.
         </div>
       ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
             <ol className="flex flex-col gap-2">
               {steps.map((step, idx) => (
@@ -398,15 +394,18 @@ interface StepRowProps {
   onRemove: (stepId: string) => void;
 }
 
-function StepRow({ step, index, disabled, sortable, onFieldChange, onRemove }: StepRowProps): React.ReactElement {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: step.id, disabled: !sortable || disabled });
+function StepRow({
+  step,
+  index,
+  disabled,
+  sortable,
+  onFieldChange,
+  onRemove,
+}: StepRowProps): React.ReactElement {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: step.id,
+    disabled: !sortable || disabled,
+  });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),

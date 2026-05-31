@@ -265,10 +265,9 @@ export async function reorderSteps(
   caseId: string,
   stepIdsInOrder: string[],
 ): Promise<TestCaseDetail> {
-  const res = await api.patch<TestCaseDetail>(
-    `/test-cases/${caseId}/steps/reorder`,
-    { stepIdsInOrder },
-  );
+  const res = await api.patch<TestCaseDetail>(`/test-cases/${caseId}/steps/reorder`, {
+    stepIdsInOrder,
+  });
   return res.data;
 }
 

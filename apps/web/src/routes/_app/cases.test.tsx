@@ -1,9 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  RouterProvider,
-  createMemoryHistory,
-  createRouter,
-} from "@tanstack/react-router";
+import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -35,7 +31,12 @@ describe("Test Cases screen", () => {
     setCaps(ZERO_CAPS);
     server.use(
       http.get("*/api/v1/auth/me", () =>
-        HttpResponse.json({ id: "u_demo", email: "demo@suitest.dev", name: "Maya", memberships: [] }),
+        HttpResponse.json({
+          id: "u_demo",
+          email: "demo@suitest.dev",
+          name: "Maya",
+          memberships: [],
+        }),
       ),
     );
     vi.stubGlobal("location", {
@@ -137,11 +138,7 @@ describe("Test Cases screen", () => {
 
     renderCases("/cases?case=TC-101");
 
-    const deleteBtn = await screen.findByTestId(
-      "case-delete-btn",
-      undefined,
-      { timeout: 3000 },
-    );
+    const deleteBtn = await screen.findByTestId("case-delete-btn", undefined, { timeout: 3000 });
     await user.click(deleteBtn);
 
     await waitFor(() => {

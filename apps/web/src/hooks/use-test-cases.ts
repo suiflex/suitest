@@ -78,7 +78,9 @@ interface StepReplacePayload {
  * Append a single step to a test case via ``POST /test-cases/:id/steps``.
  * Automatically invalidates the case query on success.
  */
-export function useAddStep(caseId: string): UseMutationResult<CaseDetail, Error, StepAppendPayload> {
+export function useAddStep(
+  caseId: string,
+): UseMutationResult<CaseDetail, Error, StepAppendPayload> {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: StepAppendPayload) => {
@@ -95,7 +97,9 @@ export function useAddStep(caseId: string): UseMutationResult<CaseDetail, Error,
  * Bulk-replace all steps via ``PATCH /test-cases/:id/steps``.
  * Automatically invalidates the case query on success.
  */
-export function useReplaceSteps(caseId: string): UseMutationResult<CaseDetail, Error, StepReplacePayload> {
+export function useReplaceSteps(
+  caseId: string,
+): UseMutationResult<CaseDetail, Error, StepReplacePayload> {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload: StepReplacePayload) => {

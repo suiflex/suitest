@@ -467,7 +467,10 @@ export const handlers: HttpHandler[] = [
       { status: 201 },
     ),
   ),
-  http.post(`${BASE}/invitations/:invitationId/revoke`, () => new HttpResponse(null, { status: 204 })),
+  http.post(
+    `${BASE}/invitations/:invitationId/revoke`,
+    () => new HttpResponse(null, { status: 204 }),
+  ),
   http.post(`${BASE}/invitations/:invitationId/resend`, () =>
     HttpResponse.json({
       id: "inv_stub",

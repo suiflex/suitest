@@ -135,8 +135,30 @@ describe("StepEditor", () => {
           owner_id: null,
           tags: [],
           steps: [
-            { id: "stp_02", case_id: "case_TC-101", order: 1, action: "Step 2", expected: "", executable: true, mcp_provider: "playwright-mcp", target_kind: "FE_WEB", code: null, data: null },
-            { id: "stp_01", case_id: "case_TC-101", order: 2, action: "Step 1", expected: "", executable: true, mcp_provider: "playwright-mcp", target_kind: "FE_WEB", code: null, data: null },
+            {
+              id: "stp_02",
+              case_id: "case_TC-101",
+              order: 1,
+              action: "Step 2",
+              expected: "",
+              executable: true,
+              mcp_provider: "playwright-mcp",
+              target_kind: "FE_WEB",
+              code: null,
+              data: null,
+            },
+            {
+              id: "stp_01",
+              case_id: "case_TC-101",
+              order: 2,
+              action: "Step 1",
+              expected: "",
+              executable: true,
+              mcp_provider: "playwright-mcp",
+              target_kind: "FE_WEB",
+              code: null,
+              data: null,
+            },
           ],
           created_at: "2026-05-01T08:00:00Z",
           updated_at: "2026-05-25T14:30:00Z",
@@ -173,7 +195,13 @@ describe("StepEditor", () => {
 
     // Re-render with swapped steps (optimistic local update simulation)
     rerender(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+          })
+        }
+      >
         <StepEditor caseId="TC-101" steps={[step2, step1]} onStepsChange={onStepsChange} />
       </QueryClientProvider>,
     );
@@ -192,7 +220,7 @@ describe("StepEditor", () => {
 
     server.use(
       http.patch("*/api/v1/test-cases/TC-101/steps/reorder", async ({ request }) => {
-        const body = await request.json() as { stepIdsInOrder: string[] };
+        const body = (await request.json()) as { stepIdsInOrder: string[] };
         capturedIds = body.stepIdsInOrder;
         return HttpResponse.json({
           id: "case_TC-101",
@@ -207,8 +235,30 @@ describe("StepEditor", () => {
           owner_id: null,
           tags: [],
           steps: [
-            { id: "stp_b", case_id: "case_TC-101", order: 1, action: "", expected: "", executable: true, mcp_provider: "playwright-mcp", target_kind: "FE_WEB", code: null, data: null },
-            { id: "stp_a", case_id: "case_TC-101", order: 2, action: "", expected: "", executable: true, mcp_provider: "playwright-mcp", target_kind: "FE_WEB", code: null, data: null },
+            {
+              id: "stp_b",
+              case_id: "case_TC-101",
+              order: 1,
+              action: "",
+              expected: "",
+              executable: true,
+              mcp_provider: "playwright-mcp",
+              target_kind: "FE_WEB",
+              code: null,
+              data: null,
+            },
+            {
+              id: "stp_a",
+              case_id: "case_TC-101",
+              order: 2,
+              action: "",
+              expected: "",
+              executable: true,
+              mcp_provider: "playwright-mcp",
+              target_kind: "FE_WEB",
+              code: null,
+              data: null,
+            },
           ],
           created_at: "2026-05-01T08:00:00Z",
           updated_at: "2026-05-25T14:30:00Z",
