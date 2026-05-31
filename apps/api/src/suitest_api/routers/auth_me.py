@@ -35,6 +35,8 @@ async def get_me(
         email=user.email,
         name=user.name,
         avatar_url=user.avatar_url,
+        must_change_password=user.must_change_password,
+        is_superuser=user.is_superuser,
         memberships=[
             MembershipPublic(
                 workspace_id=m.workspace_id,

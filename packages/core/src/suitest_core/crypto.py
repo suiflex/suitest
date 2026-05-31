@@ -35,6 +35,20 @@ def _key() -> bytes:
     return key
 
 
+def is_configured() -> bool:
+    """Return True if a usable ``SUITEST_ENCRYPTION_KEY`` is present (32 bytes b64).
+
+    Callers that must degrade gracefully when encryption is disabled (e.g. the
+    pre-SMTP forgot-password flow) gate on this instead of catching the
+    ``RuntimeError`` raised by :func:`_key`.
+    """
+    try:
+        _key()
+    except RuntimeError:
+        return False
+    return True
+
+
 def encrypt(plaintext: str, aad: bytes = b"") -> bytes:
     """Encrypt ``plaintext`` to ``nonce || ciphertext || GCM-tag`` bytes."""
     aes = AESGCM(_key())

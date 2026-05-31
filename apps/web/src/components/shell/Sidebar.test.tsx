@@ -45,6 +45,7 @@ async function renderSidebar(
     "/integrations",
     "/docs",
     "/settings",
+    "/admin",
   ];
   const children = pages.map((p) =>
     createRoute({
@@ -145,9 +146,21 @@ describe("<Sidebar>", () => {
     expect(screen.queryByTestId("sidebar-bell-unread")).toBeNull();
   });
 
-  it("renders Settings as disabled (M1b placeholder)", async () => {
+  it("Settings nav item links to /settings (enabled in M1e)", async () => {
     await renderSidebar("/dashboard");
     const settings = screen.getByTestId("nav-settings");
-    expect(settings.getAttribute("aria-disabled")).toBe("true");
+    expect(settings.getAttribute("aria-disabled")).toBeNull();
+    expect(settings.getAttribute("href")).toBe("/settings");
+  });
+
+  it("hides the Admin nav item for non-superusers", async () => {
+    await renderSidebar("/dashboard");
+    expect(screen.queryByText("Admin")).toBeNull();
+  });
+
+  it("shows the Admin nav item for superusers", async () => {
+    await renderSidebar("/dashboard", { isSuperuser: true });
+    const adminNav = screen.getByTestId("nav-admin");
+    expect(adminNav.getAttribute("href")).toBe("/admin");
   });
 });

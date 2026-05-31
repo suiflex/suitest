@@ -366,6 +366,8 @@ export const handlers: HttpHandler[] = [
       email: "maya@nusantararetail.local",
       name: "Maya Putri",
       avatar_url: null,
+      must_change_password: false,
+      is_superuser: false,
       memberships: [
         {
           workspace_id: "ws_1",
@@ -394,4 +396,40 @@ export const handlers: HttpHandler[] = [
   // /mcp/providers — discovery endpoint comes in M2; serve the bundled list
   // so the Integrations screen renders without an extra empty branch.
   http.get(`${BASE}/mcp/providers`, () => HttpResponse.json(mcpProviders)),
+
+  // ----------------------------------------------------------------------
+  // M1e — auth/invitation/admin stubs. Per-test overrides via `server.use`.
+  // ----------------------------------------------------------------------
+  http.patch(`${BASE}/users/me/password`, () => new HttpResponse(null, { status: 204 })),
+  http.get(`${BASE}/workspaces/:workspaceId/invitations`, () => HttpResponse.json({ items: [] })),
+  http.post(`${BASE}/workspaces/:workspaceId/invitations`, () =>
+    HttpResponse.json(
+      {
+        id: "inv_stub",
+        email: "invitee@example.test",
+        role: "QA",
+        expires_at: "2099-06-07T10:00:00Z",
+        accepted_at: null,
+        revoked_at: null,
+        link: "http://localhost/accept-invite?token=stub",
+      },
+      { status: 201 },
+    ),
+  ),
+  http.post(`${BASE}/invitations/:invitationId/revoke`, () => new HttpResponse(null, { status: 204 })),
+  http.post(`${BASE}/invitations/:invitationId/resend`, () =>
+    HttpResponse.json({
+      id: "inv_stub",
+      email: "invitee@example.test",
+      role: "QA",
+      expires_at: "2099-06-14T10:00:00Z",
+      accepted_at: null,
+      revoked_at: null,
+      link: "http://localhost/accept-invite?token=resent-stub",
+    }),
+  ),
+  http.post(`${BASE}/admin/users/:userId/reset-password`, () =>
+    HttpResponse.json({ temporaryPassword: "Tmp-Stub-Pw1" }),
+  ),
+  http.get(`${BASE}/admin/password-reset-requests`, () => HttpResponse.json({ items: [] })),
 ];

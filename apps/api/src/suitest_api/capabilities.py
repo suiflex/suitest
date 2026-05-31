@@ -26,6 +26,7 @@ from suitest_core.capabilities import (
 )
 from suitest_shared.domain.enums import Tier as SharedTier
 from suitest_shared.schemas.capabilities import (
+    AuthSection,
     AutonomySection,
     Capabilities,
     EmbeddingsSection,
@@ -35,6 +36,7 @@ from suitest_shared.schemas.capabilities import (
 )
 
 from suitest_api import __version__
+from suitest_api.settings import get_settings
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -53,6 +55,17 @@ def _features_section(features: dict[str, bool]) -> FeaturesSection:
 def _autonomy_section(tier: Tier) -> AutonomySection:
     info = compute_autonomy(tier)
     return AutonomySection(available=list(info.available), default=info.default)
+
+
+def _auth_section() -> AuthSection:
+    """Resolve auth capability flags from process settings (env-derived).
+
+    Google OAuth is only advertised when BOTH the client id and secret are set —
+    matching the FastAPI-Users Google client construction in the auth router.
+    """
+    settings = get_settings()
+    google_enabled = bool(settings.oauth_google_client_id and settings.oauth_google_client_secret)
+    return AuthSection(google_oauth_enabled=google_enabled)
 
 
 def build_base_capabilities() -> Capabilities:
@@ -78,6 +91,7 @@ def build_base_capabilities() -> Capabilities:
         ),
         features=_features_section(compute_features(tier, embeddings)),
         autonomy=_autonomy_section(tier),
+        auth=_auth_section(),
         version=__version__,
         mcp_providers=[],
     )
@@ -154,6 +168,7 @@ def build_workspace_overlay(
         embeddings=base.embeddings,
         features=_features_section(compute_features(tier, embeddings)),
         autonomy=_autonomy_section(tier),
+        auth=base.auth,
         version=base.version,
         mcp_providers=_mcp_public(mcp_providers),
     )

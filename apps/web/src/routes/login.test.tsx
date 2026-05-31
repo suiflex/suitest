@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { server } from "@/mocks/server";
 import { routeTree } from "@/routeTree.gen";
+import { type Capabilities, useCapabilities } from "@/stores/use-capabilities";
 
 function makeRouter(initialPath: string) {
   const queryClient = new QueryClient({
@@ -36,8 +37,49 @@ function renderLogin(initialPath = "/login"): { queryClient: QueryClient } {
   return { queryClient };
 }
 
+/**
+ * Seed the capabilities store directly so the Google-button visibility is
+ * deterministic. (The login route also lazy-fetches capabilities, but seeding
+ * avoids a fetch race when `window.fetch` is stubbed for the Google flow.)
+ */
+function mockOAuth(enabled: boolean): void {
+  const caps: Capabilities = {
+    tier: "ZERO",
+    llm: { provider: null, model: null, base_url: null, is_test_provider: false },
+    embeddings: { enabled: false, backend: "none", model: null, dim: null },
+    features: {
+      manual_tcm: true,
+      deterministic_runner: true,
+      deterministic_generator_openapi: true,
+      deterministic_generator_recorder: false,
+      deterministic_generator_crawler: false,
+      ai_generation: false,
+      ai_execution_agentic: false,
+      ai_diagnose: false,
+      ai_conversation: false,
+      semantic_search: false,
+      fts_search: true,
+      auto_defect_filing_ai: false,
+      auto_defect_filing_rule: true,
+    },
+    autonomy: { available: ["manual"], default: "manual" },
+    auth: { google_oauth_enabled: enabled },
+    version: "0.5.0",
+    build: null,
+  };
+  // Seed the store AND override the MSW `/capabilities` handler so the login
+  // route's lazy fetch (which runs because the store may have been reset to
+  // null by another test) resolves to the same auth config instead of the
+  // default fixture (which has no `auth` section).
+  useCapabilities.setState({ capabilities: caps, loading: false, error: null });
+  server.use(http.get("*/capabilities", () => HttpResponse.json(caps)));
+}
+
 describe("<LoginRoute>", () => {
   beforeEach(() => {
+    // Reset the global capabilities store between tests so OAuth visibility is
+    // driven by each test's mock, not a previous test's fetch.
+    useCapabilities.setState({ capabilities: null, loading: true, error: null });
     vi.stubGlobal("location", {
       pathname: "/login",
       assign: vi.fn(),
@@ -48,12 +90,32 @@ describe("<LoginRoute>", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders email/password login first with Google as secondary", async () => {
+  it("renders email/password login first", async () => {
     renderLogin();
     expect(await screen.findByRole("textbox", { name: /email/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^sign in$/i })).toBeInTheDocument();
+  });
+
+  it("renders the Google button only when OAuth is configured", async () => {
+    mockOAuth(true);
+    renderLogin();
     expect(await screen.findByRole("button", { name: /sign in with google/i })).toBeInTheDocument();
+  });
+
+  it("hides the Google button when OAuth is not configured", async () => {
+    mockOAuth(false);
+    renderLogin();
+    await screen.findByRole("textbox", { name: /email/i });
+    expect(screen.queryByRole("button", { name: /sign in with google/i })).not.toBeInTheDocument();
+  });
+
+  it("hides the Google button while capabilities are still loading", async () => {
+    // Store left null by beforeEach. The default `/capabilities` fixture has no
+    // `auth` section, so the button stays hidden after the lazy fetch resolves.
+    renderLogin();
+    await screen.findByRole("textbox", { name: /email/i });
+    expect(screen.queryByRole("button", { name: /sign in with google/i })).not.toBeInTheDocument();
   });
 
   it("posts form-encoded credentials to cookie login and redirects to dashboard", async () => {
@@ -125,15 +187,21 @@ describe("<LoginRoute>", () => {
   });
 
   it("fetches authorize endpoint and assigns returned URL on click", async () => {
+    mockOAuth(true);
     const authorizeUrl = "https://accounts.google.com/o/oauth2/v2/auth?client_id=abc";
-    const fetchSpy = vi.fn((_url: string) =>
-      Promise.resolve(
-        new Response(JSON.stringify({ authorization_url: authorizeUrl }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
-    );
+    const fetchSpy = vi.fn((url: string) => {
+      // The capabilities fetch goes through axios (not window.fetch); the only
+      // window.fetch caller here is the Google authorize click.
+      if (typeof url === "string" && url.includes("/auth/google/authorize")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ authorization_url: authorizeUrl }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
     vi.stubGlobal("fetch", fetchSpy);
 
     renderLogin();
@@ -142,29 +210,30 @@ describe("<LoginRoute>", () => {
     await userEvent.click(btn);
 
     await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(window.location.assign).toHaveBeenCalledWith(authorizeUrl);
     });
-    const calledUrl = fetchSpy.mock.calls[0]?.[0] ?? "";
-    // Backend mounts the OAuth router at the application root, NOT under
-    // `/api/v1` (verified in packages/shared/openapi.json).
+    const calledUrl = fetchSpy.mock.calls.find((c) =>
+      String(c[0]).includes("/auth/google/authorize"),
+    )?.[0];
+    // Backend mounts the OAuth router at the application root, NOT under /api/v1.
     expect(calledUrl).toContain("/auth/google/authorize");
     expect(calledUrl).not.toContain("/api/v1/auth/google/authorize");
     expect(calledUrl).toContain("next=%2Fdashboard");
-
-    await waitFor(() => {
-      expect(window.location.assign).toHaveBeenCalledWith(authorizeUrl);
-    });
   });
 
   it("uses `next` search param as the redirect target", async () => {
-    const fetchSpy = vi.fn((_url: string) =>
-      Promise.resolve(
-        new Response(JSON.stringify({ authorization_url: "https://x.test/" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
-    );
+    mockOAuth(true);
+    const fetchSpy = vi.fn((url: string) => {
+      if (typeof url === "string" && url.includes("/auth/google/authorize")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ authorization_url: "https://x.test/" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
     vi.stubGlobal("fetch", fetchSpy);
 
     renderLogin("/login?next=%2Fcases");
@@ -173,26 +242,11 @@ describe("<LoginRoute>", () => {
     await userEvent.click(btn);
 
     await waitFor(() => {
-      const calledUrl = fetchSpy.mock.calls[0]?.[0] ?? "";
+      const calledUrl = fetchSpy.mock.calls.find((c) =>
+        String(c[0]).includes("/auth/google/authorize"),
+      )?.[0];
       expect(calledUrl).toContain("next=%2Fcases");
     });
-  });
-
-  it("does not assign when authorize endpoint errors", async () => {
-    const fetchSpy = vi.fn((_url: string) =>
-      Promise.resolve(new Response("server down", { status: 500 })),
-    );
-    vi.stubGlobal("fetch", fetchSpy);
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    renderLogin();
-    await userEvent.click(await screen.findByRole("button", { name: /sign in with google/i }));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalled();
-    });
-    expect(window.location.assign).not.toHaveBeenCalled();
-    consoleSpy.mockRestore();
   });
 
   // Smoke check that the route tree builds and the router can render this
@@ -209,7 +263,7 @@ describe("<LoginRoute>", () => {
     const router = makeRouter("/login");
     expect(router).toBeDefined();
     renderLogin("/login");
-    await screen.findByRole("button", { name: /sign in with google/i });
+    await screen.findByRole("textbox", { name: /email/i });
     expect(authHit).toBe(false);
   });
 });

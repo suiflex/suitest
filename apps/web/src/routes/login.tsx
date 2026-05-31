@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
+
+import { useCapabilities } from "@/stores/use-capabilities";
 
 interface LoginSearch {
   next?: string;
@@ -27,6 +29,17 @@ function Login(): React.ReactElement {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Login is a public route (outside the `_app` guard) so capabilities aren't
+  // necessarily loaded yet. Fetch them once so the Google button's visibility
+  // reflects the real server config instead of being hardcoded.
+  const capabilities = useCapabilities((s) => s.capabilities);
+  useEffect(() => {
+    if (useCapabilities.getState().capabilities === null) {
+      void useCapabilities.getState().fetch();
+    }
+  }, []);
+  const googleEnabled = capabilities?.auth?.google_oauth_enabled === true;
 
   const onPasswordLogin = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -135,22 +148,24 @@ function Login(): React.ReactElement {
         </button>
       </form>
 
-      <div className="space-y-3 text-center">
-        <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.07em] text-fg-4">
-          <span className="h-px flex-1 bg-border" />
-          <span>Secondary</span>
-          <span className="h-px flex-1 bg-border" />
+      {googleEnabled ? (
+        <div className="space-y-3 text-center">
+          <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.07em] text-fg-4">
+            <span className="h-px flex-1 bg-border" />
+            <span>Secondary</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              void onGoogle();
+            }}
+            className="inline-flex items-center justify-center rounded-md border border-border bg-elev-1 px-4 py-2 font-medium text-fg-1 hover:bg-elev-2"
+          >
+            Sign in with Google
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            void onGoogle();
-          }}
-          className="inline-flex items-center justify-center rounded-md border border-border bg-elev-1 px-4 py-2 font-medium text-fg-1 hover:bg-elev-2"
-        >
-          Sign in with Google
-        </button>
-      </div>
+      ) : null}
     </section>
   );
 }

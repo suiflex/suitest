@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     superadmin_workspace_name: str = Field(default="Default Workspace")
     invite_ttl_hours: int = Field(default=168)
 
+    # AES-GCM key for secrets at rest (``packages/core`` crypto). When unset the
+    # pre-SMTP forgot-password flow stores only the token hash and the super-admin
+    # review endpoint returns 503 ``ENCRYPTION_NOT_CONFIGURED``. The crypto helper
+    # reads ``SUITEST_ENCRYPTION_KEY`` from the environment directly; this field
+    # exists so the API process can detect configuration without import cycles.
+    encryption_key: str | None = Field(default=None)
+
     # Session cookie security. ``False`` for local dev over plain HTTP; production
     # behind HTTPS MUST set ``SUITEST_COOKIE_SECURE=true`` so the cookie is only
     # sent over TLS. Read by :mod:`suitest_api.auth.manager` when constructing

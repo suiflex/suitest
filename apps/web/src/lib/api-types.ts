@@ -1862,6 +1862,21 @@ export interface components {
             next_cursor?: string | null;
         };
         /**
+         * AuthSection
+         * @description Auth-related capability flags resolved from process settings (M1e).
+         *
+         *     ``google_oauth_enabled`` is ``True`` only when BOTH the Google OAuth client id
+         *     and client secret are configured; the login page renders the Google button
+         *     solely off this flag.
+         */
+        AuthSection: {
+            /**
+             * Google Oauth Enabled
+             * @default false
+             */
+            google_oauth_enabled: boolean;
+        };
+        /**
          * AutonomyLevel
          * @description Workspace autonomy dial. ZERO tier is locked to MANUAL.
          * @enum {string}
@@ -2000,6 +2015,7 @@ export interface components {
          * @description Full ``GET /capabilities`` response.
          */
         Capabilities: {
+            auth?: components["schemas"]["AuthSection"];
             autonomy: components["schemas"]["AutonomySection"];
             /** Build */
             build?: string | null;
@@ -2808,8 +2824,18 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Is Superuser
+             * @default false
+             */
+            is_superuser: boolean;
             /** Memberships */
             memberships: components["schemas"]["MembershipPublic"][];
+            /**
+             * Must Change Password
+             * @default false
+             */
+            must_change_password: boolean;
             /** Name */
             name: string;
         };

@@ -10,6 +10,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { server } from "@/mocks/server";
 import { routeTree } from "@/routeTree.gen";
+import { useActiveWorkspace } from "@/stores/use-active-workspace";
+import { useCapabilities } from "@/stores/use-capabilities";
 
 function renderAt(path: string) {
   const queryClient = new QueryClient({
@@ -30,6 +32,10 @@ function renderAt(path: string) {
 
 describe("<_app> route guard", () => {
   beforeEach(() => {
+    // Reset cross-test global stores so a prior test's seeded workspace /
+    // capabilities don't leak into this one (zustand stores are module-level).
+    useActiveWorkspace.setState({ workspaceId: null });
+    useCapabilities.setState({ capabilities: null, loading: true, error: null });
     // axios api-client interceptor will call window.location.assign on 401;
     // stub it so the test doesn't navigate the jsdom window itself (we want
     // to assert the router-level redirect, not the interceptor's).
@@ -92,6 +98,51 @@ describe("<_app> route guard", () => {
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/login");
+    });
+  });
+
+  it("redirects to /settings?force_password=1 when must_change_password is set", async () => {
+    server.use(
+      http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          id: "u_reset",
+          email: "reset@suitest.dev",
+          name: "Reset User",
+          avatar_url: null,
+          must_change_password: true,
+          is_superuser: false,
+          memberships: [],
+        }),
+      ),
+    );
+
+    const { router } = renderAt("/dashboard");
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/settings");
+    });
+    expect(router.state.location.search).toMatchObject({ force_password: "1" });
+  });
+
+  it("does NOT bounce a must_change_password user already on /settings", async () => {
+    server.use(
+      http.get("*/api/v1/auth/me", () =>
+        HttpResponse.json({
+          id: "u_reset",
+          email: "reset@suitest.dev",
+          name: "Reset User",
+          avatar_url: null,
+          must_change_password: true,
+          is_superuser: false,
+          memberships: [],
+        }),
+      ),
+    );
+
+    const { router } = renderAt("/settings");
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/settings");
     });
   });
 });

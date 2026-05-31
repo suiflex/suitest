@@ -191,3 +191,106 @@ export async function validateInvitation(token: string): Promise<InvitationValid
 export async function acceptInvitation(input: AcceptInviteInput): Promise<void> {
   await api.post("/auth/accept-invite", input);
 }
+
+// ---------------------------------------------------------------------------
+// Authenticated M1e helpers — self-service password change, workspace
+// invitation management (ADMIN+), member listing, super-admin user reset, and
+// reset-request review.
+//
+// All types are derived from the OpenAPI-generated `components["schemas"]`;
+// no `as any`. The backend uses one shared `Role` enum (ADMIN/OWNER/QA/VIEWER)
+// for both invitations and memberships. Invite creation is limited to
+// ADMIN/QA/VIEWER at the UI layer (see MembersPanel).
+// ---------------------------------------------------------------------------
+
+export type Role = components["schemas"]["Role"];
+type ChangePasswordRequest = components["schemas"]["ChangePasswordRequest"];
+type InvitationCreateRequest = components["schemas"]["InvitationCreateRequest"];
+export type InvitationOut = components["schemas"]["InvitationOut"];
+type InvitationListEnvelope = components["schemas"]["InvitationListEnvelope"];
+export type WorkspaceMemberPublic = components["schemas"]["WorkspaceMemberPublic"];
+type ResetPasswordResponse = components["schemas"]["ResetPasswordResponse"];
+export type PasswordResetRequestOut = components["schemas"]["PasswordResetRequestOut"];
+type PasswordResetRequestsEnvelope = components["schemas"]["PasswordResetRequestsEnvelope"];
+
+/**
+ * Derived lifecycle status for an invite. `InvitationOut` carries timestamps,
+ * not a status field, so callers compute the badge from them.
+ */
+export type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
+
+export function invitationStatus(inv: InvitationOut): InvitationStatus {
+  if (inv.revoked_at) return "revoked";
+  if (inv.accepted_at) return "accepted";
+  if (new Date(inv.expires_at).getTime() <= Date.now()) return "expired";
+  return "pending";
+}
+
+/** ``PATCH /users/me/password`` — change the current user's own password. */
+export async function changeOwnPassword(input: ChangePasswordRequest): Promise<void> {
+  await api.patch("/users/me/password", input);
+}
+
+/** ``POST /workspaces/:id/invitations`` — create invite, returns copyable link. */
+export async function createInvitation(
+  workspaceId: string,
+  input: InvitationCreateRequest,
+): Promise<InvitationOut> {
+  const res = await api.post<InvitationOut>(`/workspaces/${workspaceId}/invitations`, input);
+  return res.data;
+}
+
+/** ``GET /workspaces/:id/invitations`` — pending/accepted/revoked/expired. */
+export async function listInvitations(workspaceId: string): Promise<InvitationOut[]> {
+  const res = await api.get<InvitationListEnvelope>(`/workspaces/${workspaceId}/invitations`);
+  return res.data.items;
+}
+
+/** ``POST /invitations/:id/revoke`` — revoke a pending invite (204). */
+export async function revokeInvitation(invitationId: string): Promise<void> {
+  await api.post(`/invitations/${invitationId}/revoke`);
+}
+
+/** ``POST /invitations/:id/resend`` — rotate token + TTL, returns new link. */
+export async function resendInvitation(invitationId: string): Promise<InvitationOut> {
+  const res = await api.post<InvitationOut>(`/invitations/${invitationId}/resend`);
+  return res.data;
+}
+
+/** ``GET /workspaces/:id/members`` — workspace member roster. */
+export async function listMembers(workspaceId: string): Promise<WorkspaceMemberPublic[]> {
+  const res = await api.get<WorkspaceMemberPublic[]>(`/workspaces/${workspaceId}/members`);
+  return res.data;
+}
+
+/**
+ * ``POST /admin/users/:id/reset-password`` — one-time temporary password.
+ * The backend response field is `temporaryPassword` (camelCase).
+ */
+export async function adminResetPassword(userId: string): Promise<ResetPasswordResponse> {
+  const res = await api.post<ResetPasswordResponse>(`/admin/users/${userId}/reset-password`);
+  return res.data;
+}
+
+/**
+ * Result of {@link listPasswordResetRequests}. The backend returns `503` with
+ * `code: "ENCRYPTION_NOT_CONFIGURED"` when AES-GCM is not configured — reset
+ * links can't be decrypted, so we surface that as a discriminated state rather
+ * than re-throwing a raw `ApiError`.
+ */
+export type PasswordResetRequestsResult =
+  | { encryptionConfigured: true; items: PasswordResetRequestOut[] }
+  | { encryptionConfigured: false; items: [] };
+
+/** ``GET /admin/password-reset-requests`` — interim super-admin review list. */
+export async function listPasswordResetRequests(): Promise<PasswordResetRequestsResult> {
+  try {
+    const res = await api.get<PasswordResetRequestsEnvelope>("/admin/password-reset-requests");
+    return { encryptionConfigured: true, items: res.data.items };
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 503 && err.code === "ENCRYPTION_NOT_CONFIGURED") {
+      return { encryptionConfigured: false, items: [] };
+    }
+    throw err;
+  }
+}

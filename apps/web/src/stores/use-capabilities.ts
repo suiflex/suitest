@@ -48,12 +48,25 @@ export interface CapabilityFeatures {
   auto_defect_filing_rule: boolean;
 }
 
+export interface AuthInfo {
+  /** Whether Google OAuth is configured server-side (M1e). */
+  google_oauth_enabled: boolean;
+}
+
 export interface Capabilities {
   tier: Tier;
   llm: LLMInfo;
   embeddings: EmbeddingsInfo;
   features: CapabilityFeatures;
   autonomy: { available: AutonomyLevel[]; default: AutonomyLevel };
+  /**
+   * Optional auth metadata. The current backend `/capabilities` response does
+   * not yet include this section, so `auth` is absent at runtime today and the
+   * Google login button stays hidden (a safe default — never hardcoded on).
+   * Once the backend emits `auth.google_oauth_enabled`, the button appears
+   * automatically with no frontend change.
+   */
+  auth?: AuthInfo;
   mcpProviders?: McpProviderInfo[];
   version: string;
   build?: string | null;

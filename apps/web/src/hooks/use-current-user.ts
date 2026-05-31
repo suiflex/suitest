@@ -17,6 +17,15 @@ export interface CurrentUser {
   email: string;
   name: string | null;
   avatar_url: string | null;
+  /**
+   * True when an admin reset forced a temporary password (M1e). Optional in the
+   * type because the committed `MeResponse` OpenAPI schema does not yet expose
+   * it; the backend sets it after `POST /admin/users/:id/reset-password`. We
+   * treat a missing value as `false`.
+   */
+  must_change_password?: boolean;
+  /** Cross-workspace super-admin flag — gates the Admin nav + routes (M1e). */
+  is_superuser?: boolean;
   memberships: CurrentUserMembership[];
 }
 

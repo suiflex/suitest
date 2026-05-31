@@ -12,6 +12,7 @@ import {
   Play,
   Plug,
   Settings,
+  Shield,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -53,6 +54,8 @@ export interface SidebarProps {
   activeRunsCount?: number;
   /** Read-only list of workspaces for the picker popover. */
   workspaces?: ReadonlyArray<{ id: string; name: string }>;
+  /** Show the super-admin "Admin" nav item (M1e). */
+  isSuperuser?: boolean;
 }
 
 /**
@@ -70,8 +73,18 @@ export function Sidebar({
   inboxCount = 0,
   activeRunsCount = 0,
   workspaces = [{ id: "default", name: "Acme QA" }],
+  isSuperuser = false,
 }: SidebarProps): React.ReactElement {
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  const configItems: NavItem[] = [
+    { label: "Integrations", icon: Plug, to: "/integrations" },
+    { label: "Docs", icon: BookOpen, to: "/docs" },
+    { label: "Settings", icon: Settings, to: "/settings" },
+  ];
+  if (isSuperuser) {
+    configItems.push({ label: "Admin", icon: Shield, to: "/admin" });
+  }
 
   const groups: NavGroup[] = [
     {
@@ -103,11 +116,7 @@ export function Sidebar({
     },
     {
       eyebrow: "Config",
-      items: [
-        { label: "Integrations", icon: Plug, to: "/integrations" },
-        { label: "Docs", icon: BookOpen, to: "/docs" },
-        { label: "Settings", icon: Settings, to: "/settings", disabled: true },
-      ],
+      items: configItems,
     },
   ];
 
@@ -221,16 +230,14 @@ export function Sidebar({
             {userRole}
           </div>
         </div>
-        <button
-          type="button"
+        <Link
+          to="/settings"
           aria-label="Settings"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1 disabled:cursor-not-allowed disabled:text-fg-5 disabled:hover:bg-transparent"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
           data-testid="user-settings-link"
-          // Settings route isn't authored yet in M1b; the icon is a placeholder.
-          disabled
         >
           <Settings className="h-4 w-4" aria-hidden="true" />
-        </button>
+        </Link>
       </div>
     </aside>
   );

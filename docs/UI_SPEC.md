@@ -1197,3 +1197,80 @@ Honor `prefers-reduced-motion` — disable pulse + slide-in.
 8. **Wire up WebSocket / SSE** kalau data berubah real-time (runs, agent thread, capability events, MCP health)
 9. **Test the screen in BOTH tiers manually before declaring done** — toggle env `SUITEST_LLM_PROVIDER=none` vs `SUITEST_LLM_PROVIDER=anthropic` dan re-verify. ZERO tier sering ke-skip, hasilnya broken UI saat user beneran di ZERO.
 10. **Smoke test manually** dulu, then write Vitest unit test untuk hooks/utils, Playwright E2E untuk happy path (E2E per tier ideally)
+
+---
+
+## 8. M1e — Local auth, invitations & super-admin
+
+ZERO-tier compatible (no LLM, no `<Gated>`). Authorization is purely role-based.
+Shared `Role` enum: `OWNER` / `ADMIN` / `QA` / `VIEWER`.
+
+### 8.1 `/login` — `routes/login.tsx`
+
+- Email/password form is **primary** (posts form-encoded to `POST /auth/cookie/login`).
+- "Sign in with Google" is **secondary** and rendered **only** when
+  `capabilities.auth.google_oauth_enabled === true`. The route lazy-fetches
+  `/capabilities` (it sits outside the `_app` guard). The button is never
+  hardcoded on; an absent `auth` section ⇒ button hidden.
+
+### 8.2 `/accept-invite` — `routes/accept-invite.tsx`
+
+- Public. Validates `?token=` via `GET /invitations/validate`; shows
+  email / workspace / role / expiry; collects name + password; expired,
+  revoked, and already-accepted tokens show a clear error state.
+
+### 8.3 Settings → Account — `routes/_app/settings.tsx` (path `/settings`)
+
+- Tabs: **Account** (default) + **Members** (ADMIN/OWNER only).
+- Account: change-password form (current + new + confirm, min 8 chars) →
+  `PATCH /users/me/password`. Handles 400 wrong-current-password; on success
+  refetches `["auth","me"]` so `must_change_password` clears.
+- **must_change_password guard**: enforced in `routes/_app.tsx` `beforeLoad`
+  (not a component effect — avoids render flash + redirect loops). When the
+  flag is set and the user is not already on `/settings`, it `redirect`s to
+  `/settings?force_password=1`. The page shows an amber banner
+  ("You must change your password before continuing").
+
+### 8.4 Settings → Members — `components/settings/MembersPanel.tsx`
+
+- Members table (`GET /workspaces/:id/members`).
+- **Invite** button (ADMIN+) → modal (email + role; choices ADMIN/QA/VIEWER —
+  never OWNER) → `POST /workspaces/:id/invitations`. The returned one-time link
+  renders with a copy-to-clipboard button (`CopyButton`).
+- Pending-invites table with derived status (pending / accepted / revoked /
+  expired, computed client-side from `accepted_at` / `revoked_at` /
+  `expires_at`) + **Revoke** + **Resend**. Resend shows the new copyable link.
+  All mutations invalidate the invitations query cache (TanStack Query).
+
+### 8.5 Admin → Users — `routes/_app/admin.tsx` (path `/admin`)
+
+- Visible only when `is_superuser`: the **Admin** sidebar item appears for
+  superusers and the route's `beforeLoad` redirects non-superusers to
+  `/dashboard`.
+- Users table (workspace members — no global user-list endpoint in M1e). Per
+  user **Reset password** → `POST /admin/users/:id/reset-password` → dialog
+  showing the one-time `temporaryPassword` (copy button + "will not be shown
+  again" warning).
+- Reset-request review (`GET /admin/password-reset-requests`). On a
+  `503 ENCRYPTION_NOT_CONFIGURED` response the section shows the empty state
+  "Encryption not configured — reset links unavailable".
+
+### 8.6 Shared / wiring
+
+- `components/shared/CopyButton.tsx` — copy-to-clipboard with transient check
+  state; used for invite links, reset links, and temporary passwords.
+- Sidebar: **Settings** nav item + footer gear now link to `/settings`
+  (previously disabled placeholders). **Admin** item shown only for superusers.
+- API client (`lib/api-client.ts`): `changeOwnPassword`, `createInvitation`,
+  `listInvitations`, `revokeInvitation`, `resendInvitation`, `listMembers`,
+  `adminResetPassword`, `listPasswordResetRequests`, `invitationStatus`.
+- OAuth-availability source: `stores/use-capabilities.ts`
+  `Capabilities.auth.google_oauth_enabled`.
+
+> Note: `Capabilities.auth` and `MeResponse.must_change_password` /
+> `is_superuser` are documented contract fields not yet present in the committed
+> `openapi.json`; the frontend types them as optional and degrades safely
+> (OAuth button hidden, no forced password change, Admin nav hidden) until the
+> backend emits them.
+
+| 0.3 | 2026-05-31 | M1e local auth: login OAuth-conditional, accept-invite, Settings→Account/Members, Admin→Users |

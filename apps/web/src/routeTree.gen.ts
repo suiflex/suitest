@@ -14,6 +14,7 @@ import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppTraceRouteImport } from './routes/_app/trace'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppRunsRouteImport } from './routes/_app/runs'
 import { Route as AppIntegrationsRouteImport } from './routes/_app/integrations'
 import { Route as AppInboxRouteImport } from './routes/_app/inbox'
@@ -22,6 +23,7 @@ import { Route as AppDefectsRouteImport } from './routes/_app/defects'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppCasesRouteImport } from './routes/_app/cases'
 import { Route as AppAnalyticsRouteImport } from './routes/_app/analytics'
+import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppRunsRunIdRouteImport } from './routes/_app/runs_.$runId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -46,6 +48,11 @@ const IndexRoute = IndexRouteImport.update({
 const AppTraceRoute = AppTraceRouteImport.update({
   id: '/trace',
   path: '/trace',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRunsRoute = AppRunsRouteImport.update({
@@ -88,6 +95,11 @@ const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRunsRunIdRoute = AppRunsRunIdRouteImport.update({
   id: '/runs_/$runId',
   path: '/runs/$runId',
@@ -98,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
   '/login': typeof LoginRoute
+  '/admin': typeof AppAdminRoute
   '/analytics': typeof AppAnalyticsRoute
   '/cases': typeof AppCasesRoute
   '/dashboard': typeof AppDashboardRoute
@@ -106,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AppInboxRoute
   '/integrations': typeof AppIntegrationsRoute
   '/runs': typeof AppRunsRoute
+  '/settings': typeof AppSettingsRoute
   '/trace': typeof AppTraceRoute
   '/runs/$runId': typeof AppRunsRunIdRoute
 }
@@ -113,6 +127,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
   '/login': typeof LoginRoute
+  '/admin': typeof AppAdminRoute
   '/analytics': typeof AppAnalyticsRoute
   '/cases': typeof AppCasesRoute
   '/dashboard': typeof AppDashboardRoute
@@ -121,6 +136,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AppInboxRoute
   '/integrations': typeof AppIntegrationsRoute
   '/runs': typeof AppRunsRoute
+  '/settings': typeof AppSettingsRoute
   '/trace': typeof AppTraceRoute
   '/runs/$runId': typeof AppRunsRunIdRoute
 }
@@ -130,6 +146,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/accept-invite': typeof AcceptInviteRoute
   '/login': typeof LoginRoute
+  '/_app/admin': typeof AppAdminRoute
   '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/cases': typeof AppCasesRoute
   '/_app/dashboard': typeof AppDashboardRoute
@@ -138,6 +155,7 @@ export interface FileRoutesById {
   '/_app/inbox': typeof AppInboxRoute
   '/_app/integrations': typeof AppIntegrationsRoute
   '/_app/runs': typeof AppRunsRoute
+  '/_app/settings': typeof AppSettingsRoute
   '/_app/trace': typeof AppTraceRoute
   '/_app/runs_/$runId': typeof AppRunsRunIdRoute
 }
@@ -147,6 +165,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invite'
     | '/login'
+    | '/admin'
     | '/analytics'
     | '/cases'
     | '/dashboard'
@@ -155,6 +174,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/integrations'
     | '/runs'
+    | '/settings'
     | '/trace'
     | '/runs/$runId'
   fileRoutesByTo: FileRoutesByTo
@@ -162,6 +182,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invite'
     | '/login'
+    | '/admin'
     | '/analytics'
     | '/cases'
     | '/dashboard'
@@ -170,6 +191,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/integrations'
     | '/runs'
+    | '/settings'
     | '/trace'
     | '/runs/$runId'
   id:
@@ -178,6 +200,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/accept-invite'
     | '/login'
+    | '/_app/admin'
     | '/_app/analytics'
     | '/_app/cases'
     | '/_app/dashboard'
@@ -186,6 +209,7 @@ export interface FileRouteTypes {
     | '/_app/inbox'
     | '/_app/integrations'
     | '/_app/runs'
+    | '/_app/settings'
     | '/_app/trace'
     | '/_app/runs_/$runId'
   fileRoutesById: FileRoutesById
@@ -232,6 +256,13 @@ declare module '@tanstack/react-router' {
       path: '/trace'
       fullPath: '/trace'
       preLoaderRoute: typeof AppTraceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/runs': {
@@ -290,6 +321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/runs_/$runId': {
       id: '/_app/runs_/$runId'
       path: '/runs/$runId'
@@ -301,6 +339,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAdminRoute: typeof AppAdminRoute
   AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppCasesRoute: typeof AppCasesRoute
   AppDashboardRoute: typeof AppDashboardRoute
@@ -309,11 +348,13 @@ interface AppRouteChildren {
   AppInboxRoute: typeof AppInboxRoute
   AppIntegrationsRoute: typeof AppIntegrationsRoute
   AppRunsRoute: typeof AppRunsRoute
+  AppSettingsRoute: typeof AppSettingsRoute
   AppTraceRoute: typeof AppTraceRoute
   AppRunsRunIdRoute: typeof AppRunsRunIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAdminRoute: AppAdminRoute,
   AppAnalyticsRoute: AppAnalyticsRoute,
   AppCasesRoute: AppCasesRoute,
   AppDashboardRoute: AppDashboardRoute,
@@ -322,6 +363,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppInboxRoute: AppInboxRoute,
   AppIntegrationsRoute: AppIntegrationsRoute,
   AppRunsRoute: AppRunsRoute,
+  AppSettingsRoute: AppSettingsRoute,
   AppTraceRoute: AppTraceRoute,
   AppRunsRunIdRoute: AppRunsRunIdRoute,
 }

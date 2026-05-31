@@ -49,6 +49,11 @@ class MeResponse(BaseModel):
     email: str
     name: str
     avatar_url: str | None = None
+    # M1e: surfaced so the web app can force a password change after an admin
+    # reset (``must_change_password``) and gate the super-admin (Admin → Users)
+    # surface (``is_superuser``). Both are read straight off the ``users`` row.
+    must_change_password: bool = False
+    is_superuser: bool = False
     memberships: list[MembershipPublic]
 
 

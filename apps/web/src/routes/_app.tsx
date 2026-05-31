@@ -1,4 +1,4 @@
-import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
+import { Outlet, createFileRoute, isRedirect, redirect } from "@tanstack/react-router";
 
 import { AiPanel } from "@/components/shell/AiPanel";
 import { Sidebar } from "@/components/shell/Sidebar";
@@ -35,6 +35,12 @@ export const Route = createFileRoute("/_app")({
         queryKey: ["auth", "me"],
         queryFn: async () => (await api.get<CurrentUser>("/auth/me")).data,
       });
+      // Force a password change before anything else when an admin reset set
+      // the marker. Done in `beforeLoad` (not a component effect) so there's no
+      // render flash and no redirect loop — `/settings` is excluded.
+      if (me.must_change_password && location.pathname !== "/settings") {
+        throw redirect({ to: "/settings", search: { force_password: "1" } });
+      }
       // Seed active workspace if the user hasn't picked one yet.
       const ws = useActiveWorkspace.getState();
       if (ws.workspaceId === null && me.memberships.length > 0) {
@@ -48,7 +54,12 @@ export const Route = createFileRoute("/_app")({
       if (useCapabilities.getState().capabilities === null) {
         await useCapabilities.getState().fetch();
       }
-    } catch {
+    } catch (err) {
+      // A deliberate redirect (e.g. the must_change_password guard above) must
+      // propagate unchanged — only auth failures fall through to /login.
+      if (isRedirect(err)) {
+        throw err;
+      }
       throw redirect({
         to: "/login",
         search: { next: location.pathname },
@@ -93,6 +104,7 @@ function AppLayout(): React.ReactElement {
         userName={userName}
         {...(userRole !== undefined ? { userRole } : {})}
         {...(workspaces.length > 0 ? { workspaces } : {})}
+        isSuperuser={user.is_superuser === true}
       />
       <div className="flex min-w-0 flex-col">
         <Topbar />

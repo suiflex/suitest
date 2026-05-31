@@ -12,6 +12,7 @@ from fastapi_users.authentication import (
     JWTStrategy,
 )
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
+from suitest_core import crypto
 from suitest_db.models.user import User
 from suitest_db.repositories.password_reset_requests import PasswordResetRequestRepository
 
@@ -35,15 +36,26 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     async def on_after_forgot_password(
         self, user: User, token: str, request: Request | None = None
     ) -> None:
-        """Persist reset-token metadata for super-admin review until SMTP exists."""
+        """Persist reset-token metadata for super-admin review until SMTP exists.
+
+        The reset link is a bearer credential: it is stored encrypted at rest via
+        ``packages/core`` AES-GCM (the ``EncryptedBytes`` column encrypts on write).
+        When no encryption key is configured we persist ONLY the token hash and
+        leave ``reset_link_encrypted`` NULL — the review endpoint then returns 503.
+        The token and link are never logged.
+        """
         session = getattr(self.user_db, "session", None)
         if session is None:
             return None
-        link = f"{_settings.web_url}/reset-password?token={token}"
+        # Only persist the link when it can be encrypted at rest. Without a key,
+        # store the token hash alone (link stays NULL). Never plaintext.
+        reset_link_encrypted: str | None = None
+        if crypto.is_configured():
+            reset_link_encrypted = f"{_settings.web_url}/reset-password?token={token}"
         await PasswordResetRequestRepository(session).create(
             email=user.email,
             token_hash=hash_token(token),
-            reset_link_encrypted=link,
+            reset_link_encrypted=reset_link_encrypted,
             expires_at=datetime.now(tz=UTC) + timedelta(hours=1),
         )
         await session.commit()

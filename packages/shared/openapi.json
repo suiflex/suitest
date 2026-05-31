@@ -253,6 +253,18 @@
         "title": "AuditLogsResponse",
         "type": "object"
       },
+      "AuthSection": {
+        "description": "Auth-related capability flags resolved from process settings (M1e).\n\n``google_oauth_enabled`` is ``True`` only when BOTH the Google OAuth client id\nand client secret are configured; the login page renders the Google button\nsolely off this flag.",
+        "properties": {
+          "google_oauth_enabled": {
+            "default": false,
+            "title": "Google Oauth Enabled",
+            "type": "boolean"
+          }
+        },
+        "title": "AuthSection",
+        "type": "object"
+      },
       "AutonomyLevel": {
         "description": "Workspace autonomy dial. ZERO tier is locked to MANUAL.",
         "enum": [
@@ -539,6 +551,9 @@
       "Capabilities": {
         "description": "Full ``GET /capabilities`` response.",
         "properties": {
+          "auth": {
+            "$ref": "#/components/schemas/AuthSection"
+          },
           "autonomy": {
             "$ref": "#/components/schemas/AutonomySection"
           },
@@ -2471,12 +2486,22 @@
             "title": "Id",
             "type": "string"
           },
+          "is_superuser": {
+            "default": false,
+            "title": "Is Superuser",
+            "type": "boolean"
+          },
           "memberships": {
             "items": {
               "$ref": "#/components/schemas/MembershipPublic"
             },
             "title": "Memberships",
             "type": "array"
+          },
+          "must_change_password": {
+            "default": false,
+            "title": "Must Change Password",
+            "type": "boolean"
           },
           "name": {
             "title": "Name",

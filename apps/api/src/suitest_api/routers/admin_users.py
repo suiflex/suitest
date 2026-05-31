@@ -8,6 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from suitest_core import crypto
 from suitest_db.models.user import User
 from suitest_db.repositories.password_reset_requests import PasswordResetRequestRepository
 
@@ -100,7 +101,17 @@ async def list_password_reset_requests(
 ) -> PasswordResetRequestsEnvelope:
     if not user.is_superuser:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="super-admin required")
+    # Reset links are stored encrypted at rest. Without an encryption key the
+    # links cannot exist (the forgot-password hook stores token hashes only), so
+    # there is nothing to display — signal the misconfiguration explicitly.
+    if not crypto.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ENCRYPTION_NOT_CONFIGURED",
+        )
     rows = await PasswordResetRequestRepository(session).list_recent()
+    # ``reset_link_encrypted`` is decrypted transparently by the EncryptedBytes
+    # column on read; a NULL row (hash-only) surfaces as ``None`` and is kept None.
     return PasswordResetRequestsEnvelope(
         items=[
             PasswordResetRequestOut(

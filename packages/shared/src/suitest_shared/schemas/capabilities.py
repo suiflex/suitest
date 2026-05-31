@@ -74,6 +74,17 @@ class AutonomySection(BaseModel):
     default: AutonomyLevel
 
 
+class AuthSection(BaseModel):
+    """Auth-related capability flags resolved from process settings (M1e).
+
+    ``google_oauth_enabled`` is ``True`` only when BOTH the Google OAuth client id
+    and client secret are configured; the login page renders the Google button
+    solely off this flag.
+    """
+
+    google_oauth_enabled: bool = False
+
+
 class Capabilities(BaseModel):
     """Full ``GET /capabilities`` response."""
 
@@ -82,6 +93,7 @@ class Capabilities(BaseModel):
     embeddings: EmbeddingsSection
     features: FeaturesSection
     autonomy: AutonomySection
+    auth: AuthSection = Field(default_factory=AuthSection)
     version: str
     mcp_providers: list[McpProviderPublic] = Field(default_factory=list, alias="mcpProviders")
     build: str | None = None
