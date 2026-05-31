@@ -91,6 +91,14 @@ dev-api-docs: ## Open API docs in browser
 dev-runner: ## Start ARQ worker (runner)
 	uv run python -m suitest_runner
 
+dev: ## Start API + web + runner together (Ctrl-C stops all)
+	@echo "Starting API (4000), web (3000), runner..."
+	@trap 'kill 0' EXIT INT TERM; \
+	$(MAKE) dev-api & \
+	$(MAKE) dev-web & \
+	$(MAKE) dev-runner & \
+	wait
+
 ##@ Docker Compose
 
 docker-up: ## Boot all services (ZERO tier default)
