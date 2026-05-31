@@ -54,15 +54,53 @@ async def client() -> AsyncIterator[AsyncClient]:
 
 @pytest.fixture(scope="session")
 def _database_url() -> Iterator[str]:
-    """Boot a pgvector Postgres container and apply the Alembic chain once."""
+    """Provide a pgvector Postgres URL with the Alembic chain applied once.
+
+    Two modes:
+
+    * If ``SUITEST_TEST_DATABASE_URL`` is set, run against that external,
+      pre-provisioned database (no Docker required). Point it at a DEDICATED
+      throwaway database — the ``api_db`` fixture TRUNCATEs every table per test,
+      so it must never be a database holding real data.
+    * Otherwise boot a disposable ``pgvector/pgvector:pg16`` testcontainer.
+    """
     from alembic import command
     from alembic.config import Config
     from sqlalchemy import text
     from sqlalchemy.ext.asyncio import create_async_engine
-    from testcontainers.postgres import PostgresContainer
 
     if not os.environ.get("SUITEST_ENCRYPTION_KEY"):
         os.environ["SUITEST_ENCRYPTION_KEY"] = base64.urlsafe_b64encode(b"\x00" * 32).decode()
+
+    def _migrate(url: str) -> None:
+        prev = os.environ.get("SUITEST_DATABASE_URL")
+        os.environ["SUITEST_DATABASE_URL"] = url
+        try:
+            cfg = Config(str(_DB_PKG_ROOT / "alembic.ini"))
+            cfg.set_main_option("script_location", str(_DB_PKG_ROOT / "alembic"))
+            cfg.set_main_option("sqlalchemy.url", url)
+            command.upgrade(cfg, "head")
+        finally:
+            if prev is None:
+                os.environ.pop("SUITEST_DATABASE_URL", None)
+            else:
+                os.environ["SUITEST_DATABASE_URL"] = prev
+
+    external = os.environ.get("SUITEST_TEST_DATABASE_URL")
+    if external:
+
+        async def _bootstrap_external() -> None:
+            engine = create_async_engine(external, future=True)
+            async with engine.begin() as conn:
+                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            await engine.dispose()
+
+        asyncio.run(_bootstrap_external())
+        _migrate(external)
+        yield external
+        return
+
+    from testcontainers.postgres import PostgresContainer
 
     with PostgresContainer("pgvector/pgvector:pg16", driver="asyncpg") as container:
         host = container.get_container_host_ip()
@@ -79,19 +117,7 @@ def _database_url() -> Iterator[str]:
             await engine.dispose()
 
         asyncio.run(_bootstrap())
-
-        prev = os.environ.get("SUITEST_DATABASE_URL")
-        os.environ["SUITEST_DATABASE_URL"] = url
-        try:
-            cfg = Config(str(_DB_PKG_ROOT / "alembic.ini"))
-            cfg.set_main_option("script_location", str(_DB_PKG_ROOT / "alembic"))
-            cfg.set_main_option("sqlalchemy.url", url)
-            command.upgrade(cfg, "head")
-        finally:
-            if prev is None:
-                os.environ.pop("SUITEST_DATABASE_URL", None)
-            else:
-                os.environ["SUITEST_DATABASE_URL"] = prev
+        _migrate(url)
         yield url
 
 

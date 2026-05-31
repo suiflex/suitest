@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.models.user import User
@@ -219,4 +220,13 @@ async def accept_invitation(
             status_code=status.HTTP_404_NOT_FOUND, detail="invite not found"
         ) from exc
     await session.commit()
-    return await auth_backend.login(get_jwt_strategy(), user)
+    # FastAPI-Users' CookieTransport login yields a 204 carrying only the
+    # Set-Cookie header. The accept-invite contract returns a JSON body
+    # (``AcceptInviteResponse``) AND sets the session cookie, so build a 200
+    # JSON response and graft the auth cookie onto it.
+    login_response = await auth_backend.login(get_jwt_strategy(), user)
+    response = JSONResponse(content={"ok": True}, status_code=status.HTTP_200_OK)
+    for key, value in login_response.raw_headers:
+        if key.lower() == b"set-cookie":
+            response.raw_headers.append((key, value))
+    return response
