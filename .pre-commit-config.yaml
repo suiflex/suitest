@@ -29,7 +29,7 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
+    rev: v2.1.0
     hooks:
       - id: mypy
         additional_dependencies:
@@ -78,6 +78,13 @@ repos:
           - openapi-pydantic>=0.4.0
           - faker>=25.0
           - types-PyYAML>=6.0
+          # M3-1/M3-4: the agent package (providers/litellm_router, graphs/*)
+          # imports litellm + langgraph. Both ship py.typed; without them the
+          # isolated pre-commit mypy env resolves the imports to Any and trips
+          # ``disallow_any_unimported`` (CI's ``uv run mypy`` resolves them
+          # because they are installed deps of suitest-agent).
+          - litellm>=1.51
+          - langgraph>=0.2.40
         args: ["--config-file=pyproject.toml"]
         files: ^(apps|packages)/.*\.py$
         # mirrors-mypy passes the staged files in a single invocation. With

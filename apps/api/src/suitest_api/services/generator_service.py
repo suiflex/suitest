@@ -20,20 +20,27 @@ from __future__ import annotations
 import time
 import uuid
 from collections.abc import AsyncIterator
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from opentelemetry import trace
 from suitest_agent.generators.openapi_generator import OpenApiGenerator, OpenApiSpecError
+from suitest_agent.generators.prd import PrdGenerator
 from suitest_agent.generators.url_crawler import UrlCrawler
+from suitest_agent.prompts.loader import prompt_hash, read_prompt
+from suitest_agent.providers.litellm_router import get_provider
 from suitest_db.audit import write_audit
 from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.generator_run import GeneratorRun
 from suitest_db.public_id import set_workspace_id
-from suitest_shared.domain.enums import CaseStatus
+from suitest_db.repositories.agent_sessions import AgentSessionCreate, AgentSessionRepo
+from suitest_db.repositories.prompt_versions import PromptVersionRepo
+from suitest_shared.domain.enums import AgentSessionKind, CaseStatus
 from suitest_shared.schemas.generator_input import (
     CrawlerGenerateRequest,
     GeneratorSseEvent,
     OpenApiGenerateRequest,
+    PrdGenerateRequest,
     TestCaseDraft,
 )
 
@@ -273,6 +280,172 @@ class GeneratorService:
                     "cases_created": len(public_ids),
                     "public_ids": public_ids,
                     "duration_ms": duration_ms,
+                },
+            )
+
+    # ------------------------------------------------------------------
+
+    async def run_prd(
+        self,
+        workspace_id: str,
+        user_id: str,
+        request: PrdGenerateRequest,
+        *,
+        provider_name: str,
+        model: str,
+        api_key: str | None,
+        base_url: str | None,
+    ) -> AsyncIterator[GeneratorSseEvent]:
+        """Stream LLM-driven PRD generation as SSE (M3-6) — CLOUD/LOCAL only.
+
+        Validates the suite is in-scope FIRST (404 before any stream byte), then
+        drives the GENERATION graph through :class:`PrdGenerator`. Persists an
+        :class:`AgentSession` (reproducibility + cost rollup, M3-5/M3-14) and a
+        ``GeneratorRun`` (provenance), one DRAFT case per draft, and streams
+        ``progress`` → ``case`` → ``complete`` (or a single ``error``).
+
+        The caller resolves ``provider_name`` / ``model`` / key / base_url from the
+        workspace's active ``LLMConfig``; absence of an active config is the real
+        tier gate and is rejected by the router (409) before this runs.
+        """
+        if not await self.suite_in_scope(request.target_suite_id, workspace_id):
+            raise SuiteNotInWorkspaceError(request.target_suite_id)
+
+        with tracer.start_as_current_span("generator.prd") as span:
+            span.set_attribute("generator.source", "prd")
+            span.set_attribute("workspace.id", workspace_id)
+            span.set_attribute("llm.provider", provider_name)
+            span.set_attribute("llm.model", model)
+            start = time.perf_counter()
+
+            # Reproducibility: pin the exact prompt content hash (M3-5). ``ensure``
+            # is idempotent — the first PRD run per (name, version) inserts the row.
+            prompt_content = read_prompt("generate-from-prd", "v1")
+            prompt_row = await PromptVersionRepo(self._session).ensure(
+                "generate-from-prd", "v1", prompt_content, prompt_hash(prompt_content)
+            )
+
+            agent_repo = AgentSessionRepo(self._session)
+            agent_session = await agent_repo.create(
+                AgentSessionCreate(
+                    workspace_id=workspace_id,
+                    kind=AgentSessionKind.GENERATION,
+                    model_id=model,
+                    provider=provider_name,
+                    user_id=self._as_user_uuid(user_id),
+                    prompt_version_id=prompt_row.id,
+                    seed=request.seed,
+                    temperature=0.2,
+                    metadata_json={
+                        "source": "prd",
+                        "target_suite_id": request.target_suite_id,
+                        "default_target_kind": request.default_target_kind.value,
+                    },
+                )
+            )
+
+            run = GeneratorRun(
+                workspace_id=workspace_id,
+                source="prd",
+                input_meta_json={
+                    "target_suite_id": request.target_suite_id,
+                    "prd_chars": len(request.prd_text),
+                    "default_target_kind": request.default_target_kind.value,
+                    "seed": request.seed,
+                    "agent_session_id": agent_session.id,
+                },
+                output_case_ids_json=[],
+                created_by_user_id=self._as_user_uuid(user_id),
+            )
+            self._session.add(run)
+            await self._session.flush()
+            run_id = run.id
+
+            yield GeneratorSseEvent(
+                kind="progress",
+                data={
+                    "phase": "drafting",
+                    "generator_run_id": run_id,
+                    "agent_session_id": agent_session.id,
+                },
+            )
+
+            provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
+            generator = PrdGenerator(
+                provider, model=model, default_target_kind=request.default_target_kind
+            )
+            result = await generator.run(
+                request.prd_text, seed=request.seed, max_cases=request.max_cases
+            )
+
+            if result.error:
+                span.set_attribute("generator.error", result.error)
+                await agent_repo.complete(agent_session.id, status="error")
+                await self._finalize(
+                    run,
+                    workspace_id,
+                    user_id,
+                    public_ids=[],
+                    duration_ms=0,
+                    action="generator.prd.completed",
+                )
+                await self._session.commit()
+                yield GeneratorSseEvent(
+                    kind="error",
+                    data={"code": "GENERATION_FAILED", "message": result.error},
+                )
+                return
+
+            public_ids: list[str] = []
+            for draft in result.drafts:
+                public_id = await self._persist_case(
+                    draft,
+                    suite_id=request.target_suite_id,
+                    workspace_id=workspace_id,
+                    generated_by="prd-generator",
+                )
+                public_ids.append(public_id)
+                yield GeneratorSseEvent(
+                    kind="case",
+                    data={
+                        "public_id": public_id,
+                        "name": draft.name,
+                        "case_kind": draft.generated_from.get("case_kind"),
+                        "tags": draft.tags,
+                    },
+                )
+
+            usage = result.usage
+            duration_ms = int((time.perf_counter() - start) * 1000)
+            span.set_attribute("generator.cases_created", len(public_ids))
+            await agent_repo.complete(
+                agent_session.id,
+                cost_usd=Decimal(str(usage.cost_usd)) if usage else None,
+                tokens_in=usage.tokens_in if usage else 0,
+                tokens_out=usage.tokens_out if usage else 0,
+            )
+            await self._finalize(
+                run,
+                workspace_id,
+                user_id,
+                public_ids=public_ids,
+                duration_ms=duration_ms,
+                action="generator.prd.completed",
+            )
+            await self._session.commit()
+
+            yield GeneratorSseEvent(
+                kind="complete",
+                data={
+                    "generator_run_id": run_id,
+                    "agent_session_id": agent_session.id,
+                    "target_suite_id": request.target_suite_id,
+                    "cases_created": len(public_ids),
+                    "public_ids": public_ids,
+                    "duration_ms": duration_ms,
+                    "tokens_in": usage.tokens_in if usage else 0,
+                    "tokens_out": usage.tokens_out if usage else 0,
+                    "cost_usd": float(usage.cost_usd) if usage else 0.0,
                 },
             )
 

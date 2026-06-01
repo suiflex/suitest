@@ -191,7 +191,7 @@ ZERO tier bisa generate AND test melawan target apapun yang MCP-equipped. Custom
 
 #### LLM-driven generators
 
-- [ ] **M3-6** PRD natural-language generation — agent ekstrak user story → draft cases + edge variants
+- [x] **M3-6** PRD natural-language generation — agent ekstrak user story → draft cases + edge variants (`POST /generators/prd` SSE; [`generators/prd.py`](../packages/agent/src/suitest_agent/generators/prd.py) `PrdGenerator` drives GENERATION graph; `GeneratorService.run_prd` persists `AgentSession` repro+cost + DRAFT cases; CLOUD/LOCAL gate via active `LLMConfig` → 409; agentic steps `code=""` translated at exec M3-10)
 - [ ] **M3-7** URL semantic generation via browser-use AI agent (paham intent: "checkout flow")
 - [ ] **M3-8** OpenAPI enrich — deterministic core + AI edge cases (boundary, fuzz, negative)
 - [ ] **M3-9** MCP tool discovery generation — connect ke custom MCP, LLM eksplorasi tools, propose cases

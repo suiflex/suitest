@@ -195,6 +195,24 @@ class CrawlerGenerateRequest(BaseModel):
     options: CrawlerOptions = Field(default_factory=CrawlerOptions)
 
 
+class PrdGenerateRequest(BaseModel):
+    """LLM-driven PRD generation (M3-6) — CLOUD/LOCAL only.
+
+    ``prd_text`` is the requirement / user story / free text. The agent extracts
+    stories and drafts happy-path + edge cases. ``default_target_kind`` decides
+    the steps' default ``mcp_provider`` (steps are agentic — code is translated at
+    execution time, M3-10). ``seed`` is threaded for reproducibility (M3-5).
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    target_suite_id: Annotated[str, Field(min_length=1)]
+    prd_text: Annotated[str, Field(min_length=1, max_length=200_000)]
+    default_target_kind: TargetKind = TargetKind.CUSTOM
+    seed: int | None = None
+    max_cases: Annotated[int, Field(ge=1, le=100)] = 20
+
+
 class GeneratorRunResponse(BaseModel):
     """Terminal SSE ``complete`` payload + the synchronous run summary."""
 

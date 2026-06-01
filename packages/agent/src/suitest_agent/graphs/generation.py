@@ -26,6 +26,9 @@ class GenerationState(TypedDict, total=False):
     model: str
     seed: int | None
     raw_output: str
+    tokens_in: int
+    tokens_out: int
+    cost_usd: float
     draft_cases: list[dict[str, object]]
     error: str | None
 
@@ -52,7 +55,12 @@ def build_generation_graph(
             user=state["input_text"],
             seed=state.get("seed"),
         )
-        return {"raw_output": result.content}
+        return {
+            "raw_output": result.content,
+            "tokens_in": result.tokens_in,
+            "tokens_out": result.tokens_out,
+            "cost_usd": result.cost_usd,
+        }
 
     async def parse_drafts(state: GenerationState) -> GenerationState:
         if state.get("error"):

@@ -25,6 +25,7 @@ from suitest_agent.generators.recorder import (
 )
 from suitest_core.capabilities import TierFlag
 from suitest_db.repositories.generator_runs import GeneratorRunRepo
+from suitest_db.repositories.llm_configs import LLMConfigRepo
 from suitest_db.repositories.mcp_providers import McpProviderRepo
 from suitest_db.repositories.projects import ProjectRepo
 from suitest_db.repositories.recorder_sessions import RecorderSessionRepo
@@ -39,6 +40,7 @@ from suitest_shared.schemas.generator_input import (
     GenerationInput,
     GeneratorSseEvent,
     OpenApiGenerateRequest,
+    PrdGenerateRequest,
     RecorderFinalizeRequest,
     RecorderSessionStartRequest,
     RecorderSessionStartResponse,
@@ -136,6 +138,63 @@ async def generate_openapi(
             yield _format_sse(err).encode()
         finally:
             await http_client.aclose()
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# LLM-driven PRD → test-case generation (M3-6). CLOUD/LOCAL only: the real tier
+# gate is an active ``LLMConfig`` (409 ``LLM_NOT_CONFIGURED`` when absent). Streams
+# ``progress``/``case``/``complete`` (or a single ``error``) over SSE. QA+ gate.
+@router.post("/generators/prd")
+@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+async def generate_prd(
+    payload: PrdGenerateRequest,
+    ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> StreamingResponse:
+    """Generate DRAFT cases from a PRD / user story via the LLM agent (SSE)."""
+    # Tier gate: an LLM must be configured + active for this workspace. Without
+    # one the workspace is effectively ZERO → reject before opening the stream.
+    config = await LLMConfigRepo(session).get_active(ctx.workspace_id)
+    if config is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="no active LLM configured for this workspace",
+        )
+
+    # PRD generation never fetches over HTTP, but GeneratorService's constructor
+    # requires a client; give it a closed-on-exit one.
+    http_client = httpx.AsyncClient(timeout=30.0)
+    await http_client.aclose()
+    svc = _build_generator_service(session, http_client)
+    if not await svc.suite_in_scope(payload.target_suite_id, ctx.workspace_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="suite not found")
+
+    base_url = config.config_json.get("base_url")
+    base_url = base_url if isinstance(base_url, str) else None
+
+    async def stream() -> AsyncIterator[bytes]:
+        try:
+            async for event in svc.run_prd(
+                ctx.workspace_id,
+                ctx.user_id,
+                payload,
+                provider_name=config.provider,
+                model=config.model,
+                api_key=config.api_key_encrypted,
+                base_url=base_url,
+            ):
+                yield _format_sse(event).encode()
+        except SuiteNotInWorkspaceError:
+            err = GeneratorSseEvent(
+                kind="error",
+                data={"code": "RESOURCE_NOT_FOUND", "message": "suite not found"},
+            )
+            yield _format_sse(err).encode()
 
     return StreamingResponse(
         stream(),
