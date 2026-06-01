@@ -1,0 +1,58 @@
+openapi: 3.0.3
+info:
+  title: Rate-Limited API (synthetic, CC0)
+  version: 1.0.0
+servers:
+  - url: https://rl.example
+paths:
+  /search:
+    get:
+      operationId: search
+      tags:
+        - search
+      responses:
+        "200":
+          description: results
+          headers:
+            X-RateLimit-Limit:
+              description: requests allowed per window
+              schema:
+                type: integer
+              example: 2
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: string
+        "429":
+          description: too many requests
+  /ingest:
+    post:
+      operationId: ingest
+      tags:
+        - ingest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - payload
+              properties:
+                payload:
+                  type: string
+                  minLength: 1
+                  maxLength: 16
+      responses:
+        "202":
+          description: accepted
+        "429":
+          description: too many requests
