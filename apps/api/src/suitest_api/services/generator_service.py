@@ -278,6 +278,53 @@ class GeneratorService:
 
     # ------------------------------------------------------------------
 
+    async def persist_recorder_case(
+        self, draft: TestCaseDraft, *, suite_id: str, workspace_id: str
+    ) -> str:
+        """Persist a recorder-produced draft and return its internal case id.
+
+        Used by the recorder finalize endpoint: it needs the internal id (not the
+        public id) to stamp ``recorder_sessions.finalized_case_id`` (an FK to
+        ``test_cases.id``). Mirrors :meth:`_persist_case` but returns ``case.id``.
+        """
+        case = TestCase(
+            suite_id=suite_id,
+            name=draft.name,
+            description=draft.description,
+            status=CaseStatus.DRAFT,
+            priority=draft.priority,
+            source=draft.source,
+            generated_by="recorder",
+            generated_from=draft.generated_from,
+        )
+        set_workspace_id(case, workspace_id)
+        self._session.add(case)
+        await self._session.flush()
+
+        for step in draft.steps:
+            self._session.add(
+                TestStep(
+                    case_id=case.id,
+                    order=step.order,
+                    action=step.action,
+                    expected=step.expected,
+                    code=step.code,
+                    data=step.data,
+                    mcp_provider=step.mcp_provider,
+                    target_kind=step.target_kind,
+                )
+            )
+
+        seen: set[str] = set()
+        for tag in draft.tags:
+            if tag in seen:
+                continue
+            seen.add(tag)
+            self._session.add(CaseTag(case_id=case.id, tag=tag))
+
+        await self._session.flush()
+        return case.id
+
     async def _persist_case(
         self,
         draft: TestCaseDraft,

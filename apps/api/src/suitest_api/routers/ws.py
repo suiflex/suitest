@@ -151,12 +151,32 @@ async def _user_workspace_ids(websocket: WebSocket, user_id: uuid.UUID) -> set[s
         return {row[0] for row in rows.all()}
 
 
+async def _recorder_session_in_workspace(
+    websocket: WebSocket, session_id: str, workspace_ids: set[str]
+) -> bool:
+    """Return whether ``recorder:<id>`` belongs to a workspace the user is in.
+
+    Recorder rooms (``recorder:<session_id>``) are NOT named after a workspace,
+    so unlike ``workspace:<id>`` we cannot authorise from the topic alone — we
+    resolve the session's ``workspace_id`` and check membership. An unknown id
+    (or one in another tenant) is rejected the same way (no existence leak).
+    """
+    from suitest_db.models.recorder_session import RecorderSession
+
+    async with _resolve_session(websocket) as session:
+        ws_id = await session.scalar(
+            select(RecorderSession.workspace_id).where(RecorderSession.id == session_id)
+        )
+    return ws_id is not None and ws_id in workspace_ids
+
+
 def _is_allowed_topic(topic: str, workspace_ids: set[str]) -> tuple[bool, str | None]:
     """Validate a topic against the user's allowed namespaces.
 
     Returns ``(allowed, error_code)`` — the error code matches a short literal
     documented in ``docs/API.md`` once the gateway is wired (``unknown_topic``,
-    ``workspace_forbidden``).
+    ``workspace_forbidden``). ``recorder:<id>`` topics are validated separately
+    (async, against session ownership) by the subscribe handler.
     """
     if topic.startswith("workspace:"):
         ws_id = topic.split(":", 1)[1]
@@ -241,7 +261,17 @@ async def ws_endpoint(websocket: WebSocket, token: str | None = Query(default=No
                 await websocket.send_text(ServerPong().model_dump_json())
                 continue
 
-            allowed, err = _is_allowed_topic(msg.topic, workspace_ids)
+            if msg.topic.startswith("recorder:"):
+                # Recorder rooms authorise on session ownership (async lookup),
+                # not topic shape — forward live ``recorder:<id>`` events only to
+                # members of the session's workspace.
+                session_id = msg.topic.split(":", 1)[1]
+                allowed = bool(session_id) and await _recorder_session_in_workspace(
+                    websocket, session_id, workspace_ids
+                )
+                err = None if allowed else "workspace_forbidden"
+            else:
+                allowed, err = _is_allowed_topic(msg.topic, workspace_ids)
             if not allowed:
                 await websocket.send_text(
                     ServerError(

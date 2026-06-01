@@ -8,6 +8,7 @@ endpoint. ``TargetKind`` is NOT redefined here — it is the single canonical en
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Literal
 
@@ -209,3 +210,72 @@ class GeneratorSseEvent(BaseModel):
 
     kind: Literal["progress", "case", "complete", "error"]
     data: dict[str, object]
+
+
+# ---------------------------------------------------------------------------
+# M2 Task 4 — live browser recorder I/O
+# ---------------------------------------------------------------------------
+#
+# ``POST /generators/recorder/sessions`` opens a live Playwright-MCP recording
+# session; events stream over the WS gateway (``recorder:<id>`` channel) and
+# ``POST .../finalize`` converts the captured event log into a DRAFT
+# :class:`TestCase` (``source=RECORDER``, ``target_kind=FE_WEB``). Pure
+# deterministic event→step mapping (NO LLM) → runs in every tier.
+
+
+class RecorderSessionStartRequest(BaseModel):
+    """Body for ``POST /generators/recorder/sessions``."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    project_id: Annotated[str, Field(min_length=1)]
+    start_url: Annotated[str, Field(min_length=1)]
+    mcp_provider: str = "playwright-mcp"
+
+
+class RecorderSessionStartResponse(BaseModel):
+    """200 body — the session id + the WS room to subscribe for live events."""
+
+    session_id: str
+    ws_room: str
+    browser_url: str | None = None
+    expires_at: datetime
+
+
+class RecorderEventKind(StrEnum):
+    NAVIGATE = "navigate"
+    CLICK = "click"
+    TYPE = "type"
+    ASSERT = "assert"
+    NETWORK = "network"
+
+
+class RecorderEvent(BaseModel):
+    """One captured interaction. ``masked`` flags secret ``type`` input.
+
+    ``network`` carries ``{"status": int, "url": str, "method": str}`` for
+    ``NETWORK`` events; a 4xx/5xx status becomes an auto-assertion step at
+    finalize time.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    kind: RecorderEventKind
+    timestamp: datetime
+    url: str | None = None
+    selector: str | None = None
+    text: str | None = None
+    masked: bool = False
+    assertion: dict[str, object] | None = None
+    network: dict[str, object] | None = None
+
+
+class RecorderFinalizeRequest(BaseModel):
+    """Body for ``POST .../finalize`` — where + how to persist the new case."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    target_suite_id: Annotated[str, Field(min_length=1)]
+    name: Annotated[str, Field(min_length=1, max_length=255)]
+    priority: Literal["P0", "P1", "P2", "P3"] = "P2"
+    description: str | None = None

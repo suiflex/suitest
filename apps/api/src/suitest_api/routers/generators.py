@@ -18,10 +18,16 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_agent.generators.classifier import classify
+from suitest_agent.generators.recorder import (
+    RecorderSessionExpired,
+    RecorderSessionManager,
+    RecorderSessionNotFound,
+)
 from suitest_core.capabilities import TierFlag
 from suitest_db.repositories.generator_runs import GeneratorRunRepo
 from suitest_db.repositories.mcp_providers import McpProviderRepo
 from suitest_db.repositories.projects import ProjectRepo
+from suitest_db.repositories.recorder_sessions import RecorderSessionRepo
 from suitest_db.repositories.suites import SuiteRepo
 from suitest_mcp.invoker import McpInvoker
 from suitest_mcp.pool import McpPool
@@ -33,12 +39,17 @@ from suitest_shared.schemas.generator_input import (
     GenerationInput,
     GeneratorSseEvent,
     OpenApiGenerateRequest,
+    RecorderFinalizeRequest,
+    RecorderSessionStartRequest,
+    RecorderSessionStartResponse,
 )
 
 from suitest_api.auth.db import async_session_maker, get_async_session
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext
 from suitest_api.deps.tier import require_tier
+from suitest_api.routers.test_cases import _detail_with_steps
+from suitest_api.schemas.test_case import TestCaseDetail
 from suitest_api.services.generator_service import (
     GeneratorService,
     SuiteNotInWorkspaceError,
@@ -209,3 +220,111 @@ async def generate_crawler(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ---------------------------------------------------------------------------
+# M2 Task 4 — live browser recorder
+# ---------------------------------------------------------------------------
+#
+# Deterministic event→step mapping (NO LLM) → ``TierFlag.ANY``. A session opens
+# a Playwright-MCP recording, events stream over the WS gateway (``recorder:<id>``
+# room), and ``/finalize`` converts the captured log into a DRAFT TestCase. All
+# three endpoints are QA+ (they create / mutate sessions + cases).
+
+
+@router.post("/generators/recorder/sessions", response_model=RecorderSessionStartResponse)
+@require_tier(TierFlag.ANY)
+async def start_recorder_session(
+    payload: RecorderSessionStartRequest,
+    request: Request,
+    ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> RecorderSessionStartResponse:
+    """Open a live browser-recording session. Returns the WS room to subscribe."""
+    project = await ProjectRepo(session).get_by_id(payload.project_id)
+    if project is None or project.workspace_id != ctx.workspace_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project not found")
+
+    invoker = _build_mcp_invoker(ctx.workspace_id, request)
+    manager = RecorderSessionManager(
+        invoker, RecorderSessionRepo(session), request.app.state.ws_redis
+    )
+    row, browser_url = await manager.start(ctx.workspace_id, ctx.user_id, payload)
+    await session.commit()
+    return RecorderSessionStartResponse(
+        session_id=row.id,
+        ws_room=row.ws_room,
+        browser_url=browser_url,
+        expires_at=row.expires_at,
+    )
+
+
+@router.post(
+    "/generators/recorder/sessions/{session_id}/finalize",
+    response_model=TestCaseDetail,
+)
+@require_tier(TierFlag.ANY)
+async def finalize_recorder_session(
+    session_id: str,
+    payload: RecorderFinalizeRequest,
+    request: Request,
+    ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> TestCaseDetail:
+    """Convert a session's captured events into a DRAFT TestCase + return it."""
+    # The recorder finalize never fetches over HTTP, but GeneratorService's
+    # constructor requires a client; give it a closed-on-exit one.
+    http_client = httpx.AsyncClient(timeout=30.0)
+    await http_client.aclose()
+    svc = GeneratorService(
+        session,
+        GeneratorRunRepo(session),
+        SuiteRepo(session),
+        ProjectRepo(session),
+        http_client,
+    )
+    if not await svc.suite_in_scope(payload.target_suite_id, ctx.workspace_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="suite not found")
+
+    invoker = _build_mcp_invoker(ctx.workspace_id, request)
+    manager = RecorderSessionManager(
+        invoker, RecorderSessionRepo(session), request.app.state.ws_redis
+    )
+    try:
+        _row, draft = await manager.finalize(session_id, ctx.workspace_id, ctx.user_id, payload)
+    except RecorderSessionNotFound as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except RecorderSessionExpired as exc:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail=str(exc)) from exc
+
+    case_id = await svc.persist_recorder_case(
+        draft, suite_id=payload.target_suite_id, workspace_id=ctx.workspace_id
+    )
+    await manager.mark_finalized(session_id, ctx.workspace_id, case_id)
+    await session.commit()
+    return await _detail_with_steps(request, session, ctx.workspace_id, case_id)
+
+
+@router.delete(
+    "/generators/recorder/sessions/{session_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+@require_tier(TierFlag.ANY)
+async def cancel_recorder_session(
+    session_id: str,
+    request: Request,
+    ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> None:
+    """Cancel an active recording session (idempotent within its lifetime)."""
+    invoker = _build_mcp_invoker(ctx.workspace_id, request)
+    manager = RecorderSessionManager(
+        invoker, RecorderSessionRepo(session), request.app.state.ws_redis
+    )
+    try:
+        await manager.cancel(session_id, ctx.workspace_id)
+    except RecorderSessionNotFound as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except RecorderSessionExpired as exc:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail=str(exc)) from exc
+    await session.commit()
