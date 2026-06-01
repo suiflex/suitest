@@ -8,6 +8,7 @@ from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin
 from fastapi_users.authentication import (
     AuthenticationBackend,
+    BearerTransport,
     CookieTransport,
     JWTStrategy,
 )
@@ -93,7 +94,19 @@ auth_backend = AuthenticationBackend(
 )
 
 
-fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
+# Bearer transport over the SAME JWT strategy so CI integrations / SDK clients
+# (docs/API.md §3.1) can authenticate via ``Authorization: Bearer <jwt>`` instead
+# of the browser session cookie. ``tokenUrl`` points at the cookie-login route
+# purely for OpenAPI's auth flow docs; tokens are minted by ``get_jwt_strategy``.
+bearer_transport = BearerTransport(tokenUrl="api/v1/auth/cookie/login")
+bearer_backend = AuthenticationBackend(
+    name="jwt-bearer",
+    transport=bearer_transport,
+    get_strategy=get_jwt_strategy,
+)
+
+
+fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend, bearer_backend])
 
 # Convenience dependency: yields the current authenticated + active User, or 401.
 current_active_user = fastapi_users.current_user(active=True)
