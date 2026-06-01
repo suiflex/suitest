@@ -33,6 +33,9 @@ from suitest_db.repositories.mcp_providers import (
     McpProviderRepo,
     McpProviderUpdate,
 )
+from suitest_mcp.discovery import DiscoveryResult, McpDiscoveryError, discover_provider
+from suitest_mcp.models import McpProviderConfig as ProbeConfig
+from suitest_mcp.models import McpTransport as ProbeTransport
 from suitest_mcp.providers.builtin_specs import BUILTIN_SPECS
 from suitest_shared.domain.enums import McpTransport, Role
 
@@ -110,6 +113,20 @@ class McpProviderCreateBody(BaseModel):
     config_json: dict[str, Any] | None = Field(default=None, alias="configJson")
     secrets_json: dict[str, Any] | str | None = Field(default=None, alias="secretsJson")
     is_default_for_target: dict[str, bool] | None = Field(default=None, alias="isDefaultForTarget")
+    # When True (default) the server connects, handshakes, and runs tools/list
+    # before persisting (M2-7). Set False to register without a live probe
+    # (e.g. seeding, or a provider not reachable yet).
+    validate_on_register: bool = Field(default=True, alias="validate")
+
+
+class McpProviderProbeResult(BaseModel):
+    """``POST /mcp/providers/test-connection`` response — dry-run discovery."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    ok: bool
+    tools: list[McpProviderTool] = Field(default_factory=list)
+    server_version: str | None = Field(default=None, alias="serverVersion")
 
 
 class McpProviderUpdateBody(BaseModel):
@@ -261,6 +278,54 @@ def _build_config_json(
     return cfg
 
 
+def _secrets_env(secrets: dict[str, Any] | str | None) -> dict[str, str]:
+    """Coerce the write-only secrets payload into string env vars for the probe.
+
+    Secrets are injected as environment variables for the (sub)process / handshake
+    context per MCP_PLUGINS §6 — never logged. A JSON string is parsed first.
+    """
+    if secrets is None:
+        return {}
+    parsed: dict[str, Any]
+    if isinstance(secrets, str):
+        try:
+            loaded = json.loads(secrets)
+        except json.JSONDecodeError:
+            return {}
+        parsed = loaded if isinstance(loaded, dict) else {}
+    else:
+        parsed = secrets
+    return {str(k): str(v) for k, v in parsed.items()}
+
+
+def _probe_config(
+    *,
+    workspace_id: str,
+    name: str,
+    kind: str,
+    endpoint: str,
+    transport: McpTransport,
+    config_json: dict[str, Any] | None,
+    secrets_json: dict[str, Any] | str | None,
+) -> ProbeConfig:
+    """Build an in-memory provider config for a discovery probe (no DB row)."""
+    cfg = _build_config_json(transport, endpoint, config_json)
+    env = {str(k): str(v) for k, v in (cfg.get("env") or {}).items()}
+    env.update(_secrets_env(secrets_json))
+    return ProbeConfig(
+        id="probe",
+        workspace_id=workspace_id,
+        name=name,
+        kind=kind,
+        transport=ProbeTransport(transport.value),
+        endpoint=endpoint,
+        command=list(cfg.get("command", [])),
+        env=env,
+        config_json=cfg,
+        spawn_timeout_seconds=float(cfg.get("spawn_timeout_seconds", 15.0)),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -305,13 +370,45 @@ async def create_mcp_provider(
     ctx: TenantContext = Depends(require_role(_WRITE_ROLES)),
     session: AsyncSession = Depends(get_async_session),
 ) -> McpProviderDetail:
-    """Register a custom MCP server (plain persist; M2-7 adds connect validation)."""
+    """Register a custom MCP server.
+
+    With ``validate=true`` (default) the server connects, performs the MCP
+    ``initialize`` handshake, runs ``tools/list``, and persists the discovered
+    catalog + ``health_status=ok`` + version pins (M2-7). A failed probe rejects
+    the registration with ``422 MCP_REGISTRATION_FAILED`` and writes no row.
+    """
     repo = McpProviderRepo(session)
     if await repo.get_by_name(ctx.workspace_id, body.name) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"provider {body.name!r} already exists in this workspace",
         )
+
+    config_json = _build_config_json(body.transport, body.endpoint, body.config_json)
+    discovery: DiscoveryResult | None = None
+    if body.validate_on_register:
+        try:
+            discovery = await discover_provider(
+                _probe_config(
+                    workspace_id=ctx.workspace_id,
+                    name=body.name,
+                    kind=body.kind,
+                    endpoint=body.endpoint,
+                    transport=body.transport,
+                    config_json=body.config_json,
+                    secrets_json=body.secrets_json,
+                )
+            )
+        except McpDiscoveryError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "MCP_REGISTRATION_FAILED", "message": str(exc)},
+            ) from exc
+        config_json["tools"] = [
+            {"name": t.name, "description": t.description, "input_schema": t.input_schema}
+            for t in discovery.tools
+        ]
+
     row = await repo.create(
         McpProviderCreate(
             workspace_id=ctx.workspace_id,
@@ -319,14 +416,62 @@ async def create_mcp_provider(
             kind=body.kind,
             endpoint=body.endpoint,
             transport=body.transport,
-            config_json=_build_config_json(body.transport, body.endpoint, body.config_json),
+            config_json=config_json,
             secrets_json_encrypted=_serialize_secrets(body.secrets_json),
             is_default_for_target=body.is_default_for_target or {},
         )
     )
+    if discovery is not None:
+        row.health_status = "ok"
+        if body.transport == McpTransport.STDIO:
+            row.command_pin = body.endpoint[:200]
+        elif discovery.server_version is not None:
+            row.version_pin = discovery.server_version[:100]
+        await session.flush()
     await session.commit()
     await session.refresh(row)
     return _row_to_detail(row)
+
+
+@router.post("/mcp/providers/test-connection", response_model=McpProviderProbeResult)
+async def test_mcp_connection(
+    body: McpProviderCreateBody,
+    ctx: TenantContext = Depends(require_role(_WRITE_ROLES)),
+) -> McpProviderProbeResult:
+    """Dry-run connect + ``tools/list`` without persisting (M2-7 register modal).
+
+    Lets the UI flip the form's status pill before the user saves. Failures
+    surface as ``422 MCP_REGISTRATION_FAILED``.
+    """
+    try:
+        discovery = await discover_provider(
+            _probe_config(
+                workspace_id=ctx.workspace_id,
+                name=body.name,
+                kind=body.kind,
+                endpoint=body.endpoint,
+                transport=body.transport,
+                config_json=body.config_json,
+                secrets_json=body.secrets_json,
+            )
+        )
+    except McpDiscoveryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "MCP_REGISTRATION_FAILED", "message": str(exc)},
+        ) from exc
+    return McpProviderProbeResult(
+        ok=True,
+        tools=[
+            McpProviderTool(
+                name=t.name,
+                description=t.description,
+                arg_schema=t.input_schema.get("properties") or None,
+            )
+            for t in discovery.tools
+        ],
+        server_version=discovery.server_version,
+    )
 
 
 @router.patch("/mcp/providers/{provider_id}", response_model=McpProviderDetail)

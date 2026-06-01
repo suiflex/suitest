@@ -100,6 +100,7 @@ async def test_create_custom_provider(api_db: ApiDb) -> None:
         "transport": "stdio",
         "secretsJson": {"stripe_key": "sk_test_xxx"},
         "isDefaultForTarget": {"BE_REST": True},
+        "validate": False,
     }
     async with api_db.client(user) as c:
         resp = await c.post("/api/v1/mcp/providers", json=body, headers=_h(ws.id))
@@ -117,7 +118,13 @@ async def test_create_custom_provider(api_db: ApiDb) -> None:
 async def test_create_duplicate_name_conflicts(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="mcp-dup@example.com")
     ws = await api_db.member_workspace(user, slug="mcp-dup-ws")
-    body = {"name": "dup-mcp", "kind": "x", "endpoint": "cmd", "transport": "stdio"}
+    body = {
+        "name": "dup-mcp",
+        "kind": "x",
+        "endpoint": "cmd",
+        "transport": "stdio",
+        "validate": False,
+    }
     async with api_db.client(user) as c:
         first = await c.post("/api/v1/mcp/providers", json=body, headers=_h(ws.id))
         second = await c.post("/api/v1/mcp/providers", json=body, headers=_h(ws.id))
@@ -146,7 +153,13 @@ async def test_get_create_patch_delete_roundtrip(api_db: ApiDb) -> None:
     async with api_db.client(user) as c:
         created = await c.post(
             "/api/v1/mcp/providers",
-            json={"name": "rt-mcp", "kind": "x", "endpoint": "https://h/sse", "transport": "sse"},
+            json={
+                "name": "rt-mcp",
+                "kind": "x",
+                "endpoint": "https://h/sse",
+                "transport": "sse",
+                "validate": False,
+            },
             headers=_h(ws.id),
         )
         pid = created.json()["id"]
@@ -210,3 +223,98 @@ async def test_get_other_workspace_provider_404(api_db: ApiDb) -> None:
     async with api_db.client(user) as c:
         resp = await c.get("/api/v1/mcp/providers/mcpxotherrow0000000000000000", headers=_h(ws.id))
     assert resp.status_code == 404
+
+
+# --------------------------------------------- M2-7: register-time validation
+
+_MOCK_MCP_SCRIPT = """
+import asyncio, json
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp.types import TextContent, Tool
+
+app = Server("probe-mock")
+
+@app.list_tools()
+async def list_tools():
+    return [Tool(name="echo", description="echo back", inputSchema={"type": "object"})]
+
+@app.call_tool()
+async def call_tool(name, arguments):
+    return [TextContent(type="text", text=json.dumps(arguments))]
+
+async def main():
+    async with stdio_server() as (r, w):
+        await app.run(r, w, app.create_initialization_options())
+
+if __name__ == "__main__":
+    asyncio.run(main())
+"""
+
+
+def _mock_command(tmp_path: object) -> str:
+    import sys
+    from pathlib import Path
+
+    script = Path(str(tmp_path)) / "probe_mcp_server.py"
+    script.write_text(_MOCK_MCP_SCRIPT)
+    return f"{sys.executable} {script}"
+
+
+@pytest.mark.asyncio
+async def test_register_with_validation_discovers_tools(api_db: ApiDb, tmp_path: object) -> None:
+    user = await api_db.seed_user(email="mcp-v7@example.com")
+    ws = await api_db.member_workspace(user, slug="mcp-v7-ws")
+    body = {
+        "name": "probe-mcp",
+        "kind": "custom",
+        "endpoint": _mock_command(tmp_path),
+        "transport": "stdio",
+        # validate defaults to True — real connect + tools/list happens here.
+    }
+    async with api_db.client(user) as c:
+        resp = await c.post("/api/v1/mcp/providers", json=body, headers=_h(ws.id))
+    assert resp.status_code == 201, resp.text
+    detail = resp.json()
+    assert detail["healthStatus"] == "ok"
+    assert {t["name"] for t in detail["tools"]} == {"echo"}
+
+
+@pytest.mark.asyncio
+async def test_register_validation_failure_rejects(api_db: ApiDb, tmp_path: object) -> None:
+    import sys
+    from pathlib import Path
+
+    missing = Path(str(tmp_path)) / "nope.py"
+    user = await api_db.seed_user(email="mcp-v7fail@example.com")
+    ws = await api_db.member_workspace(user, slug="mcp-v7fail-ws")
+    body = {
+        "name": "broken-mcp",
+        "kind": "custom",
+        "endpoint": f"{sys.executable} {missing}",
+        "transport": "stdio",
+    }
+    async with api_db.client(user) as c:
+        resp = await c.post("/api/v1/mcp/providers", json=body, headers=_h(ws.id))
+        listed = await c.get("/api/v1/mcp/providers", headers=_h(ws.id))
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["code"] == "MCP_REGISTRATION_FAILED"
+    assert "broken-mcp" not in {r["name"] for r in listed.json()["items"]}
+
+
+@pytest.mark.asyncio
+async def test_test_connection_endpoint(api_db: ApiDb, tmp_path: object) -> None:
+    user = await api_db.seed_user(email="mcp-tc@example.com")
+    ws = await api_db.member_workspace(user, slug="mcp-tc-ws")
+    body = {
+        "name": "probe-mcp",
+        "kind": "custom",
+        "endpoint": _mock_command(tmp_path),
+        "transport": "stdio",
+    }
+    async with api_db.client(user) as c:
+        resp = await c.post("/api/v1/mcp/providers/test-connection", json=body, headers=_h(ws.id))
+    assert resp.status_code == 200, resp.text
+    payload = resp.json()
+    assert payload["ok"] is True
+    assert {t["name"] for t in payload["tools"]} == {"echo"}

@@ -12,7 +12,9 @@ import {
 } from "@/components/ui/dialog";
 import {
   createMcpProvider,
+  testMcpConnection,
   updateMcpProvider,
+  type McpProbeResult,
   type McpProviderDetail,
   type McpProviderWriteBody,
   type McpTransport,
@@ -49,20 +51,40 @@ export function RegisterMcpModal({
   );
   const [secretsJson, setSecretsJson] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [probe, setProbe] = useState<McpProbeResult | null>(null);
+  const [probeError, setProbeError] = useState<string | null>(null);
+
+  function buildBody(): McpProviderWriteBody {
+    let secrets: Record<string, unknown> | undefined;
+    if (secretsJson.trim() !== "") {
+      secrets = JSON.parse(secretsJson) as Record<string, unknown>;
+    }
+    return {
+      name,
+      kind,
+      endpoint,
+      transport,
+      ...(secrets ? { secretsJson: secrets } : {}),
+    };
+  }
+
+  const testConn = useMutation({
+    mutationFn: () => testMcpConnection(buildBody()),
+    onMutate: () => {
+      setProbe(null);
+      setProbeError(null);
+    },
+    onSuccess: (result) => {
+      setProbe(result);
+    },
+    onError: (err: unknown) => {
+      setProbeError(err instanceof Error ? err.message : "Connection failed");
+    },
+  });
 
   const mutation = useMutation({
     mutationFn: async (): Promise<McpProviderDetail> => {
-      let secrets: Record<string, unknown> | undefined;
-      if (secretsJson.trim() !== "") {
-        secrets = JSON.parse(secretsJson) as Record<string, unknown>;
-      }
-      const body: McpProviderWriteBody = {
-        name,
-        kind,
-        endpoint,
-        transport,
-        ...(secrets ? { secretsJson: secrets } : {}),
-      };
+      const body = buildBody();
       if (isEdit && existing) {
         return updateMcpProvider(existing.id, body);
       }
@@ -177,6 +199,23 @@ export function RegisterMcpModal({
             />
           </Field>
 
+          {probe ? (
+            <p
+              className="rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-[12px] text-fg-1"
+              data-testid="mcp-probe-ok"
+            >
+              Connected · discovered {probe.tools.length.toString()} tool
+              {probe.tools.length === 1 ? "" : "s"}
+              {probe.tools.length > 0
+                ? `: ${probe.tools.map((t) => t.name).join(", ")}`
+                : ""}
+            </p>
+          ) : null}
+          {probeError ? (
+            <p className="text-[12px] text-red" data-testid="mcp-probe-error">
+              {probeError}
+            </p>
+          ) : null}
           {formError ? (
             <p className="text-[12px] text-red" data-testid="mcp-form-error">
               {formError}
@@ -184,6 +223,19 @@ export function RegisterMcpModal({
           ) : null}
 
           <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-testid="mcp-test-connection"
+              disabled={!canSubmit || testConn.isPending}
+              onClick={() => {
+                setFormError(null);
+                testConn.mutate();
+              }}
+            >
+              {testConn.isPending ? "Testing…" : "Test connection"}
+            </Button>
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
               Cancel
             </Button>

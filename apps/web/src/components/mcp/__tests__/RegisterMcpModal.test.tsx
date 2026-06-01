@@ -50,6 +50,24 @@ describe("RegisterMcpModal", () => {
     });
   });
 
+  it("runs a connection test and shows discovered tools", async () => {
+    server.use(
+      http.post("*/api/v1/mcp/providers/test-connection", () =>
+        HttpResponse.json({ ok: true, tools: [{ name: "echo" }, { name: "boom" }] }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderModal();
+
+    await user.type(screen.getByTestId("mcp-name"), "probe-mcp");
+    await user.type(screen.getByTestId("mcp-endpoint"), "npx -y @acme/mcp");
+    await user.click(screen.getByTestId("mcp-test-connection"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mcp-probe-ok")).toHaveTextContent("2 tools");
+    });
+  });
+
   it("surfaces a server error without closing", async () => {
     server.use(
       http.post("*/api/v1/mcp/providers", () =>

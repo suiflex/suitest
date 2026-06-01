@@ -200,6 +200,20 @@ export async function deleteMcpProvider(id: string): Promise<void> {
   await api.delete(`/mcp/providers/${id}`);
 }
 
+/** Result of ``POST /mcp/providers/test-connection`` — dry-run discovery (M2-7). */
+export interface McpProbeResult {
+  ok: boolean;
+  tools: { name: string; description?: string }[];
+  serverVersion?: string | null;
+}
+
+export async function testMcpConnection(
+  body: McpProviderWriteBody,
+): Promise<McpProbeResult> {
+  const res = await api.post<McpProbeResult>("/mcp/providers/test-connection", body);
+  return res.data;
+}
+
 // ---------------------------------------------------------------------------
 // Public invitation onboarding (M1e).
 // ---------------------------------------------------------------------------

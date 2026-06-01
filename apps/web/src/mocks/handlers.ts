@@ -462,6 +462,13 @@ export const handlers: HttpHandler[] = [
       hasSecrets: false,
     }),
   ),
+  http.post(`${BASE}/mcp/providers/test-connection`, () =>
+    HttpResponse.json({
+      ok: true,
+      tools: [{ name: "echo", description: "echo back" }],
+      serverVersion: "1.0.0",
+    }),
+  ),
   http.post(`${BASE}/mcp/providers`, async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json(

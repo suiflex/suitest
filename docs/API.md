@@ -712,7 +712,8 @@ Per-workspace MCP server registry. Distinct from `/integrations` — these are t
 | Method | Path | Tujuan |
 |--------|------|--------|
 | GET | `/mcp/providers` | List registered MCP servers + health |
-| POST | `/mcp/providers` | Register a custom MCP server |
+| POST | `/mcp/providers` | Register a custom MCP server (validates + discovers tools unless `validate=false`) |
+| POST | `/mcp/providers/test-connection` | Dry-run connect + `tools/list` without persisting (register modal) |
 | GET | `/mcp/providers/:id` | Detail (secrets redacted) |
 | PATCH | `/mcp/providers/:id` | Update config / endpoint |
 | DELETE | `/mcp/providers/:id` | Deregister |
@@ -735,7 +736,7 @@ Per-workspace MCP server registry. Distinct from `/integrations` — these are t
 }
 ```
 
-> **M2-6 built:** `GET/POST /mcp/providers`, `GET/PATCH/DELETE /mcp/providers/:id` shipped in [`routers/mcp_providers.py`](../apps/api/src/suitest_api/routers/mcp_providers.py). `GET /mcp/providers` returns the bundled builtins (synthetic `builtin:<name>` ids, `isBundled=true`, read-only) merged on top of custom workspace rows. Write fields use camelCase aliases (`configJson` / `secretsJson` / `isDefaultForTarget`); `secretsJson` is write-only and never echoed. `/health`, `/discover` (`tools/list`), `/invoke`, and `/routing` land in M2-7..M2-9.
+> **M2-6 built:** `GET/POST /mcp/providers`, `GET/PATCH/DELETE /mcp/providers/:id` shipped in [`routers/mcp_providers.py`](../apps/api/src/suitest_api/routers/mcp_providers.py). `GET /mcp/providers` returns the bundled builtins (synthetic `builtin:<name>` ids, `isBundled=true`, read-only) merged on top of custom workspace rows. Write fields use camelCase aliases (`configJson` / `secretsJson` / `isDefaultForTarget`); `secretsJson` is write-only and never echoed. **M2-7 built:** `POST /mcp/providers` connects + handshakes + runs `tools/list` and persists the discovered catalog + `health_status=ok` + version pins unless `validate=false`; a failed probe returns `422 {code: MCP_REGISTRATION_FAILED}` and writes no row. `POST /mcp/providers/test-connection` does the same probe without persisting. `/health`, `/discover` re-run, `/invoke`, and `/routing` land in M2-8..M2-9.
 
 **GET `/mcp/providers/:id/tools` response:**
 ```json
