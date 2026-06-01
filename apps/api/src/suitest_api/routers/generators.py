@@ -33,12 +33,13 @@ from suitest_db.repositories.suites import SuiteRepo
 from suitest_mcp.invoker import McpInvoker
 from suitest_mcp.pool import McpPool
 from suitest_mcp.registry import McpRegistry
-from suitest_shared.domain.enums import Role
+from suitest_shared.domain.enums import Role, TargetKind
 from suitest_shared.schemas.generator_input import (
     ClassificationResult,
     CrawlerGenerateRequest,
     GenerationInput,
     GeneratorSseEvent,
+    McpDiscoveryGenerateRequest,
     OpenApiGenerateRequest,
     PrdGenerateRequest,
     RecorderFinalizeRequest,
@@ -208,6 +209,87 @@ async def generate_prd(
                 model=config.model,
                 api_key=config.api_key_encrypted,
                 base_url=base_url,
+            ):
+                yield _format_sse(event).encode()
+        except SuiteNotInWorkspaceError:
+            err = GeneratorSseEvent(
+                kind="error",
+                data={"code": "RESOURCE_NOT_FOUND", "message": "suite not found"},
+            )
+            yield _format_sse(err).encode()
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def _provider_target_kind(is_default_for_target: dict[str, object]) -> TargetKind:
+    """Pick the provider's primary :class:`TargetKind` from its routing map.
+
+    First key flagged ``True`` that names a valid ``TargetKind`` wins; otherwise
+    ``CUSTOM`` (the provider routes nothing by default, so cases stay generic).
+    """
+    for key, value in is_default_for_target.items():
+        if value:
+            try:
+                return TargetKind(key)
+            except ValueError:
+                continue
+    return TargetKind.CUSTOM
+
+
+# LLM-driven MCP tool-discovery → test-case generation (M3-9). CLOUD/LOCAL only:
+# the real tier gate is an active ``LLMConfig`` (409). Targets a registered MCP
+# provider and proposes cases from its persisted tool catalog. SSE. QA+ gate.
+@router.post("/generators/mcp-discovery")
+@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+async def generate_mcp_discovery(
+    payload: McpDiscoveryGenerateRequest,
+    ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> StreamingResponse:
+    """Generate DRAFT cases by exploring a registered MCP provider's tools (SSE)."""
+    config = await LLMConfigRepo(session).get_active(ctx.workspace_id)
+    if config is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="no active LLM configured for this workspace",
+        )
+
+    provider_repo = McpProviderRepo(session)
+    mcp_provider = await provider_repo.get_by_id(payload.mcp_provider_id)
+    # Workspace-owned or a bundled builtin (workspace_id NULL); never another tenant's.
+    if mcp_provider is None or mcp_provider.workspace_id not in (ctx.workspace_id, None):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="provider not found")
+
+    raw_tools = mcp_provider.config_json.get("tools", [])
+    mcp_tools = [t for t in raw_tools if isinstance(t, dict)] if isinstance(raw_tools, list) else []
+    target_kind = _provider_target_kind(mcp_provider.is_default_for_target or {})
+
+    http_client = httpx.AsyncClient(timeout=30.0)
+    await http_client.aclose()
+    svc = _build_generator_service(session, http_client)
+    if not await svc.suite_in_scope(payload.target_suite_id, ctx.workspace_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="suite not found")
+
+    base_url = config.config_json.get("base_url")
+    base_url = base_url if isinstance(base_url, str) else None
+
+    async def stream() -> AsyncIterator[bytes]:
+        try:
+            async for event in svc.run_mcp_discovery(
+                ctx.workspace_id,
+                ctx.user_id,
+                payload,
+                provider_name=config.provider,
+                model=config.model,
+                api_key=config.api_key_encrypted,
+                base_url=base_url,
+                mcp_provider_name=mcp_provider.name,
+                mcp_target_kind=target_kind,
+                mcp_tools=mcp_tools,
             ):
                 yield _format_sse(event).encode()
         except SuiteNotInWorkspaceError:

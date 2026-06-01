@@ -217,6 +217,22 @@ class PrdGenerateRequest(BaseModel):
     max_cases: Annotated[int, Field(ge=1, le=100)] = 20
 
 
+class McpDiscoveryGenerateRequest(BaseModel):
+    """LLM-driven MCP tool-discovery generation (M3-9) — CLOUD/LOCAL only.
+
+    Targets a registered MCP provider by id; the agent explores its persisted
+    tool catalog and proposes contract cases (happy + negative per tool). Steps
+    are agentic (code translated at execution time, M3-10).
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    target_suite_id: Annotated[str, Field(min_length=1)]
+    mcp_provider_id: Annotated[str, Field(min_length=1)]
+    seed: int | None = None
+    max_cases: Annotated[int, Field(ge=1, le=100)] = 20
+
+
 class GeneratorRunResponse(BaseModel):
     """Terminal SSE ``complete`` payload + the synchronous run summary."""
 

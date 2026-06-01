@@ -24,6 +24,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from opentelemetry import trace
+from suitest_agent.generators.mcp_discovery import McpDiscoveryGenerator
 from suitest_agent.generators.openapi_enrich import OpenApiEnricher
 from suitest_agent.generators.openapi_generator import OpenApiGenerator, OpenApiSpecError
 from suitest_agent.generators.prd import PrdGenerator
@@ -36,10 +37,11 @@ from suitest_db.models.generator_run import GeneratorRun
 from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.agent_sessions import AgentSessionCreate, AgentSessionRepo
 from suitest_db.repositories.prompt_versions import PromptVersionRepo
-from suitest_shared.domain.enums import AgentSessionKind, CaseStatus
+from suitest_shared.domain.enums import AgentSessionKind, CaseStatus, TargetKind
 from suitest_shared.schemas.generator_input import (
     CrawlerGenerateRequest,
     GeneratorSseEvent,
+    McpDiscoveryGenerateRequest,
     OpenApiGenerateRequest,
     PrdGenerateRequest,
     TestCaseDraft,
@@ -561,6 +563,166 @@ class GeneratorService:
                     "tokens_in": usage.tokens_in if usage else 0,
                     "tokens_out": usage.tokens_out if usage else 0,
                     "cost_usd": float(usage.cost_usd) if usage else 0.0,
+                },
+            )
+
+    # ------------------------------------------------------------------
+
+    async def run_mcp_discovery(
+        self,
+        workspace_id: str,
+        user_id: str,
+        request: McpDiscoveryGenerateRequest,
+        *,
+        provider_name: str,
+        model: str,
+        api_key: str | None,
+        base_url: str | None,
+        mcp_provider_name: str,
+        mcp_target_kind: TargetKind,
+        mcp_tools: list[dict[str, object]],
+    ) -> AsyncIterator[GeneratorSseEvent]:
+        """Stream LLM MCP tool-discovery generation as SSE (M3-9) — CLOUD/LOCAL.
+
+        The router resolves the LLM (``provider_name``/``model``/key) AND the
+        target MCP provider (its name, ``target_kind``, and persisted tool
+        catalog). An empty catalog yields an ``error`` frame (re-run discover
+        first); otherwise one DRAFT case per proposed contract is persisted.
+        """
+        if not await self.suite_in_scope(request.target_suite_id, workspace_id):
+            raise SuiteNotInWorkspaceError(request.target_suite_id)
+
+        with tracer.start_as_current_span("generator.mcp_discovery") as span:
+            span.set_attribute("generator.source", "mcp_discovery")
+            span.set_attribute("workspace.id", workspace_id)
+            span.set_attribute("mcp.provider", mcp_provider_name)
+            start = time.perf_counter()
+
+            prompt_content = read_prompt("discover-mcp-cases", "v1")
+            prompt_row = await PromptVersionRepo(self._session).ensure(
+                "discover-mcp-cases", "v1", prompt_content, prompt_hash(prompt_content)
+            )
+            agent_repo = AgentSessionRepo(self._session)
+            agent_session = await agent_repo.create(
+                AgentSessionCreate(
+                    workspace_id=workspace_id,
+                    kind=AgentSessionKind.GENERATION,
+                    model_id=model,
+                    provider=provider_name,
+                    user_id=self._as_user_uuid(user_id),
+                    prompt_version_id=prompt_row.id,
+                    seed=request.seed,
+                    temperature=0.2,
+                    metadata_json={
+                        "source": "mcp-discovery",
+                        "mcp_provider": mcp_provider_name,
+                        "target_suite_id": request.target_suite_id,
+                    },
+                )
+            )
+
+            run = GeneratorRun(
+                workspace_id=workspace_id,
+                source="mcp_discovery",
+                input_meta_json={
+                    "target_suite_id": request.target_suite_id,
+                    "mcp_provider_id": request.mcp_provider_id,
+                    "mcp_provider": mcp_provider_name,
+                    "tool_count": len(mcp_tools),
+                    "agent_session_id": agent_session.id,
+                },
+                output_case_ids_json=[],
+                created_by_user_id=self._as_user_uuid(user_id),
+            )
+            self._session.add(run)
+            await self._session.flush()
+            run_id = run.id
+
+            yield GeneratorSseEvent(
+                kind="progress",
+                data={
+                    "phase": "exploring",
+                    "generator_run_id": run_id,
+                    "agent_session_id": agent_session.id,
+                    "tool_count": len(mcp_tools),
+                },
+            )
+
+            provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
+            generator = McpDiscoveryGenerator(provider, model=model)
+            result = await generator.run(
+                mcp_tools,
+                target_kind=mcp_target_kind,
+                mcp_provider_name=mcp_provider_name,
+                seed=request.seed,
+                max_cases=request.max_cases,
+            )
+
+            if result.error:
+                span.set_attribute("generator.error", result.error)
+                await agent_repo.complete(agent_session.id, status="error")
+                await self._finalize(
+                    run,
+                    workspace_id,
+                    user_id,
+                    public_ids=[],
+                    duration_ms=0,
+                    action="generator.mcp_discovery.completed",
+                )
+                await self._session.commit()
+                yield GeneratorSseEvent(
+                    kind="error",
+                    data={"code": result.error, "message": "no testable tools in catalog"},
+                )
+                return
+
+            public_ids: list[str] = []
+            for draft in result.drafts:
+                public_id = await self._persist_case(
+                    draft,
+                    suite_id=request.target_suite_id,
+                    workspace_id=workspace_id,
+                    generated_by="mcp-discovery-generator",
+                )
+                public_ids.append(public_id)
+                yield GeneratorSseEvent(
+                    kind="case",
+                    data={
+                        "public_id": public_id,
+                        "name": draft.name,
+                        "case_kind": draft.generated_from.get("case_kind"),
+                        "tags": draft.tags,
+                    },
+                )
+
+            usage = result.usage
+            duration_ms = int((time.perf_counter() - start) * 1000)
+            span.set_attribute("generator.cases_created", len(public_ids))
+            await agent_repo.complete(
+                agent_session.id,
+                cost_usd=Decimal(str(usage.cost_usd)) if usage else None,
+                tokens_in=usage.tokens_in if usage else 0,
+                tokens_out=usage.tokens_out if usage else 0,
+            )
+            await self._finalize(
+                run,
+                workspace_id,
+                user_id,
+                public_ids=public_ids,
+                duration_ms=duration_ms,
+                action="generator.mcp_discovery.completed",
+            )
+            await self._session.commit()
+
+            yield GeneratorSseEvent(
+                kind="complete",
+                data={
+                    "generator_run_id": run_id,
+                    "agent_session_id": agent_session.id,
+                    "target_suite_id": request.target_suite_id,
+                    "cases_created": len(public_ids),
+                    "public_ids": public_ids,
+                    "duration_ms": duration_ms,
                 },
             )
 

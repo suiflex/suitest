@@ -194,7 +194,7 @@ ZERO tier bisa generate AND test melawan target apapun yang MCP-equipped. Custom
 - [x] **M3-6** PRD natural-language generation — agent ekstrak user story → draft cases + edge variants (`POST /generators/prd` SSE; [`generators/prd.py`](../packages/agent/src/suitest_agent/generators/prd.py) `PrdGenerator` drives GENERATION graph; `GeneratorService.run_prd` persists `AgentSession` repro+cost + DRAFT cases; CLOUD/LOCAL gate via active `LLMConfig` → 409; agentic steps `code=""` translated at exec M3-10)
 - [ ] **M3-7** URL semantic generation via browser-use AI agent (paham intent: "checkout flow")
 - [x] **M3-8** OpenAPI enrich — deterministic core + AI edge cases (boundary, fuzz, negative) (`POST /generators/openapi` option `include_llm_edge_cases`; [`generators/openapi_enrich.py`](../packages/agent/src/suitest_agent/generators/openapi_enrich.py) `OpenApiEnricher` over `op_summaries()`; `_enrich_openapi` persists edge cases + `AgentSession`; ZERO-safe — no LLM → `llm_enrich_skipped` frame, deterministic core unaffected)
-- [ ] **M3-9** MCP tool discovery generation — connect ke custom MCP, LLM eksplorasi tools, propose cases
+- [x] **M3-9** MCP tool discovery generation — connect ke custom MCP, LLM eksplorasi tools, propose cases (`POST /generators/mcp-discovery` SSE; [`generators/mcp_discovery.py`](../packages/agent/src/suitest_agent/generators/mcp_discovery.py) over provider's persisted `config_json.tools` catalog; `GeneratorService.run_mcp_discovery` persists `AgentSession` + DRAFT cases routed to the provider; empty catalog → `EMPTY_CATALOG` error frame; CLOUD/LOCAL gate via active `LLMConfig` → 409)
 
 #### Runtime + diagnosis
 
