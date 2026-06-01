@@ -2,7 +2,7 @@
 
 > Arsitektur, prompts, dan tools untuk Suitest Agent. Setelah pivot OSS (memo 2026-05-26), stack agen pindah dari Anthropic-only TypeScript SDK ke **Python 3.12 + LiteLLM (multi-provider) + LangGraph (state machine)**. Semua LLM call lewat `packages/agent/` — **tidak boleh** call provider SDK langsung dari `apps/api` atau `apps/web`.
 
-> 🚧 **SPEC — targets M3 (CLOUD LLM tier). NOT built on current tree.** `packages/agent` is stubs only (no LiteLLM, no LangGraph, no tools/prompts/graphs). Track in [ROADMAP.md](./ROADMAP.md) M3.
+> ⚠️ **PARTIAL — M3 foundation built (M3-1..M3-5).** `packages/agent` now has the LiteLLM provider layer (`providers/`, lazy-imported + deterministic `mock`), LangGraph state machines for the 4 modes (`graphs/`), and versioned prompts + drift guard (`prompts/`). Still SPEC: LLM-driven generators (M3-6..M3-9), runtime translation (M3-10), diagnosis-to-defect wiring (M3-11), chat/streaming (M3-12/13), cost+autonomy (M3-14..16), `/agent/sessions` + replay endpoints. Track in [ROADMAP.md](./ROADMAP.md) M3.
 >
 > Cross-refs: [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md), [AUTONOMY.md](./AUTONOMY.md), [GENERATORS.md](./GENERATORS.md), [MCP_PLUGINS.md](./MCP_PLUGINS.md), [DATA_MODEL.md](./DATA_MODEL.md), [API.md](./API.md), [ROADMAP.md](./ROADMAP.md).
 

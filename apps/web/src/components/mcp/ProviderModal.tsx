@@ -158,7 +158,10 @@ function ToolList({ tools }: { tools: McpProviderTool[] }): React.ReactElement {
     );
   }
   return (
-    <ul className="flex max-h-[420px] flex-col gap-2 overflow-auto" data-testid="provider-tool-list">
+    <ul
+      className="flex max-h-[420px] flex-col gap-2 overflow-auto"
+      data-testid="provider-tool-list"
+    >
       {tools.map((t) => (
         <li
           key={t.name}
@@ -171,9 +174,7 @@ function ToolList({ tools }: { tools: McpProviderTool[] }): React.ReactElement {
               {t.argSchema ? `${Object.keys(t.argSchema).length.toString()} args` : "no args"}
             </span>
           </div>
-          {t.description ? (
-            <p className="mt-1 text-[12px] text-fg-3">{t.description}</p>
-          ) : null}
+          {t.description ? <p className="mt-1 text-[12px] text-fg-3">{t.description}</p> : null}
           {t.argSchema && Object.keys(t.argSchema).length > 0 ? (
             <pre
               className="mt-2 overflow-x-auto rounded-md bg-[#060606] p-2 font-mono text-[11px] text-fg-3"

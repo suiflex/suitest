@@ -37,10 +37,7 @@ const INPUT_CLASS =
  * Secrets are write-only — on edit we never pre-fill them (the API never
  * returns cleartext); the blank field means "keep existing".
  */
-export function RegisterMcpModal({
-  existing,
-  onClose,
-}: RegisterMcpModalProps): React.ReactElement {
+export function RegisterMcpModal({ existing, onClose }: RegisterMcpModalProps): React.ReactElement {
   const isEdit = existing !== undefined;
   const qc = useQueryClient();
   const [name, setName] = useState(existing?.name ?? "");
@@ -117,8 +114,8 @@ export function RegisterMcpModal({
             {isEdit ? "Edit MCP Server" : "Add Custom MCP"}
           </DialogTitle>
           <DialogDescription className="text-fg-3">
-            Register an MCP server by endpoint + transport. It is connected and its
-            tools are discovered on save.
+            Register an MCP server by endpoint + transport. It is connected and its tools are
+            discovered on save.
           </DialogDescription>
         </DialogHeader>
 
@@ -178,15 +175,11 @@ export function RegisterMcpModal({
                 setEndpoint(e.target.value);
               }}
               placeholder={
-                transport === "stdio"
-                  ? "npx -y @acme/payments-mcp"
-                  : "https://mcp.acme.dev/sse"
+                transport === "stdio" ? "npx -y @acme/payments-mcp" : "https://mcp.acme.dev/sse"
               }
             />
           </Field>
-          <Field
-            label={isEdit ? "Secrets JSON (leave blank to keep)" : "Secrets JSON (optional)"}
-          >
+          <Field label={isEdit ? "Secrets JSON (leave blank to keep)" : "Secrets JSON (optional)"}>
             <textarea
               data-testid="mcp-secrets"
               className="rounded-md border border-border bg-bg-elev-1 p-2 font-mono text-[11px] text-fg-1 focus:outline-none focus:ring-1 focus:ring-accent/40"
@@ -206,9 +199,7 @@ export function RegisterMcpModal({
             >
               Connected · discovered {probe.tools.length.toString()} tool
               {probe.tools.length === 1 ? "" : "s"}
-              {probe.tools.length > 0
-                ? `: ${probe.tools.map((t) => t.name).join(", ")}`
-                : ""}
+              {probe.tools.length > 0 ? `: ${probe.tools.map((t) => t.name).join(", ")}` : ""}
             </p>
           ) : null}
           {probeError ? (

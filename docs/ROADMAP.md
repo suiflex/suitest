@@ -183,11 +183,11 @@ ZERO tier bisa generate AND test melawan target apapun yang MCP-equipped. Custom
 
 #### LLM foundation
 
-- [ ] **M3-1** LiteLLM integration di `packages/agent` (100+ provider via 1 client)
-- [ ] **M3-2** `LLMConfig` table + AES-GCM encryption untuk stored keys + Settings → LLM page (write-only key input + test connection)
-- [ ] **M3-3** Tier resolver: `LLMConfig` change → `WorkspaceCapability` refresh → `GET /capabilities` mutated tier
-- [ ] **M3-4** LangGraph state machines untuk 4 mode agent: `generation`, `execution`, `diagnosis`, `conversation`
-- [ ] **M3-5** Versioned prompts + run reproducibility: persist `prompt_version_id`, `model_id`, `seed`, `temperature` per `AgentSession`
+- [x] **M3-1** LiteLLM integration di `packages/agent` (100+ provider via 1 client) — [`providers/litellm_router.py`](../packages/agent/src/suitest_agent/providers/litellm_router.py) + `base.py` Protocol + deterministic `mock.py`; `litellm` lazy-imported (ZERO-safe); `get_provider()` factory + `to_litellm_model` mapping; tests in [`test_providers.py`](../packages/agent/tests/test_providers.py)
+- [x] **M3-2** `LLMConfig` table + AES-GCM encryption untuk stored keys + Settings → LLM page (write-only key input + test connection) — [`routers/llm_config.py`](../apps/api/src/suitest_api/routers/llm_config.py) (GET/PUT/test/DELETE/models) + [`services/llm_config_service.py`](../apps/api/src/suitest_api/services/llm_config_service.py) (audit-logged, ADMIN+); FE [`LlmSettingsPanel.tsx`](../apps/web/src/components/settings/LlmSettingsPanel.tsx) (Settings → LLM tab); keys write-only (`apiKeyHint` only)
+- [x] **M3-3** Tier resolver: `LLMConfig` change → `WorkspaceCapability` refresh → `GET /capabilities` mutated tier — `LLMConfigService._refresh_capability` recomputes features + autonomy (preserves `routing_overrides`), best-effort `capability.changed` WS event; `/capabilities` already overlays active `LLMConfig` via `build_workspace_overlay`
+- [x] **M3-4** LangGraph state machines untuk 4 mode agent: `generation`, `execution`, `diagnosis`, `conversation` — [`graphs/`](../packages/agent/src/suitest_agent/graphs/) (`langgraph` lazy-imported); each `build_*_graph(provider)`; tests in [`test_graphs.py`](../packages/agent/tests/test_graphs.py) via MockProvider
+- [x] **M3-5** Versioned prompts + run reproducibility: persist `prompt_version_id`, `model_id`, `seed`, `temperature` per `AgentSession` — [`prompts/loader.py`](../packages/agent/src/suitest_agent/prompts/loader.py) (`prompt_id` `v1/name@sha256:…`, `PromptDriftError`) + `v1/*.md`; repos [`prompt_versions.py`](../packages/db/src/suitest_db/repositories/prompt_versions.py) (`get_hash`/`ensure`) + [`agent_sessions.py`](../packages/db/src/suitest_db/repositories/agent_sessions.py) (reproducibility fields on `AgentSession`)
 
 #### LLM-driven generators
 

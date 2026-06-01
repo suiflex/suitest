@@ -2,7 +2,7 @@
 
 > REST endpoints + WebSocket events Suitest OSS. Semua route di-mount di `/api/v1/*` kecuali disebutkan lain. Input/output di-validate dengan **Pydantic v2** (lihat `packages/shared/schemas/`).
 
-> ℹ️ **Built today (M0–M2):** auth, workspaces, TCM CRUD, runs, defects, requirements, integrations, webhooks, analytics, `/capabilities`, `/auth/me`, `WS /ws`, deterministic generators (M2-1..M2-5), MCP-provider CRUD (M2-6). **Not built (M2–M4 spec):** agent, llm-config, eval, sdk, code export, MCP `/discover`·`/invoke`·`/routing` (M2-7..M2-9). Build truth = `apps/api/src/suitest_api/routers/` + [ROADMAP.md](./ROADMAP.md).
+> ℹ️ **Built today (M0–M3 foundation):** auth, workspaces, TCM CRUD, runs, defects, requirements, integrations, webhooks, analytics, `/capabilities`, `/auth/me`, `WS /ws`, deterministic generators (M2-1..M2-5), MCP-provider CRUD + `/discover`·`/invoke`·`/routing` (M2-6..M2-9), **`/workspaces/:id/llm-config` (GET/PUT/test/DELETE/models — M3-2/M3-3)**. **Not built (M3–M4 spec):** agent `/agent/*` sessions+replay, eval, sdk, code export. Build truth = `apps/api/src/suitest_api/routers/` + [ROADMAP.md](./ROADMAP.md).
 >
 > Cross-links: [DATA_MODEL.md](./DATA_MODEL.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md) · [MCP_PLUGINS.md](./MCP_PLUGINS.md) · [AUTONOMY.md](./AUTONOMY.md) · [GENERATORS.md](./GENERATORS.md) · [pivot design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
 

@@ -2,7 +2,7 @@
 
 > Tech stack, services, dan deployment topology Suitest **OSS pivot** (Python/FastAPI, MCP-native, BYO LLM). Diff terhadap doc ini wajib kalau menambah/mengganti komponen. Single source of truth keputusan: [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
 
-> ℹ️ **Built today:** `apps/api`, `apps/runner`, `apps/web`, `packages/db|mcp|core|shared`. `packages/agent` (LiteLLM + LangGraph) is a stub — targets M3. Eval CI job not built. See [ROADMAP.md](./ROADMAP.md).
+> ℹ️ **Built today:** `apps/api`, `apps/runner`, `apps/web`, `packages/db|mcp|core|shared`. `packages/agent` LLM foundation is built (M3-1..M3-5): LiteLLM provider layer (lazy-imported, ZERO-safe) + deterministic mock, LangGraph state machines for the 4 modes, versioned prompts + drift guard, `LLMConfig` API/UI + tier refresh. LLM-driven generators (M3-6..M3-9), runtime translation (M3-10), diagnosis wiring (M3-11), chat/streaming (M3-12/13), cost+autonomy (M3-14..16), and the eval CI job are not built yet. See [ROADMAP.md](./ROADMAP.md).
 
 ---
 
