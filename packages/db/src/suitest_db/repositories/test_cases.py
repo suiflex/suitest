@@ -118,7 +118,9 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
         stmt = select(CaseTag.tag).where(CaseTag.case_id == case_id).order_by(CaseTag.tag.asc())
         return list((await self.session.scalars(stmt)).all())
 
-    async def get_by_public_id(self, public_id: str, workspace_id: str) -> TestCase | None:
+    async def get_by_public_id(  # type: ignore[override]  # tenant-scoped: adds required workspace_id vs base
+        self, public_id: str, workspace_id: str
+    ) -> TestCase | None:
         """Resolve a non-deleted case by its per-workspace public id (``TC-1000``).
 
         Public ids are unique per workspace, so the lookup is scoped through the

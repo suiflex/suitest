@@ -125,14 +125,14 @@ ZERO-tier deploy = TestRail+Playwright replacement yang competent. Maya bisa aut
 
 #### Self-host account management
 
-- [ ] **M1e-1** First-install super-admin bootstrap from `SUITEST_SUPERADMIN_EMAIL` + `SUITEST_SUPERADMIN_PASSWORD`, idempotent when users already exist.
-- [ ] **M1e-2** Password login is primary; Google OAuth remains optional secondary; public `/auth/register` disabled.
-- [ ] **M1e-3** Stateful invitations: create/list/revoke/resend, token hash storage, ADMIN+ gate, raw link returned once.
-- [ ] **M1e-4** `/accept-invite` public route creates user + workspace membership + session cookie.
-- [ ] **M1e-5** Current user password change endpoint and Settings -> Account flow; `must_change_password` enforced after admin reset.
-- [ ] **M1e-6** Super-admin password reset returns one-time temporary password and stores only password hash.
-- [ ] **M1e-7** Interim forgot-password flow stores encrypted reset links for super-admin review until SMTP exists.
-- [ ] **M1e-8** Docs/OpenAPI updated and ZERO-mode login/invite tests pass.
+- [x] **M1e-1** First-install super-admin bootstrap from `SUITEST_SUPERADMIN_EMAIL` + `SUITEST_SUPERADMIN_PASSWORD`, idempotent when users already exist.
+- [x] **M1e-2** Password login is primary; Google OAuth remains optional secondary; public `/auth/register` disabled.
+- [x] **M1e-3** Stateful invitations: create/list/revoke/resend, token hash storage, ADMIN+ gate, raw link returned once.
+- [x] **M1e-4** `/accept-invite` public route creates user + workspace membership + session cookie.
+- [x] **M1e-5** Current user password change endpoint and Settings -> Account flow; `must_change_password` enforced after admin reset.
+- [x] **M1e-6** Super-admin password reset returns one-time temporary password and stores only password hash.
+- [x] **M1e-7** Interim forgot-password flow stores encrypted reset links for super-admin review until SMTP exists.
+- [x] **M1e-8** Docs/OpenAPI updated and ZERO-mode login/invite tests pass.
 
 ### Definition of done
 

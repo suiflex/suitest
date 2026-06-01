@@ -103,7 +103,7 @@ async def test_accept_invite_creates_user_membership_and_session(api_db: ApiDb) 
             json={"token": token, "name": "QA User", "password": "secret123"},
         )
 
-    assert accepted.status_code == 204
+    assert accepted.status_code == 200
     assert "set-cookie" in accepted.headers
     async with api_db.maker() as session:
         user = await session.scalar(select(User).filter_by(email="qa@example.com"))
