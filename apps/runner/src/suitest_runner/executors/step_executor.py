@@ -51,6 +51,17 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
+_LEGACY_TOOL_ALIASES: dict[str, str] = {
+    "browser.navigate": "browser_navigate",
+    "browser.click": "browser_click",
+    "browser.type": "browser_type",
+    "browser.screenshot": "browser_take_screenshot",
+    "browser.evaluate": "browser_evaluate",
+    "browser.wait_for": "browser_wait_for",
+    "browser.assert_text": "browser.assert_text",
+}
+
+
 @dataclass
 class StepResult:
     """Normalized outcome of one :func:`execute_step` dispatch.
@@ -70,6 +81,38 @@ class StepResult:
     stderr: str
     error_message: str | None
     mcp_result: McpToolResult | None
+
+
+def _normalize_tool_name(tool: str) -> str:
+    return _LEGACY_TOOL_ALIASES.get(tool, tool)
+
+
+async def _invoke_tool(
+    *,
+    invoker: McpInvoker,
+    explicit_provider: str | None,
+    tool: str,
+    arguments: dict[str, object],
+    ctx: InvokeContext,
+) -> McpToolResult:
+    normalized_tool = _normalize_tool_name(tool)
+    if normalized_tool == "browser.assert_text":
+        snapshot = await invoker.invoke(
+            explicit_provider=explicit_provider,
+            tool="browser_snapshot",
+            arguments={},
+            ctx=ctx,
+        )
+        contains = str(arguments.get("contains", ""))
+        if contains and contains not in snapshot.stdout:
+            raise McpToolFailed(f"browser.assert_text: expected {contains!r} in snapshot output")
+        return snapshot
+    return await invoker.invoke(
+        explicit_provider=explicit_provider,
+        tool=normalized_tool,
+        arguments=arguments,
+        ctx=ctx,
+    )
 
 
 async def execute_step(
@@ -163,7 +206,8 @@ async def execute_step(
     )
 
     try:
-        result = await invoker.invoke(
+        result = await _invoke_tool(
+            invoker=invoker,
             explicit_provider=test_step.mcp_provider,
             tool=tool,
             arguments=arguments,
@@ -182,7 +226,8 @@ async def execute_step(
                     a_args["result"] = {}
             else:
                 a_args["result"] = {}
-            await invoker.invoke(
+            await _invoke_tool(
+                invoker=invoker,
                 explicit_provider=test_step.mcp_provider,
                 tool=str(assertion["tool"]),
                 arguments=a_args,

@@ -422,11 +422,7 @@ function CaseDetailPanel({
   const serverStepIds = serverSteps.map((s) => s.id).join(",");
 
   // We need a stable reference to avoid re-creating on every render
-  const syncedRef = useMemo(
-    () => serverStepIds,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [serverStepIds],
-  );
+  const syncedRef = useMemo(() => serverStepIds, [serverStepIds]);
 
   // When server step IDs change (new fetch, add/remove success), seed draft
   // We do this via useMemo so no extra render cycle is needed for derivation

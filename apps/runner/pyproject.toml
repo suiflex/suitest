@@ -18,6 +18,7 @@ dependencies = [
   "suitest-db",
   "suitest-shared",
   "suitest-core",
+  "suitest-api",
 ]
 
 [project.optional-dependencies]

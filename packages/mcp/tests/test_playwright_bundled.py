@@ -19,16 +19,16 @@ from suitest_mcp.bundled.playwright import (
 from suitest_mcp.models import McpProviderConfig, McpToolSchema, McpTransport
 
 EXPECTED_TOOL_NAMES: set[str] = {
-    "browser.navigate",
-    "browser.click",
-    "browser.type",
-    "browser.screenshot",
-    "browser.evaluate",
-    "browser.wait_for",
-    "browser.get_dom",
-    "browser.start_recording",
-    "browser.stop_recording",
-    "browser.network_logs",
+    "browser_navigate",
+    "browser_click",
+    "browser_type",
+    "browser_take_screenshot",
+    "browser_evaluate",
+    "browser_wait_for",
+    "browser_snapshot",
+    "browser_hover",
+    "browser_press_key",
+    "browser_select_option",
 }
 
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
 import pytest
 from api_harness import ApiDb
 from fastapi_users.password import PasswordHelper
@@ -18,13 +20,20 @@ from suitest_shared.domain.enums import Role
 async def _client_for(api_db: ApiDb, user: User | None) -> AsyncClient:
     app = create_app()
 
-    async def _override_session():
+    async def _override_session() -> AsyncIterator[object]:
         async with api_db.maker() as session:
             yield session
 
+    async def _override_current_user() -> User:
+        assert user is not None
+        async with api_db.maker() as session:
+            db_user = await session.get(User, user.id)
+            assert db_user is not None
+            return db_user
+
     app.dependency_overrides[get_async_session] = _override_session
     if user is not None:
-        app.dependency_overrides[current_active_user] = lambda: user
+        app.dependency_overrides[current_active_user] = _override_current_user
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
 
@@ -94,10 +103,10 @@ async def test_accept_invite_creates_user_membership_and_session(api_db: ApiDb) 
             json={"token": token, "name": "QA User", "password": "secret123"},
         )
 
-    assert accepted.status_code == 200
+    assert accepted.status_code == 204
     assert "set-cookie" in accepted.headers
     async with api_db.maker() as session:
-        user = await session.scalar(select(User).where(User.email == "qa@example.com"))
+        user = await session.scalar(select(User).filter_by(email="qa@example.com"))
         assert user is not None
         assert user.name == "QA User"
         assert PasswordHelper().verify_and_update("secret123", user.hashed_password)[0]

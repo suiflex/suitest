@@ -35,14 +35,14 @@ async def test_bootstrap_creates_superadmin_workspace_membership_and_capability(
 
     assert created is True
     async with api_db.maker() as session:
-        user = await session.scalar(select(User).where(User.email == "root@example.com"))
+        user = await session.scalar(select(User).filter_by(email="root@example.com"))
         assert user is not None
         assert user.is_superuser is True
         assert user.is_verified is True
         assert user.name == "root"
         assert PasswordHelper().verify_and_update("secret123", user.hashed_password)[0] is True
 
-        workspace = await session.scalar(select(Workspace).where(Workspace.name == "Acme QA"))
+        workspace = await session.scalar(select(Workspace).filter_by(name="Acme QA"))
         assert workspace is not None
 
         membership = await session.scalar(

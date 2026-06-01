@@ -47,7 +47,7 @@ jobs:
       # compose-published ports.
       SUITEST_E2E_API_URL: http://localhost:4000
       SUITEST_E2E_WS_URL: ws://localhost:4000
-      SUITEST_E2E_NGINX_URL: http://e2e-nginx:80
+      SUITEST_E2E_NGINX_URL: http://localhost:8090
 
     steps:
       - name: Checkout
@@ -64,7 +64,7 @@ jobs:
       - name: Bring up docker-compose stack (zero + e2e profiles)
         working-directory: infra/docker
         run: |
-          docker compose --profile zero --profile e2e up -d --wait
+          docker compose --profile zero --profile e2e up -d
           docker compose ps
 
       - name: Wait for api health
@@ -78,6 +78,10 @@ jobs:
           echo "api never became healthy"; exit 1
 
       - name: Run E2E smoke
+        env:
+          # Host-side pytest seeds Postgres through the published port, not the
+          # compose service DNS name used inside containers.
+          SUITEST_DATABASE_URL: postgresql+asyncpg://suitest:suitest@localhost:5432/suitest
         run: uv run pytest tests/e2e -m e2e -q
 
       - name: Dump compose logs on failure
