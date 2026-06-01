@@ -486,4 +486,99 @@ export const handlers: HttpHandler[] = [
     HttpResponse.json({ temporaryPassword: "Tmp-Stub-Pw1" }),
   ),
   http.get(`${BASE}/admin/password-reset-requests`, () => HttpResponse.json({ items: [] })),
+
+  // ----------------------------------------------------------------------
+  // M2-5 — deterministic generators. OpenAPI + crawler stream SSE; recorder
+  // is plain request/response. Per-test overrides via `server.use`.
+  // ----------------------------------------------------------------------
+  http.post(`${BASE}/generators/openapi`, () => sseResponse(deterministicFrames("openapi"))),
+  http.post(`${BASE}/generators/crawler`, () => sseResponse(deterministicFrames("crawler"))),
+  http.post(`${BASE}/generators/recorder/sessions`, () =>
+    HttpResponse.json({
+      session_id: "rec_stub",
+      ws_room: "recorder:rec_stub",
+      browser_url: "http://localhost:9333/devtools",
+      expires_at: "2099-06-01T10:30:00Z",
+    }),
+  ),
+  http.post(`${BASE}/generators/recorder/sessions/:sessionId/finalize`, () =>
+    HttpResponse.json({
+      id: "tc_rec",
+      public_id: "TC-9001",
+      name: "Recorded session",
+      description: null,
+      status: "DRAFT",
+      priority: "P2",
+      source: "RECORDER",
+      target_kind: "FE_WEB",
+      suite_id: "ste_smoke",
+      owner_id: null,
+      tags: [],
+      steps: [],
+      created_at: "2026-06-01T10:00:00Z",
+      updated_at: "2026-06-01T10:00:00Z",
+    }),
+  ),
+  http.delete(
+    `${BASE}/generators/recorder/sessions/:sessionId`,
+    () => new HttpResponse(null, { status: 204 }),
+  ),
 ];
+
+// ---------------------------------------------------------------------------
+// SSE helpers for the generator handlers.
+// ---------------------------------------------------------------------------
+
+/** Render `{event, data}` pairs as a single SSE-framed streaming response. */
+function sseResponse(frames: { event: string; data: unknown }[]): Response {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const encoder = new TextEncoder();
+      for (const f of frames) {
+        controller.enqueue(
+          encoder.encode(`event: ${f.event}\ndata: ${JSON.stringify(f.data)}\n\n`),
+        );
+      }
+      controller.close();
+    },
+  });
+  return new HttpResponse(stream, {
+    headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+  });
+}
+
+/** A canonical progress → 2×case → complete lifecycle for the modal test. */
+function deterministicFrames(kind: "openapi" | "crawler"): { event: string; data: unknown }[] {
+  const phase = kind === "openapi" ? "parsed" : "crawling";
+  return [
+    { event: "progress", data: { phase, generator_run_id: "gen_stub" } },
+    {
+      event: "case",
+      data: {
+        public_id: "TC-2001",
+        name: "GET /pets → 200",
+        case_kind: "happy",
+        tags: ["contract"],
+      },
+    },
+    {
+      event: "case",
+      data: {
+        public_id: "TC-2002",
+        name: "GET /pets → schema valid",
+        case_kind: "schema",
+        tags: ["contract"],
+      },
+    },
+    {
+      event: "complete",
+      data: {
+        generator_run_id: "gen_stub",
+        target_suite_id: "ste_smoke",
+        cases_created: 2,
+        public_ids: ["TC-2001", "TC-2002"],
+        duration_ms: 42,
+      },
+    },
+  ];
+}

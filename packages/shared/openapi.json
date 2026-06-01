@@ -645,6 +645,45 @@
         "title": "ChangePasswordRequest",
         "type": "object"
       },
+      "ClassificationResult": {
+        "properties": {
+          "alternatives": {
+            "items": {
+              "$ref": "#/components/schemas/StrategyAlternative"
+            },
+            "title": "Alternatives",
+            "type": "array"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "recommended_mcp": {
+            "$ref": "#/components/schemas/RecommendedMcp"
+          },
+          "recommended_strategy": {
+            "$ref": "#/components/schemas/RecommendedStrategy"
+          },
+          "target_kind": {
+            "$ref": "#/components/schemas/TargetKind"
+          }
+        },
+        "required": [
+          "target_kind",
+          "confidence",
+          "recommended_mcp",
+          "recommended_strategy",
+          "rationale"
+        ],
+        "title": "ClassificationResult",
+        "type": "object"
+      },
       "ConnectionTestResponse": {
         "additionalProperties": false,
         "description": "JSON response for ``/test`` + pre-save ``test-connection`` endpoints.\n\nMirrors :class:`suitest_api.integrations.base.ConnectionTestResult` 1:1 so\nthe FE can render the same UI for both pre-save and post-save flows. On\nsuccess ``ok=True`` and ``account_id``/``display_name`` describe who the\nadapter authenticated as. On failure ``ok=False`` and ``error`` carries\nthe human-readable string the FE renders inline.",
@@ -768,6 +807,145 @@
           "coverage"
         ],
         "title": "CoverageSuiteRow",
+        "type": "object"
+      },
+      "CrawlerAuthConfig": {
+        "description": "Optional pre-crawl authentication. ``kind=\"none\"`` (default) skips auth.\n\nThe crawler does not itself perform login today \u2014 the config is captured on\nthe :class:`~suitest_db.models.generator_run.GeneratorRun` for provenance and\nthreaded into generated cases so a later run can replay the auth context.",
+        "properties": {
+          "cookie": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cookie"
+          },
+          "credentials": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credentials"
+          },
+          "kind": {
+            "default": "none",
+            "enum": [
+              "none",
+              "cookie",
+              "bearer",
+              "form"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "login_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Login Url"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          }
+        },
+        "title": "CrawlerAuthConfig",
+        "type": "object"
+      },
+      "CrawlerGenerateRequest": {
+        "description": "Crawl request: a target suite + a start URL + bounds/auth.",
+        "properties": {
+          "auth": {
+            "$ref": "#/components/schemas/CrawlerAuthConfig"
+          },
+          "options": {
+            "$ref": "#/components/schemas/CrawlerOptions"
+          },
+          "start_url": {
+            "minLength": 1,
+            "title": "Start Url",
+            "type": "string"
+          },
+          "target_suite_id": {
+            "minLength": 1,
+            "title": "Target Suite Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_suite_id",
+          "start_url"
+        ],
+        "title": "CrawlerGenerateRequest",
+        "type": "object"
+      },
+      "CrawlerOptions": {
+        "description": "Per-request crawl bounds + emission toggles.\n\n``max_depth`` / ``max_pages`` cap the BFS so a large site cannot run away;\n``same_origin_only`` drops off-origin links from the frontier;\n``include_form_cases`` toggles the per-``<form>`` fill cases.",
+        "properties": {
+          "faker_locale": {
+            "default": "en_US",
+            "title": "Faker Locale",
+            "type": "string"
+          },
+          "include_form_cases": {
+            "default": true,
+            "title": "Include Form Cases",
+            "type": "boolean"
+          },
+          "max_depth": {
+            "default": 2,
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Max Depth",
+            "type": "integer"
+          },
+          "max_pages": {
+            "default": 20,
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Max Pages",
+            "type": "integer"
+          },
+          "same_origin_only": {
+            "default": true,
+            "title": "Same Origin Only",
+            "type": "boolean"
+          },
+          "tag_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Prefix"
+          }
+        },
+        "title": "CrawlerOptions",
         "type": "object"
       },
       "CreateRunBody": {
@@ -1646,6 +1824,56 @@
         ],
         "title": "FlakyCaseOut",
         "type": "object"
+      },
+      "GenerationInput": {
+        "properties": {
+          "content_type_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type Hint"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/GenerationInputKind"
+          },
+          "value": {
+            "maxLength": 2000000,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "title": "GenerationInput",
+        "type": "object"
+      },
+      "GenerationInputKind": {
+        "enum": [
+          "url",
+          "file_content",
+          "raw_text"
+        ],
+        "title": "GenerationInputKind",
+        "type": "string"
       },
       "GitHubTestConnectionRequest": {
         "additionalProperties": false,
@@ -2587,6 +2815,125 @@
         "title": "OAuth2AuthorizeResponse",
         "type": "object"
       },
+      "OpenApiGenerateRequest": {
+        "description": "Generation request: exactly one of ``spec_url`` / ``spec_content``.",
+        "properties": {
+          "options": {
+            "$ref": "#/components/schemas/OpenApiGeneratorOptions"
+          },
+          "spec_content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spec Content"
+          },
+          "spec_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spec Url"
+          },
+          "target_suite_id": {
+            "minLength": 1,
+            "title": "Target Suite Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_suite_id"
+        ],
+        "title": "OpenApiGenerateRequest",
+        "type": "object"
+      },
+      "OpenApiGeneratorOptions": {
+        "description": "Per-request toggles for which case kinds the generator emits.\n\nDefaults emit the full deterministic suite; callers disable categories to\nkeep a generated suite focused (e.g. contract-only). ``tags_filter`` limits\ngeneration to operations carrying at least one of the listed OpenAPI tags.",
+        "properties": {
+          "auth_profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auth Profile Id"
+          },
+          "base_url_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url Override"
+          },
+          "include_boundary_tests": {
+            "default": true,
+            "title": "Include Boundary Tests",
+            "type": "boolean"
+          },
+          "include_negative_auth": {
+            "default": true,
+            "title": "Include Negative Auth",
+            "type": "boolean"
+          },
+          "include_rate_limit_tests": {
+            "default": true,
+            "title": "Include Rate Limit Tests",
+            "type": "boolean"
+          },
+          "include_required_field_tests": {
+            "default": true,
+            "title": "Include Required Field Tests",
+            "type": "boolean"
+          },
+          "include_schema_validation": {
+            "default": true,
+            "title": "Include Schema Validation",
+            "type": "boolean"
+          },
+          "max_cases_per_operation": {
+            "default": 20,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Max Cases Per Operation",
+            "type": "integer"
+          },
+          "tag_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Prefix"
+          },
+          "tags_filter": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags Filter",
+            "type": "array"
+          }
+        },
+        "title": "OpenApiGeneratorOptions",
+        "type": "object"
+      },
       "PageMeta": {
         "description": "Pagination metadata: the next cursor (``null`` when exhausted) + page size.",
         "properties": {
@@ -3075,6 +3422,148 @@
           "score"
         ],
         "title": "ReadinessOut",
+        "type": "object"
+      },
+      "RecommendedMcp": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "RecommendedMcp",
+        "type": "object"
+      },
+      "RecommendedStrategy": {
+        "enum": [
+          "openapi-generator",
+          "url-crawler",
+          "recorder",
+          "url-semantic",
+          "mcp-discovery",
+          "prd-parsing"
+        ],
+        "title": "RecommendedStrategy",
+        "type": "string"
+      },
+      "RecorderFinalizeRequest": {
+        "description": "Body for ``POST .../finalize`` \u2014 where + how to persist the new case.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "priority": {
+            "default": "P2",
+            "enum": [
+              "P0",
+              "P1",
+              "P2",
+              "P3"
+            ],
+            "title": "Priority",
+            "type": "string"
+          },
+          "target_suite_id": {
+            "minLength": 1,
+            "title": "Target Suite Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_suite_id",
+          "name"
+        ],
+        "title": "RecorderFinalizeRequest",
+        "type": "object"
+      },
+      "RecorderSessionStartRequest": {
+        "description": "Body for ``POST /generators/recorder/sessions``.",
+        "properties": {
+          "mcp_provider": {
+            "default": "playwright-mcp",
+            "title": "Mcp Provider",
+            "type": "string"
+          },
+          "project_id": {
+            "minLength": 1,
+            "title": "Project Id",
+            "type": "string"
+          },
+          "start_url": {
+            "minLength": 1,
+            "title": "Start Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "start_url"
+        ],
+        "title": "RecorderSessionStartRequest",
+        "type": "object"
+      },
+      "RecorderSessionStartResponse": {
+        "description": "200 body \u2014 the session id + the WS room to subscribe for live events.",
+        "properties": {
+          "browser_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser Url"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "ws_room": {
+            "title": "Ws Room",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "ws_room",
+          "expires_at"
+        ],
+        "title": "RecorderSessionStartResponse",
         "type": "object"
       },
       "RequirementCreate": {
@@ -4243,6 +4732,28 @@
           }
         },
         "title": "StepReplace",
+        "type": "object"
+      },
+      "StrategyAlternative": {
+        "properties": {
+          "requires_tier": {
+            "enum": [
+              "ZERO",
+              "LOCAL",
+              "CLOUD"
+            ],
+            "title": "Requires Tier",
+            "type": "string"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/RecommendedStrategy"
+          }
+        },
+        "required": [
+          "strategy",
+          "requires_tier"
+        ],
+        "title": "StrategyAlternative",
         "type": "object"
       },
       "SuiteCreate": {
@@ -5455,6 +5966,15 @@
         "in": "cookie",
         "name": "suitest_session",
         "type": "apiKey"
+      },
+      "OAuth2PasswordBearer": {
+        "flows": {
+          "password": {
+            "scopes": {},
+            "tokenUrl": "api/v1/auth/cookie/login"
+          }
+        },
+        "type": "oauth2"
       }
     }
   },
@@ -5482,6 +6002,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Password Reset Requests",
@@ -5530,6 +6053,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Reset User Password",
@@ -5594,6 +6120,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Analytics Coverage",
@@ -5672,6 +6201,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Analytics Flaky",
@@ -5750,6 +6282,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Analytics Heatmap",
@@ -5824,6 +6359,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Analytics Kpis",
@@ -5898,6 +6436,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Analytics Pass Rate",
@@ -5962,6 +6503,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Analytics Readiness",
@@ -6139,6 +6683,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Audit Logs",
@@ -6207,6 +6754,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Me",
@@ -6355,6 +6905,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Defects",
@@ -6418,6 +6971,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Create Defect",
@@ -6482,6 +7038,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Defect",
@@ -6554,6 +7113,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Update Defect",
@@ -6618,6 +7180,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Sync Defect External",
@@ -6686,6 +7251,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Defect Timeline",
@@ -6785,6 +7353,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Documents",
@@ -6849,11 +7420,419 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Document",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/api/v1/generators/classify": {
+      "post": {
+        "description": "Classify a generation input into a target kind + recommended strategy/MCP.",
+        "operationId": "classify_input_api_v1_generators_classify_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerationInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassificationResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Classify Input",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
+    "/api/v1/generators/crawler": {
+      "post": {
+        "description": "Generate a smoke + form suite by crawling a start URL (SSE).",
+        "operationId": "generate_crawler_api_v1_generators_crawler_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrawlerGenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Generate Crawler",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
+    "/api/v1/generators/openapi": {
+      "post": {
+        "description": "Generate a per-operation contract suite from an OpenAPI 3.0 spec (SSE).",
+        "operationId": "generate_openapi_api_v1_generators_openapi_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenApiGenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Generate Openapi",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
+    "/api/v1/generators/recorder/sessions": {
+      "post": {
+        "description": "Open a live browser-recording session. Returns the WS room to subscribe.",
+        "operationId": "start_recorder_session_api_v1_generators_recorder_sessions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecorderSessionStartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecorderSessionStartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Start Recorder Session",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
+    "/api/v1/generators/recorder/sessions/{session_id}": {
+      "delete": {
+        "description": "Cancel an active recording session (idempotent within its lifetime).",
+        "operationId": "cancel_recorder_session_api_v1_generators_recorder_sessions__session_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Cancel Recorder Session",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
+    "/api/v1/generators/recorder/sessions/{session_id}/finalize": {
+      "post": {
+        "description": "Convert a session's captured events into a DRAFT TestCase + return it.",
+        "operationId": "finalize_recorder_session_api_v1_generators_recorder_sessions__session_id__finalize_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecorderFinalizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestCaseDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Finalize Recorder Session",
+        "tags": [
+          "generators"
         ]
       }
     },
@@ -6914,6 +7893,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Inbox",
@@ -6989,6 +7971,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Integrations",
@@ -7052,6 +8037,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Create Integration",
@@ -7117,6 +8105,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Test Github Pre Save",
@@ -7182,6 +8173,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Test Jira Pre Save",
@@ -7239,6 +8233,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Delete Integration",
@@ -7301,6 +8298,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Integration",
@@ -7373,6 +8373,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Update Integration",
@@ -7437,6 +8440,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Sync Integration",
@@ -7501,6 +8507,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Test Integration",
@@ -7591,6 +8600,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Resend Invitation",
@@ -7631,6 +8643,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Revoke Invitation",
@@ -7686,6 +8701,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Mcp Providers",
@@ -7769,6 +8787,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Projects",
@@ -7832,6 +8853,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Create Project",
@@ -7899,6 +8923,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Delete Project",
@@ -7961,6 +8988,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Project",
@@ -8033,6 +9063,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Update Project",
@@ -8090,6 +9123,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Restore Project",
@@ -8182,6 +9218,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Requirements",
@@ -8245,6 +9284,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Create Requirement",
@@ -8302,6 +9344,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Delete Requirement",
@@ -8364,6 +9409,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Requirement",
@@ -8436,6 +9484,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Update Requirement",
@@ -8514,6 +9565,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Create Requirement Link",
@@ -8580,6 +9634,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Delete Requirement Link",
@@ -8637,6 +9694,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Restore Requirement",
@@ -8777,6 +9837,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Runs",
@@ -8840,6 +9903,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Create Run",
@@ -8895,6 +9961,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Runs Summary",
@@ -8959,6 +10028,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Run",
@@ -9027,6 +10099,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Run Artifacts",
@@ -9100,6 +10175,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Artifact Signed Url",
@@ -9164,6 +10242,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Cancel Run",
@@ -9251,6 +10332,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Run Logs",
@@ -9315,6 +10399,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Run Network",
@@ -9379,6 +10466,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Rerun Run",
@@ -9447,6 +10537,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Run Steps",
@@ -9515,6 +10608,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Suites",
@@ -9578,6 +10674,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Create Suite",
@@ -9645,6 +10744,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Delete Suite",
@@ -9707,6 +10809,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Suite",
@@ -9779,6 +10884,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Update Suite",
@@ -9836,6 +10944,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Restore Suite",
@@ -9846,16 +10957,39 @@
     },
     "/api/v1/test-cases": {
       "get": {
-        "description": "List cases in a suite with filters; 404 when the suite is cross-workspace.\n\n``?includeDeleted=true`` surfaces tombstoned rows. Per ``docs/API.md \u00a73.3``\nthat capability is ADMIN/OWNER only \u2014 QA + VIEWER asking for it get 403.\nDefault behaviour (no query param / ``false``) hides every soft-deleted row\nso VIEWER reads remain safe.",
+        "description": "List cases by suite (filtered, paginated) or by project (all suites).\n\nPass exactly one of ``suiteId`` or ``projectId``. The per-suite path applies\nthe full filter/keyset-pagination contract; the per-project path returns\nevery non-deleted case across the project's suites (used by the Cases tree\nwhich groups cases under their suites). Both 404 when the target is\ncross-workspace.\n\n``?includeDeleted=true`` surfaces tombstoned rows. Per ``docs/API.md \u00a73.3``\nthat capability is ADMIN/OWNER only \u2014 QA + VIEWER asking for it get 403.\nDefault behaviour (no query param / ``false``) hides every soft-deleted row\nso VIEWER reads remain safe.",
         "operationId": "list_test_cases_api_v1_test_cases_get",
         "parameters": [
           {
             "in": "query",
             "name": "suiteId",
-            "required": true,
+            "required": false,
             "schema": {
-              "title": "Suiteid",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Suiteid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Projectid"
             }
           },
           {
@@ -10018,6 +11152,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Test Cases",
@@ -10081,6 +11218,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Create Test Case",
@@ -10163,6 +11303,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Bulk Update Test Cases",
@@ -10220,6 +11363,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Delete Test Case",
@@ -10292,6 +11438,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Test Case",
@@ -10380,6 +11529,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Update Test Case",
@@ -10444,6 +11596,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Duplicate Test Case",
@@ -10501,6 +11656,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Restore Test Case",
@@ -10565,6 +11723,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Run Test Case Now",
@@ -10633,6 +11794,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Test Case Steps",
@@ -10721,6 +11885,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Replace Test Case Steps",
@@ -10793,6 +11960,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Append Test Case Step",
@@ -10883,6 +12053,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Reorder Test Case Steps",
@@ -10947,6 +12120,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Traceability Matrix",
@@ -10986,6 +12162,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Change Own Password",
@@ -11294,6 +12473,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Workspaces",
@@ -11352,6 +12534,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Delete Workspace",
@@ -11398,6 +12583,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Get Workspace",
@@ -11455,6 +12643,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Update Workspace",
@@ -11502,6 +12693,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Invitations",
@@ -11557,6 +12751,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Create Invitation",
@@ -11609,6 +12806,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "List Workspace Members",
@@ -11665,6 +12865,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Invite Workspace Member",
@@ -11716,6 +12919,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Remove Workspace Member",
@@ -11782,6 +12988,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Change Workspace Member Role",
@@ -11878,6 +13087,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Auth:Cookie-Jwt.Logout",
@@ -12286,6 +13498,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Users:Current User",
@@ -12360,6 +13575,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Users:Patch Current User",
@@ -12409,6 +13627,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Users:Delete User",
@@ -12463,6 +13684,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Users:User",
@@ -12554,6 +13778,9 @@
         "security": [
           {
             "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
           }
         ],
         "summary": "Users:Patch User",

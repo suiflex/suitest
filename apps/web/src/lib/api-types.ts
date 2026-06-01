@@ -347,6 +347,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/generators/classify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Classify Input
+         * @description Classify a generation input into a target kind + recommended strategy/MCP.
+         */
+        post: operations["classify_input_api_v1_generators_classify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generators/crawler": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Crawler
+         * @description Generate a smoke + form suite by crawling a start URL (SSE).
+         */
+        post: operations["generate_crawler_api_v1_generators_crawler_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generators/openapi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Openapi
+         * @description Generate a per-operation contract suite from an OpenAPI 3.0 spec (SSE).
+         */
+        post: operations["generate_openapi_api_v1_generators_openapi_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generators/recorder/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Recorder Session
+         * @description Open a live browser-recording session. Returns the WS room to subscribe.
+         */
+        post: operations["start_recorder_session_api_v1_generators_recorder_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generators/recorder/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel Recorder Session
+         * @description Cancel an active recording session (idempotent within its lifetime).
+         */
+        delete: operations["cancel_recorder_session_api_v1_generators_recorder_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generators/recorder/sessions/{session_id}/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finalize Recorder Session
+         * @description Convert a session's captured events into a DRAFT TestCase + return it.
+         */
+        post: operations["finalize_recorder_session_api_v1_generators_recorder_sessions__session_id__finalize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/inbox": {
         parameters: {
             query?: never;
@@ -1104,7 +1224,13 @@ export interface paths {
         };
         /**
          * List Test Cases
-         * @description List cases in a suite with filters; 404 when the suite is cross-workspace.
+         * @description List cases by suite (filtered, paginated) or by project (all suites).
+         *
+         *     Pass exactly one of ``suiteId`` or ``projectId``. The per-suite path applies
+         *     the full filter/keyset-pagination contract; the per-project path returns
+         *     every non-deleted case across the project's suites (used by the Cases tree
+         *     which groups cases under their suites). Both 404 when the target is
+         *     cross-workspace.
          *
          *     ``?includeDeleted=true`` surfaces tombstoned rows. Per ``docs/API.md §3.3``
          *     that capability is ADMIN/OWNER only — QA + VIEWER asking for it get 403.
@@ -2045,6 +2171,18 @@ export interface components {
             /** New Password */
             new_password: string;
         };
+        /** ClassificationResult */
+        ClassificationResult: {
+            /** Alternatives */
+            alternatives?: components["schemas"]["StrategyAlternative"][];
+            /** Confidence */
+            confidence: number;
+            /** Rationale */
+            rationale: string;
+            recommended_mcp: components["schemas"]["RecommendedMcp"];
+            recommended_strategy: components["schemas"]["RecommendedStrategy"];
+            target_kind: components["schemas"]["TargetKind"];
+        };
         /**
          * ConnectionTestResponse
          * @description JSON response for ``/test`` + pre-save ``test-connection`` endpoints.
@@ -2096,6 +2234,81 @@ export interface components {
             suiteId: string;
             /** Total */
             total: number;
+        };
+        /**
+         * CrawlerAuthConfig
+         * @description Optional pre-crawl authentication. ``kind="none"`` (default) skips auth.
+         *
+         *     The crawler does not itself perform login today — the config is captured on
+         *     the :class:`~suitest_db.models.generator_run.GeneratorRun` for provenance and
+         *     threaded into generated cases so a later run can replay the auth context.
+         */
+        CrawlerAuthConfig: {
+            /** Cookie */
+            cookie?: string | null;
+            /** Credentials */
+            credentials?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Kind
+             * @default none
+             * @enum {string}
+             */
+            kind: "none" | "cookie" | "bearer" | "form";
+            /** Login Url */
+            login_url?: string | null;
+            /** Token */
+            token?: string | null;
+        };
+        /**
+         * CrawlerGenerateRequest
+         * @description Crawl request: a target suite + a start URL + bounds/auth.
+         */
+        CrawlerGenerateRequest: {
+            auth?: components["schemas"]["CrawlerAuthConfig"];
+            options?: components["schemas"]["CrawlerOptions"];
+            /** Start Url */
+            start_url: string;
+            /** Target Suite Id */
+            target_suite_id: string;
+        };
+        /**
+         * CrawlerOptions
+         * @description Per-request crawl bounds + emission toggles.
+         *
+         *     ``max_depth`` / ``max_pages`` cap the BFS so a large site cannot run away;
+         *     ``same_origin_only`` drops off-origin links from the frontier;
+         *     ``include_form_cases`` toggles the per-``<form>`` fill cases.
+         */
+        CrawlerOptions: {
+            /**
+             * Faker Locale
+             * @default en_US
+             */
+            faker_locale: string;
+            /**
+             * Include Form Cases
+             * @default true
+             */
+            include_form_cases: boolean;
+            /**
+             * Max Depth
+             * @default 2
+             */
+            max_depth: number;
+            /**
+             * Max Pages
+             * @default 20
+             */
+            max_pages: number;
+            /**
+             * Same Origin Only
+             * @default true
+             */
+            same_origin_only: boolean;
+            /** Tag Prefix */
+            tag_prefix?: string | null;
         };
         /**
          * CreateRunBody
@@ -2424,6 +2637,21 @@ export interface components {
             /** Samplesize */
             sampleSize: number;
         };
+        /** GenerationInput */
+        GenerationInput: {
+            /** Content Type Hint */
+            content_type_hint?: string | null;
+            /** Filename */
+            filename?: string | null;
+            kind: components["schemas"]["GenerationInputKind"];
+            /** Value */
+            value: string;
+        };
+        /**
+         * GenerationInputKind
+         * @enum {string}
+         */
+        GenerationInputKind: "url" | "file_content" | "raw_text";
         /**
          * GitHubTestConnectionRequest
          * @description Pre-save credential payload for ``POST /integrations/github/test-connection``.
@@ -2874,6 +3102,67 @@ export interface components {
             authorization_url: string;
         };
         /**
+         * OpenApiGenerateRequest
+         * @description Generation request: exactly one of ``spec_url`` / ``spec_content``.
+         */
+        OpenApiGenerateRequest: {
+            options?: components["schemas"]["OpenApiGeneratorOptions"];
+            /** Spec Content */
+            spec_content?: string | null;
+            /** Spec Url */
+            spec_url?: string | null;
+            /** Target Suite Id */
+            target_suite_id: string;
+        };
+        /**
+         * OpenApiGeneratorOptions
+         * @description Per-request toggles for which case kinds the generator emits.
+         *
+         *     Defaults emit the full deterministic suite; callers disable categories to
+         *     keep a generated suite focused (e.g. contract-only). ``tags_filter`` limits
+         *     generation to operations carrying at least one of the listed OpenAPI tags.
+         */
+        OpenApiGeneratorOptions: {
+            /** Auth Profile Id */
+            auth_profile_id?: string | null;
+            /** Base Url Override */
+            base_url_override?: string | null;
+            /**
+             * Include Boundary Tests
+             * @default true
+             */
+            include_boundary_tests: boolean;
+            /**
+             * Include Negative Auth
+             * @default true
+             */
+            include_negative_auth: boolean;
+            /**
+             * Include Rate Limit Tests
+             * @default true
+             */
+            include_rate_limit_tests: boolean;
+            /**
+             * Include Required Field Tests
+             * @default true
+             */
+            include_required_field_tests: boolean;
+            /**
+             * Include Schema Validation
+             * @default true
+             */
+            include_schema_validation: boolean;
+            /**
+             * Max Cases Per Operation
+             * @default 20
+             */
+            max_cases_per_operation: number;
+            /** Tag Prefix */
+            tag_prefix?: string | null;
+            /** Tags Filter */
+            tags_filter?: string[];
+        };
+        /**
          * PageMeta
          * @description Pagination metadata: the next cursor (``null`` when exhausted) + page size.
          */
@@ -3057,6 +3346,68 @@ export interface components {
             blockers?: components["schemas"]["ReadinessBlocker"][];
             /** Score */
             score: number;
+        };
+        /** RecommendedMcp */
+        RecommendedMcp: {
+            /** Id */
+            id?: string | null;
+            /** Name */
+            name: string;
+        };
+        /**
+         * RecommendedStrategy
+         * @enum {string}
+         */
+        RecommendedStrategy: "openapi-generator" | "url-crawler" | "recorder" | "url-semantic" | "mcp-discovery" | "prd-parsing";
+        /**
+         * RecorderFinalizeRequest
+         * @description Body for ``POST .../finalize`` — where + how to persist the new case.
+         */
+        RecorderFinalizeRequest: {
+            /** Description */
+            description?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Priority
+             * @default P2
+             * @enum {string}
+             */
+            priority: "P0" | "P1" | "P2" | "P3";
+            /** Target Suite Id */
+            target_suite_id: string;
+        };
+        /**
+         * RecorderSessionStartRequest
+         * @description Body for ``POST /generators/recorder/sessions``.
+         */
+        RecorderSessionStartRequest: {
+            /**
+             * Mcp Provider
+             * @default playwright-mcp
+             */
+            mcp_provider: string;
+            /** Project Id */
+            project_id: string;
+            /** Start Url */
+            start_url: string;
+        };
+        /**
+         * RecorderSessionStartResponse
+         * @description 200 body — the session id + the WS room to subscribe for live events.
+         */
+        RecorderSessionStartResponse: {
+            /** Browser Url */
+            browser_url?: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Session Id */
+            session_id: string;
+            /** Ws Room */
+            ws_room: string;
         };
         /**
          * RequirementCreate
@@ -3533,6 +3884,15 @@ export interface components {
         StepReplace: {
             /** Steps */
             steps?: components["schemas"]["StepCreate"][];
+        };
+        /** StrategyAlternative */
+        StrategyAlternative: {
+            /**
+             * Requires Tier
+             * @enum {string}
+             */
+            requires_tier: "ZERO" | "LOCAL" | "CLOUD";
+            strategy: components["schemas"]["RecommendedStrategy"];
         };
         /**
          * SuiteCreate
@@ -4738,6 +5098,214 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    classify_input_api_v1_generators_classify_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerationInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassificationResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_crawler_api_v1_generators_crawler_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrawlerGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_openapi_api_v1_generators_openapi_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenApiGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_recorder_session_api_v1_generators_recorder_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecorderSessionStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecorderSessionStartResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_recorder_session_api_v1_generators_recorder_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    finalize_recorder_session_api_v1_generators_recorder_sessions__session_id__finalize_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecorderFinalizeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestCaseDetail"];
                 };
             };
             /** @description Validation Error */
@@ -6263,8 +6831,9 @@ export interface operations {
     };
     list_test_cases_api_v1_test_cases_get: {
         parameters: {
-            query: {
-                suiteId: string;
+            query?: {
+                suiteId?: string | null;
+                projectId?: string | null;
                 status?: components["schemas"]["CaseStatus"] | null;
                 source?: components["schemas"]["CaseSource"] | null;
                 priority?: components["schemas"]["Priority"] | null;

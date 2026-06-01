@@ -4,6 +4,8 @@ import { AlertTriangle, ChevronDown, FileText, FolderTree, ListChecks, Trash2 } 
 import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { GenerateModal } from "@/components/cases/GenerateModal";
+import type { GeneratorStrategy } from "@/components/cases/GenerateModal";
 import { CasesSkeleton } from "@/components/cases/skeleton";
 import { StepEditor } from "@/components/cases/StepEditor";
 import type { DraftStep } from "@/components/cases/StepEditor";
@@ -17,8 +19,16 @@ import { SourcePill } from "@/components/shared/SourcePill";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useFeatureEnabled } from "@/hooks/use-feature-enabled";
+import { useActiveProject } from "@/stores/use-active-project";
 import { useCreateRun } from "@/hooks/use-runs";
 import {
   useBulkUpdate,
@@ -57,11 +67,15 @@ function CasesHeader({
   setActive,
   counts,
   showAiTab,
+  onGenerate,
+  aiEnabled,
 }: {
   active: Tab;
   setActive: (t: Tab) => void;
   counts: Record<Tab, number>;
   showAiTab: boolean;
+  onGenerate: (strategy?: GeneratorStrategy) => void;
+  aiEnabled: boolean;
 }): React.ReactElement {
   const { t } = useTranslation();
   const tabs: Array<{ id: Tab; label: string; show?: boolean }> = [
@@ -100,13 +114,75 @@ function CasesHeader({
           ))}
         </nav>
       </div>
-      <div className="flex items-center gap-2">
-        <DisabledTooltip reason="Generators ship in M2">
-          <Button type="button" size="sm" disabled>
-            Generate
-            <ChevronDown className="h-3 w-3" aria-hidden="true" />
-          </Button>
-        </DisabledTooltip>
+      <div className="flex items-center gap-2" data-testid="generate-split-button">
+        <Button
+          type="button"
+          size="sm"
+          data-testid="generate-btn"
+          onClick={() => {
+            onGenerate();
+          }}
+          className="rounded-r-none"
+        >
+          Generate
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              data-testid="generate-menu-trigger"
+              aria-label="Generate options"
+              className="rounded-l-none border-l border-bg-base px-1.5"
+            >
+              <ChevronDown className="h-3 w-3" aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-55">
+            <DropdownMenuItem
+              data-testid="generate-menu-openapi"
+              onSelect={() => {
+                onGenerate("openapi");
+              }}
+            >
+              {"{ }"} Generate from OpenAPI
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              data-testid="generate-menu-recorder"
+              onSelect={() => {
+                onGenerate("recorder");
+              }}
+            >
+              ● Record from browser
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              data-testid="generate-menu-crawler"
+              onSelect={() => {
+                onGenerate("crawler");
+              }}
+            >
+              🔗 Crawl URL
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {aiEnabled ? (
+              <DropdownMenuItem data-testid="generate-menu-ai" disabled>
+                ✨ Generate (AI)
+              </DropdownMenuItem>
+            ) : (
+              <DisabledTooltip reason="LLM not configured. Settings → LLM">
+                <DropdownMenuItem
+                  data-testid="generate-menu-ai"
+                  disabled
+                  onSelect={(e) => {
+                    e.preventDefault();
+                  }}
+                >
+                  ✨ Generate (AI)
+                </DropdownMenuItem>
+              </DisabledTooltip>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
@@ -637,8 +713,21 @@ function CasesBody(): React.ReactElement {
   const { data: suites } = useSuites();
   const { data: cases } = useTestCases();
   const aiTabVisible = useFeatureEnabled("ai_generation");
+  const projectId = useActiveProject((s) => s.projectId);
 
   const [active, setActive] = useState<Tab>("all");
+
+  // GenerateModal state — `null` strategy = open at the target-select step;
+  // a concrete strategy deep-links from the split-button dropdown.
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [generateStrategy, setGenerateStrategy] = useState<GeneratorStrategy | undefined>(
+    undefined,
+  );
+
+  const handleGenerate = useCallback((strategy?: GeneratorStrategy) => {
+    setGenerateStrategy(strategy);
+    setGenerateOpen(true);
+  }, []);
 
   // Selection state: Set of internal case IDs (case.id, not public_id).
   // The bulk endpoint expects internal UUIDs.
@@ -701,7 +790,25 @@ function CasesBody(): React.ReactElement {
 
   return (
     <>
-      <CasesHeader active={active} setActive={setActive} counts={counts} showAiTab={aiTabVisible} />
+      <CasesHeader
+        active={active}
+        setActive={setActive}
+        counts={counts}
+        showAiTab={aiTabVisible}
+        onGenerate={handleGenerate}
+        aiEnabled={aiTabVisible}
+      />
+      {generateOpen ? (
+        <GenerateModal
+          open={generateOpen}
+          onClose={() => {
+            setGenerateOpen(false);
+          }}
+          suites={suites.items}
+          projectId={projectId}
+          {...(generateStrategy ? { initialStrategy: generateStrategy } : {})}
+        />
+      ) : null}
       <div className="grid grid-cols-[280px_1fr] gap-4">
         <aside
           className="flex flex-col gap-2 rounded-md border border-border bg-bg-elev-1 p-3"

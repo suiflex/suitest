@@ -150,11 +150,11 @@ Self-host install can be operated without OAuth: bootstrap super-admin logs in w
 
 #### Deterministic generators (jalan di ZERO)
 
-- [x] **M2-1** OpenAPI generator (`POST /generators/openapi`) — parse spec → per-operation contract suite (happy + schema validate + required field + auth negative) (implemented at `86d5de1`, branch `feat/m2-generators-mcp` — backend only, not yet merged/tagged)
-- [x] **M2-2** Browser Recorder — start recording session → user demo → finalize → test case (pakai Playwright MCP recorder feature) (implemented at `836327a` + migration `0028`, branch `feat/m2-generators-mcp` — backend only, not yet merged/tagged)
-- [x] **M2-3** Heuristic URL crawler — BFS depth-N, Faker form fill, klik tombol/link → skeleton smoke cases (implemented at `4615fca`, branch `feat/m2-generators-mcp` — backend only, not yet merged/tagged)
-- [x] **M2-4** Target classifier (`POST /generators/classify`) deterministik — input URL/spec → `target_kind` + suggested MCP (implemented at `a20658d`, branch `feat/m2-generators-mcp` — not yet merged/tagged)
-- [ ] **M2-5** Generation modal UI dengan 3 strategi deterministik fully functional
+- [x] **M2-1** OpenAPI generator (`POST /generators/openapi`) — parse spec → per-operation contract suite (happy + schema validate + required field + auth negative) (`86d5de1`, merged ke `main`)
+- [x] **M2-2** Browser Recorder — start recording session → user demo → finalize → test case (pakai Playwright MCP recorder feature) (`836327a` + migration `0028`, merged ke `main`)
+- [x] **M2-3** Heuristic URL crawler — BFS depth-N, Faker form fill, klik tombol/link → skeleton smoke cases (`4615fca`, merged ke `main`)
+- [x] **M2-4** Target classifier (`POST /generators/classify`) deterministik — input URL/spec → `target_kind` + suggested MCP (`a20658d`, merged ke `main`)
+- [x] **M2-5** Generation modal UI dengan 3 strategi deterministik fully functional (`GenerateModal` 3-step target-first flow: OpenAPI + Crawler stream via SSE, Recorder start→finalize; split-button "Generate" CTA di Cases; `generator-client.ts` + MSW handlers + vitest green)
 
 #### MCP plugin universal
 
