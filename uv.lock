@@ -2018,6 +2018,12 @@ wheels = [
 name = "suitest-agent"
 version = "0.1.0"
 source = { editable = "packages/agent" }
+dependencies = [
+    { name = "suitest-shared" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "suitest-shared", editable = "packages/shared" }]
 
 [[package]]
 name = "suitest-api"

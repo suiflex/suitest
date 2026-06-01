@@ -3,7 +3,11 @@ name = "suitest-agent"
 version = "0.1.0"
 description = "Suitest AI agent layer — LiteLLM + LangGraph (stub for M0; full impl in M3)"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    # Intra-workspace: classifier + future generators consume the shared
+    # generator_input schemas (TargetKind, ClassificationResult, ...).
+    "suitest-shared",
+]
 
 [build-system]
 requires = ["hatchling"]
