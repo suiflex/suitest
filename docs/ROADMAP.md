@@ -86,36 +86,36 @@ Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md
 
 #### Manual TCM
 
-- [ ] **M1-12** Create/edit test case dengan steps (`action` + `code` + `mcp_provider` + `target_kind`)
-- [ ] **M1-13a** Case soft-delete dengan undo toast
-- [ ] **M1-13b** Suite cascade soft-delete dengan undo toast
-- [ ] **M1-13c** Project + requirement soft-delete dengan undo toast
+- [x] **M1-12** Create/edit test case dengan steps (`action` + `code` + `mcp_provider` + `target_kind`) (shipped / tag `v0.5.0-m1d` — [`routers/test_cases.py`](../apps/api/src/suitest_api/routers/test_cases.py) POST/PATCH + step CRUD)
+- [x] **M1-13a** Case soft-delete dengan undo toast (shipped / tag `v0.5.0-m1d` — soft-delete + restore di [`routers/test_cases.py`](../apps/api/src/suitest_api/routers/test_cases.py))
+- [x] **M1-13b** Suite cascade soft-delete dengan undo toast (shipped / tag `v0.5.0-m1d` — [`routers/suites.py`](../apps/api/src/suitest_api/routers/suites.py))
+- [x] **M1-13c** Project + requirement soft-delete dengan undo toast (shipped / tag `v0.5.0-m1d` — [`routers/projects.py`](../apps/api/src/suitest_api/routers/projects.py))
 - [x] **M1-14** Drag-reorder steps via dnd-kit
-- [ ] **M1-15a** Bulk endpoint backend (delete, move to suite, change priority)
+- [x] **M1-15a** Bulk endpoint backend (delete, move to suite, change priority) (shipped / tag `v0.5.0-m1d` — `POST /test-cases/bulk-update` di [`routers/test_cases.py`](../apps/api/src/suitest_api/routers/test_cases.py))
 - [x] **M1-15b** Bulk-ops sticky bar FE
 
 #### Defect (no AI)
 
-- [ ] **M1-21** Saat step fail → rule-based defect creation, category `MANUAL_TRIAGE` (no diagnosis yet)
-- [ ] **M1-22a** Integration CRUD + secrets (Jira / Linear / GitHub via OAuth atau PAT)
-- [ ] **M1-22b** Defect sync-external + webhook receiver (file issue saat defect lahir)
-- [ ] **M1-23** Defect status flow (Open → In Progress → Resolved → Closed)
+- [x] **M1-21** Saat step fail → rule-based defect creation, category `MANUAL_TRIAGE` (no diagnosis yet) (shipped / tag `v0.5.0-m1d` — [`services/defect_auto_filer.py`](../apps/api/src/suitest_api/services/defect_auto_filer.py))
+- [x] **M1-22a** Integration CRUD + secrets (Jira / Linear / GitHub via OAuth atau PAT) (shipped / tag `v0.5.0-m1d` — [`routers/integrations.py`](../apps/api/src/suitest_api/routers/integrations.py))
+- [x] **M1-22b** Defect sync-external + webhook receiver (file issue saat defect lahir) (shipped / tag `v0.5.0-m1d` — sync-external di [`routers/defects.py`](../apps/api/src/suitest_api/routers/defects.py))
+- [x] **M1-23** Defect status flow (Open → In Progress → Resolved → Closed) (shipped / tag `v0.5.0-m1d` — [`routers/defects.py`](../apps/api/src/suitest_api/routers/defects.py))
 
 #### Traceability + Analytics + Integrations
 
-- [ ] **M1-24** Requirement CRUD + linking ke case
-- [ ] **M1-25** Traceability matrix fully functional (req ↔ case ↔ defect)
-- [ ] **M1-26** Analytics: pass rate, coverage, flaky (rule-based: outcome variance > 20%), heatmap, readiness
-- [ ] **M1-27a** Slack adapter (notifications)
-- [ ] **M1-27b** GitHub webhook (receives PR event → trigger run)
-- [ ] **M1-27c** GitLab webhook (receives MR event → trigger run)
-- [ ] **M1-27d** Jira webhook sync-back
+- [x] **M1-24** Requirement CRUD + linking ke case (shipped / tag `v0.5.0-m1d` — [`routers/requirements.py`](../apps/api/src/suitest_api/routers/requirements.py))
+- [x] **M1-25** Traceability matrix fully functional (req ↔ case ↔ defect) (shipped / tag `v0.5.0-m1d` — matrix endpoint di [`routers/requirements.py`](../apps/api/src/suitest_api/routers/requirements.py))
+- [x] **M1-26** Analytics: pass rate, coverage, flaky (rule-based: outcome variance > 20%), heatmap, readiness (shipped / tag `v0.5.0-m1d` — [`routers/analytics.py`](../apps/api/src/suitest_api/routers/analytics.py))
+- [x] **M1-27a** Slack adapter (notifications) (shipped / tag `v0.5.0-m1d` — [`integrations/slack_adapter.py`](../apps/api/src/suitest_api/integrations/slack_adapter.py))
+- [x] **M1-27b** GitHub webhook (receives PR event → trigger run) (shipped / tag `v0.5.0-m1d` — [`routers/webhooks.py`](../apps/api/src/suitest_api/routers/webhooks.py))
+- [x] **M1-27c** GitLab webhook (receives MR event → trigger run) (shipped / tag `v0.5.0-m1d` — [`routers/webhooks.py`](../apps/api/src/suitest_api/routers/webhooks.py))
+- [x] **M1-27d** Jira webhook sync-back (shipped / tag `v0.5.0-m1d` — [`routers/webhooks.py`](../apps/api/src/suitest_api/routers/webhooks.py))
 
 #### Quality
 
-- [ ] **M1-28** E2E test (Playwright in CI) covering golden path: login → create case → run → see result
-- [ ] **M1-29** Visual regression vs `Suitest.html` mockup ≥ 95% match per screen
-- [ ] **M1-30** Loading + empty + error states untuk semua screens
+- [x] **M1-28** E2E test (Playwright in CI) covering golden path: login → create case → run → see result (shipped / tag `v0.5.0-m1d` — [`apps/web/e2e/golden-path.spec.ts`](../apps/web/e2e/golden-path.spec.ts))
+- [x] **M1-29** Visual regression vs `Suitest.html` mockup ≥ 95% match per screen (shipped / tag `v0.5.0-m1d` — [`apps/web/e2e/visual-regression.spec.ts`](../apps/web/e2e/visual-regression.spec.ts))
+- [x] **M1-30** Loading + empty + error states untuk semua screens (shipped / tag `v0.5.0-m1d`)
 
 ### Definition of done
 
@@ -148,10 +148,10 @@ Self-host install can be operated without OAuth: bootstrap super-admin logs in w
 
 #### Deterministic generators (jalan di ZERO)
 
-- [ ] **M2-1** OpenAPI generator (`POST /generators/openapi`) — parse spec → per-operation contract suite (happy + schema validate + required field + auth negative)
-- [ ] **M2-2** Browser Recorder — start recording session → user demo → finalize → test case (pakai Playwright MCP recorder feature)
-- [ ] **M2-3** Heuristic URL crawler — BFS depth-N, Faker form fill, klik tombol/link → skeleton smoke cases
-- [ ] **M2-4** Target classifier (`POST /generators/classify`) deterministik — input URL/spec → `target_kind` + suggested MCP
+- [x] **M2-1** OpenAPI generator (`POST /generators/openapi`) — parse spec → per-operation contract suite (happy + schema validate + required field + auth negative) (implemented at `86d5de1`, branch `feat/m2-generators-mcp` — backend only, not yet merged/tagged)
+- [x] **M2-2** Browser Recorder — start recording session → user demo → finalize → test case (pakai Playwright MCP recorder feature) (implemented at `836327a` + migration `0028`, branch `feat/m2-generators-mcp` — backend only, not yet merged/tagged)
+- [x] **M2-3** Heuristic URL crawler — BFS depth-N, Faker form fill, klik tombol/link → skeleton smoke cases (implemented at `4615fca`, branch `feat/m2-generators-mcp` — backend only, not yet merged/tagged)
+- [x] **M2-4** Target classifier (`POST /generators/classify`) deterministik — input URL/spec → `target_kind` + suggested MCP (implemented at `a20658d`, branch `feat/m2-generators-mcp` — not yet merged/tagged)
 - [ ] **M2-5** Generation modal UI dengan 3 strategi deterministik fully functional
 
 #### MCP plugin universal
