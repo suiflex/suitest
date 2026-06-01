@@ -30,7 +30,6 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from testcontainers.postgres import PostgresContainer
 
 _DB_PKG_ROOT = Path(__file__).resolve().parent.parent  # packages/db
 
@@ -53,11 +52,28 @@ def _encryption_key() -> Iterator[None]:
 
 @pytest.fixture(scope="session")
 def database_url() -> Iterator[str]:
-    """Boot a pgvector-enabled Postgres 16 container and yield its asyncpg URL.
+    """Yield an asyncpg URL for a throwaway Postgres 16 (pgvector) database.
+
+    When ``SUITEST_TEST_DATABASE_URL`` is set (Docker-less local runs — see the
+    project testing note) it is used verbatim, normalised to the asyncpg driver.
+    Otherwise a session-scoped ``pgvector/pgvector:pg16`` testcontainer is booted.
 
     ``testcontainers`` is untyped, so the container object is kept local (never
     exposed in a fixture signature) to satisfy ``disallow_any_unimported``.
     """
+    explicit = os.environ.get("SUITEST_TEST_DATABASE_URL")
+    if explicit:
+        url = explicit
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        yield url
+        return
+    # Lazy import: ``testcontainers`` is only needed for the Docker path, which
+    # is skipped entirely when ``SUITEST_TEST_DATABASE_URL`` is supplied.
+    from testcontainers.postgres import PostgresContainer
+
     with PostgresContainer("pgvector/pgvector:pg16", driver="asyncpg") as container:
         host = container.get_container_host_ip()
         port = container.get_exposed_port(5432)

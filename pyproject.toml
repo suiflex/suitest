@@ -40,6 +40,8 @@ dev-dependencies = [
   # selector, but the workflow that opts in (``.github/workflows/m1c-e2e.yml``)
   # needs these resolved by ``uv sync``.
   "httpx-ws>=0.7.0",
+  # M2 Task 2 — mypy stubs for the OpenAPI generator's YAML spec fallback.
+  "types-PyYAML>=6.0",
 ]
 
 [tool.uv.sources]

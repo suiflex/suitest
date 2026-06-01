@@ -3,7 +3,18 @@ name = "suitest-agent"
 version = "0.1.0"
 description = "Suitest AI agent layer — LiteLLM + LangGraph (stub for M0; full impl in M3)"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    # Intra-workspace: classifier + future generators consume the shared
+    # generator_input schemas (TargetKind, ClassificationResult, ...).
+    "suitest-shared",
+    # M2 Task 2 — deterministic OpenAPI generator: parse specs, validate
+    # response schemas, and synthesise example request bodies (ZERO tier, no LLM).
+    "openapi-pydantic>=0.4.0",
+    "jsonschema>=4.21",
+    "faker>=25.0",
+    "httpx>=0.27",
+    "pyyaml>=6.0",
+]
 
 [build-system]
 requires = ["hatchling"]

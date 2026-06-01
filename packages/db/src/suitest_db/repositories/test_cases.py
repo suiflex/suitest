@@ -125,7 +125,9 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
 
         Public ids are unique per workspace, so the lookup is scoped through the
         case's ``suite → project → workspace`` chain. Returns ``None`` when no
-        live case matches (caller raises 404).
+        live case matches (caller raises 404). Signature intentionally diverges
+        from :class:`AsyncRepository.get_by_public_id` (LSP override) — the base
+        lacks the workspace context this scoped lookup needs, mirroring ``create``.
         """
         stmt = (
             select(TestCase)
