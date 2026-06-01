@@ -13,7 +13,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from suitest_shared.domain.enums import TargetKind
+from suitest_shared.domain.enums import CaseSource, Priority, TargetKind
 
 
 class GenerationInputKind(StrEnum):
@@ -61,3 +61,93 @@ class ClassificationResult(BaseModel):
     recommended_strategy: RecommendedStrategy
     alternatives: list[StrategyAlternative] = Field(default_factory=list)
     rationale: str
+
+
+# ---------------------------------------------------------------------------
+# M2 Task 2 — deterministic OpenAPI generator I/O
+# ---------------------------------------------------------------------------
+#
+# ``POST /generators/openapi`` ingests an OpenAPI 3.0 spec (by URL or inline
+# content) and streams back per-operation contract :class:`TestCaseDraft`s over
+# SSE. The generator is pure rules (NO LLM) so it lives in every tier
+# (``TierFlag.ANY``). ``source`` / ``priority`` re-use the canonical
+# :mod:`suitest_shared.domain.enums` enums — they are never redefined here.
+
+
+class OpenApiGeneratorOptions(BaseModel):
+    """Per-request toggles for which case kinds the generator emits.
+
+    Defaults emit the full deterministic suite; callers disable categories to
+    keep a generated suite focused (e.g. contract-only). ``tags_filter`` limits
+    generation to operations carrying at least one of the listed OpenAPI tags.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    include_negative_auth: bool = True
+    include_schema_validation: bool = True
+    include_required_field_tests: bool = True
+    include_boundary_tests: bool = True
+    include_rate_limit_tests: bool = True
+    tag_prefix: str | None = None
+    tags_filter: list[str] = Field(default_factory=list)
+    auth_profile_id: str | None = None
+    max_cases_per_operation: Annotated[int, Field(ge=1, le=100)] = 20
+    base_url_override: str | None = None
+
+
+class OpenApiGenerateRequest(BaseModel):
+    """Generation request: exactly one of ``spec_url`` / ``spec_content``."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    target_suite_id: Annotated[str, Field(min_length=1)]
+    spec_url: str | None = None
+    spec_content: str | None = None
+    options: OpenApiGeneratorOptions = Field(default_factory=OpenApiGeneratorOptions)
+
+
+class TestStepDraft(BaseModel):
+    """One synthesised step — ``code`` is runner-executable Python (no LLM)."""
+
+    __test__ = False  # not a pytest test class (name starts with "Test")
+
+    order: int
+    action: str
+    expected: str
+    code: str
+    mcp_provider: str
+    target_kind: TargetKind
+    data: dict[str, object] | None = None
+
+
+class TestCaseDraft(BaseModel):
+    """One generated test case, persisted as a DRAFT :class:`TestCase`."""
+
+    __test__ = False  # not a pytest test class (name starts with "Test")
+
+    name: str
+    description: str
+    priority: Priority = Priority.P2
+    source: CaseSource
+    target_kind: TargetKind
+    tags: list[str] = Field(default_factory=list)
+    generated_from: dict[str, object] = Field(default_factory=dict)
+    steps: list[TestStepDraft]
+
+
+class GeneratorRunResponse(BaseModel):
+    """Terminal SSE ``complete`` payload + the synchronous run summary."""
+
+    generator_run_id: str
+    target_suite_id: str
+    cases_created: int
+    public_ids: list[str]
+    duration_ms: int
+
+
+class GeneratorSseEvent(BaseModel):
+    """One Server-Sent Event frame. ``kind`` is the SSE ``event:`` field."""
+
+    kind: Literal["progress", "case", "complete", "error"]
+    data: dict[str, object]

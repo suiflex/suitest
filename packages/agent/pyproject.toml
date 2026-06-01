@@ -7,6 +7,13 @@ dependencies = [
     # Intra-workspace: classifier + future generators consume the shared
     # generator_input schemas (TargetKind, ClassificationResult, ...).
     "suitest-shared",
+    # M2 Task 2 — deterministic OpenAPI generator: parse specs, validate
+    # response schemas, and synthesise example request bodies (ZERO tier, no LLM).
+    "openapi-pydantic>=0.4.0",
+    "jsonschema>=4.21",
+    "faker>=25.0",
+    "httpx>=0.27",
+    "pyyaml>=6.0",
 ]
 
 [build-system]

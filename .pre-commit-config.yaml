@@ -70,6 +70,14 @@ repos:
           # touching the network. Without it the pre-commit mypy hook resolves
           # ``import respx`` to Any and trips ``disallow_any_unimported``.
           - respx>=0.21.0
+          # M2-1: the deterministic OpenAPI generator parses specs
+          # (openapi-pydantic), synthesises example bodies (faker), and falls
+          # back to YAML (types-PyYAML stubs). Without these the isolated
+          # pre-commit mypy env resolves the imports to Any and trips
+          # ``disallow_any_unimported``.
+          - openapi-pydantic>=0.4.0
+          - faker>=25.0
+          - types-PyYAML>=6.0
         args: ["--config-file=pyproject.toml"]
         files: ^(apps|packages)/.*\.py$
         # mirrors-mypy passes the staged files in a single invocation. With
