@@ -53,3 +53,16 @@ class McpProviderRepo(AsyncRepository[McpProvider, McpProviderCreate, McpProvide
         )
         result: McpProvider | None = await self.session.scalar(stmt)
         return result
+
+    async def delete(self, id: str) -> bool:
+        """Hard-delete a provider row by id (``mcp_providers`` has no soft-delete).
+
+        The ``after_flush`` audit listener records the delete. Returns ``False``
+        when no row matched.
+        """
+        row = await self.get_by_id(id)
+        if row is None:
+            return False
+        await self.session.delete(row)
+        await self.session.flush()
+        return True

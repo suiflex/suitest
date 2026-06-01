@@ -60,6 +60,10 @@ class McpSession:
     created_at: float
     last_used_at: float
     invocations: int = 0
+    # Version string from the MCP ``initialize`` handshake (serverInfo.version),
+    # recorded for provenance pins (MCP_PLUGINS §13). ``None`` when the server
+    # did not advertise one.
+    server_version: str | None = None
 
     async def list_tools(self) -> list[dict[str, Any]]:
         """Return advertised tools as plain dicts (name / description / input_schema)."""
@@ -184,7 +188,10 @@ async def _drive_session(
                 streams = await stack.enter_async_context(ctx)
                 read_stream, write_stream = streams[0], streams[1]
                 session = await stack.enter_async_context(ClientSession(read_stream, write_stream))
-                await asyncio.wait_for(session.initialize(), timeout=provider.spawn_timeout_seconds)
+                init_result = await asyncio.wait_for(
+                    session.initialize(), timeout=provider.spawn_timeout_seconds
+                )
+                server_version = getattr(getattr(init_result, "serverInfo", None), "version", None)
                 now = time.monotonic()
 
                 async def _cleanup() -> None:
@@ -197,6 +204,7 @@ async def _drive_session(
                     cleanup=_cleanup,
                     created_at=now,
                     last_used_at=now,
+                    server_version=server_version,
                 )
                 if not ready.done():
                     ready.set_result(ms)

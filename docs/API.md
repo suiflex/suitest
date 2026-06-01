@@ -2,7 +2,7 @@
 
 > REST endpoints + WebSocket events Suitest OSS. Semua route di-mount di `/api/v1/*` kecuali disebutkan lain. Input/output di-validate dengan **Pydantic v2** (lihat `packages/shared/schemas/`).
 
-> ℹ️ **Built today (M0–M1e):** auth, workspaces, TCM CRUD, runs, defects, requirements, integrations, webhooks, analytics, `/capabilities`, `/auth/me`, `WS /ws`. **Not built (M2–M4 spec):** generators, agent, llm-config, eval, sdk, code export, MCP-provider CRUD. Build truth = `apps/api/src/suitest_api/routers/` + [ROADMAP.md](./ROADMAP.md).
+> ℹ️ **Built today (M0–M2):** auth, workspaces, TCM CRUD, runs, defects, requirements, integrations, webhooks, analytics, `/capabilities`, `/auth/me`, `WS /ws`, deterministic generators (M2-1..M2-5), MCP-provider CRUD (M2-6). **Not built (M2–M4 spec):** agent, llm-config, eval, sdk, code export, MCP `/discover`·`/invoke`·`/routing` (M2-7..M2-9). Build truth = `apps/api/src/suitest_api/routers/` + [ROADMAP.md](./ROADMAP.md).
 >
 > Cross-links: [DATA_MODEL.md](./DATA_MODEL.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md) · [MCP_PLUGINS.md](./MCP_PLUGINS.md) · [AUTONOMY.md](./AUTONOMY.md) · [GENERATORS.md](./GENERATORS.md) · [pivot design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
 
@@ -712,7 +712,8 @@ Per-workspace MCP server registry. Distinct from `/integrations` — these are t
 | Method | Path | Tujuan |
 |--------|------|--------|
 | GET | `/mcp/providers` | List registered MCP servers + health |
-| POST | `/mcp/providers` | Register a custom MCP server |
+| POST | `/mcp/providers` | Register a custom MCP server (validates + discovers tools unless `validate=false`) |
+| POST | `/mcp/providers/test-connection` | Dry-run connect + `tools/list` without persisting (register modal) |
 | GET | `/mcp/providers/:id` | Detail (secrets redacted) |
 | PATCH | `/mcp/providers/:id` | Update config / endpoint |
 | DELETE | `/mcp/providers/:id` | Deregister |
@@ -729,11 +730,13 @@ Per-workspace MCP server registry. Distinct from `/integrations` — these are t
   "kind": "postgres",     // browser-use | playwright | api | postgres | kubernetes | graphql | grpc | appium | mongo | mysql | custom
   "endpoint": "stdio:///opt/mcp/postgres-mcp",
   "transport": "stdio",   // stdio | sse | ws
-  "config": { "schema": "public", "maxConnections": 4 },
-  "secrets": { "connectionString": "postgres://…" },
+  "configJson": { "schema": "public", "maxConnections": 4 },
+  "secretsJson": { "connectionString": "postgres://…" },
   "isDefaultForTarget": { "DATA": true }
 }
 ```
+
+> **M2-6 built:** `GET/POST /mcp/providers`, `GET/PATCH/DELETE /mcp/providers/:id` shipped in [`routers/mcp_providers.py`](../apps/api/src/suitest_api/routers/mcp_providers.py). `GET /mcp/providers` returns the bundled builtins (synthetic `builtin:<name>` ids, `isBundled=true`, read-only) merged on top of custom workspace rows. Write fields use camelCase aliases (`configJson` / `secretsJson` / `isDefaultForTarget`); `secretsJson` is write-only and never echoed. **M2-7 built:** `POST /mcp/providers` connects + handshakes + runs `tools/list` and persists the discovered catalog + `health_status=ok` + version pins unless `validate=false`; a failed probe returns `422 {code: MCP_REGISTRATION_FAILED}` and writes no row. `POST /mcp/providers/test-connection` does the same probe without persisting. **M2-8 built:** `POST /mcp/providers/:id/discover` re-runs `tools/list` and persists catalog + health + `last_health_at`; `POST /mcp/providers/:id/invoke` is the dev-aid tool browser path — role-gated to `ADMIN`+, audit-logged with `invocation_source=tool_browser` + `arg_hash` (raw args never stored), and rejected (409) for bundled providers. `/routing` lands in M2-9.
 
 **GET `/mcp/providers/:id/tools` response:**
 ```json
@@ -752,14 +755,17 @@ Per-workspace MCP server registry. Distinct from `/integrations` — these are t
 { "tool": "query", "input": { "sql": "SELECT 1" } }
 ```
 
-**PUT `/mcp/routing`** body:
+**PUT `/mcp/routing`** body (M2-9 — keys are `target_kind`, values pin a provider **by name**):
 ```json
 {
-  "BE_REST": "mcp_xxx",
-  "FE_WEB": "mcp_yyy",
-  "DATA": "mcp_zzz"
+  "overrides": {
+    "BE_REST": { "primary": "api-http-mcp", "fallback": "vendor-x-http" },
+    "DATA": { "primary": "mysql-mcp", "fallback": null }
+  }
 }
 ```
+
+> **M2-9 built:** `GET /mcp/routing` returns the effective table (bundled defaults from `suitest_mcp.routing.DEFAULT_ROUTING` overlaid with workspace overrides, each row tagged `isOverride`). `PUT /mcp/routing` (ADMIN+) **replaces** the override map, validating each referenced provider name is known + enabled (else `422 MCP_PROVIDER_NOT_REGISTERED`) and each key is a valid `target_kind` (else `422 INVALID_TARGET_KIND`). Stored under `workspace_capabilities.features_json.routing_overrides` in the `{primary, fallback}` shape the runner consumes via `resolve_provider`. (The legacy `workspaces.mcp_routing_overrides` column is **not** the runtime source.)
 
 Errors:
 - `404 MCP_PROVIDER_NOT_REGISTERED` when targeting an unknown id.

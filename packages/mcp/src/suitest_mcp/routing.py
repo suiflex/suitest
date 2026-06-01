@@ -39,16 +39,16 @@ log = structlog.get_logger(__name__)
 # ``None`` when no second-choice is meaningful.
 DEFAULT_ROUTING: dict[TargetKind, tuple[str, str | None]] = {
     TargetKind.BE_REST: ("api-http-mcp", None),
-    # graphql-mcp / grpc-mcp ship in M2 — until then, the api-http builtin
-    # handles BE_GRAPHQL / BE_GRPC for simple HTTP-shaped flows.
-    TargetKind.BE_GRAPHQL: ("api-http-mcp", None),
-    TargetKind.BE_GRPC: ("api-http-mcp", None),
+    # M2-10: graphql-mcp / grpc-mcp bundled. GraphQL falls back to the raw-HTTP
+    # builtin for simple POST flows; gRPC has no HTTP-shaped fallback.
+    TargetKind.BE_GRAPHQL: ("graphql-mcp", "api-http-mcp"),
+    TargetKind.BE_GRPC: ("grpc-mcp", None),
     TargetKind.FE_WEB: ("playwright-mcp", None),
-    # appium-mcp ships in M2 — until then, FE_MOBILE falls back to playwright.
+    # appium-mcp ships later (M12) — until then, FE_MOBILE falls back to playwright.
     TargetKind.FE_MOBILE: ("playwright-mcp", None),
     TargetKind.DATA: ("postgres-mcp", None),
-    # k8s-mcp ships in M2 — until then, INFRA leans on api-http for REST APIs.
-    TargetKind.INFRA: ("api-http-mcp", None),
+    # M2-10: kubernetes-mcp bundled for INFRA assertions.
+    TargetKind.INFRA: ("kubernetes-mcp", None),
     TargetKind.CUSTOM: ("", None),
 }
 

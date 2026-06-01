@@ -158,12 +158,12 @@ Self-host install can be operated without OAuth: bootstrap super-admin logs in w
 
 #### MCP plugin universal
 
-- [ ] **M2-6** MCP Provider registry CRUD UI + API (`GET/POST/DELETE /mcp/providers`)
-- [ ] **M2-7** Custom MCP server registration end-to-end (user passes stdio/SSE/WS endpoint → tested → tersimpan)
-- [ ] **M2-8** MCP tool browser (developer aid) — connect → list tools → invoke ad-hoc
-- [ ] **M2-9** Routing override per workspace (`target_kind` → `mcp_provider` mapping editable)
-- [ ] **M2-10** Bundled MCPs expanded (additive): `graphql-mcp`, `mongo-mcp`, `mysql-mcp`, `kubernetes-mcp`, `grpc-mcp`
-- [ ] **M2-11** Mixed-MCP test case execution proven E2E — demo: seed pg → login api → checkout browser → verify api → verify db
+- [x] **M2-6** MCP Provider registry CRUD UI + API (`GET/POST/GET:id/PATCH/DELETE /mcp/providers`; builtins pinned + read-only; secrets write-only) — [`routers/mcp_providers.py`](../apps/api/src/suitest_api/routers/mcp_providers.py) + FE register/edit/delete modal
+- [x] **M2-7** Custom MCP server registration end-to-end — `POST /mcp/providers` connects + handshakes + `tools/list`, persists catalog + health + pins (else `422 MCP_REGISTRATION_FAILED`); `POST /mcp/providers/test-connection` dry-run — [`suitest_mcp/discovery.py`](../packages/mcp/src/suitest_mcp/discovery.py)
+- [x] **M2-8** MCP tool browser — `POST /:id/discover` (re-run tools/list) + `POST /:id/invoke` (ADMIN+ gated, audit-logged); FE Try-it panel + Re-discover
+- [x] **M2-9** Routing override per workspace editable — `GET/PUT /mcp/routing` over `workspace_capabilities.features_json.routing_overrides` (validated against known+enabled providers); FE RoutingEditor
+- [x] **M2-10** Bundled MCPs expanded (additive): `graphql-mcp`, `mysql-mcp`, `mongo-mcp`, `kubernetes-mcp`, `grpc-mcp` (in-process; drivers lazy-imported; routing defaults updated)
+- [x] **M2-11** Mixed-MCP test case execution proven E2E — [`packages/mcp/tests/test_mixed_mcp_e2e.py`](../packages/mcp/tests/test_mixed_mcp_e2e.py): seed pg → login api → checkout (stdio) → verify api → verify db, across 3 providers via one `McpInvoker`
 
 #### Export
 
