@@ -214,6 +214,29 @@ export async function testMcpConnection(
   return res.data;
 }
 
+/** Result of ``POST /mcp/providers/:id/invoke`` — ad-hoc tool call (M2-8). */
+export interface McpInvokeResult {
+  ok: boolean;
+  output: Record<string, unknown>;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  error?: string | null;
+}
+
+export async function discoverMcpProviderTools(id: string): Promise<McpProviderDetail> {
+  const res = await api.post<McpProviderDetail>(`/mcp/providers/${id}/discover`);
+  return res.data;
+}
+
+export async function invokeMcpTool(
+  id: string,
+  body: { tool: string; arguments: Record<string, unknown> },
+): Promise<McpInvokeResult> {
+  const res = await api.post<McpInvokeResult>(`/mcp/providers/${id}/invoke`, body);
+  return res.data;
+}
+
 // ---------------------------------------------------------------------------
 // Public invitation onboarding (M1e).
 // ---------------------------------------------------------------------------

@@ -318,3 +318,84 @@ async def test_test_connection_endpoint(api_db: ApiDb, tmp_path: object) -> None
     payload = resp.json()
     assert payload["ok"] is True
     assert {t["name"] for t in payload["tools"]} == {"echo"}
+
+
+# --------------------------------------------- M2-8: tool browser (discover + invoke)
+
+
+@pytest.mark.asyncio
+async def test_discover_refreshes_tool_catalog(api_db: ApiDb, tmp_path: object) -> None:
+    user = await api_db.seed_user(email="mcp-disc@example.com")
+    ws = await api_db.member_workspace(user, slug="mcp-disc-ws")
+    cmd = _mock_command(tmp_path)
+    async with api_db.client(user) as c:
+        created = await c.post(
+            "/api/v1/mcp/providers",
+            json={"name": "disc-mcp", "kind": "custom", "endpoint": cmd, "transport": "stdio"},
+            headers=_h(ws.id),
+        )
+        pid = created.json()["id"]
+        disc = await c.post(f"/api/v1/mcp/providers/{pid}/discover", headers=_h(ws.id))
+    assert disc.status_code == 200, disc.text
+    body = disc.json()
+    assert body["healthStatus"] == "ok"
+    assert {t["name"] for t in body["tools"]} == {"echo"}
+
+
+@pytest.mark.asyncio
+async def test_invoke_requires_admin(api_db: ApiDb, tmp_path: object) -> None:
+    user = await api_db.seed_user(email="mcp-inv-qa@example.com")
+    ws = await api_db.member_workspace(user, slug="mcp-inv-qa-ws")  # QA role
+    cmd = _mock_command(tmp_path)
+    async with api_db.client(user) as c:
+        created = await c.post(
+            "/api/v1/mcp/providers",
+            json={"name": "inv-mcp", "kind": "custom", "endpoint": cmd, "transport": "stdio"},
+            headers=_h(ws.id),
+        )
+        pid = created.json()["id"]
+        resp = await c.post(
+            f"/api/v1/mcp/providers/{pid}/invoke",
+            json={"tool": "echo", "arguments": {"x": 1}},
+            headers=_h(ws.id),
+        )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_invoke_executes_tool_for_admin(api_db: ApiDb, tmp_path: object) -> None:
+    user = await api_db.seed_user(email="mcp-inv-admin@example.com")
+    ws = await api_db.seed_workspace(slug="mcp-inv-admin-ws", name="Admin WS")
+    await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.OWNER)
+    cmd = _mock_command(tmp_path)
+    async with api_db.client(user) as c:
+        created = await c.post(
+            "/api/v1/mcp/providers",
+            json={"name": "inv2-mcp", "kind": "custom", "endpoint": cmd, "transport": "stdio"},
+            headers=_h(ws.id),
+        )
+        pid = created.json()["id"]
+        resp = await c.post(
+            f"/api/v1/mcp/providers/{pid}/invoke",
+            json={"tool": "echo", "arguments": {"ping": "pong"}},
+            headers=_h(ws.id),
+        )
+    assert resp.status_code == 200, resp.text
+    payload = resp.json()
+    assert payload["ok"] is True
+    assert "pong" in payload["stdout"]
+
+
+@pytest.mark.asyncio
+async def test_invoke_builtin_rejected(api_db: ApiDb) -> None:
+    user = await api_db.seed_user(email="mcp-inv-builtin@example.com")
+    ws = await api_db.seed_workspace(slug="mcp-inv-builtin-ws", name="Admin WS")
+    await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.OWNER)
+    spec = BUILTIN_SPECS[0]
+    async with api_db.client(user) as c:
+        resp = await c.post(
+            f"/api/v1/mcp/providers/{spec.id}/invoke",
+            json={"tool": "http.request", "arguments": {}},
+            headers=_h(ws.id),
+        )
+    assert resp.status_code == 409

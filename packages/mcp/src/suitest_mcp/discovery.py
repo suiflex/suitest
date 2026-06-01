@@ -24,7 +24,7 @@ from suitest_mcp.client import open_session
 from suitest_mcp.errors import McpError
 
 if TYPE_CHECKING:
-    from suitest_mcp.models import McpProviderConfig
+    from suitest_mcp.models import McpProviderConfig, McpToolResult
 
 log = structlog.get_logger(__name__)
 
@@ -91,3 +91,36 @@ async def discover_provider(
     ]
     log.info("mcp.discovery.ok", provider=provider.name, tool_count=len(tools))
     return DiscoveryResult(tools=tools, server_version=session.server_version)
+
+
+async def invoke_tool(
+    provider: McpProviderConfig,
+    tool: str,
+    arguments: dict[str, Any],
+    *,
+    timeout_seconds: float = 30.0,
+) -> McpToolResult:
+    """Open a one-shot session and invoke ``tool`` (the M2-8 tool-browser path).
+
+    Unlike :class:`suitest_mcp.invoker.McpInvoker` (the pooled, audited runner
+    path), this spins up a fresh session, calls one tool, and tears it down —
+    suitable for the developer "Try it" form. Audit + role gating live in the
+    API layer.
+
+    Raises:
+        McpDiscoveryError: the session could not be opened.
+        McpToolTimeout / McpToolFailed: surfaced verbatim from the tool call.
+    """
+    try:
+        session = await asyncio.wait_for(open_session(provider), timeout=timeout_seconds)
+    except TimeoutError as exc:
+        raise McpDiscoveryError(
+            f"connection to {provider.name!r} timed out after {timeout_seconds}s"
+        ) from exc
+    except Exception as exc:
+        raise McpDiscoveryError(f"could not connect to {provider.name!r}: {exc}") from exc
+
+    try:
+        return await session.call_tool(tool, arguments, timeout_seconds=timeout_seconds)
+    finally:
+        await session.cleanup()

@@ -503,6 +503,32 @@ export const handlers: HttpHandler[] = [
     });
   }),
   http.delete(`${BASE}/mcp/providers/:id`, () => new HttpResponse(null, { status: 204 })),
+  http.post(`${BASE}/mcp/providers/:id/discover`, ({ params }) =>
+    HttpResponse.json({
+      id: params["id"],
+      name: "stub-mcp",
+      kind: "custom",
+      transport: "stdio",
+      endpoint: "stub",
+      healthStatus: "ok",
+      isBundled: false,
+      enabled: true,
+      tools: [{ name: "echo", description: "echo back" }],
+      configJson: {},
+      hasSecrets: false,
+    }),
+  ),
+  http.post(`${BASE}/mcp/providers/:id/invoke`, async ({ request }) => {
+    const body = (await request.json()) as { tool: string; arguments: Record<string, unknown> };
+    return HttpResponse.json({
+      ok: true,
+      output: {},
+      stdout: JSON.stringify(body.arguments),
+      stderr: "",
+      durationMs: 3,
+      error: null,
+    });
+  }),
 
   // ----------------------------------------------------------------------
   // M1e — auth/invitation/admin stubs. Per-test overrides via `server.use`.

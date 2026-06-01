@@ -20,20 +20,28 @@ row with the same ``name`` — see :mod:`suitest_mcp.registry`).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shlex
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from suitest_db.audit import write_audit
 from suitest_db.repositories.mcp_providers import (
     McpProviderCreate,
     McpProviderRepo,
     McpProviderUpdate,
 )
-from suitest_mcp.discovery import DiscoveryResult, McpDiscoveryError, discover_provider
+from suitest_mcp.discovery import (
+    DiscoveryResult,
+    McpDiscoveryError,
+    discover_provider,
+    invoke_tool,
+)
+from suitest_mcp.errors import McpToolFailed, McpToolTimeout
 from suitest_mcp.models import McpProviderConfig as ProbeConfig
 from suitest_mcp.models import McpTransport as ProbeTransport
 from suitest_mcp.providers.builtin_specs import BUILTIN_SPECS
@@ -46,7 +54,9 @@ from suitest_api.deps.scope import TenantContext, require_workspace_membership
 router = APIRouter(prefix="/api/v1", tags=["mcp"])
 
 _WRITE_ROLES = {Role.QA, Role.ADMIN, Role.OWNER}
+_ADMIN_ROLES = {Role.ADMIN, Role.OWNER}
 _BUILTIN_PREFIX = "builtin:"
+_NOT_FOUND = "provider not found"
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +137,26 @@ class McpProviderProbeResult(BaseModel):
     ok: bool
     tools: list[McpProviderTool] = Field(default_factory=list)
     server_version: str | None = Field(default=None, alias="serverVersion")
+
+
+class McpInvokeBody(BaseModel):
+    """``POST /mcp/providers/:id/invoke`` body — dev-aid ad-hoc tool call."""
+
+    tool: str = Field(min_length=1)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
+class McpInvokeResult(BaseModel):
+    """Normalized result of an ad-hoc tool invocation (tool browser)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    ok: bool
+    output: dict[str, Any] = Field(default_factory=dict)
+    stdout: str = ""
+    stderr: str = ""
+    duration_ms: int = Field(default=0, alias="durationMs")
+    error: str | None = None
 
 
 class McpProviderUpdateBody(BaseModel):
@@ -326,6 +356,25 @@ def _probe_config(
     )
 
 
+def _row_probe_config(row: Any) -> ProbeConfig:
+    """Build a probe config from a persisted row (decrypts secrets into env).
+
+    ``row.secrets_json_encrypted`` reads back as the decrypted plaintext JSON
+    string (``EncryptedBytes`` round-trips transparently) — fed straight into
+    :func:`_secrets_env`.
+    """
+    transport_value = row.transport.value if hasattr(row.transport, "value") else str(row.transport)
+    return _probe_config(
+        workspace_id=row.workspace_id,
+        name=row.name,
+        kind=row.kind,
+        endpoint=row.endpoint,
+        transport=McpTransport(transport_value),
+        config_json=dict(row.config_json or {}),
+        secrets_json=row.secrets_json_encrypted,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -351,12 +400,12 @@ async def get_mcp_provider(
     if provider_id.startswith(_BUILTIN_PREFIX):
         builtin = _builtin_detail(provider_id)
         if builtin is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="provider not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND)
         return builtin
     repo = McpProviderRepo(session)
     row = await repo.get_by_id(provider_id)
     if row is None or row.workspace_id != ctx.workspace_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="provider not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND)
     return _row_to_detail(row)
 
 
@@ -489,7 +538,7 @@ async def update_mcp_provider(
     repo = McpProviderRepo(session)
     row = await repo.get_by_id(provider_id)
     if row is None or row.workspace_id != ctx.workspace_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="provider not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND)
 
     transport = body.transport or row.transport
     config_json = body.config_json
@@ -531,6 +580,126 @@ async def delete_mcp_provider(
     repo = McpProviderRepo(session)
     row = await repo.get_by_id(provider_id)
     if row is None or row.workspace_id != ctx.workspace_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="provider not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND)
     await repo.delete(provider_id)
+    await session.commit()
+
+
+@router.post("/mcp/providers/{provider_id}/discover", response_model=McpProviderDetail)
+async def discover_mcp_provider(
+    provider_id: str,
+    ctx: TenantContext = Depends(require_role(_WRITE_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> McpProviderDetail:
+    """Re-run ``tools/list`` against a custom provider and persist the catalog (M2-8).
+
+    Updates ``config_json.tools`` + ``health_status`` + ``last_health_at`` (+
+    ``version_pin`` when the server advertises one). Builtins are read-only (409).
+    """
+    if provider_id.startswith(_BUILTIN_PREFIX):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="bundled providers are read-only"
+        )
+    repo = McpProviderRepo(session)
+    row = await repo.get_by_id(provider_id)
+    if row is None or row.workspace_id != ctx.workspace_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND)
+
+    try:
+        discovery = await discover_provider(_row_probe_config(row))
+    except McpDiscoveryError as exc:
+        row.health_status = "down"
+        row.last_health_at = datetime.now(UTC)
+        await session.commit()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "MCP_REGISTRATION_FAILED", "message": str(exc)},
+        ) from exc
+
+    config_json = dict(row.config_json or {})
+    config_json["tools"] = [
+        {"name": t.name, "description": t.description, "input_schema": t.input_schema}
+        for t in discovery.tools
+    ]
+    row.config_json = config_json
+    row.health_status = "ok"
+    row.last_health_at = datetime.now(UTC)
+    if discovery.server_version is not None:
+        row.version_pin = discovery.server_version[:100]
+    await session.commit()
+    await session.refresh(row)
+    return _row_to_detail(row)
+
+
+@router.post("/mcp/providers/{provider_id}/invoke", response_model=McpInvokeResult)
+async def invoke_mcp_provider(
+    provider_id: str,
+    body: McpInvokeBody,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> McpInvokeResult:
+    """Dev-aid: invoke one tool ad-hoc against a custom provider (tool browser).
+
+    Role-gated to ``ADMIN``+ (MCP_PLUGINS §11). Every call is audit-logged with
+    ``invocation_source=tool_browser`` and an ``arg_hash`` (raw args are not
+    persisted). Builtins are not ad-hoc invokable here (409) — they run through
+    the runner. Tool failures surface as ``ok=false`` with the error message.
+    """
+    if provider_id.startswith(_BUILTIN_PREFIX):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="bundled providers are invoked through runs, not the tool browser",
+        )
+    repo = McpProviderRepo(session)
+    row = await repo.get_by_id(provider_id)
+    if row is None or row.workspace_id != ctx.workspace_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND)
+
+    arg_hash = hashlib.sha256(
+        json.dumps(body.arguments, sort_keys=True, default=str).encode()
+    ).hexdigest()
+    try:
+        result = await invoke_tool(_row_probe_config(row), body.tool, body.arguments)
+    except McpDiscoveryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "MCP_REGISTRATION_FAILED", "message": str(exc)},
+        ) from exc
+    except (McpToolFailed, McpToolTimeout) as exc:
+        await _audit_invoke(session, ctx, row, body.tool, arg_hash, "failed")
+        return McpInvokeResult(ok=False, error=str(exc))
+
+    await _audit_invoke(session, ctx, row, body.tool, arg_hash, "ok")
+    return McpInvokeResult(
+        ok=result.ok,
+        output=result.output,
+        stdout=result.stdout,
+        stderr=result.stderr,
+        duration_ms=result.duration_ms,
+    )
+
+
+async def _audit_invoke(
+    session: AsyncSession,
+    ctx: TenantContext,
+    row: Any,
+    tool: str,
+    arg_hash: str,
+    outcome: str,
+) -> None:
+    """Append the tool-browser invocation audit row (raw args never stored)."""
+    await write_audit(
+        session,
+        workspace_id=ctx.workspace_id,
+        user_id=ctx.user_id,
+        action="mcp.invoke",
+        resource_type="mcp_provider",
+        resource_id=row.name,
+        metadata={
+            "tool": tool,
+            "arg_hash": arg_hash,
+            "outcome": outcome,
+            "invocation_source": "tool_browser",
+        },
+    )
     await session.commit()

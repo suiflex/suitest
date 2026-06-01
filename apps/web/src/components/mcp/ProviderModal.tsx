@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { HealthPill } from "@/components/mcp/HealthPill";
 import { RegisterMcpModal } from "@/components/mcp/RegisterMcpModal";
+import { TryItPanel } from "@/components/mcp/TryItPanel";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   deleteMcpProvider,
+  discoverMcpProviderTools,
   fetchMcpProvider,
   type McpProviderTool,
 } from "@/lib/api-client";
@@ -41,6 +43,14 @@ export function ProviderModal({ id, onClose }: ProviderModalProps): React.ReactE
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["mcp-providers"] });
       onClose();
+    },
+  });
+
+  const rediscover = useMutation({
+    mutationFn: () => discoverMcpProviderTools(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["mcp-provider", id] });
+      void qc.invalidateQueries({ queryKey: ["mcp-providers"] });
     },
   });
 
@@ -93,8 +103,22 @@ export function ProviderModal({ id, onClose }: ProviderModalProps): React.ReactE
           <ToolList tools={data.tools} />
         )}
 
+        {canManage && data ? <TryItPanel providerId={data.id} tools={data.tools} /> : null}
+
         {canManage ? (
           <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              data-testid="provider-rediscover"
+              disabled={rediscover.isPending}
+              onClick={() => {
+                rediscover.mutate();
+              }}
+            >
+              {rediscover.isPending ? "Discovering…" : "Re-discover"}
+            </Button>
             <Button
               type="button"
               variant="ghost"
