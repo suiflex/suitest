@@ -331,6 +331,44 @@ export async function fetchLlmModels(workspaceId: string, provider: string): Pro
 }
 
 // ---------------------------------------------------------------------------
+// Workspace cost tracking (M3-14) — Insights → Cost.
+// ---------------------------------------------------------------------------
+
+export interface ProviderCost {
+  provider: string;
+  costUsd: number;
+  tokensIn: number;
+  tokensOut: number;
+  sessions: number;
+}
+
+export interface WorkspaceCost {
+  totalCostUsd: number;
+  totalTokensIn: number;
+  totalTokensOut: number;
+  sessionCount: number;
+  windowDays: number;
+  byProvider: ProviderCost[];
+  byKind: { kind: string; costUsd: number; sessions: number }[];
+  budget: {
+    dailyCapUsd: number;
+    todaySpendUsd: number;
+    overBudget: boolean;
+    alert: string | null;
+  };
+}
+
+export async function fetchWorkspaceCost(
+  workspaceId: string,
+  windowDays = 30,
+): Promise<WorkspaceCost> {
+  const res = await api.get<WorkspaceCost>(`/workspaces/${workspaceId}/cost`, {
+    params: { windowDays },
+  });
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
 // Workspace autonomy (M3-15 / M3-16) — Settings → Automation.
 // ---------------------------------------------------------------------------
 

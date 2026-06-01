@@ -117,6 +117,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from suitest_api.routers.auth_me import router as auth_me_router
     from suitest_api.routers.autonomy import router as autonomy_router
     from suitest_api.routers.capabilities import router as capabilities_router
+    from suitest_api.routers.cost import router as cost_router
     from suitest_api.routers.defects import router as defects_router
     from suitest_api.routers.documents import router as documents_router
     from suitest_api.routers.generators import router as generators_router
@@ -215,6 +216,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(mcp_providers_router)
     app.include_router(llm_config_router)
     app.include_router(autonomy_router)
+    app.include_router(cost_router)
     app.include_router(generators_router)
     app.include_router(webhooks_router)
     # WebSocket gateway — mounted at root (NOT /api/v1) so the path stays

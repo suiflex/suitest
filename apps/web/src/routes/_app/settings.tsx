@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 
 import { AutomationPanel } from "@/components/settings/AutomationPanel";
+import { CostPanel } from "@/components/settings/CostPanel";
 import { LlmSettingsPanel } from "@/components/settings/LlmSettingsPanel";
 import { MembersPanel } from "@/components/settings/MembersPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -69,8 +70,9 @@ function SettingsScreen(): React.ReactElement {
         ) : null}
 
         {workspaceId ? (
-          <TabsContent value="llm" className="pt-4">
+          <TabsContent value="llm" className="space-y-8 pt-4">
             <LlmSettingsPanel workspaceId={workspaceId} canWrite={showMembers} />
+            <CostPanel workspaceId={workspaceId} />
           </TabsContent>
         ) : null}
 
