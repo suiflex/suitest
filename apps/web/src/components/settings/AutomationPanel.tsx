@@ -105,12 +105,17 @@ export function AutomationPanel({
       <div className="space-y-1">
         <h2 className="text-[15px] font-semibold text-fg-1">Automation</h2>
         <p className="text-[13px] text-fg-3">
-          How much the agent does without asking. Tier: <span className="text-fg-1">{data.tier}</span>
+          How much the agent does without asking. Tier:{" "}
+          <span className="text-fg-1">{data.tier}</span>
           {isZero ? " — configure an LLM to unlock higher autonomy." : null}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Autonomy level">
+      <div
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+        role="radiogroup"
+        aria-label="Autonomy level"
+      >
         {LEVELS.map((lvl) => {
           const selected = level === lvl.id;
           const disabled = !canWrite || (isZero && lvl.id !== "manual");
@@ -132,7 +137,9 @@ export function AutomationPanel({
             >
               <div className="flex items-center justify-between">
                 <span className="text-[14px] font-medium text-fg-1">{lvl.name}</span>
-                {selected ? <span className="text-[11px] font-medium text-accent">Active</span> : null}
+                {selected ? (
+                  <span className="text-[11px] font-medium text-accent">Active</span>
+                ) : null}
               </div>
               <p className="mt-1 text-[12px] text-fg-3">{lvl.blurb}</p>
               <p className="mt-2 text-[11px] text-fg-4">For: {lvl.hint}</p>

@@ -50,7 +50,11 @@ function AiPanelInner(): React.ReactElement {
       { role: "user", content: text },
     ];
     // Optimistically render the user turn + an empty assistant turn to fill.
-    setTurns((prev) => [...prev, { role: "user", content: text }, { role: "assistant", content: "" }]);
+    setTurns((prev) => [
+      ...prev,
+      { role: "user", content: text },
+      { role: "assistant", content: "" },
+    ]);
     setStreaming(true);
 
     const controller = new AbortController();
@@ -155,7 +159,9 @@ function AiPanelInner(): React.ReactElement {
       </div>
 
       {error ? (
-        <div className="border-t border-border-subtle px-3 py-2 text-[11.5px] text-red">{error}</div>
+        <div className="border-t border-border-subtle px-3 py-2 text-[11.5px] text-red">
+          {error}
+        </div>
       ) : null}
 
       <div className="border-t border-border-subtle p-3" data-testid="ai-panel-composer">

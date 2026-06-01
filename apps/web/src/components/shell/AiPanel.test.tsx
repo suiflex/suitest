@@ -3,10 +3,7 @@ import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AiPanel } from "@/components/shell/AiPanel";
-import {
-  useCapabilities,
-  type Capabilities,
-} from "@/stores/use-capabilities";
+import { useCapabilities, type Capabilities } from "@/stores/use-capabilities";
 
 const ZERO_CAPS: Capabilities = {
   tier: "ZERO",
