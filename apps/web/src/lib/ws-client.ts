@@ -171,6 +171,22 @@ export type WorkspaceEvent =
       data: { tier: string };
     };
 
+/**
+ * One live browser-recorder interaction, fanned out on the `recorder:<id>`
+ * channel as the user demos a flow. Mirrors the backend `RecorderEvent`
+ * schema. The gateway wraps each in a `generator.recorder.step` envelope.
+ */
+export interface RecorderLiveEvent {
+  kind: "navigate" | "click" | "type" | "assert" | "network";
+  timestamp?: string;
+  url?: string | null;
+  selector?: string | null;
+  text?: string | null;
+  masked?: boolean;
+  assertion?: Record<string, unknown> | null;
+  network?: Record<string, unknown> | null;
+}
+
 // ---------------------------------------------------------------------------
 // React hook helpers. They accept either the singleton client or, in tests,
 // any object implementing the `subscribe(topic, cb)` contract via the
