@@ -198,7 +198,7 @@ ZERO tier bisa generate AND test melawan target apapun yang MCP-equipped. Custom
 
 #### Runtime + diagnosis
 
-- [ ] **M3-10** Action→Code runtime translation: step yang cuma punya `action` di-translate ke MCP call saat execution
+- [x] **M3-10** Action→Code runtime translation: step yang cuma punya `action` di-translate ke MCP call saat execution ([`graphs/execution.py`](../packages/agent/src/suitest_agent/graphs/execution.py) `translate_single_step`; runner `run_test_case` binds workspace LLM → `StepTranslator`, passed to `execute_step`; code-less step at LOCAL/CLOUD → translate→invoke, untranslatable → `AGENTIC_TRANSLATE_FAILED` SKIP, ZERO/no-LLM unchanged SKIP)
 - [ ] **M3-11** AI diagnosis on failure (menggantikan `MANUAL_TRIAGE` → `REGRESSION` / `FLAKE` / `INFRA` / `SPEC_DRIFT` / `MANUAL_TRIAGE` + confidence) (canonical: DATA_MODEL.md §3.x DiagnosisKind enum)
 - [ ] **M3-12** AI panel chat (conversation mode) pakai `assistant-ui` + `@ai-sdk/react`
 - [ ] **M3-13** Streaming: SSE untuk token output + WebSocket untuk tool call events

@@ -39,6 +39,33 @@ def _has_code(step: Step) -> bool:
     return isinstance(code, str) and bool(code.strip())
 
 
+async def translate_single_step(
+    provider: LLMProvider,
+    *,
+    model: str,
+    action: str,
+    seed: int | None = None,
+    prompt_version: str = "v1",
+) -> dict[str, object] | None:
+    """Translate one prose ``action`` into a step ``code`` envelope (M3-10).
+
+    Returns ``{"tool": str, "arguments": dict}`` ready for the runner's MCP
+    dispatch, or ``None`` when the model cannot express the action as a single
+    tool call (``tool`` null/missing). Used by the runner at execution time for
+    agentic (code-less) steps when the workspace tier has an LLM.
+    """
+    system_prompt = load("translate-step", prompt_version)
+    result = await complete_with_prompt(
+        provider, model=model, system=system_prompt, user=action, seed=seed
+    )
+    translated = parse_json_object(result.content)
+    tool = translated.get("tool")
+    if not isinstance(tool, str) or not tool.strip():
+        return None
+    arguments = translated.get("arguments", {})
+    return {"tool": tool, "arguments": arguments if isinstance(arguments, dict) else {}}
+
+
 def build_execution_graph(
     provider: LLMProvider, *, prompt_version: str = "v1"
 ) -> CompiledStateGraph[ExecutionState]:

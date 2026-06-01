@@ -173,3 +173,107 @@ async def test_legacy_browser_assert_text_uses_snapshot() -> None:
     )
     assert result.outcome == StepOutcome.PASS
     assert inv.invoke.await_args_list[1].kwargs["tool"] == "browser_snapshot"
+
+
+# ---------------------------------------------------------------------------
+# M3-10 — agentic action→code translation at execution time
+# ---------------------------------------------------------------------------
+
+
+def _agentic_step(provider: str = "playwright-mcp") -> MagicMock:
+    step = _step(None, provider=provider, target=TargetKind.FE_WEB)
+    step.action = "click the Buy button"
+    return step
+
+
+async def test_no_code_llm_tier_without_translator_skips() -> None:
+    """LOCAL/CLOUD but no translator wired → still SKIP (no synthetic call)."""
+    inv = MagicMock()
+    inv.invoke = AsyncMock()
+    result = await execute_step(
+        invoker=inv,
+        test_step=_agentic_step(),
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        tier=Tier.CLOUD,
+        routing_overrides=None,
+        translator=None,
+    )
+    assert result.outcome == StepOutcome.SKIP
+    assert result.error_message is not None
+    assert "NO_LLM_FOR_AGENTIC_STEP" in result.error_message
+    inv.invoke.assert_not_awaited()
+
+
+async def test_translator_translates_then_invokes() -> None:
+    """Translator returns a tool envelope → executor invokes it → PASS."""
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={}, stdout="clicked", duration_ms=10)
+    )
+
+    async def translator(action: str) -> dict[str, object]:
+        assert action == "click the Buy button"
+        return {"tool": "browser_click", "arguments": {"selector": "#buy"}}
+
+    result = await execute_step(
+        invoker=inv,
+        test_step=_agentic_step(),
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        tier=Tier.CLOUD,
+        routing_overrides=None,
+        translator=translator,
+    )
+    assert result.outcome == StepOutcome.PASS
+    assert inv.invoke.await_args.kwargs["tool"] == "browser_click"
+    assert inv.invoke.await_args.kwargs["arguments"] == {"selector": "#buy"}
+
+
+async def test_translator_returns_none_skips() -> None:
+    """Untranslatable action → SKIP with AGENTIC_TRANSLATE_FAILED, no invoke."""
+    inv = MagicMock()
+    inv.invoke = AsyncMock()
+
+    async def translator(_action: str) -> None:
+        return None
+
+    result = await execute_step(
+        invoker=inv,
+        test_step=_agentic_step(),
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        tier=Tier.CLOUD,
+        routing_overrides=None,
+        translator=translator,
+    )
+    assert result.outcome == StepOutcome.SKIP
+    assert result.error_message is not None
+    assert "AGENTIC_TRANSLATE_FAILED" in result.error_message
+    inv.invoke.assert_not_awaited()
+
+
+async def test_translator_raises_errors() -> None:
+    """Translator exception is contained → ERROR, run keeps going."""
+    inv = MagicMock()
+    inv.invoke = AsyncMock()
+
+    async def translator(_action: str) -> dict[str, object]:
+        raise RuntimeError("provider down")
+
+    result = await execute_step(
+        invoker=inv,
+        test_step=_agentic_step(),
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        tier=Tier.CLOUD,
+        routing_overrides=None,
+        translator=translator,
+    )
+    assert result.outcome == StepOutcome.ERROR
+    assert result.error_message is not None
+    assert "AGENTIC_TRANSLATE_ERROR" in result.error_message

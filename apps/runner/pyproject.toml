@@ -19,6 +19,7 @@ dependencies = [
   "suitest-shared",
   "suitest-core",
   "suitest-api",
+  "suitest-agent",
 ]
 
 [project.optional-dependencies]

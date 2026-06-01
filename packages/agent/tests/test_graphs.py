@@ -127,3 +127,20 @@ async def test_conversation_tool_round_then_reply() -> None:
     assert calls == ["list_failing"]
     assert out["reply"] == "You have 3 failing."
     assert out["tool_rounds"] == 1
+
+
+@pytest.mark.asyncio
+async def test_translate_single_step_returns_envelope() -> None:
+    from suitest_agent.graphs.execution import translate_single_step
+
+    payload = json.dumps({"tool": "browser_click", "arguments": {"selector": "#buy"}})
+    out = await translate_single_step(_scripted(payload), model="mock-1", action="click buy")
+    assert out == {"tool": "browser_click", "arguments": {"selector": "#buy"}}
+
+
+@pytest.mark.asyncio
+async def test_translate_single_step_null_tool_returns_none() -> None:
+    from suitest_agent.graphs.execution import translate_single_step
+
+    out = await translate_single_step(MockProvider(), model="mock-1", action="vague action")
+    assert out is None

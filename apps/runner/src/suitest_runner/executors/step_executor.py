@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -46,6 +47,11 @@ if TYPE_CHECKING:
     from suitest_db.models.case import TestStep as TestStepRow
     from suitest_mcp.invoker import McpInvoker
     from suitest_mcp.models import McpToolResult
+
+# Translates a prose ``action`` into a ``{"tool", "arguments"}`` envelope, or
+# ``None`` when it cannot be expressed as one tool call (M3-10). The runner binds
+# the workspace's LLM provider/model into this closure before per-step dispatch.
+StepTranslator = Callable[[str], Awaitable[dict[str, object] | None]]
 
 
 log = structlog.get_logger(__name__)
@@ -124,13 +130,16 @@ async def execute_step(
     actor_user_id: str | None,
     tier: Tier,
     routing_overrides: dict[str, object] | None,
+    translator: StepTranslator | None = None,
 ) -> StepResult:
     """Dispatch one :class:`TestStep` via the MCP invoker and return its outcome.
 
     Decision tree:
 
-    * ``code`` empty + ``tier=ZERO`` → ``SKIP`` with ``NO_LLM_FOR_AGENTIC_STEP``.
-    * ``code`` empty + ``tier=LOCAL/CLOUD`` → ``SKIP`` with ``TODO(M3)``.
+    * ``code`` empty + (``tier=ZERO`` or no translator) → ``SKIP`` with
+      ``NO_LLM_FOR_AGENTIC_STEP``.
+    * ``code`` empty + LLM tier + translator → translate ``action`` → tool call
+      (M3-10); untranslatable → ``SKIP`` ``AGENTIC_TRANSLATE_FAILED``.
     * ``code`` not valid JSON → ``ERROR`` with ``INVALID_STEP_CODE``.
     * Tool call raises :class:`McpToolTimeout` → ``ERROR`` ``MCP_TOOL_TIMEOUT``.
     * Tool call raises :class:`McpToolFailed` → ``FAIL`` ``MCP_TOOL_FAILED``.
@@ -164,21 +173,32 @@ async def execute_step(
             mcp_result=mcp,
         )
 
+    parsed: object
     if not test_step.code:
-        if tier == Tier.ZERO:
+        # Agentic step: no deterministic code. At ZERO (or when no translator was
+        # wired) it stays descriptive-only → SKIP. At LOCAL/CLOUD the M3-10
+        # translator converts the prose ``action`` into a tool call on the fly.
+        if tier == Tier.ZERO or translator is None:
             return _done(
                 StepOutcome.SKIP,
                 msg="NO_LLM_FOR_AGENTIC_STEP: step has no code",
             )
-        return _done(
-            StepOutcome.SKIP,
-            msg="TODO(M3): agentic translate not yet implemented",
-        )
-
-    try:
-        parsed = json.loads(test_step.code)
-    except json.JSONDecodeError as exc:
-        return _done(StepOutcome.ERROR, msg=f"INVALID_STEP_CODE: {exc}")
+        try:
+            translated = await translator(test_step.action)
+        except Exception as exc:  # translator failure must not crash the run
+            log.exception("step.executor.translate_error", step_id=test_step.id)
+            return _done(StepOutcome.ERROR, msg=f"AGENTIC_TRANSLATE_ERROR: {exc}")
+        if translated is None:
+            return _done(
+                StepOutcome.SKIP,
+                msg="AGENTIC_TRANSLATE_FAILED: action not expressible as one tool call",
+            )
+        parsed = translated
+    else:
+        try:
+            parsed = json.loads(test_step.code)
+        except json.JSONDecodeError as exc:
+            return _done(StepOutcome.ERROR, msg=f"INVALID_STEP_CODE: {exc}")
 
     if not isinstance(parsed, dict) or "tool" not in parsed:
         return _done(
