@@ -118,6 +118,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from suitest_api.routers.capabilities import router as capabilities_router
     from suitest_api.routers.defects import router as defects_router
     from suitest_api.routers.documents import router as documents_router
+    from suitest_api.routers.generators import router as generators_router
     from suitest_api.routers.inbox import router as inbox_router
     from suitest_api.routers.integrations import router as integrations_router
     from suitest_api.routers.invitations import router as invitations_router
@@ -210,6 +211,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(audit_logs_router)
     app.include_router(inbox_router)
     app.include_router(mcp_providers_router)
+    app.include_router(generators_router)
     app.include_router(webhooks_router)
     # WebSocket gateway — mounted at root (NOT /api/v1) so the path stays
     # ``GET /ws?token=...``. CORS preflight does not apply to WebSocket upgrades;
