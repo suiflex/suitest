@@ -783,6 +783,7 @@ Deterministic + LLM-driven test generators. Deterministic ones (`/openapi`, `/re
 | POST | `/generators/crawler` | Heuristic BFS crawl, fill forms with Faker, emit smoke cases | No |
 | POST | `/generators/prd` | **(M3-6)** LLM extracts user stories from a PRD → DRAFT cases (agentic steps). SSE. **409 `LLM_NOT_CONFIGURED`** when no active LLM | **Yes (CLOUD/LOCAL)** |
 | POST | `/generators/mcp-discovery` | **(M3-9)** LLM explores a registered MCP provider's tool catalog → DRAFT contract cases. SSE. **409** when no active LLM; **404** unknown provider; `EMPTY_CATALOG` error frame when no tools | **Yes (CLOUD/LOCAL)** |
+| POST | `/generators/url-semantic` | **(M3-7)** LLM decomposes an intent ("checkout flow") on a URL → FE_WEB journey cases (playwright-mcp). SSE. **409** when no active LLM | **Yes (CLOUD/LOCAL)** |
 | POST | `/generators/classify` | Utility: input → `{targetKind, recommendedMcp, recommendedStrategy}` | No |
 
 **POST `/generators/openapi`** body:

@@ -29,6 +29,7 @@ from suitest_agent.generators.openapi_enrich import OpenApiEnricher
 from suitest_agent.generators.openapi_generator import OpenApiGenerator, OpenApiSpecError
 from suitest_agent.generators.prd import PrdGenerator
 from suitest_agent.generators.url_crawler import UrlCrawler
+from suitest_agent.generators.url_semantic import UrlSemanticGenerator
 from suitest_agent.prompts.loader import prompt_hash, read_prompt
 from suitest_agent.providers.litellm_router import get_provider
 from suitest_db.audit import write_audit
@@ -45,6 +46,7 @@ from suitest_shared.schemas.generator_input import (
     OpenApiGenerateRequest,
     PrdGenerateRequest,
     TestCaseDraft,
+    UrlSemanticGenerateRequest,
 )
 
 if TYPE_CHECKING:
@@ -563,6 +565,157 @@ class GeneratorService:
                     "tokens_in": usage.tokens_in if usage else 0,
                     "tokens_out": usage.tokens_out if usage else 0,
                     "cost_usd": float(usage.cost_usd) if usage else 0.0,
+                },
+            )
+
+    # ------------------------------------------------------------------
+
+    async def run_url_semantic(
+        self,
+        workspace_id: str,
+        user_id: str,
+        request: UrlSemanticGenerateRequest,
+        *,
+        provider_name: str,
+        model: str,
+        api_key: str | None,
+        base_url: str | None,
+    ) -> AsyncIterator[GeneratorSseEvent]:
+        """Stream LLM semantic URL generation as SSE (M3-7) — CLOUD/LOCAL only.
+
+        Decomposes ``request.intent`` into FE_WEB journey cases on ``request.url``
+        (playwright-mcp, agentic). Persists an ``AgentSession`` (repro+cost) and a
+        ``GeneratorRun`` (source=url_semantic); one DRAFT case per journey.
+        """
+        if not await self.suite_in_scope(request.target_suite_id, workspace_id):
+            raise SuiteNotInWorkspaceError(request.target_suite_id)
+
+        with tracer.start_as_current_span("generator.url_semantic") as span:
+            span.set_attribute("generator.source", "url_semantic")
+            span.set_attribute("workspace.id", workspace_id)
+            start = time.perf_counter()
+
+            prompt_content = read_prompt("generate-url-semantic", "v1")
+            prompt_row = await PromptVersionRepo(self._session).ensure(
+                "generate-url-semantic", "v1", prompt_content, prompt_hash(prompt_content)
+            )
+            agent_repo = AgentSessionRepo(self._session)
+            agent_session = await agent_repo.create(
+                AgentSessionCreate(
+                    workspace_id=workspace_id,
+                    kind=AgentSessionKind.GENERATION,
+                    model_id=model,
+                    provider=provider_name,
+                    user_id=self._as_user_uuid(user_id),
+                    prompt_version_id=prompt_row.id,
+                    seed=request.seed,
+                    temperature=0.2,
+                    metadata_json={
+                        "source": "url-semantic",
+                        "url": request.url,
+                        "intent": request.intent,
+                        "target_suite_id": request.target_suite_id,
+                    },
+                )
+            )
+
+            run = GeneratorRun(
+                workspace_id=workspace_id,
+                source="url_semantic",
+                input_meta_json={
+                    "target_suite_id": request.target_suite_id,
+                    "url": request.url,
+                    "intent": request.intent,
+                    "seed": request.seed,
+                    "agent_session_id": agent_session.id,
+                },
+                output_case_ids_json=[],
+                created_by_user_id=self._as_user_uuid(user_id),
+            )
+            self._session.add(run)
+            await self._session.flush()
+            run_id = run.id
+
+            yield GeneratorSseEvent(
+                kind="progress",
+                data={
+                    "phase": "interpreting",
+                    "generator_run_id": run_id,
+                    "agent_session_id": agent_session.id,
+                },
+            )
+
+            provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
+            generator = UrlSemanticGenerator(provider, model=model)
+            result = await generator.run(
+                request.url, request.intent, seed=request.seed, max_cases=request.max_cases
+            )
+
+            if result.error:
+                span.set_attribute("generator.error", result.error)
+                await agent_repo.complete(agent_session.id, status="error")
+                await self._finalize(
+                    run,
+                    workspace_id,
+                    user_id,
+                    public_ids=[],
+                    duration_ms=0,
+                    action="generator.url_semantic.completed",
+                )
+                await self._session.commit()
+                yield GeneratorSseEvent(
+                    kind="error",
+                    data={"code": result.error, "message": "could not interpret intent"},
+                )
+                return
+
+            public_ids: list[str] = []
+            for draft in result.drafts:
+                public_id = await self._persist_case(
+                    draft,
+                    suite_id=request.target_suite_id,
+                    workspace_id=workspace_id,
+                    generated_by="url-semantic-generator",
+                )
+                public_ids.append(public_id)
+                yield GeneratorSseEvent(
+                    kind="case",
+                    data={
+                        "public_id": public_id,
+                        "name": draft.name,
+                        "case_kind": draft.generated_from.get("case_kind"),
+                        "tags": draft.tags,
+                    },
+                )
+
+            usage = result.usage
+            duration_ms = int((time.perf_counter() - start) * 1000)
+            span.set_attribute("generator.cases_created", len(public_ids))
+            await agent_repo.complete(
+                agent_session.id,
+                cost_usd=Decimal(str(usage.cost_usd)) if usage else None,
+                tokens_in=usage.tokens_in if usage else 0,
+                tokens_out=usage.tokens_out if usage else 0,
+            )
+            await self._finalize(
+                run,
+                workspace_id,
+                user_id,
+                public_ids=public_ids,
+                duration_ms=duration_ms,
+                action="generator.url_semantic.completed",
+            )
+            await self._session.commit()
+
+            yield GeneratorSseEvent(
+                kind="complete",
+                data={
+                    "generator_run_id": run_id,
+                    "agent_session_id": agent_session.id,
+                    "target_suite_id": request.target_suite_id,
+                    "cases_created": len(public_ids),
+                    "public_ids": public_ids,
+                    "duration_ms": duration_ms,
                 },
             )
 

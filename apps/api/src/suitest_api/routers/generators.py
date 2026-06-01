@@ -45,6 +45,7 @@ from suitest_shared.schemas.generator_input import (
     RecorderFinalizeRequest,
     RecorderSessionStartRequest,
     RecorderSessionStartResponse,
+    UrlSemanticGenerateRequest,
 )
 
 from suitest_api.auth.db import async_session_maker, get_async_session
@@ -202,6 +203,59 @@ async def generate_prd(
     async def stream() -> AsyncIterator[bytes]:
         try:
             async for event in svc.run_prd(
+                ctx.workspace_id,
+                ctx.user_id,
+                payload,
+                provider_name=config.provider,
+                model=config.model,
+                api_key=config.api_key_encrypted,
+                base_url=base_url,
+            ):
+                yield _format_sse(event).encode()
+        except SuiteNotInWorkspaceError:
+            err = GeneratorSseEvent(
+                kind="error",
+                data={"code": "RESOURCE_NOT_FOUND", "message": "suite not found"},
+            )
+            yield _format_sse(err).encode()
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# LLM-driven semantic URL → FE_WEB journey generation (M3-7). CLOUD/LOCAL only:
+# the real tier gate is an active ``LLMConfig`` (409). Decomposes an intent into
+# browser journeys driven by playwright-mcp. SSE. QA+ gate.
+@router.post("/generators/url-semantic")
+@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+async def generate_url_semantic(
+    payload: UrlSemanticGenerateRequest,
+    ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> StreamingResponse:
+    """Generate FE_WEB journey cases from a URL + natural-language intent (SSE)."""
+    config = await LLMConfigRepo(session).get_active(ctx.workspace_id)
+    if config is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="no active LLM configured for this workspace",
+        )
+
+    http_client = httpx.AsyncClient(timeout=30.0)
+    await http_client.aclose()
+    svc = _build_generator_service(session, http_client)
+    if not await svc.suite_in_scope(payload.target_suite_id, ctx.workspace_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="suite not found")
+
+    base_url = config.config_json.get("base_url")
+    base_url = base_url if isinstance(base_url, str) else None
+
+    async def stream() -> AsyncIterator[bytes]:
+        try:
+            async for event in svc.run_url_semantic(
                 ctx.workspace_id,
                 ctx.user_id,
                 payload,

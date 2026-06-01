@@ -217,6 +217,23 @@ class PrdGenerateRequest(BaseModel):
     max_cases: Annotated[int, Field(ge=1, le=100)] = 20
 
 
+class UrlSemanticGenerateRequest(BaseModel):
+    """LLM-driven semantic URL generation (M3-7) — CLOUD/LOCAL only.
+
+    Decomposes a natural-language ``intent`` ("checkout flow") into FE_WEB
+    journey cases on ``url``. Steps are agentic browser actions driven by
+    ``playwright-mcp`` (code translated at execution time, M3-10).
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    target_suite_id: Annotated[str, Field(min_length=1)]
+    url: Annotated[str, Field(min_length=1)]
+    intent: Annotated[str, Field(min_length=1, max_length=2_000)]
+    seed: int | None = None
+    max_cases: Annotated[int, Field(ge=1, le=100)] = 20
+
+
 class McpDiscoveryGenerateRequest(BaseModel):
     """LLM-driven MCP tool-discovery generation (M3-9) — CLOUD/LOCAL only.
 
