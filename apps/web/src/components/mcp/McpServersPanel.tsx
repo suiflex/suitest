@@ -3,6 +3,8 @@ import { useState } from "react";
 
 import { HealthPill, type HealthStatus } from "@/components/mcp/HealthPill";
 import { ProviderModal } from "@/components/mcp/ProviderModal";
+import { RegisterMcpModal } from "@/components/mcp/RegisterMcpModal";
+import { Button } from "@/components/ui/button";
 import {
   fetchMcpProviders,
   type McpProviderSummary,
@@ -25,6 +27,7 @@ export function McpServersPanel(): React.ReactElement {
     queryFn: fetchMcpProviders,
   });
   const [openId, setOpenId] = useState<string | null>(null);
+  const [registerOpen, setRegisterOpen] = useState(false);
 
   useWorkspaceStream((e) => {
     if (e.event === "mcp.provider.health") {
@@ -38,9 +41,22 @@ export function McpServersPanel(): React.ReactElement {
     <section className="flex flex-col gap-3" data-testid="mcp-servers-panel">
       <header className="flex items-center justify-between">
         <h3 className="text-[13px] font-semibold text-fg-1">MCP Servers</h3>
-        <span className="font-mono text-[10.5px] text-fg-5">
-          {providers.length.toString()} provider{providers.length === 1 ? "" : "s"}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10.5px] text-fg-5">
+            {providers.length.toString()} provider{providers.length === 1 ? "" : "s"}
+          </span>
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            data-testid="mcp-add-custom"
+            onClick={() => {
+              setRegisterOpen(true);
+            }}
+          >
+            Add Custom MCP
+          </Button>
+        </div>
       </header>
 
       {isLoading ? (
@@ -74,6 +90,14 @@ export function McpServersPanel(): React.ReactElement {
           id={openId}
           onClose={() => {
             setOpenId(null);
+          }}
+        />
+      ) : null}
+
+      {registerOpen ? (
+        <RegisterMcpModal
+          onClose={() => {
+            setRegisterOpen(false);
           }}
         />
       ) : null}

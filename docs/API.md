@@ -2,7 +2,7 @@
 
 > REST endpoints + WebSocket events Suitest OSS. Semua route di-mount di `/api/v1/*` kecuali disebutkan lain. Input/output di-validate dengan **Pydantic v2** (lihat `packages/shared/schemas/`).
 
-> ℹ️ **Built today (M0–M1e):** auth, workspaces, TCM CRUD, runs, defects, requirements, integrations, webhooks, analytics, `/capabilities`, `/auth/me`, `WS /ws`. **Not built (M2–M4 spec):** generators, agent, llm-config, eval, sdk, code export, MCP-provider CRUD. Build truth = `apps/api/src/suitest_api/routers/` + [ROADMAP.md](./ROADMAP.md).
+> ℹ️ **Built today (M0–M2):** auth, workspaces, TCM CRUD, runs, defects, requirements, integrations, webhooks, analytics, `/capabilities`, `/auth/me`, `WS /ws`, deterministic generators (M2-1..M2-5), MCP-provider CRUD (M2-6). **Not built (M2–M4 spec):** agent, llm-config, eval, sdk, code export, MCP `/discover`·`/invoke`·`/routing` (M2-7..M2-9). Build truth = `apps/api/src/suitest_api/routers/` + [ROADMAP.md](./ROADMAP.md).
 >
 > Cross-links: [DATA_MODEL.md](./DATA_MODEL.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md) · [MCP_PLUGINS.md](./MCP_PLUGINS.md) · [AUTONOMY.md](./AUTONOMY.md) · [GENERATORS.md](./GENERATORS.md) · [pivot design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
 
@@ -729,11 +729,13 @@ Per-workspace MCP server registry. Distinct from `/integrations` — these are t
   "kind": "postgres",     // browser-use | playwright | api | postgres | kubernetes | graphql | grpc | appium | mongo | mysql | custom
   "endpoint": "stdio:///opt/mcp/postgres-mcp",
   "transport": "stdio",   // stdio | sse | ws
-  "config": { "schema": "public", "maxConnections": 4 },
-  "secrets": { "connectionString": "postgres://…" },
+  "configJson": { "schema": "public", "maxConnections": 4 },
+  "secretsJson": { "connectionString": "postgres://…" },
   "isDefaultForTarget": { "DATA": true }
 }
 ```
+
+> **M2-6 built:** `GET/POST /mcp/providers`, `GET/PATCH/DELETE /mcp/providers/:id` shipped in [`routers/mcp_providers.py`](../apps/api/src/suitest_api/routers/mcp_providers.py). `GET /mcp/providers` returns the bundled builtins (synthetic `builtin:<name>` ids, `isBundled=true`, read-only) merged on top of custom workspace rows. Write fields use camelCase aliases (`configJson` / `secretsJson` / `isDefaultForTarget`); `secretsJson` is write-only and never echoed. `/health`, `/discover` (`tools/list`), `/invoke`, and `/routing` land in M2-7..M2-9.
 
 **GET `/mcp/providers/:id/tools` response:**
 ```json

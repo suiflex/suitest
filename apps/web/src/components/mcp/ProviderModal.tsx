@@ -1,14 +1,22 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { HealthPill } from "@/components/mcp/HealthPill";
+import { RegisterMcpModal } from "@/components/mcp/RegisterMcpModal";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { fetchMcpProvider, type McpProviderTool } from "@/lib/api-client";
+import {
+  deleteMcpProvider,
+  fetchMcpProvider,
+  type McpProviderTool,
+} from "@/lib/api-client";
 
 interface ProviderModalProps {
   id: string;
@@ -16,15 +24,39 @@ interface ProviderModalProps {
 }
 
 /**
- * Read-only modal listing the tools discovered on the MCP server. The
- * "try it" form lands in M2 — until then we render name + description +
- * a compact preview of the argument schema (top-level keys).
+ * Provider detail — lists discovered tools (M1c) plus the M2-6 edit / delete
+ * actions for custom (non-bundled) providers. Bundled builtins are read-only,
+ * so the action footer is hidden for them.
  */
 export function ProviderModal({ id, onClose }: ProviderModalProps): React.ReactElement {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["mcp-provider", id] as const,
     queryFn: () => fetchMcpProvider(id),
   });
+
+  const remove = useMutation({
+    mutationFn: () => deleteMcpProvider(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["mcp-providers"] });
+      onClose();
+    },
+  });
+
+  const canManage = data !== undefined && !data.isBundled;
+
+  if (editing && data) {
+    return (
+      <RegisterMcpModal
+        existing={data}
+        onClose={() => {
+          setEditing(false);
+          onClose();
+        }}
+      />
+    );
+  }
 
   return (
     <Dialog
@@ -60,6 +92,34 @@ export function ProviderModal({ id, onClose }: ProviderModalProps): React.ReactE
         ) : (
           <ToolList tools={data.tools} />
         )}
+
+        {canManage ? (
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              data-testid="provider-edit"
+              onClick={() => {
+                setEditing(true);
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              data-testid="provider-delete"
+              disabled={remove.isPending}
+              onClick={() => {
+                remove.mutate();
+              }}
+            >
+              {remove.isPending ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

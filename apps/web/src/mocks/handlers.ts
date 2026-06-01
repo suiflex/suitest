@@ -444,9 +444,58 @@ export const handlers: HttpHandler[] = [
   http.get(`${BASE}/inbox`, () => HttpResponse.json(inbox)),
   // /runs/:id/network — M1b stub; HAR-driven view lands later.
   http.get(`${BASE}/runs/:runId/network`, () => HttpResponse.json({ items: [] })),
-  // /mcp/providers — discovery endpoint comes in M2; serve the bundled list
-  // so the Integrations screen renders without an extra empty branch.
+  // /mcp/providers — registry CRUD (M2-6). Default mocks; per-test override
+  // via `server.use`.
   http.get(`${BASE}/mcp/providers`, () => HttpResponse.json(mcpProviders)),
+  http.get(`${BASE}/mcp/providers/:id`, ({ params }) =>
+    HttpResponse.json({
+      id: params["id"],
+      name: "stub-mcp",
+      kind: "custom",
+      transport: "stdio",
+      endpoint: "stub",
+      healthStatus: "unknown",
+      isBundled: false,
+      enabled: true,
+      tools: [],
+      configJson: {},
+      hasSecrets: false,
+    }),
+  ),
+  http.post(`${BASE}/mcp/providers`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(
+      {
+        id: "mcp_new_stub",
+        healthStatus: "unknown",
+        isBundled: false,
+        enabled: true,
+        tools: [],
+        configJson: {},
+        hasSecrets: false,
+        ...body,
+      },
+      { status: 201 },
+    );
+  }),
+  http.patch(`${BASE}/mcp/providers/:id`, async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      id: params["id"],
+      name: "stub-mcp",
+      kind: "custom",
+      transport: "stdio",
+      endpoint: "stub",
+      healthStatus: "unknown",
+      isBundled: false,
+      enabled: true,
+      tools: [],
+      configJson: {},
+      hasSecrets: false,
+      ...body,
+    });
+  }),
+  http.delete(`${BASE}/mcp/providers/:id`, () => new HttpResponse(null, { status: 204 })),
 
   // ----------------------------------------------------------------------
   // M1e — auth/invitation/admin stubs. Per-test overrides via `server.use`.

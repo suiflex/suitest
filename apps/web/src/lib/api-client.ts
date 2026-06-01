@@ -147,6 +147,23 @@ export interface McpProviderTool {
 
 export interface McpProviderDetail extends McpProviderSummary {
   tools: McpProviderTool[];
+  configJson?: Record<string, unknown>;
+  hasSecrets?: boolean;
+  isDefaultForTarget?: Record<string, boolean>;
+  enabled?: boolean;
+}
+
+export type McpTransport = "stdio" | "sse" | "ws";
+
+/** Body for ``POST /mcp/providers`` — custom MCP registration (M2-6 / M2-7). */
+export interface McpProviderWriteBody {
+  name: string;
+  kind: string;
+  endpoint: string;
+  transport: McpTransport;
+  configJson?: Record<string, unknown>;
+  secretsJson?: Record<string, unknown> | string | null;
+  isDefaultForTarget?: Record<string, boolean>;
 }
 
 /** Backwards-compat envelope — backend returns `{ items: [...] }`. */
@@ -162,6 +179,25 @@ export async function fetchMcpProviders(): Promise<McpProviderSummary[]> {
 export async function fetchMcpProvider(id: string): Promise<McpProviderDetail> {
   const res = await api.get<McpProviderDetail>(`/mcp/providers/${id}`);
   return res.data;
+}
+
+export async function createMcpProvider(
+  body: McpProviderWriteBody,
+): Promise<McpProviderDetail> {
+  const res = await api.post<McpProviderDetail>("/mcp/providers", body);
+  return res.data;
+}
+
+export async function updateMcpProvider(
+  id: string,
+  body: Partial<McpProviderWriteBody> & { enabled?: boolean },
+): Promise<McpProviderDetail> {
+  const res = await api.patch<McpProviderDetail>(`/mcp/providers/${id}`, body);
+  return res.data;
+}
+
+export async function deleteMcpProvider(id: string): Promise<void> {
+  await api.delete(`/mcp/providers/${id}`);
 }
 
 // ---------------------------------------------------------------------------
