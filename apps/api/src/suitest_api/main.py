@@ -112,6 +112,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Construct the FastAPI app. Pure factory — no side effects at import."""
     from suitest_api.auth.router import router as auth_router
     from suitest_api.routers.admin_users import router as admin_users_router
+    from suitest_api.routers.agent_chat import router as agent_chat_router
     from suitest_api.routers.analytics import router as analytics_router
     from suitest_api.routers.audit_logs import router as audit_logs_router
     from suitest_api.routers.auth_me import router as auth_me_router
@@ -217,6 +218,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(llm_config_router)
     app.include_router(autonomy_router)
     app.include_router(cost_router)
+    app.include_router(agent_chat_router)
     app.include_router(generators_router)
     app.include_router(webhooks_router)
     # WebSocket gateway — mounted at root (NOT /api/v1) so the path stays
