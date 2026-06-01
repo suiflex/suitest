@@ -76,6 +76,12 @@ _BUILDERS: dict[str, Callable[[McpProviderConfig], BundledServer]] = {}
 _LAZY_MODULES: dict[str, str] = {
     "postgres-mcp": "suitest_mcp.bundled.postgres",
     "api-http-mcp": "suitest_mcp.bundled.api_http",
+    # M2-10 additive bundled providers.
+    "graphql-mcp": "suitest_mcp.bundled.graphql",
+    "mysql-mcp": "suitest_mcp.bundled.mysql",
+    "mongo-mcp": "suitest_mcp.bundled.mongo",
+    "kubernetes-mcp": "suitest_mcp.bundled.kubernetes",
+    "grpc-mcp": "suitest_mcp.bundled.grpc",
 }
 
 

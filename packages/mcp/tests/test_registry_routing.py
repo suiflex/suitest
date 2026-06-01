@@ -21,10 +21,20 @@ def _registry_with_builtins(workspace_id: str = "ws-1") -> McpRegistry:
     return reg
 
 
-def test_registry_register_builtin_seeds_three_providers() -> None:
+def test_registry_register_builtin_seeds_bundled_providers() -> None:
     reg = _registry_with_builtins()
     providers = {p.name for p in reg.list_for_workspace("ws-1")}
-    assert providers == {"api-http-mcp", "playwright-mcp", "postgres-mcp"}
+    # 3 original (M1c) + 5 added in M2-10.
+    assert providers == {
+        "api-http-mcp",
+        "playwright-mcp",
+        "postgres-mcp",
+        "graphql-mcp",
+        "mysql-mcp",
+        "mongo-mcp",
+        "kubernetes-mcp",
+        "grpc-mcp",
+    }
 
 
 def test_registry_get_reattributes_workspace_id() -> None:
