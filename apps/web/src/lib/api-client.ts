@@ -331,6 +331,42 @@ export async function fetchLlmModels(workspaceId: string, provider: string): Pro
 }
 
 // ---------------------------------------------------------------------------
+// Workspace autonomy (M3-15 / M3-16) — Settings → Automation.
+// ---------------------------------------------------------------------------
+
+export type AutonomyLevel = "manual" | "assist" | "semi_auto" | "auto";
+
+/** `GET`/`PUT /workspaces/:id/autonomy` — level + overrides + computed effective. */
+export interface AutonomyState {
+  level: AutonomyLevel;
+  overrides: Record<string, boolean>;
+  effective: Record<string, boolean>;
+  tier: "ZERO" | "LOCAL" | "CLOUD";
+  knownOverrideKeys: string[];
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+export interface AutonomyUpdateBody {
+  level: AutonomyLevel;
+  overrides: Record<string, boolean>;
+  reason?: string;
+}
+
+export async function fetchAutonomy(workspaceId: string): Promise<AutonomyState> {
+  const res = await api.get<AutonomyState>(`/workspaces/${workspaceId}/autonomy`);
+  return res.data;
+}
+
+export async function putAutonomy(
+  workspaceId: string,
+  body: AutonomyUpdateBody,
+): Promise<AutonomyState> {
+  const res = await api.put<AutonomyState>(`/workspaces/${workspaceId}/autonomy`, body);
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
 // Public invitation onboarding (M1e).
 // ---------------------------------------------------------------------------
 

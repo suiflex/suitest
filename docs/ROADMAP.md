@@ -206,8 +206,8 @@ ZERO tier bisa generate AND test melawan target apapun yang MCP-equipped. Custom
 #### Cost + autonomy
 
 - [ ] **M3-14** Cost tracking per session + per workspace via LiteLLM cost calculation + budget guard (soft alert)
-- [ ] **M3-15** Autonomy levels (`manual` / `assist` / `semi_auto` / `auto`) + Settings → Automation page
-- [ ] **M3-16** Per-feature autonomy overrides (`generation`, `execution`, `diagnosis`, `defect_file`)
+- [x] **M3-15** Autonomy levels (`manual` / `assist` / `semi_auto` / `auto`) + Settings → Automation page (`GET/PUT /workspaces/:id/autonomy` [`routers/autonomy.py`](../apps/api/src/suitest_api/routers/autonomy.py) + [`services/autonomy_service.py`](../apps/api/src/suitest_api/services/autonomy_service.py); level on `WorkspaceCapability.autonomy_level`; ZERO→manual gate `400 AUTONOMY_REQUIRES_LLM`; audited `autonomy.update`; FE [`AutomationPanel.tsx`](../apps/web/src/components/settings/AutomationPanel.tsx) radio cards in Settings → Automation)
+- [x] **M3-16** Per-feature autonomy overrides (`generation`, `execution`, `diagnosis`, `defect_file`) ([`core/autonomy.py`](../packages/core/src/suitest_core/autonomy.py) `KNOWN_OVERRIDE_KEYS` + per-level defaults + `compute_effective`; overrides persist in `features_json.autonomy_overrides`; unknown key `400 UNKNOWN_OVERRIDE_KEY`; FE advanced-overrides toggles + server-computed `effective` map)
 
 ### Definition of done
 
