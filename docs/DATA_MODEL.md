@@ -1,6 +1,8 @@
 # docs/DATA_MODEL.md
 
 > SQLAlchemy 2.0 (async) schema + Pydantic v2 domain models untuk Suitest OSS. **Source of truth** — kalau menambah/mengubah model, update doc ini dalam PR yang sama.
+
+> ℹ️ **Built today:** schema through Alembic migration `0028` (M1e), incl. `run_step_logs` and `oauth_accounts` (FastAPI-Users). **Not built (M3–M4 spec):** `llm_config`, `agent_sessions`, eval tables, `webhook_dispatch_attempts`. Verify against `packages/db/alembic/versions/`.
 >
 > Stack: Python 3.12 · FastAPI · Pydantic v2 · SQLAlchemy 2.0 (async) · Alembic · Postgres 16 + `pgvector`. **Postgres-only.** Tidak ada dukungan SQLite/MySQL/Mongo di OSS v1.0.
 >

@@ -6,6 +6,8 @@ Source-of-truth memo: [`superpowers/specs/2026-05-26-suitest-oss-pivot-design.md
 
 Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md), [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md), [MCP_PLUGINS.md](./MCP_PLUGINS.md), [AUTONOMY.md](./AUTONOMY.md), [GENERATORS.md](./GENERATORS.md), [DEPLOYMENT.md](./DEPLOYMENT.md).
 
+> **📌 Cara pakai (single entry point).** File ini = satu-satunya pintu masuk untuk melanjutkan fitur. Alur: (1) cari acceptance criterion pertama yang belum `[x]` di milestone aktif; (2) item `[x]` punya catatan "shipped / tag" = sudah jadi, lewati; (3) buka spec doc lain HANYA kalau item itu butuh (lihat tabel di CLAUDE.md §2.1) — jangan baca semua doc duluan; (4) kalau ROADMAP bentrok dengan spec, ROADMAP menang. Tiap spec doc punya banner build-status di atas (built vs spec M2–M4).
+
 ---
 
 ## Phases
@@ -32,7 +34,7 @@ Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md
 - [x] **M0-4** `apps/api` FastAPI boot; `GET /health` returns `{ status: "ok" }`; `GET /capabilities` returns `{ tier: "ZERO", autonomy: "manual", llm_provider: null }` (shipped at `4b1db50` + `f22931d` / tag `v0.1.0-m0`)
 - [x] **M0-5** Docker Compose: postgres-16 + pgvector, redis, minio untuk lokal dev (shipped at `74d74be` / tag `v0.1.0-m0`)
 - [x] **M0-6** SQLAlchemy 2 async + Alembic init migration applied (schema kosong dulu, populated di M1) (shipped at `95d5523` / tag `v0.1.0-m0`)
-- [x] **M0-7** **Minimal seed only:** create root workspace `Nusantara Retail` with **1 user** (workspace owner) — no projects, no suites, no cases, no integrations. Full seed (suites/cases/runs/defects/requirements/integrations) is **deferred to M1a** — see [`M1a-9`](#m1) below. Rationale: full schema (projects, suites, cases, runs, defects, requirements, integrations) does not land until M1a; a 1-row workspace insert is sufficient at M0 to validate the engine/migration pipeline. See [plan-01 §11.7 + spec-gaps](./superpowers/plans/2026-05-26-plan-01-m0-skeleton.md). (shipped at `f8551a7` / tag `v0.1.0-m0`)
+- [x] **M0-7** **Minimal seed only:** create root workspace `Nusantara Retail` with **1 user** (workspace owner) — no projects, no suites, no cases, no integrations. Full seed (suites/cases/runs/defects/requirements/integrations) is **deferred to M1a** — see [`M1a-9`](#m1) below. Rationale: full schema (projects, suites, cases, runs, defects, requirements, integrations) does not land until M1a; a 1-row workspace insert is sufficient at M0 to validate the engine/migration pipeline. (shipped at `f8551a7` / tag `v0.1.0-m0`)
 - [x] **M0-8** FastAPI-Users dengan email/password + Google OAuth; redirect ke `/dashboard` setelah login (shipped at `46f910b` + `41984ab` / tag `v0.1.0-m0`)
 - [x] **M0-9** GitHub Actions CI: ruff + mypy + pytest + tsc + vitest + build Docker images per service (shipped at `e9f381d` / tag `v0.1.0-m0`)
 - [x] **M0-10** `docker compose up` membawa naik seluruh stack (api + web + runner + pg + redis + minio) — single command bootable (shipped at `c67954f` / tag `v0.1.0-m0`)

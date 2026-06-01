@@ -2,6 +2,8 @@
 
 > Spec lengkap capability tiering Suitest: **ZERO / LOCAL / CLOUD**. Dipakai sebagai kontrak antara `packages/core/capabilities.py` (resolver), `apps/api` (endpoint gating), `apps/runner` (step execution), dan `apps/web` (UI gating). Untuk arsitektur baca [ARCHITECTURE.md](./ARCHITECTURE.md). Untuk deployment baca [DEPLOYMENT.md](./DEPLOYMENT.md). Design rationale: [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
 
+> ⚠️ **PARTIAL.** ZERO-tier resolver built (`packages/core/capabilities.py`). LLM-gated endpoints, the `mock` provider, and per-feature 503 `LLM_DISABLED` responses target M3 — NOT built yet. See [ROADMAP.md](./ROADMAP.md) M3.
+
 ---
 
 ## 1. Konsep

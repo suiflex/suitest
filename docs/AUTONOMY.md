@@ -1,6 +1,8 @@
 # docs/AUTONOMY.md
 
 > Autonomy = **how much the agent does without asking the human**. Capability tier ([CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md)) = **what's available at all**. The two dimensions are orthogonal: you can be in CLOUD tier with `manual` autonomy (LLM key configured but agent forbidden from doing anything), or in LOCAL tier with `auto` autonomy (fully autonomous local Ollama).
+
+> 🚧 **SPEC — targets M3.** Autonomy routing logic NOT implemented on current tree; any endpoints/UI present are shells. See [ROADMAP.md](./ROADMAP.md) M3-15/M3-16.
 >
 > Cross-refs: [AI_AGENT.md](./AI_AGENT.md), [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md), [API.md](./API.md), [DATA_MODEL.md](./DATA_MODEL.md), [GENERATORS.md](./GENERATORS.md).
 

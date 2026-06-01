@@ -1,6 +1,8 @@
 # docs/PRODUCT.md
 
 > Vision, personas, dan ruang lingkup tiap layar Suitest. Baca ini dulu sebelum nulis kode untuk fitur baru.
+
+> ℹ️ **VISION doc — describes full v1.0+ product.** Built today: M0–M1e (manual TCM + ZERO-tier deterministic runs + local auth/invite). AI/generators/journeys assuming LLM target M2–M4. Build status: [ROADMAP.md](./ROADMAP.md).
 >
 > Pivot OSS (2026-05-26): Suitest sekarang **open-source, self-host, BYO-LLM**. Source-of-truth keputusan: [`superpowers/specs/2026-05-26-suitest-oss-pivot-design.md`](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
 

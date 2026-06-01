@@ -52,7 +52,7 @@ Refresh browser → tier badge berubah jadi `CLOUD · anthropic:claude-sonnet-4-
 
 ## Manual DoD smoke
 
-See M0 plan task 11 (`docs/superpowers/plans/2026-05-26-plan-01-m0-skeleton.md`) for the
+See [docs/ROADMAP.md](docs/ROADMAP.md) M0 "Definition of done" for the
 end-to-end clone → compose → login → dashboard smoke procedure.
 
 **Untuk enable LOCAL tier dengan Ollama** (air-gapped friendly):

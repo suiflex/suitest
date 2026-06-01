@@ -2,6 +2,8 @@
 
 > Tech stack, services, dan deployment topology Suitest **OSS pivot** (Python/FastAPI, MCP-native, BYO LLM). Diff terhadap doc ini wajib kalau menambah/mengganti komponen. Single source of truth keputusan: [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
 
+> ℹ️ **Built today:** `apps/api`, `apps/runner`, `apps/web`, `packages/db|mcp|core|shared`. `packages/agent` (LiteLLM + LangGraph) is a stub — targets M3. Eval CI job not built. See [ROADMAP.md](./ROADMAP.md).
+
 ---
 
 ## 1. High-level topology

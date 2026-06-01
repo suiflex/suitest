@@ -32,13 +32,21 @@ Source-of-truth pivot: [`docs/superpowers/specs/2026-05-26-suitest-oss-pivot-des
 
 ### 2.1 Selalu lakukan dulu
 
-1. **Baca `docs/PRODUCT.md`** untuk konteks fitur.
-2. **Cek `docs/UI_SPEC.md`** kalau menyentuh frontend — komponen sudah dispesifikasi.
-3. **Cek `docs/API.md`** kalau menambah/mengubah endpoint — kontrak ditetapkan.
-4. **Cek `docs/DATA_MODEL.md`** kalau menyentuh schema — jangan invent kolom baru tanpa update spec + Alembic migration.
-5. **Cek `docs/CAPABILITY_TIERS.md`** SEBELUM nambah fitur yang LLM-dependent — wajib tahu di tier mana fitur ini boleh muncul.
-6. **Cek `docs/MCP_PLUGINS.md`** kalau menyentuh runner / MCP routing.
-7. **Cek `docs/AUTONOMY.md`** kalau menyentuh agentic action yang punya side effect.
+**`docs/ROADMAP.md` adalah satu-satunya pintu masuk.** Untuk melanjutkan fitur apapun, mulai di sana — pilih acceptance criterion berikutnya yang belum `[x]` di milestone aktif. ROADMAP yang nentuin urutan dan ruang lingkup; jangan kerja dari ingatan atau doc lain duluan.
+
+Spec doc lain = **referensi kondisional**, dibuka HANYA saat item ROADMAP yang lagi dikerjakan butuh detailnya:
+
+| Buka doc ini | Hanya kalau item ROADMAP… |
+|--------------|---------------------------|
+| `docs/PRODUCT.md` | butuh konteks behavior/persona fitur |
+| `docs/UI_SPEC.md` | menyentuh frontend (komponen sudah dispesifikasi) |
+| `docs/API.md` | menambah/mengubah endpoint |
+| `docs/DATA_MODEL.md` | menyentuh schema — jangan invent kolom tanpa update spec + Alembic migration |
+| `docs/CAPABILITY_TIERS.md` | fitur LLM-dependent — wajib tahu tier gating |
+| `docs/MCP_PLUGINS.md` | menyentuh runner / MCP routing |
+| `docs/AUTONOMY.md` | agentic action yang punya side effect |
+
+Tiap doc punya banner build-status di atas (built vs spec M2–M4) — baca itu sebelum percaya isinya. Kalau ROADMAP dan spec bentrok, **ROADMAP menang**; update spec di PR yang sama.
 
 ### 2.2 Jangan
 

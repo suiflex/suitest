@@ -2,6 +2,8 @@
 
 > Spesifikasi komponen frontend sesuai mockup di `Suitest.html`. Pakai dokumen ini sebagai checklist saat implementing screen baru. **Setiap claim visual di sini di-back oleh mockup** — kalau ragu, buka mockup.
 
+> ℹ️ **Built today:** all M1b read-only screens + M1d write flows. `GenerateModal` (M2-5) not yet a complete component. AI panel hidden via `<Gated>` in ZERO. See [ROADMAP.md](./ROADMAP.md).
+
 ---
 
 ## 1. Foundation
