@@ -24,6 +24,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from opentelemetry import trace
+from suitest_agent.generators.openapi_enrich import OpenApiEnricher
 from suitest_agent.generators.openapi_generator import OpenApiGenerator, OpenApiSpecError
 from suitest_agent.generators.prd import PrdGenerator
 from suitest_agent.generators.url_crawler import UrlCrawler
@@ -108,7 +109,15 @@ class GeneratorService:
     # ------------------------------------------------------------------
 
     async def run_openapi(
-        self, workspace_id: str, user_id: str, request: OpenApiGenerateRequest
+        self,
+        workspace_id: str,
+        user_id: str,
+        request: OpenApiGenerateRequest,
+        *,
+        llm_provider: str | None = None,
+        llm_model: str | None = None,
+        llm_api_key: str | None = None,
+        llm_base_url: str | None = None,
     ) -> AsyncIterator[GeneratorSseEvent]:
         """Stream the OpenAPI generation lifecycle as SSE events.
 
@@ -116,6 +125,12 @@ class GeneratorService:
         :class:`SuiteNotInWorkspaceError` for the router to map to 404 *before*
         any stream byte is sent). After that the generator drives the body; a
         spec error becomes an ``error`` event rather than an exception.
+
+        When ``request.options.include_llm_edge_cases`` is set AND the caller
+        passes a resolved LLM (``llm_provider``/``llm_model``), a second pass adds
+        boundary/fuzz/negative edge cases (M3-8). The deterministic core always
+        runs first; the LLM pass is pure enrichment and is skipped gracefully
+        (``llm_enrich_skipped`` progress frame) when no LLM is configured.
         """
         if not await self.suite_in_scope(request.target_suite_id, workspace_id):
             raise SuiteNotInWorkspaceError(request.target_suite_id)
@@ -177,6 +192,21 @@ class GeneratorService:
                     },
                 )
 
+            # M3-8: optional LLM edge-case enrichment on top of the contract suite.
+            if request.options.include_llm_edge_cases:
+                async for event in self._enrich_openapi(
+                    generator,
+                    workspace_id,
+                    user_id,
+                    request,
+                    public_ids=public_ids,
+                    llm_provider=llm_provider,
+                    llm_model=llm_model,
+                    llm_api_key=llm_api_key,
+                    llm_base_url=llm_base_url,
+                ):
+                    yield event
+
             duration_ms = int((time.perf_counter() - start) * 1000)
             span.set_attribute("generator.cases_created", len(public_ids))
             await self._finalize(
@@ -194,6 +224,91 @@ class GeneratorService:
                     "duration_ms": duration_ms,
                 },
             )
+
+    async def _enrich_openapi(
+        self,
+        generator: OpenApiGenerator,
+        workspace_id: str,
+        user_id: str,
+        request: OpenApiGenerateRequest,
+        *,
+        public_ids: list[str],
+        llm_provider: str | None,
+        llm_model: str | None,
+        llm_api_key: str | None,
+        llm_base_url: str | None,
+    ) -> AsyncIterator[GeneratorSseEvent]:
+        """Append LLM edge cases (M3-8). Yields ``progress`` + per-edge ``case``.
+
+        Mutates ``public_ids`` in place so the caller's ``complete`` frame counts
+        the edge cases. No LLM configured → a single ``llm_enrich_skipped`` frame
+        (graceful ZERO degrade); the deterministic suite already persisted.
+        """
+        if not (llm_provider and llm_model):
+            yield GeneratorSseEvent(
+                kind="progress",
+                data={"phase": "llm_enrich_skipped", "reason": "no active LLM"},
+            )
+            return
+
+        yield GeneratorSseEvent(kind="progress", data={"phase": "llm_enrich"})
+
+        prompt_content = read_prompt("enrich-openapi-edges", "v1")
+        prompt_row = await PromptVersionRepo(self._session).ensure(
+            "enrich-openapi-edges", "v1", prompt_content, prompt_hash(prompt_content)
+        )
+        agent_repo = AgentSessionRepo(self._session)
+        agent_session = await agent_repo.create(
+            AgentSessionCreate(
+                workspace_id=workspace_id,
+                kind=AgentSessionKind.GENERATION,
+                model_id=llm_model,
+                provider=llm_provider,
+                user_id=self._as_user_uuid(user_id),
+                prompt_version_id=prompt_row.id,
+                temperature=0.2,
+                metadata_json={"source": "openapi-enrich"},
+            )
+        )
+
+        provider = get_provider(llm_provider, api_key=llm_api_key, base_url=llm_base_url)
+        enricher = OpenApiEnricher(provider, model=llm_model)
+        result = await enricher.enrich(generator.op_summaries())
+
+        if result.error:
+            await agent_repo.complete(agent_session.id, status="error")
+            yield GeneratorSseEvent(
+                kind="progress",
+                data={"phase": "llm_enrich_failed", "reason": result.error},
+            )
+            return
+
+        for draft in result.drafts:
+            public_id = await self._persist_case(
+                draft,
+                suite_id=request.target_suite_id,
+                workspace_id=workspace_id,
+                generated_by="openapi-enricher",
+            )
+            public_ids.append(public_id)
+            yield GeneratorSseEvent(
+                kind="case",
+                data={
+                    "public_id": public_id,
+                    "name": draft.name,
+                    "case_kind": draft.generated_from.get("case_kind"),
+                    "tags": draft.tags,
+                    "llm_edge": True,
+                },
+            )
+
+        usage = result.usage
+        await agent_repo.complete(
+            agent_session.id,
+            cost_usd=Decimal(str(usage.cost_usd)) if usage else None,
+            tokens_in=usage.tokens_in if usage else 0,
+            tokens_out=usage.tokens_out if usage else 0,
+        )
 
     # ------------------------------------------------------------------
 

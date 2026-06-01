@@ -166,6 +166,27 @@ class OpenApiGenerator:
                 ):
                     yield draft
 
+    def op_summaries(self) -> list[str]:
+        """Compact ``METHOD path — summary (params)`` lines for LLM enrichment.
+
+        Honours ``tags_filter`` so the enricher (M3-8) sees the same operation
+        set the deterministic suite covered. Used to ground the edge-case prompt
+        without shipping the entire (possibly huge) raw spec to the model.
+        """
+        if self._spec is None:
+            raise OpenApiSpecError("call fetch_spec() before op_summaries()")
+        lines: list[str] = []
+        for path, path_item in self._iter_paths():
+            for method in _HTTP_METHODS:
+                operation = getattr(path_item, method, None)
+                if operation is None or not self._tag_allowed(operation):
+                    continue
+                summary = operation.summary or operation.operationId or ""
+                params = [p.name for p in (operation.parameters or []) if getattr(p, "name", None)]
+                suffix = f" (params: {', '.join(params)})" if params else ""
+                lines.append(f"{method.upper()} {path} — {summary}{suffix}".rstrip())
+        return lines
+
     def _iter_paths(self) -> list[tuple[str, PathItem]]:
         assert self._spec is not None
         paths = self._spec.paths or {}

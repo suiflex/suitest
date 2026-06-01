@@ -3,9 +3,9 @@
 Wraps the GENERATION LangGraph (:func:`build_generation_graph`): given a PRD /
 user story / free text, the LLM extracts user stories and drafts happy-path +
 edge/negative test cases. The graph returns minimal drafts (``title`` +
-``priority`` + ``steps[action, expected]``); this module maps them to canonical
-:class:`TestCaseDraft`s the API layer persists exactly like a deterministic
-generator's output.
+``priority`` + ``steps[action, expected]``); :func:`map_raw_cases` maps them to
+canonical :class:`TestCaseDraft`s the API layer persists exactly like a
+deterministic generator's output.
 
 Steps carry NO executable ``code`` — they are *agentic* steps whose ``action`` is
 translated to an MCP call at execution time (M3-10). ``mcp_provider`` /
@@ -22,12 +22,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from suitest_shared.domain.enums import CaseSource, Priority, TargetKind
-from suitest_shared.schemas.generator_input import TestCaseDraft, TestStepDraft
+from suitest_shared.domain.enums import TargetKind
 
+from suitest_agent.generators._drafts import map_raw_cases
 from suitest_agent.graphs.generation import build_generation_graph
 
 if TYPE_CHECKING:
+    from suitest_shared.schemas.generator_input import TestCaseDraft
+
     from suitest_agent.providers.base import LLMProvider
 
 # Canonical TargetKind → bundled MCP provider routing (mirrors the classifier's
@@ -101,58 +103,13 @@ class PrdGenerator:
             cost_usd=float(state.get("cost_usd", 0.0) or 0.0),
         )
         raws = state.get("draft_cases", [])
-        drafts: list[TestCaseDraft] = []
-        for raw in raws[:max_cases]:
-            draft = self._to_draft(raw)
-            if draft is not None:
-                drafts.append(draft)
-        return PrdResult(drafts=drafts, usage=usage)
-
-    def _to_draft(self, raw: dict[str, object]) -> TestCaseDraft | None:
-        """Map one raw LLM case dict to a TestCaseDraft; skip if unusable."""
-        title = str(raw.get("title") or "").strip()
-        if not title:
-            return None
-
-        steps: list[TestStepDraft] = []
-        raw_steps = raw.get("steps")
-        if isinstance(raw_steps, list):
-            for raw_step in raw_steps:
-                if not isinstance(raw_step, dict):
-                    continue
-                action = str(raw_step.get("action") or "").strip()
-                if not action:
-                    continue
-                steps.append(
-                    TestStepDraft(
-                        order=len(steps) + 1,
-                        action=action,
-                        expected=str(raw_step.get("expected") or "").strip(),
-                        # Agentic step: no code → translated to an MCP call at
-                        # execution time (M3-10). Routes via the default provider.
-                        code="",
-                        mcp_provider=self._mcp,
-                        target_kind=self._target_kind,
-                    )
-                )
-        if not steps:
-            return None
-
-        return TestCaseDraft(
-            name=title[:255],
-            description=str(raw.get("description") or "").strip(),
-            priority=_priority(raw.get("priority")),
-            source=CaseSource.AI,
+        drafts = map_raw_cases(
+            raws if isinstance(raws, list) else [],
             target_kind=self._target_kind,
+            mcp_provider=self._mcp,
+            strategy="prd-parsing",
+            case_kind="prd",
             tags=["ai-generated", "prd"],
-            generated_from={"strategy": "prd-parsing", "case_kind": "prd"},
-            steps=steps,
+            max_cases=max_cases,
         )
-
-
-def _priority(value: object) -> Priority:
-    """Coerce a raw priority value to a :class:`Priority`; default ``P2``."""
-    try:
-        return Priority(str(value).strip().upper())
-    except ValueError:
-        return Priority.P2
+        return PrdResult(drafts=drafts, usage=usage)

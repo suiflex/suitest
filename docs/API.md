@@ -777,7 +777,7 @@ Deterministic + LLM-driven test generators. Deterministic ones (`/openapi`, `/re
 
 | Method | Path | Tujuan | LLM required? |
 |--------|------|--------|:-:|
-| POST | `/generators/openapi` | Parse OpenAPI spec, emit per-operation cases with executable `step.code` | No |
+| POST | `/generators/openapi` | Parse OpenAPI spec, emit per-operation cases with executable `step.code`. **(M3-8)** `options.includeLlmEdgeCases` adds AI boundary/fuzz/negative cases when an LLM is active (else skipped) | Core: No / edge: optional |
 | POST | `/generators/recorder/sessions` | Start browser recorder session → returns `sessionId` + WS room | No |
 | POST | `/generators/recorder/sessions/:id/finalize` | Stop recording, materialise into a test case | No |
 | POST | `/generators/crawler` | Heuristic BFS crawl, fill forms with Faker, emit smoke cases | No |

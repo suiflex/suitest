@@ -90,6 +90,10 @@ class OpenApiGeneratorOptions(BaseModel):
     include_required_field_tests: bool = True
     include_boundary_tests: bool = True
     include_rate_limit_tests: bool = True
+    # M3-8: when the workspace has an active LLM, propose extra edge cases
+    # (boundary / fuzz / negative) on top of the deterministic contract suite.
+    # Ignored (graceful ZERO degrade) when no LLM is configured.
+    include_llm_edge_cases: bool = False
     tag_prefix: str | None = None
     tags_filter: list[str] = Field(default_factory=list)
     auth_profile_id: str | None = None
