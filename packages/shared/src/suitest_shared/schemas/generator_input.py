@@ -136,6 +136,64 @@ class TestCaseDraft(BaseModel):
     steps: list[TestStepDraft]
 
 
+# ---------------------------------------------------------------------------
+# M2 Task 3 — heuristic URL crawler generator I/O
+# ---------------------------------------------------------------------------
+#
+# ``POST /generators/crawler`` drives ``playwright-mcp`` to BFS a site from a
+# start URL, emit a navigate→no-console-error smoke case per visited page, and
+# (optionally) one form-fill case per discovered ``<form>`` with Faker-seeded
+# field values. Pure heuristics (NO LLM) → runs in every tier (``TierFlag.ANY``).
+# Generated cases re-use the canonical :class:`CaseSource.HEURISTIC_CRAWL` +
+# :class:`TargetKind.FE_WEB`; they are never redefined here.
+
+
+class CrawlerAuthConfig(BaseModel):
+    """Optional pre-crawl authentication. ``kind="none"`` (default) skips auth.
+
+    The crawler does not itself perform login today — the config is captured on
+    the :class:`~suitest_db.models.generator_run.GeneratorRun` for provenance and
+    threaded into generated cases so a later run can replay the auth context.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    kind: Literal["none", "cookie", "bearer", "form"] = "none"
+    login_url: str | None = None
+    cookie: str | None = None
+    token: str | None = None
+    credentials: dict[str, str] | None = None
+
+
+class CrawlerOptions(BaseModel):
+    """Per-request crawl bounds + emission toggles.
+
+    ``max_depth`` / ``max_pages`` cap the BFS so a large site cannot run away;
+    ``same_origin_only`` drops off-origin links from the frontier;
+    ``include_form_cases`` toggles the per-``<form>`` fill cases.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    max_depth: Annotated[int, Field(ge=1, le=5)] = 2
+    max_pages: Annotated[int, Field(ge=1, le=200)] = 20
+    same_origin_only: bool = True
+    faker_locale: str = "en_US"
+    tag_prefix: str | None = None
+    include_form_cases: bool = True
+
+
+class CrawlerGenerateRequest(BaseModel):
+    """Crawl request: a target suite + a start URL + bounds/auth."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    target_suite_id: Annotated[str, Field(min_length=1)]
+    start_url: Annotated[str, Field(min_length=1)]
+    auth: CrawlerAuthConfig = Field(default_factory=CrawlerAuthConfig)
+    options: CrawlerOptions = Field(default_factory=CrawlerOptions)
+
+
 class GeneratorRunResponse(BaseModel):
     """Terminal SSE ``complete`` payload + the synchronous run summary."""
 

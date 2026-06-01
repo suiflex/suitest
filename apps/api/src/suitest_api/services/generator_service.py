@@ -24,12 +24,14 @@ from typing import TYPE_CHECKING
 
 from opentelemetry import trace
 from suitest_agent.generators.openapi_generator import OpenApiGenerator, OpenApiSpecError
+from suitest_agent.generators.url_crawler import UrlCrawler
 from suitest_db.audit import write_audit
 from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.generator_run import GeneratorRun
 from suitest_db.public_id import set_workspace_id
 from suitest_shared.domain.enums import CaseStatus
 from suitest_shared.schemas.generator_input import (
+    CrawlerGenerateRequest,
     GeneratorSseEvent,
     OpenApiGenerateRequest,
     TestCaseDraft,
@@ -41,6 +43,7 @@ if TYPE_CHECKING:
     from suitest_db.repositories.generator_runs import GeneratorRunRepo
     from suitest_db.repositories.projects import ProjectRepo
     from suitest_db.repositories.suites import SuiteRepo
+    from suitest_mcp.invoker import McpInvoker
 
 tracer = trace.get_tracer("suitest.generators")
 
@@ -67,12 +70,16 @@ class GeneratorService:
         suite_repo: SuiteRepo,
         project_repo: ProjectRepo,
         http_client: httpx.AsyncClient,
+        mcp_invoker: McpInvoker | None = None,
     ) -> None:
         self._session = db_session
         self._run_repo = generator_run_repo
         self._suite_repo = suite_repo
         self._project_repo = project_repo
         self._http = http_client
+        # Injected so the crawler is mockable in tests; the router wires the real
+        # invoker (registry + pool + redis + audit) for production crawls.
+        self._mcp_invoker = mcp_invoker
 
     # ------------------------------------------------------------------
 
@@ -183,7 +190,102 @@ class GeneratorService:
 
     # ------------------------------------------------------------------
 
-    async def _persist_case(self, draft: TestCaseDraft, *, suite_id: str, workspace_id: str) -> str:
+    async def run_crawler(
+        self, workspace_id: str, user_id: str, request: CrawlerGenerateRequest
+    ) -> AsyncIterator[GeneratorSseEvent]:
+        """Stream the heuristic-crawler generation lifecycle as SSE events.
+
+        Validates the suite is in-scope FIRST (raising
+        :class:`SuiteNotInWorkspaceError` for the router to map to 404 *before*
+        any stream byte is sent), then drives :class:`UrlCrawler` over
+        ``playwright-mcp``: a smoke (+ optional form) DRAFT case per visited page.
+        Requires an injected :class:`McpInvoker`; absence is a wiring bug, not a
+        user error, so it raises rather than emitting an SSE ``error`` frame.
+        """
+        if not await self.suite_in_scope(request.target_suite_id, workspace_id):
+            raise SuiteNotInWorkspaceError(request.target_suite_id)
+        if self._mcp_invoker is None:  # pragma: no cover - wiring guard
+            raise RuntimeError("GeneratorService.run_crawler requires an McpInvoker")
+
+        with tracer.start_as_current_span("generator.crawler") as span:
+            span.set_attribute("generator.source", "crawler")
+            span.set_attribute("workspace.id", workspace_id)
+            start = time.perf_counter()
+
+            run = GeneratorRun(
+                workspace_id=workspace_id,
+                source="crawler",
+                input_meta_json={
+                    "target_suite_id": request.target_suite_id,
+                    "start_url": request.start_url,
+                    "auth_kind": request.auth.kind,
+                    "options": request.options.model_dump(),
+                },
+                output_case_ids_json=[],
+                created_by_user_id=self._as_user_uuid(user_id),
+            )
+            self._session.add(run)
+            await self._session.flush()
+            run_id = run.id
+
+            yield GeneratorSseEvent(
+                kind="progress",
+                data={"phase": "crawling", "generator_run_id": run_id},
+            )
+
+            crawler = UrlCrawler(self._mcp_invoker, request.options, request.auth)
+            public_ids: list[str] = []
+            async for draft in crawler.crawl(request.start_url, workspace_id):
+                public_id = await self._persist_case(
+                    draft,
+                    suite_id=request.target_suite_id,
+                    workspace_id=workspace_id,
+                    generated_by="url-crawler",
+                )
+                public_ids.append(public_id)
+                yield GeneratorSseEvent(
+                    kind="case",
+                    data={
+                        "public_id": public_id,
+                        "name": draft.name,
+                        "case_kind": draft.generated_from.get("case_kind"),
+                        "tags": draft.tags,
+                    },
+                )
+
+            duration_ms = int((time.perf_counter() - start) * 1000)
+            span.set_attribute("generator.cases_created", len(public_ids))
+            await self._finalize(
+                run,
+                workspace_id,
+                user_id,
+                public_ids=public_ids,
+                duration_ms=duration_ms,
+                action="generator.crawler.completed",
+            )
+            await self._session.commit()
+
+            yield GeneratorSseEvent(
+                kind="complete",
+                data={
+                    "generator_run_id": run_id,
+                    "target_suite_id": request.target_suite_id,
+                    "cases_created": len(public_ids),
+                    "public_ids": public_ids,
+                    "duration_ms": duration_ms,
+                },
+            )
+
+    # ------------------------------------------------------------------
+
+    async def _persist_case(
+        self,
+        draft: TestCaseDraft,
+        *,
+        suite_id: str,
+        workspace_id: str,
+        generated_by: str = "openapi-generator",
+    ) -> str:
         """Persist one draft as a DRAFT :class:`TestCase` + steps + tags.
 
         Mirrors :class:`TestCaseService.create`'s write path (public_id via the
@@ -198,7 +300,7 @@ class GeneratorService:
             status=CaseStatus.DRAFT,
             priority=draft.priority,
             source=draft.source,
-            generated_by="openapi-generator",
+            generated_by=generated_by,
             generated_from=draft.generated_from,
         )
         set_workspace_id(case, workspace_id)
@@ -237,6 +339,7 @@ class GeneratorService:
         *,
         public_ids: list[str],
         duration_ms: int,
+        action: str = "generator.openapi.completed",
     ) -> None:
         run.output_case_ids_json = public_ids
         run.duration_ms = duration_ms
@@ -245,7 +348,7 @@ class GeneratorService:
             self._session,
             workspace_id=workspace_id,
             user_id=user_id,
-            action="generator.openapi.completed",
+            action=action,
             resource_type="generator_run",
             resource_id=run.id,
             metadata={
