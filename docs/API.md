@@ -755,14 +755,17 @@ Per-workspace MCP server registry. Distinct from `/integrations` — these are t
 { "tool": "query", "input": { "sql": "SELECT 1" } }
 ```
 
-**PUT `/mcp/routing`** body:
+**PUT `/mcp/routing`** body (M2-9 — keys are `target_kind`, values pin a provider **by name**):
 ```json
 {
-  "BE_REST": "mcp_xxx",
-  "FE_WEB": "mcp_yyy",
-  "DATA": "mcp_zzz"
+  "overrides": {
+    "BE_REST": { "primary": "api-http-mcp", "fallback": "vendor-x-http" },
+    "DATA": { "primary": "mysql-mcp", "fallback": null }
+  }
 }
 ```
+
+> **M2-9 built:** `GET /mcp/routing` returns the effective table (bundled defaults from `suitest_mcp.routing.DEFAULT_ROUTING` overlaid with workspace overrides, each row tagged `isOverride`). `PUT /mcp/routing` (ADMIN+) **replaces** the override map, validating each referenced provider name is known + enabled (else `422 MCP_PROVIDER_NOT_REGISTERED`) and each key is a valid `target_kind` (else `422 INVALID_TARGET_KIND`). Stored under `workspace_capabilities.features_json.routing_overrides` in the `{primary, fallback}` shape the runner consumes via `resolve_provider`. (The legacy `workspaces.mcp_routing_overrides` column is **not** the runtime source.)
 
 Errors:
 - `404 MCP_PROVIDER_NOT_REGISTERED` when targeting an unknown id.

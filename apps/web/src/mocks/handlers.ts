@@ -518,6 +518,27 @@ export const handlers: HttpHandler[] = [
       hasSecrets: false,
     }),
   ),
+  http.get(`${BASE}/mcp/routing`, () =>
+    HttpResponse.json({
+      items: [
+        { targetKind: "BE_REST", primary: "api-http-mcp", fallback: null, isOverride: false },
+        { targetKind: "FE_WEB", primary: "playwright-mcp", fallback: null, isOverride: false },
+        { targetKind: "DATA", primary: "postgres-mcp", fallback: null, isOverride: false },
+      ],
+    }),
+  ),
+  http.put(`${BASE}/mcp/routing`, async ({ request }) => {
+    const body = (await request.json()) as {
+      overrides: Record<string, { primary: string; fallback?: string | null }>;
+    };
+    const items = Object.entries(body.overrides).map(([targetKind, rule]) => ({
+      targetKind,
+      primary: rule.primary,
+      fallback: rule.fallback ?? null,
+      isOverride: true,
+    }));
+    return HttpResponse.json({ items });
+  }),
   http.post(`${BASE}/mcp/providers/:id/invoke`, async ({ request }) => {
     const body = (await request.json()) as { tool: string; arguments: Record<string, unknown> };
     return HttpResponse.json({

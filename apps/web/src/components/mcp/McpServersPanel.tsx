@@ -4,6 +4,7 @@ import { useState } from "react";
 import { HealthPill, type HealthStatus } from "@/components/mcp/HealthPill";
 import { ProviderModal } from "@/components/mcp/ProviderModal";
 import { RegisterMcpModal } from "@/components/mcp/RegisterMcpModal";
+import { RoutingEditor } from "@/components/mcp/RoutingEditor";
 import { Button } from "@/components/ui/button";
 import {
   fetchMcpProviders,
@@ -28,6 +29,7 @@ export function McpServersPanel(): React.ReactElement {
   });
   const [openId, setOpenId] = useState<string | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
+  const [routingOpen, setRoutingOpen] = useState(false);
 
   useWorkspaceStream((e) => {
     if (e.event === "mcp.provider.health") {
@@ -45,6 +47,17 @@ export function McpServersPanel(): React.ReactElement {
           <span className="font-mono text-[10.5px] text-fg-5">
             {providers.length.toString()} provider{providers.length === 1 ? "" : "s"}
           </span>
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            data-testid="mcp-routing"
+            onClick={() => {
+              setRoutingOpen(true);
+            }}
+          >
+            Routing
+          </Button>
           <Button
             type="button"
             size="xs"
@@ -98,6 +111,14 @@ export function McpServersPanel(): React.ReactElement {
         <RegisterMcpModal
           onClose={() => {
             setRegisterOpen(false);
+          }}
+        />
+      ) : null}
+
+      {routingOpen ? (
+        <RoutingEditor
+          onClose={() => {
+            setRoutingOpen(false);
           }}
         />
       ) : null}

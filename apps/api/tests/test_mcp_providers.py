@@ -399,3 +399,94 @@ async def test_invoke_builtin_rejected(api_db: ApiDb) -> None:
             headers=_h(ws.id),
         )
     assert resp.status_code == 409
+
+
+# --------------------------------------------- M2-9: routing overrides
+
+
+@pytest.mark.asyncio
+async def test_get_routing_returns_defaults(api_db: ApiDb) -> None:
+    user = await api_db.seed_user(email="mcp-route-get@example.com")
+    ws = await api_db.member_workspace(user, slug="mcp-route-get-ws")
+    async with api_db.client(user) as c:
+        resp = await c.get("/api/v1/mcp/routing", headers=_h(ws.id))
+    assert resp.status_code == 200
+    items = {r["targetKind"]: r for r in resp.json()["items"]}
+    assert items["BE_REST"]["primary"] == "api-http-mcp"
+    assert items["BE_REST"]["isOverride"] is False
+    assert items["FE_WEB"]["primary"] == "playwright-mcp"
+
+
+@pytest.mark.asyncio
+async def test_put_routing_override_applies(api_db: ApiDb) -> None:
+    user = await api_db.seed_user(email="mcp-route-put@example.com")
+    ws = await api_db.seed_workspace(slug="mcp-route-put-ws", name="WS")
+    await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.OWNER)
+    await api_db.add_all(
+        [
+            McpProvider(
+                workspace_id=ws.id,
+                name="vendor-x-http",
+                kind="http",
+                endpoint="https://x/sse",
+                transport=McpTransport.SSE,
+            ),
+        ]
+    )
+    async with api_db.client(user) as c:
+        put = await c.put(
+            "/api/v1/mcp/routing",
+            json={
+                "overrides": {"BE_REST": {"primary": "vendor-x-http", "fallback": "api-http-mcp"}}
+            },
+            headers=_h(ws.id),
+        )
+        get = await c.get("/api/v1/mcp/routing", headers=_h(ws.id))
+    assert put.status_code == 200, put.text
+    be_rest = next(r for r in get.json()["items"] if r["targetKind"] == "BE_REST")
+    assert be_rest["primary"] == "vendor-x-http"
+    assert be_rest["fallback"] == "api-http-mcp"
+    assert be_rest["isOverride"] is True
+
+
+@pytest.mark.asyncio
+async def test_put_routing_unknown_provider_rejected(api_db: ApiDb) -> None:
+    user = await api_db.seed_user(email="mcp-route-bad@example.com")
+    ws = await api_db.seed_workspace(slug="mcp-route-bad-ws", name="WS")
+    await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.OWNER)
+    async with api_db.client(user) as c:
+        resp = await c.put(
+            "/api/v1/mcp/routing",
+            json={"overrides": {"BE_REST": {"primary": "ghost-mcp"}}},
+            headers=_h(ws.id),
+        )
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["code"] == "MCP_PROVIDER_NOT_REGISTERED"
+
+
+@pytest.mark.asyncio
+async def test_put_routing_invalid_kind_rejected(api_db: ApiDb) -> None:
+    user = await api_db.seed_user(email="mcp-route-kind@example.com")
+    ws = await api_db.seed_workspace(slug="mcp-route-kind-ws", name="WS")
+    await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.OWNER)
+    async with api_db.client(user) as c:
+        resp = await c.put(
+            "/api/v1/mcp/routing",
+            json={"overrides": {"NOT_A_KIND": {"primary": "api-http-mcp"}}},
+            headers=_h(ws.id),
+        )
+    assert resp.status_code == 422
+    assert resp.json()["detail"]["code"] == "INVALID_TARGET_KIND"
+
+
+@pytest.mark.asyncio
+async def test_put_routing_requires_admin(api_db: ApiDb) -> None:
+    user = await api_db.seed_user(email="mcp-route-qa@example.com")
+    ws = await api_db.member_workspace(user, slug="mcp-route-qa-ws")  # QA role
+    async with api_db.client(user) as c:
+        resp = await c.put(
+            "/api/v1/mcp/routing",
+            json={"overrides": {"BE_REST": {"primary": "api-http-mcp"}}},
+            headers=_h(ws.id),
+        )
+    assert resp.status_code == 403

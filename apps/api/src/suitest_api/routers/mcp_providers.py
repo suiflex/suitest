@@ -35,6 +35,7 @@ from suitest_db.repositories.mcp_providers import (
     McpProviderRepo,
     McpProviderUpdate,
 )
+from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
 from suitest_mcp.discovery import (
     DiscoveryResult,
     McpDiscoveryError,
@@ -45,7 +46,8 @@ from suitest_mcp.errors import McpToolFailed, McpToolTimeout
 from suitest_mcp.models import McpProviderConfig as ProbeConfig
 from suitest_mcp.models import McpTransport as ProbeTransport
 from suitest_mcp.providers.builtin_specs import BUILTIN_SPECS
-from suitest_shared.domain.enums import McpTransport, Role
+from suitest_mcp.routing import DEFAULT_ROUTING
+from suitest_shared.domain.enums import AutonomyLevel, McpTransport, Role, TargetKind, Tier
 
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.role import require_role
@@ -57,6 +59,7 @@ _WRITE_ROLES = {Role.QA, Role.ADMIN, Role.OWNER}
 _ADMIN_ROLES = {Role.ADMIN, Role.OWNER}
 _BUILTIN_PREFIX = "builtin:"
 _NOT_FOUND = "provider not found"
+_BUILTIN_READONLY = "bundled providers are read-only"
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +140,36 @@ class McpProviderProbeResult(BaseModel):
     ok: bool
     tools: list[McpProviderTool] = Field(default_factory=list)
     server_version: str | None = Field(default=None, alias="serverVersion")
+
+
+class RoutingRule(BaseModel):
+    """One effective ``target_kind`` -> provider routing row."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    target_kind: str = Field(alias="targetKind")
+    primary: str
+    fallback: str | None = None
+    is_override: bool = Field(default=False, alias="isOverride")
+
+
+class McpRoutingResponse(BaseModel):
+    """``GET /mcp/routing`` — default table overlaid with workspace overrides."""
+
+    items: list[RoutingRule] = Field(default_factory=list)
+
+
+class RoutingRuleInput(BaseModel):
+    """One override rule in ``PUT /mcp/routing``."""
+
+    primary: str = Field(min_length=1)
+    fallback: str | None = None
+
+
+class McpRoutingUpdateBody(BaseModel):
+    """``PUT /mcp/routing`` body — replace the workspace override map."""
+
+    overrides: dict[str, RoutingRuleInput] = Field(default_factory=dict)
 
 
 class McpInvokeBody(BaseModel):
@@ -532,9 +565,7 @@ async def update_mcp_provider(
 ) -> McpProviderDetail:
     """Patch a custom provider. Builtins are read-only (409)."""
     if provider_id.startswith(_BUILTIN_PREFIX):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="bundled providers are read-only"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_BUILTIN_READONLY)
     repo = McpProviderRepo(session)
     row = await repo.get_by_id(provider_id)
     if row is None or row.workspace_id != ctx.workspace_id:
@@ -574,9 +605,7 @@ async def delete_mcp_provider(
 ) -> None:
     """Delete a custom provider. Builtins are read-only (409)."""
     if provider_id.startswith(_BUILTIN_PREFIX):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="bundled providers are read-only"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_BUILTIN_READONLY)
     repo = McpProviderRepo(session)
     row = await repo.get_by_id(provider_id)
     if row is None or row.workspace_id != ctx.workspace_id:
@@ -597,9 +626,7 @@ async def discover_mcp_provider(
     ``version_pin`` when the server advertises one). Builtins are read-only (409).
     """
     if provider_id.startswith(_BUILTIN_PREFIX):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="bundled providers are read-only"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_BUILTIN_READONLY)
     repo = McpProviderRepo(session)
     row = await repo.get_by_id(provider_id)
     if row is None or row.workspace_id != ctx.workspace_id:
@@ -703,3 +730,104 @@ async def _audit_invoke(
         },
     )
     await session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Routing overrides (M2-9) — target_kind -> provider per workspace
+# ---------------------------------------------------------------------------
+
+
+def _routing_items(overrides: dict[str, Any]) -> list[RoutingRule]:
+    """Build the effective routing table: bundled defaults overlaid w/ overrides."""
+    items: list[RoutingRule] = []
+    for tk in TargetKind:
+        default_primary, default_fallback = DEFAULT_ROUTING.get(tk, ("", None))
+        rule = overrides.get(tk.value) if isinstance(overrides, dict) else None
+        if isinstance(rule, dict) and rule.get("primary"):
+            items.append(
+                RoutingRule(
+                    target_kind=tk.value,
+                    primary=str(rule["primary"]),
+                    fallback=rule.get("fallback"),
+                    is_override=True,
+                )
+            )
+        else:
+            items.append(
+                RoutingRule(
+                    target_kind=tk.value,
+                    primary=default_primary,
+                    fallback=default_fallback,
+                    is_override=False,
+                )
+            )
+    return items
+
+
+async def _known_provider_names(session: AsyncSession, workspace_id: str) -> set[str]:
+    """Names routable in this workspace: bundled builtins + enabled custom rows."""
+    rows = await McpProviderRepo(session).list_by_workspace(workspace_id)
+    names = {spec.name for spec in BUILTIN_SPECS}
+    names |= {r.name for r in rows if r.enabled}
+    return names
+
+
+@router.get("/mcp/routing", response_model=McpRoutingResponse)
+async def get_mcp_routing(
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+) -> McpRoutingResponse:
+    """Effective routing table — bundled defaults overlaid with workspace overrides."""
+    cap = await WorkspaceCapabilityRepo(session).get(ctx.workspace_id)
+    raw = cap.features_json.get("routing_overrides") if cap else None
+    overrides = raw if isinstance(raw, dict) else {}
+    return McpRoutingResponse(items=_routing_items(overrides))
+
+
+@router.put("/mcp/routing", response_model=McpRoutingResponse)
+async def put_mcp_routing(
+    body: McpRoutingUpdateBody,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> McpRoutingResponse:
+    """Replace the workspace routing overrides (consumed by the runner).
+
+    Each key must be a valid ``target_kind`` and every referenced provider
+    (``primary`` + ``fallback``) must be a known, enabled provider in the
+    workspace, else ``422``. Stored under
+    ``workspace_capabilities.features_json.routing_overrides`` in the
+    ``{primary, fallback}`` shape :func:`suitest_mcp.routing.resolve_provider`
+    consumes.
+    """
+    valid_kinds = {tk.value for tk in TargetKind}
+    known = await _known_provider_names(session, ctx.workspace_id)
+    new_overrides: dict[str, dict[str, str | None]] = {}
+    for key, rule in body.overrides.items():
+        if key not in valid_kinds:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "INVALID_TARGET_KIND", "message": f"unknown target_kind {key!r}"},
+            )
+        for name in (rule.primary, rule.fallback):
+            if name is not None and name not in known:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={
+                        "code": "MCP_PROVIDER_NOT_REGISTERED",
+                        "message": f"provider {name!r} is not a known enabled provider",
+                    },
+                )
+        new_overrides[key] = {"primary": rule.primary, "fallback": rule.fallback}
+
+    repo = WorkspaceCapabilityRepo(session)
+    cap = await repo.get(ctx.workspace_id)
+    features = dict(cap.features_json) if cap else {}
+    features["routing_overrides"] = new_overrides
+    await repo.upsert(
+        ctx.workspace_id,
+        tier=Tier(cap.tier) if cap else Tier.ZERO,
+        autonomy=AutonomyLevel(cap.autonomy_level) if cap else AutonomyLevel.MANUAL,
+        features=features,
+    )
+    await session.commit()
+    return McpRoutingResponse(items=_routing_items(new_overrides))

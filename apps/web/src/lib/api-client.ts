@@ -237,6 +237,31 @@ export async function invokeMcpTool(
   return res.data;
 }
 
+/** One effective ``target_kind`` -> provider routing row (M2-9). */
+export interface McpRoutingRule {
+  targetKind: string;
+  primary: string;
+  fallback?: string | null;
+  isOverride: boolean;
+}
+
+export type McpRoutingOverrides = Record<
+  string,
+  { primary: string; fallback?: string | null }
+>;
+
+export async function fetchMcpRouting(): Promise<McpRoutingRule[]> {
+  const res = await api.get<{ items: McpRoutingRule[] }>("/mcp/routing");
+  return res.data.items;
+}
+
+export async function updateMcpRouting(
+  overrides: McpRoutingOverrides,
+): Promise<McpRoutingRule[]> {
+  const res = await api.put<{ items: McpRoutingRule[] }>("/mcp/routing", { overrides });
+  return res.data.items;
+}
+
 // ---------------------------------------------------------------------------
 // Public invitation onboarding (M1e).
 // ---------------------------------------------------------------------------
