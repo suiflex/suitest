@@ -262,7 +262,7 @@ CLOUD tier works dengan ≥ 5 provider tested: anthropic, openai, gemini, groq, 
 
 #### Launch readiness
 
-- [ ] **M4-17** OSS launch files: `LICENSE` (**Apache 2.0**), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/*`, `.github/PULL_REQUEST_TEMPLATE.md`
+- [x] **M4-17** OSS launch files: `LICENSE` (**Apache 2.0**), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/*`, `.github/PULL_REQUEST_TEMPLATE.md`
 
 ### Definition of done
 

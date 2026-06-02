@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest an enhancement for Suitest
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem are you trying to solve? Who is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like to see?
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Which tier does this target?
+      options:
+        - "ZERO (deterministic, no LLM)"
+        - "LOCAL / CLOUD (LLM-enabled)"
+        - "Any / not sure"
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
