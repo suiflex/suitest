@@ -24,7 +24,17 @@ import uuid
 from typing import Any
 
 from arq.connections import ArqRedis
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    File,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.models.user import User
@@ -481,6 +491,47 @@ async def get_workspace_export(
     if str(job_status) in {"JobStatus.not_found", "not_found"}:
         return WorkspaceExportStatus(status="not_found")
     return WorkspaceExportStatus(status="in_progress")
+
+
+@router.post(
+    "/workspaces/import",
+    response_model=WorkspaceDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_workspace(
+    request: Request,
+    file: UploadFile = File(description="workspace-*.tar.gz export archive."),
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> WorkspaceDetail:
+    """Restore/clone a workspace from an export archive (M4-30).
+
+    Creates a NEW workspace owned by the caller from the archive's structural
+    test assets (projects/suites/cases/steps/requirements). Secrets are NOT in
+    the archive and must be re-entered manually. Schema-version mismatch → 400.
+    """
+    from suitest_api.services.workspace_import_service import (
+        WorkspaceImportError,
+        WorkspaceImportService,
+    )
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty upload")
+    svc = WorkspaceImportService(session, user_id=str(user.id))
+    try:
+        workspace = await svc.import_archive(raw)
+    except WorkspaceImportError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await session.commit()
+    await publish_event(
+        request,
+        topic=f"workspace:{workspace.id}",
+        event="workspace.imported",
+        data={"workspaceId": workspace.id, "name": workspace.name},
+    )
+    return WorkspaceDetail.model_validate(workspace, from_attributes=True)
 
 
 def _opt_str(value: object) -> str | None:
