@@ -31,6 +31,7 @@ from suitest_mcp.registry import McpRegistry
 from suitest_mcp.workspace_cap import WorkspacePoolCap
 
 from suitest_runner.deps import build_defect_auto_filer
+from suitest_runner.jobs.dispatch_webhook import dispatch_webhook
 from suitest_runner.jobs.file_external_issue import file_external_issue
 from suitest_runner.jobs.run_test_case import run_test_case
 from suitest_runner.jobs.send_slack_notification import send_slack_notification
@@ -171,6 +172,7 @@ class WorkerSettings:
         send_slack_notification,
         file_external_issue,
         workspace_cleanup,
+        dispatch_webhook,
     ]
     queue_name: str = "suitest:runs"
     max_jobs: int = _settings.max_jobs_concurrent

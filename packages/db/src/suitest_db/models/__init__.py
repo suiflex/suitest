@@ -27,5 +27,6 @@ import suitest_db.models.run as _run  # noqa: F401
 import suitest_db.models.run_step_log as _run_step_log  # noqa: F401
 import suitest_db.models.tenancy as _tenancy  # noqa: F401
 import suitest_db.models.user as _user  # noqa: F401
+import suitest_db.models.webhook_dispatch as _webhook_dispatch  # noqa: F401
 import suitest_db.models.workspace as _workspace  # noqa: F401
 import suitest_db.models.workspace_capability as _workspace_capability  # noqa: F401
