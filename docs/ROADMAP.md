@@ -247,7 +247,7 @@ CLOUD tier works dengan ≥ 5 provider tested: anthropic, openai, gemini, groq, 
 
 #### Polish
 
-- [ ] **M4-12** i18n: English + Bahasa Indonesia
+- [x] **M4-12** i18n: English + Bahasa Indonesia (shipped — i18next EN+ID dictionaries + persisted-locale init + `setLocale()` + [`LanguageSwitcher.tsx`](../apps/web/src/components/shell/LanguageSwitcher.tsx) in the topbar)
 - [ ] **M4-13** a11y audit pass (axe DevTools no critical violations)
 - [x] **M4-14** Documentation site (Astro Starlight) dengan getting-started + API reference + tutorial (shipped — [`docs-site/`](../docs-site) Starlight scaffold: intro, getting-started, tutorial, capability-tiers, API reference (live /openapi.json), CLI)
 - [x] **M4-15** Example projects di `examples/`: `playwright-e2e`, `openapi-contract`, `mixed-mcp-e2e`, `air-gapped-deploy` (shipped — each dir has a README + sample case.json/openapi.json)

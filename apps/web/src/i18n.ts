@@ -15,14 +15,37 @@ import id from "./locales/id.json";
  * English, BI allowed for greetings + empty states — we use BI for screen
  * titles here as the canonical translation target).
  */
+export type Locale = "en" | "id";
+
+const STORAGE_KEY = "suitest.locale";
+
+function initialLocale(): Locale {
+  if (typeof localStorage !== "undefined") {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "en" || stored === "id") return stored;
+  }
+  return "en";
+}
+
 void i18n.use(initReactI18next).init({
   resources: {
     en: { translation: en },
     id: { translation: id },
   },
-  lng: "en",
+  lng: initialLocale(),
   fallbackLng: "en",
   interpolation: { escapeValue: false },
 });
+
+/**
+ * Switch the active locale (M4-12) and persist it to localStorage so the choice
+ * survives reloads.
+ */
+export async function setLocale(locale: Locale): Promise<void> {
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem(STORAGE_KEY, locale);
+  }
+  await i18n.changeLanguage(locale);
+}
 
 export default i18n;
