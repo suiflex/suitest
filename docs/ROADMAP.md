@@ -224,7 +224,7 @@ CLOUD tier works dengan ≥ 5 provider tested: anthropic, openai, gemini, groq, 
 #### LOCAL tier
 
 - [ ] **M4-1** LOCAL tier validated dengan: Ollama, llamacpp server, vLLM, LM Studio
-- [ ] **M4-2** `fastembed` local embeddings (BAAI/bge-small, 384d) → semantic search berfungsi di ZERO+fastembed combo
+- [x] **M4-2** `fastembed` local embeddings (BAAI/bge-small, 384d) → semantic search berfungsi di ZERO+fastembed combo (shipped — [`core/embeddings.py`](../packages/core/src/suitest_core/embeddings.py) `Embedder` + `FastEmbedEmbedder` lazy + `MockEmbedder`; [`services/semantic_search_service.py`](../apps/api/src/suitest_api/services/semantic_search_service.py) cosine rank w/ lexical fallback; `GET /test-cases/search`; `SUITEST_EMBEDDINGS=fastembed`, `core[embeddings]` extra)
 
 #### Deploy
 

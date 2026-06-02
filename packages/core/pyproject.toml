@@ -9,6 +9,12 @@ dependencies = [
   "sqlalchemy>=2.0.36",
 ]
 
+# M4-2: local semantic-search embeddings. Optional + heavy (ONNX runtime + model
+# download) so it ships as an extra — `uv sync --extra embeddings`. Without it,
+# SUITEST_EMBEDDINGS must stay unset/none (search degrades to lexical).
+[project.optional-dependencies]
+embeddings = ["fastembed>=0.3.0"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
