@@ -223,7 +223,7 @@ CLOUD tier works dengan ≥ 5 provider tested: anthropic, openai, gemini, groq, 
 
 #### LOCAL tier
 
-- [ ] **M4-1** LOCAL tier validated dengan: Ollama, llamacpp server, vLLM, LM Studio
+- [~] **M4-1** LOCAL tier validated dengan: Ollama, llamacpp server, vLLM, LM Studio (code-complete — provider→model mapping for all 4 + `base_url` enforcement + `LOCAL_TIER_DEFAULTS` + `requires_base_url()` in [`litellm_router.py`](../packages/agent/src/suitest_agent/providers/litellm_router.py), tests green; **live-server smoke pending** via [`scripts/validate_local_tier.py`](../scripts/validate_local_tier.py) — needs a running model server, can't run in CI)
 - [x] **M4-2** `fastembed` local embeddings (BAAI/bge-small, 384d) → semantic search berfungsi di ZERO+fastembed combo (shipped — [`core/embeddings.py`](../packages/core/src/suitest_core/embeddings.py) `Embedder` + `FastEmbedEmbedder` lazy + `MockEmbedder`; [`services/semantic_search_service.py`](../apps/api/src/suitest_api/services/semantic_search_service.py) cosine rank w/ lexical fallback; `GET /test-cases/search`; `SUITEST_EMBEDDINGS=fastembed`, `core[embeddings]` extra)
 
 #### Deploy

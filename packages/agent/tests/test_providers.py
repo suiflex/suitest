@@ -80,10 +80,29 @@ async def test_mock_stream_concatenates_to_content() -> None:
         ("vertex", "gemini-1.5-pro", "vertex_ai/gemini-1.5-pro"),
         ("vllm", "qwen2.5", "openai/qwen2.5"),
         ("lmstudio", "local-model", "openai/local-model"),
+        # M4-1: all four validated LOCAL providers
+        ("ollama", "llama3.1", "ollama/llama3.1"),
+        ("llamacpp", "local-model", "openai/local-model"),
     ],
 )
 def test_to_litellm_model_mapping(provider: str, model: str, expected: str) -> None:
     assert to_litellm_model(provider, model) == expected
+
+
+@pytest.mark.parametrize("provider", ["ollama", "llamacpp", "vllm", "lmstudio"])
+def test_local_providers_require_base_url(provider: str) -> None:
+    from suitest_agent.providers.litellm_router import LOCAL_TIER_DEFAULTS, requires_base_url
+
+    assert requires_base_url(provider) is True
+    assert provider in LOCAL_TIER_DEFAULTS
+    assert LOCAL_TIER_DEFAULTS[provider]["base_url"].startswith("http")
+
+
+@pytest.mark.parametrize("provider", ["anthropic", "openai", "gemini"])
+def test_cloud_providers_do_not_require_base_url(provider: str) -> None:
+    from suitest_agent.providers.litellm_router import requires_base_url
+
+    assert requires_base_url(provider) is False
 
 
 def test_to_litellm_model_rejects_unknown() -> None:

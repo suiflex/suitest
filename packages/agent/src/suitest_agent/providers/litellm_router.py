@@ -48,6 +48,23 @@ _OPENAI_SHIM = frozenset({"llamacpp", "vllm", "lmstudio"})
 # Seed support per docs/AI_AGENT.md §13.1 — drives the replay determinism label.
 _DETERMINISTIC_SEED = frozenset({"openai", "groq", "vllm", "llamacpp", "mock"})
 
+# M4-1: default base URLs + example models for each validated LOCAL provider.
+# Reference defaults the Settings UI / CLI can pre-fill; a workspace still sets
+# its own ``config.base_url``. Validated against Ollama, llama.cpp server, vLLM
+# (OpenAI server), LM Studio — see scripts/validate_local_tier.py.
+LOCAL_TIER_DEFAULTS: dict[str, dict[str, str]] = {
+    "ollama": {"base_url": "http://localhost:11434", "example_model": "llama3.1"},
+    "llamacpp": {"base_url": "http://localhost:8080/v1", "example_model": "local-model"},
+    "vllm": {"base_url": "http://localhost:8000/v1", "example_model": "Qwen/Qwen2.5-7B-Instruct"},
+    "lmstudio": {"base_url": "http://localhost:1234/v1", "example_model": "local-model"},
+}
+
+
+def requires_base_url(provider: str) -> bool:
+    """True for LOCAL providers — no public endpoint, so a base URL is required."""
+    p = provider.strip().lower()
+    return p == "ollama" or p in _OPENAI_SHIM
+
 
 def seed_determinism(provider: str) -> str:
     """Return ``"deterministic"`` or ``"best_effort"`` for replay metadata (§13.1)."""
