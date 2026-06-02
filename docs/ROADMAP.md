@@ -228,7 +228,7 @@ CLOUD tier works dengan ≥ 5 provider tested: anthropic, openai, gemini, groq, 
 
 #### Deploy
 
-- [ ] **M4-3** Helm chart production-grade: HPA, readiness/liveness probes, NetworkPolicy, PodDisruptionBudget
+- [x] **M4-3** Helm chart production-grade: HPA, readiness/liveness probes, NetworkPolicy, PodDisruptionBudget (shipped — templates/{hpa,pdb,networkpolicy,runner-deployment}.yaml + values; api/web probes already present; `helm lint` green)
 - [ ] **M4-4** Air-gapped deploy validated — run k8s tanpa outbound network (semua image preloaded, Ollama in-cluster)
 
 #### SDK + CLI

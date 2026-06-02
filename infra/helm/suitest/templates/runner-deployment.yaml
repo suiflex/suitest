@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "suitest.fullname" . }}-runner
+  labels:
+    {{- include "suitest.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runner
+spec:
+  replicas: {{ .Values.runner.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "suitest.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: runner
+  template:
+    metadata:
+      labels:
+        {{- include "suitest.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: runner
+    spec:
+      serviceAccountName: {{ include "suitest.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: runner
+          image: "{{ .Values.image.registry }}/{{ .Values.image.runnerRepository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "suitest.fullname" . }}-config
+            - secretRef:
+                name: {{ include "suitest.fullname" . }}-secret
+          # ARQ worker has no HTTP port; liveness via a process check.
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import suitest_runner.worker"]
+            initialDelaySeconds: 20
+            periodSeconds: 60
+          resources:
+            {{- toYaml .Values.runner.resources | nindent 12 }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

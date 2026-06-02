@@ -98,3 +98,42 @@ securityContext:
   readOnlyRootFilesystem: true
   capabilities:
     drop: ["ALL"]
+
+# M4-3: ARQ worker deployment (no Service — pulls jobs from Redis).
+runner:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+
+# M4-3: HorizontalPodAutoscaler per component.
+autoscaling:
+  enabled: false
+  api:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  web:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+# M4-3: PodDisruptionBudget (api/web/runner).
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# M4-3: default-deny NetworkPolicy + allowlist. egressCidrs should list the
+# datastore CIDRs (postgres/redis/s3); ingressFromNamespaceLabels selects the
+# ingress-controller namespace.
+networkPolicy:
+  enabled: false
+  ingressFromNamespaceLabels:
+    kubernetes.io/metadata.name: ingress-nginx
+  egressCidrs: []

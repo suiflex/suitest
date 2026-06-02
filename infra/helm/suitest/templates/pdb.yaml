@@ -1,0 +1,18 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+{{- range $c := list "api" "web" "runner" }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "suitest.fullname" $ }}-{{ $c }}
+  labels:
+    {{- include "suitest.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $c }}
+spec:
+  minAvailable: {{ $.Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "suitest.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $c }}
+{{- end }}
+{{- end }}
