@@ -22,6 +22,7 @@ override for ``suitest_runner.worker``):
 from __future__ import annotations
 
 import structlog
+from arq import cron
 from arq.connections import ArqRedis, RedisSettings, create_pool
 from redis import asyncio as redis_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -33,6 +34,7 @@ from suitest_mcp.workspace_cap import WorkspacePoolCap
 from suitest_runner.deps import build_defect_auto_filer
 from suitest_runner.jobs.dispatch_webhook import dispatch_webhook
 from suitest_runner.jobs.file_external_issue import file_external_issue
+from suitest_runner.jobs.rotate_audit_logs import restore_audit_logs, rotate_audit_logs
 from suitest_runner.jobs.run_test_case import run_test_case
 from suitest_runner.jobs.send_slack_notification import send_slack_notification
 from suitest_runner.jobs.workspace_cleanup import workspace_cleanup
@@ -173,6 +175,13 @@ class WorkerSettings:
         file_external_issue,
         workspace_cleanup,
         dispatch_webhook,
+        rotate_audit_logs,
+        restore_audit_logs,
+    ]
+    # Scheduled jobs. ``rotate_audit_logs`` (M4-32) runs daily at 03:00 to move
+    # audit rows past the retention window into MinIO cold storage.
+    cron_jobs = [  # noqa: RUF012 — ARQ reads this as a class attribute
+        cron(rotate_audit_logs, hour=3, minute=0),
     ]
     queue_name: str = "suitest:runs"
     max_jobs: int = _settings.max_jobs_concurrent

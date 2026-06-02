@@ -116,6 +116,28 @@ class RunnerSettings(BaseSettings):
         validation_alias=AliasChoices("SUITEST_RUNNER_S3_REGION", "SUITEST_S3_REGION"),
     )
 
+    # M4-32 / M4-29: cold-storage bucket for archived audit logs + workspace
+    # export tarballs. Separate from the artifact bucket so retention /
+    # lifecycle policies can differ (archives live longer, cheaper tier).
+    s3_archive_bucket: str = Field(
+        default="suitest-archive",
+        validation_alias=AliasChoices(
+            "SUITEST_RUNNER_S3_ARCHIVE_BUCKET", "SUITEST_S3_ARCHIVE_BUCKET"
+        ),
+    )
+
+    # M4-32: hot-table retention for audit_logs. Rows older than this are moved
+    # to cold storage (compressed JSONL per workspace per month) by the daily
+    # ``rotate_audit_logs`` cron and deleted from the DB.
+    audit_log_retention_days: int = Field(
+        default=365,
+        ge=1,
+        validation_alias=AliasChoices(
+            "SUITEST_RUNNER_AUDIT_LOG_RETENTION_DAYS",
+            "SUITEST_AUDIT_LOG_RETENTION_DAYS",
+        ),
+    )
+
 
 def get_settings() -> RunnerSettings:
     """Return a fresh RunnerSettings instance (env-resolved)."""

@@ -20,14 +20,17 @@ receives ``{items, next_cursor}``.
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from suitest_shared.domain.enums import Role
 
 from suitest_api.auth.db import get_async_session
+from suitest_api.deps.arq import get_arq
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
 from suitest_api.routers._pagination import decode_cursor_or_400, encode_next
@@ -89,6 +92,40 @@ async def list_audit_logs(
         items=page.items,
         next_cursor=encode_next(page.next_cursor),
     )
+
+
+_MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+_RESTORE_QUEUE = "suitest:runs"
+
+
+@router.post(
+    "/audit/restore",
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_role(_AUDIT_READ_ROLES))],
+)
+async def restore_audit_month(
+    from_: str = Query(alias="from", description="Archived month to restore, 'YYYY-MM'."),
+    ctx: TenantContext = Depends(require_workspace_membership),
+    arq: ArqRedis = Depends(get_arq),
+) -> dict[str, str]:
+    """Enqueue re-import of an archived audit month (M4-32) for this workspace.
+
+    The month lives in MinIO cold storage as
+    ``s3://<archive>/audit/<workspace>/<YYYY-MM>.jsonl.gz``; the ``restore_audit_logs``
+    runner job pulls it back into the hot table (idempotent on row id). ADMIN+.
+    """
+    if not _MONTH_RE.match(from_):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"invalid 'from': must be 'YYYY-MM' (got {from_!r})",
+        )
+    job = await arq.enqueue_job(
+        "restore_audit_logs",
+        ctx.workspace_id,
+        from_,
+        _queue_name=_RESTORE_QUEUE,
+    )
+    return {"status": "accepted", "job_id": job.job_id if job is not None else ""}
 
 
 def _parse_user_id_or_400(raw: str | None) -> uuid.UUID | None:
