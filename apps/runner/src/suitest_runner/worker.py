@@ -33,6 +33,7 @@ from suitest_mcp.workspace_cap import WorkspacePoolCap
 
 from suitest_runner.deps import build_defect_auto_filer
 from suitest_runner.jobs.dispatch_webhook import dispatch_webhook
+from suitest_runner.jobs.export_workspace import export_workspace
 from suitest_runner.jobs.file_external_issue import file_external_issue
 from suitest_runner.jobs.rotate_audit_logs import restore_audit_logs, rotate_audit_logs
 from suitest_runner.jobs.run_test_case import run_test_case
@@ -177,6 +178,7 @@ class WorkerSettings:
         dispatch_webhook,
         rotate_audit_logs,
         restore_audit_logs,
+        export_workspace,
     ]
     # Scheduled jobs. ``rotate_audit_logs`` (M4-32) runs daily at 03:00 to move
     # audit rows past the retention window into MinIO cold storage.
