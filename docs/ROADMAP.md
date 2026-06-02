@@ -229,7 +229,7 @@ CLOUD tier works dengan ≥ 5 provider tested: anthropic, openai, gemini, groq, 
 #### Deploy
 
 - [x] **M4-3** Helm chart production-grade: HPA, readiness/liveness probes, NetworkPolicy, PodDisruptionBudget (shipped — templates/{hpa,pdb,networkpolicy,runner-deployment}.yaml + values; api/web probes already present; `helm lint` green)
-- [ ] **M4-4** Air-gapped deploy validated — run k8s tanpa outbound network (semua image preloaded, Ollama in-cluster)
+- [~] **M4-4** Air-gapped deploy validated — run k8s tanpa outbound network (semua image preloaded, Ollama in-cluster) (code-complete — in-cluster Ollama template + `values-airgapped.yaml` (deny-egress NetworkPolicy + in-cluster baseUrl) + `scripts/airgapped-bundle.sh` image/chart bundler; `helm lint` green both value sets. **Live cluster validation pending** — needs an air-gapped k8s)
 
 #### SDK + CLI
 

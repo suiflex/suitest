@@ -137,3 +137,19 @@ networkPolicy:
   ingressFromNamespaceLabels:
     kubernetes.io/metadata.name: ingress-nginx
   egressCidrs: []
+
+# M4-4: in-cluster Ollama for air-gapped LOCAL tier. Disabled by default; the
+# values-airgapped.yaml overlay turns it on and points llm.baseUrl at it.
+ollama:
+  enabled: false
+  image: ollama/ollama:0.3.12
+  resources:
+    requests:
+      cpu: "1"
+      memory: 4Gi
+    limits:
+      cpu: "4"
+      memory: 12Gi
+  persistence:
+    enabled: true
+    size: 20Gi
