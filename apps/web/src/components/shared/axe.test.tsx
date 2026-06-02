@@ -5,6 +5,7 @@ import { axe } from "vitest-axe";
 import type { AxeMatchers } from "vitest-axe";
 import * as axeMatchers from "vitest-axe/matchers";
 
+import { LanguageSwitcher } from "@/components/shell/LanguageSwitcher";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Gauge } from "@/components/shared/Gauge";
 import { KpiCard } from "@/components/shared/KpiCard";
@@ -48,5 +49,24 @@ describe("a11y baseline (shared primitives)", () => {
       runOnly: { type: "tag", values: ["wcag2a", "wcag2aa"] },
     });
     await expect(results).toHaveNoViolations();
+  });
+
+  // M4-13: the launch audit gate — no *critical* axe violations across the
+  // interactive M4 surface (the i18n language switcher + a labelled form-ish
+  // composition). Mirrors the "axe DevTools no critical violations" acceptance.
+  it("has no critical violations on the M4 interactive surface", async () => {
+    const { container } = render(
+      <main aria-label="Audit host">
+        <h1>Settings</h1>
+        <LanguageSwitcher />
+        <KpiCard label="Total spend" value="$1.20" />
+        <StatusBadge status="pass" label="Healthy" />
+      </main>,
+    );
+    const results = await axe(container, {
+      runOnly: { type: "tag", values: ["wcag2a", "wcag2aa"] },
+    });
+    const critical = (results.violations ?? []).filter((v) => v.impact === "critical");
+    expect(critical).toEqual([]);
   });
 });
