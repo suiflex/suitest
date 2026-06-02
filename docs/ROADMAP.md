@@ -243,7 +243,7 @@ CLOUD tier works dengan ≥ 5 provider tested: anthropic, openai, gemini, groq, 
 - [x] **M4-8a** **Eval fixture licensing audit.** (shipped — 45 synthetic CC0 fixtures + per-suite index.json + eval/fixtures/LICENSES.md) Audit all eval fixtures (20 PRDs, 10 OpenAPI specs, 15 failed runs) for licensing compatibility. Required: CC0 / Apache-2 / MIT / public domain. No proprietary or scraped content. Document license per fixture in `eval/fixtures/LICENSES.md`. Reject incompatible fixtures and substitute with synthetic equivalents. Spec: [AI_AGENT.md §15 eval suite](./AI_AGENT.md#15-testing-the-agent).
 - [ ] **M4-9** Cost dashboard per workspace, per provider, per generation kind
 - [ ] **M4-10** Time-travel run replay UI (read-only step-through dengan screenshots + LLM messages)
-- [ ] **M4-11** Observability: OpenTelemetry traces wired, Prometheus `/metrics`, optional Langfuse compose service
+- [x] **M4-11** Observability: OpenTelemetry traces wired, Prometheus `/metrics`, optional Langfuse compose service (shipped — OTel + `/metrics` already wired in [`observability.py`](../apps/api/src/suitest_api/observability.py) (api) + runner; Langfuse + its Postgres added to docker-compose under the `observability` profile)
 
 #### Polish
 
