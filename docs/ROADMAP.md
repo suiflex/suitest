@@ -249,7 +249,7 @@ CLOUD tier works dengan ≥ 5 provider tested: anthropic, openai, gemini, groq, 
 
 - [ ] **M4-12** i18n: English + Bahasa Indonesia
 - [ ] **M4-13** a11y audit pass (axe DevTools no critical violations)
-- [ ] **M4-14** Documentation site (Mintlify atau Astro Starlight) dengan getting-started + API reference + tutorial
+- [x] **M4-14** Documentation site (Astro Starlight) dengan getting-started + API reference + tutorial (shipped — [`docs-site/`](../docs-site) Starlight scaffold: intro, getting-started, tutorial, capability-tiers, API reference (live /openapi.json), CLI)
 - [x] **M4-15** Example projects di `examples/`: `playwright-e2e`, `openapi-contract`, `mixed-mcp-e2e`, `air-gapped-deploy` (shipped — each dir has a README + sample case.json/openapi.json)
 - [x] **M4-16** Dogfood: Suitest tests Suitest in CI (smoke suite green di main pipeline) (shipped — [`dogfood.yml`](../.github/workflows/dogfood.yml) boots the compose stack + runs [`tests/dogfood/smoke.sh`](../tests/dogfood/smoke.sh) against the live API: health, capabilities tier, OpenAPI schema, /metrics)
 
