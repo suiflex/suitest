@@ -1,0 +1,26 @@
+{
+  "name": "@suitest/sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript SDK for the Suitest API",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "engines": { "node": ">=18" },
+  "repository": { "type": "git", "url": "https://github.com/suitest-dev/suitest" },
+  "homepage": "https://suitest.dev",
+  "keywords": ["suitest", "testing", "tcm", "mcp", "sdk"],
+  "devDependencies": { "typescript": "^5.5.0" }
+}
