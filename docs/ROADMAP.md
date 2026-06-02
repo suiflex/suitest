@@ -233,9 +233,9 @@ CLOUD tier works dengan ≥ 5 provider tested: anthropic, openai, gemini, groq, 
 
 #### SDK + CLI
 
-- [ ] **M4-5** `suitest-py` SDK published ke PyPI (generated dari OpenAPI)
+- [~] **M4-5** `suitest-py` SDK published ke PyPI (generated dari OpenAPI) (code-complete — [`sdk/python`](../sdk/python) typed httpx client tracking the OpenAPI schema + Apache-2 + `release-python-sdk.yml` Trusted-Publishing workflow; **PyPI publish pending** — needs project + OIDC publisher configured)
 - [ ] **M4-6** `@suitest/sdk` TS SDK published ke npm
-- [ ] **M4-7** `suitest` CLI: `suitest run --suite smoke --branch main`, `suitest cases list`, `suitest mcp ls`
+- [x] **M4-7** `suitest` CLI: `suitest run`, `suitest cases list`, `suitest mcp ls` (shipped — [`cli`](../cli) argparse front-end over suitest-sdk; run/cases-list/mcp-ls against the real API, env-driven connection, non-zero exit on error/failed run)
 
 #### Eval + observability
 
