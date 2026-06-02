@@ -1,0 +1,43 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Addresses API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/addresses": {
+      "get": {
+        "summary": "List addresses",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create addresse",
+        "responses": {
+          "201": {
+            "description": "created"
+          },
+          "400": {
+            "description": "bad request"
+          }
+        }
+      }
+    },
+    "/addresses/{id}": {
+      "get": {
+        "summary": "Get addresse",
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "404": {
+            "description": "not found"
+          }
+        }
+      }
+    }
+  }
+}

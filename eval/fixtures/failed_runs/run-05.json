@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-05",
+  "step_log": "Network timeout while loading page",
+  "expected_category": "FLAKE"
+}

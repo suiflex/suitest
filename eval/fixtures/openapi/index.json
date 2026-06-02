@@ -1,0 +1,42 @@
+{
+  "api-01.yaml": {
+    "min_operations": 3,
+    "resource": "users"
+  },
+  "api-02.yaml": {
+    "min_operations": 3,
+    "resource": "orders"
+  },
+  "api-03.yaml": {
+    "min_operations": 3,
+    "resource": "products"
+  },
+  "api-04.yaml": {
+    "min_operations": 3,
+    "resource": "carts"
+  },
+  "api-05.yaml": {
+    "min_operations": 3,
+    "resource": "payments"
+  },
+  "api-06.yaml": {
+    "min_operations": 3,
+    "resource": "reviews"
+  },
+  "api-07.yaml": {
+    "min_operations": 3,
+    "resource": "addresses"
+  },
+  "api-08.yaml": {
+    "min_operations": 3,
+    "resource": "coupons"
+  },
+  "api-09.yaml": {
+    "min_operations": 3,
+    "resource": "teams"
+  },
+  "api-10.yaml": {
+    "min_operations": 3,
+    "resource": "sessions"
+  }
+}

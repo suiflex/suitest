@@ -1,0 +1,43 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Orders API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/orders": {
+      "get": {
+        "summary": "List orders",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create order",
+        "responses": {
+          "201": {
+            "description": "created"
+          },
+          "400": {
+            "description": "bad request"
+          }
+        }
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "summary": "Get order",
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "404": {
+            "description": "not found"
+          }
+        }
+      }
+    }
+  }
+}

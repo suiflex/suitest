@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-13",
+  "step_log": "503 Service Unavailable: upstream gateway",
+  "expected_category": "INFRA"
+}

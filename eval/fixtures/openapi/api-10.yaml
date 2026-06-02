@@ -1,0 +1,43 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Sessions API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/sessions": {
+      "get": {
+        "summary": "List sessions",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create session",
+        "responses": {
+          "201": {
+            "description": "created"
+          },
+          "400": {
+            "description": "bad request"
+          }
+        }
+      }
+    },
+    "/sessions/{id}": {
+      "get": {
+        "summary": "Get session",
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "404": {
+            "description": "not found"
+          }
+        }
+      }
+    }
+  }
+}

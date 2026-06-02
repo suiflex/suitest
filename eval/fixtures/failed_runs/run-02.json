@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-02",
+  "step_log": "AssertionError: expected status 200 but got 500",
+  "expected_category": "REGRESSION"
+}

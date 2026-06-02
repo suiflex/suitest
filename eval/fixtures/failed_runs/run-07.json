@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-07",
+  "step_log": "DNS resolution failed for api.internal",
+  "expected_category": "MANUAL_TRIAGE"
+}

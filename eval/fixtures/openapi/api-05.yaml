@@ -1,0 +1,43 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Payments API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/payments": {
+      "get": {
+        "summary": "List payments",
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create payment",
+        "responses": {
+          "201": {
+            "description": "created"
+          },
+          "400": {
+            "description": "bad request"
+          }
+        }
+      }
+    },
+    "/payments/{id}": {
+      "get": {
+        "summary": "Get payment",
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "404": {
+            "description": "not found"
+          }
+        }
+      }
+    }
+  }
+}

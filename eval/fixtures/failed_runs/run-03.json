@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-03",
+  "step_log": "ECONNREFUSED 127.0.0.1:5432 postgres unreachable",
+  "expected_category": "INFRA"
+}

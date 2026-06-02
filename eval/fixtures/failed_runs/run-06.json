@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-06",
+  "step_log": "500 Internal Server Error from /api/checkout",
+  "expected_category": "MANUAL_TRIAGE"
+}

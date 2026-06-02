@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-08",
+  "step_log": "flaky: retried 3x, passed on attempt 3",
+  "expected_category": "FLAKE"
+}
