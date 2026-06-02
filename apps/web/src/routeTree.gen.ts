@@ -25,6 +25,7 @@ import { Route as AppCasesRouteImport } from './routes/_app/cases'
 import { Route as AppAnalyticsRouteImport } from './routes/_app/analytics'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppRunsRunIdRouteImport } from './routes/_app/runs_.$runId'
+import { Route as AppRunsRunIdReplayRouteImport } from './routes/_app/runs_.$runId.replay'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -105,6 +106,11 @@ const AppRunsRunIdRoute = AppRunsRunIdRouteImport.update({
   path: '/runs/$runId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRunsRunIdReplayRoute = AppRunsRunIdReplayRouteImport.update({
+  id: '/replay',
+  path: '/replay',
+  getParentRoute: () => AppRunsRunIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -121,7 +127,8 @@ export interface FileRoutesByFullPath {
   '/runs': typeof AppRunsRoute
   '/settings': typeof AppSettingsRoute
   '/trace': typeof AppTraceRoute
-  '/runs/$runId': typeof AppRunsRunIdRoute
+  '/runs/$runId': typeof AppRunsRunIdRouteWithChildren
+  '/runs/$runId/replay': typeof AppRunsRunIdReplayRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -138,7 +145,8 @@ export interface FileRoutesByTo {
   '/runs': typeof AppRunsRoute
   '/settings': typeof AppSettingsRoute
   '/trace': typeof AppTraceRoute
-  '/runs/$runId': typeof AppRunsRunIdRoute
+  '/runs/$runId': typeof AppRunsRunIdRouteWithChildren
+  '/runs/$runId/replay': typeof AppRunsRunIdReplayRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -157,7 +165,8 @@ export interface FileRoutesById {
   '/_app/runs': typeof AppRunsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/trace': typeof AppTraceRoute
-  '/_app/runs_/$runId': typeof AppRunsRunIdRoute
+  '/_app/runs_/$runId': typeof AppRunsRunIdRouteWithChildren
+  '/_app/runs_/$runId/replay': typeof AppRunsRunIdReplayRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/trace'
     | '/runs/$runId'
+    | '/runs/$runId/replay'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/trace'
     | '/runs/$runId'
+    | '/runs/$runId/replay'
   id:
     | '__root__'
     | '/'
@@ -212,6 +223,7 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/trace'
     | '/_app/runs_/$runId'
+    | '/_app/runs_/$runId/replay'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -335,8 +347,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRunsRunIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/runs_/$runId/replay': {
+      id: '/_app/runs_/$runId/replay'
+      path: '/replay'
+      fullPath: '/runs/$runId/replay'
+      preLoaderRoute: typeof AppRunsRunIdReplayRouteImport
+      parentRoute: typeof AppRunsRunIdRoute
+    }
   }
 }
+
+interface AppRunsRunIdRouteChildren {
+  AppRunsRunIdReplayRoute: typeof AppRunsRunIdReplayRoute
+}
+
+const AppRunsRunIdRouteChildren: AppRunsRunIdRouteChildren = {
+  AppRunsRunIdReplayRoute: AppRunsRunIdReplayRoute,
+}
+
+const AppRunsRunIdRouteWithChildren = AppRunsRunIdRoute._addFileChildren(
+  AppRunsRunIdRouteChildren,
+)
 
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRoute
@@ -350,7 +381,7 @@ interface AppRouteChildren {
   AppRunsRoute: typeof AppRunsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTraceRoute: typeof AppTraceRoute
-  AppRunsRunIdRoute: typeof AppRunsRunIdRoute
+  AppRunsRunIdRoute: typeof AppRunsRunIdRouteWithChildren
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -365,7 +396,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRunsRoute: AppRunsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTraceRoute: AppTraceRoute,
-  AppRunsRunIdRoute: AppRunsRunIdRoute,
+  AppRunsRunIdRoute: AppRunsRunIdRouteWithChildren,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

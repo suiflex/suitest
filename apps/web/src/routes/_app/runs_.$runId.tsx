@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { BrowserPreview } from "@/components/runs/BrowserPreview";
@@ -89,6 +89,16 @@ export function RunDetailPage(): React.ReactElement {
 
   return (
     <section className="flex flex-col gap-4" data-testid="run-detail-page">
+      <div className="flex justify-end">
+        <Link
+          to="/runs/$runId/replay"
+          params={{ runId }}
+          className="rounded-md border border-border bg-bg-elev-1 px-2.5 py-1 text-[12.5px] text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
+          data-testid="run-replay-link"
+        >
+          ⏱ Time-travel replay
+        </Link>
+      </div>
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-12">
           <RunSummaryCard run={run} />

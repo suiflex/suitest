@@ -117,6 +117,14 @@ export async function fetchRunSignedUrl(
   return res.data;
 }
 
+type RunLogPage = components["schemas"]["RunLogPage"];
+
+/** ``GET /runs/:id/logs`` — persisted log stream (M4-10 time-travel replay reads this). */
+export async function fetchRunLogs(runId: string, limit = 500): Promise<RunLogPage> {
+  const res = await api.get<RunLogPage>(`/runs/${runId}/logs`, { params: { limit } });
+  return res.data;
+}
+
 // ---------------------------------------------------------------------------
 // MCP provider browser (Integrations screen, M1c task 20).
 // ---------------------------------------------------------------------------
