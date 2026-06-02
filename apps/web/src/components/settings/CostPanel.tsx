@@ -90,6 +90,30 @@ export function CostPanel({ workspaceId }: CostPanelProps): React.ReactElement {
       ) : (
         <p className="text-[12.5px] text-fg-4">No agent sessions yet.</p>
       )}
+
+      {cost.byKind.length > 0 ? (
+        <div className="space-y-1.5" data-testid="cost-by-kind">
+          <h3 className="text-[12px] font-medium text-fg-3">By generation kind</h3>
+          <table className="w-full text-[12.5px]">
+            <thead>
+              <tr className="text-left text-fg-4">
+                <th className="pb-1 font-medium">Kind</th>
+                <th className="pb-1 text-right font-medium">Cost</th>
+                <th className="pb-1 text-right font-medium">Sessions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cost.byKind.map((k) => (
+                <tr key={k.kind} className="border-t border-border">
+                  <td className="py-1.5 text-fg-1">{k.kind}</td>
+                  <td className="py-1.5 text-right font-mono text-fg-3">{usd(k.costUsd)}</td>
+                  <td className="py-1.5 text-right font-mono text-fg-3">{k.sessions}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
     </section>
   );
 }
