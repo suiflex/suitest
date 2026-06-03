@@ -133,6 +133,9 @@ docker-build-images: ## Build all Docker images without running
 	docker build -f infra/docker/Dockerfile.runner -t suitest-runner .
 	docker build -f infra/docker/Dockerfile.web -t suitest-web .
 
+local-smoke: ## M4-1: boot CPU Ollama, pull tiny model, smoke the LOCAL tier provider
+	./scripts/local-tier-smoke.sh
+
 ##@ Utilities
 
 pre-commit: ## Run pre-commit on all files

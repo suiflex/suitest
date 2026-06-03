@@ -1,0 +1,58 @@
+name: M4 air-gapped deploy
+
+# M4-4: validate the air-gapped Helm overlay.
+#  - policy  (every PR): renders the chart with values-airgapped.yaml and asserts
+#            the egress lockdown invariants — fast, no cluster needed.
+#  - kind    (manual):   spins a real kind cluster with Calico and proves a
+#            Suitest-labelled pod reaches in-cluster Ollama but NOT the public
+#            internet. Slow (Calico + image pulls), so it is opt-in.
+
+on:
+  pull_request:
+    paths:
+      - "infra/helm/**"
+      - "scripts/check_airgapped_policy.py"
+      - "scripts/airgapped-kind-validate.sh"
+      - ".github/workflows/m4-airgapped.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    name: egress-lockdown policy check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: Render air-gapped chart and assert lockdown
+        run: |
+          helm template ./infra/helm/suitest \
+            -f infra/helm/suitest/values-airgapped.yaml \
+            | python scripts/check_airgapped_policy.py
+      - name: Negative control — default values must NOT pass the air-gap check
+        run: |
+          if helm template ./infra/helm/suitest | python scripts/check_airgapped_policy.py; then
+            echo "default values unexpectedly passed the air-gap check"; exit 1
+          fi
+          echo "negative control OK (default values correctly rejected)"
+
+  kind:
+    name: live kind air-gap validation
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: helm/kind-action@v1
+        with:
+          install_only: true
+      - uses: azure/setup-helm@v4
+      - name: Validate air-gapped deploy on kind + Calico
+        run: ./scripts/airgapped-kind-validate.sh

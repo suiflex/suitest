@@ -30,8 +30,12 @@ jobs:
           python-version: "3.12"
       - name: Build
         run: |
-          python -m pip install --upgrade build
+          python -m pip install --upgrade build twine
           python -m build "${{ matrix.package }}" --outdir dist
+      - name: Validate distribution metadata (publish dry-run)
+        # Proves the wheel + sdist would be accepted by PyPI before any
+        # credential exists — catches bad metadata/README rendering at PR time.
+        run: python -m twine check dist/*
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ strategy.job-index }}

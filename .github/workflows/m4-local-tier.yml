@@ -1,0 +1,57 @@
+name: M4 LOCAL tier smoke
+
+# M4-1: validate the LOCAL LLM tier against a *live* server. Boots a CPU-only
+# Ollama (docker-compose `local-smoke` profile), pulls a tiny instruct model,
+# and drives one completion through the runtime LiteLLMProvider via
+# scripts/validate_local_tier.py — proving provider->model mapping + base_url
+# plumbing work end-to-end. No GPU required.
+#
+# Runs on changes to the provider router / smoke harness, and on demand. The
+# model pull adds a couple of minutes, so it is its own workflow rather than a
+# gate on every PR.
+
+on:
+  pull_request:
+    paths:
+      - "packages/agent/src/suitest_agent/providers/**"
+      - "scripts/validate_local_tier.py"
+      - "scripts/local-tier-smoke.sh"
+      - "infra/docker/docker-compose.yml"
+      - ".github/workflows/m4-local-tier.yml"
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Ollama model tag to smoke (default qwen2.5:0.5b)"
+        required: false
+        default: "qwen2.5:0.5b"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: live ollama smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUITEST_LOCAL_SMOKE_MODEL: ${{ github.event.inputs.model || 'qwen2.5:0.5b' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Sync agent deps
+        run: uv sync --package suitest-agent --dev
+
+      - name: Boot Ollama + validate LOCAL tier
+        run: ./scripts/local-tier-smoke.sh
+
+      - name: Dump Ollama logs on failure
+        if: failure()
+        working-directory: infra/docker
+        run: docker compose --profile local-smoke logs --tail=100 ollama || true
