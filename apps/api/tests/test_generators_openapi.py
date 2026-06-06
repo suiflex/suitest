@@ -304,3 +304,74 @@ async def test_generate_unknown_suite_returns_404(api_db: ApiDb) -> None:
             json={"target_suite_id": "nonexistent-suite-id", "spec_content": _spec("httpbin.json")},
         )
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# M3-8 — LLM edge-case enrichment (deterministic core + optional AI pass)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_enrich_skipped_without_llm(api_db: ApiDb) -> None:
+    """include_llm_edge_cases on a ZERO workspace → deterministic core + skip frame."""
+    user = await api_db.seed_user(email="oa-enrich-skip@example.com")
+    ws = await api_db.member_workspace(user, slug="oa-enrich-skip-ws")
+    suite = await _project_suite(api_db, ws.id)
+    async with api_db.client(user) as c:
+        body = await _read_stream(
+            c,
+            ws.id,
+            {
+                "target_suite_id": suite.id,
+                "spec_content": _spec("petstore.json"),
+                "options": {"include_llm_edge_cases": True},
+            },
+        )
+    events = _parse_sse(body)
+    phases = [d.get("phase") for k, d in events if k == "progress"]
+    assert "llm_enrich_skipped" in phases
+    assert events[-1][0] == "complete"
+    cases_created = events[-1][1]["cases_created"]
+    assert isinstance(cases_created, int) and cases_created >= 3  # deterministic core
+
+
+@pytest.mark.asyncio
+async def test_enrich_runs_with_mock_llm(api_db: ApiDb) -> None:
+    """With an active mock LLM the enrich pass runs (mock echo → 0 edge cases)."""
+    from suitest_db.models.agent import AgentSession
+    from suitest_db.models.llm_config import LLMConfig
+
+    user = await api_db.seed_user(email="oa-enrich-llm@example.com")
+    ws = await api_db.member_workspace(user, slug="oa-enrich-llm-ws")
+    suite = await _project_suite(api_db, ws.id)
+    await api_db.add_all(
+        [
+            LLMConfig(
+                workspace_id=ws.id,
+                provider="mock",
+                model="mock-1",
+                api_key_encrypted=None,
+                config_json={},
+                is_active=True,
+            )
+        ]
+    )
+    async with api_db.client(user) as c:
+        body = await _read_stream(
+            c,
+            ws.id,
+            {
+                "target_suite_id": suite.id,
+                "spec_content": _spec("petstore.json"),
+                "options": {"include_llm_edge_cases": True},
+            },
+        )
+    events = _parse_sse(body)
+    phases = [d.get("phase") for k, d in events if k == "progress"]
+    assert "llm_enrich" in phases
+    assert events[-1][0] == "complete"
+
+    async with api_db.maker() as session:
+        sess = await session.scalar(select(AgentSession).where(AgentSession.workspace_id == ws.id))
+    assert sess is not None
+    assert sess.provider == "mock"

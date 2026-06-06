@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a defect in Suitest
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug! For **security vulnerabilities**, do not use
+        this form — see [SECURITY.md](../../SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: Release tag or `git rev-parse --short HEAD`
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Capability tier
+      options: ["ZERO (no LLM)", "LOCAL (Ollama/vLLM/...)", "CLOUD (BYO key)"]
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: API / runner logs, browser console. Redact secrets.
+      render: shell
+  - type: dropdown
+    id: deploy
+    attributes:
+      label: Deployment
+      options: ["docker compose", "Helm / Kubernetes", "local dev", "other"]

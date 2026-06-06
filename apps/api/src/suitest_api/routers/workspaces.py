@@ -24,7 +24,17 @@ import uuid
 from typing import Any
 
 from arq.connections import ArqRedis
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    File,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.models.user import User
@@ -40,6 +50,8 @@ from suitest_api.schemas.workspace import (
     WorkspaceDeleteAccepted,
     WorkspaceDeleteConfirm,
     WorkspaceDetail,
+    WorkspaceExportAccepted,
+    WorkspaceExportStatus,
     WorkspaceMemberInvite,
     WorkspaceMemberPublic,
     WorkspaceMemberRoleUpdate,
@@ -407,3 +419,124 @@ async def delete_workspace(
         data={**outcome.ws_payload, "cleanupJobId": cleanup_job_id},
     )
     return WorkspaceDeleteAccepted(cleanup_job_id=cleanup_job_id)
+
+
+# M4-29 workspace export. OWNER/ADMIN only — the archive contains every entity
+# (secrets REDACTED) so it must not be exportable by viewers/members.
+_EXPORT_ROLES: set[Role] = {Role.OWNER, Role.ADMIN}
+_EXPORT_QUEUE = "suitest:runs"
+
+
+@router.post(
+    "/workspaces/{workspace_id}/export",
+    response_model=WorkspaceExportAccepted,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def export_workspace(
+    workspace_id: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+    arq: ArqRedis = Depends(get_arq),
+) -> WorkspaceExportAccepted:
+    """Enqueue assembly of a portable workspace archive (M4-29). OWNER/ADMIN."""
+    from suitest_db.ids import new_id
+
+    member_repo = WorkspaceMembershipRepo(session)
+    role = await _resolve_role(member_repo, workspace_id=workspace_id, user=user)
+    if role not in _EXPORT_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="workspace export requires OWNER or ADMIN",
+        )
+    export_id = new_id()
+    job = await arq.enqueue_job(
+        "export_workspace", workspace_id, export_id, _queue_name=_EXPORT_QUEUE
+    )
+    return WorkspaceExportAccepted(export_job_id=job.job_id if job is not None else export_id)
+
+
+@router.get(
+    "/workspaces/{workspace_id}/export/{job_id}",
+    response_model=WorkspaceExportStatus,
+)
+async def get_workspace_export(
+    workspace_id: str,
+    job_id: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+    arq: ArqRedis = Depends(get_arq),
+) -> WorkspaceExportStatus:
+    """Poll an export job; surfaces the 24h presigned download URL when ready."""
+    from arq.jobs import Job as ArqJob
+
+    member_repo = WorkspaceMembershipRepo(session)
+    role = await _resolve_role(member_repo, workspace_id=workspace_id, user=user)
+    if role not in _EXPORT_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="workspace export requires OWNER or ADMIN",
+        )
+    job = ArqJob(job_id, arq, _queue_name=_EXPORT_QUEUE)
+    job_status = await job.status()
+    if job_status in {"complete", "Complete"} or str(job_status) == "JobStatus.complete":
+        result = await job.result(timeout=1)
+        if isinstance(result, dict):
+            return WorkspaceExportStatus(
+                status=str(result.get("status", "error")),
+                download_url=_opt_str(result.get("download_url")),
+                size_bytes=_opt_int(result.get("size_bytes")),
+                error=_opt_str(result.get("error")),
+            )
+        return WorkspaceExportStatus(status="error", error="malformed job result")
+    if str(job_status) in {"JobStatus.not_found", "not_found"}:
+        return WorkspaceExportStatus(status="not_found")
+    return WorkspaceExportStatus(status="in_progress")
+
+
+@router.post(
+    "/workspaces/import",
+    response_model=WorkspaceDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_workspace(
+    request: Request,
+    file: UploadFile = File(description="workspace-*.tar.gz export archive."),
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> WorkspaceDetail:
+    """Restore/clone a workspace from an export archive (M4-30).
+
+    Creates a NEW workspace owned by the caller from the archive's structural
+    test assets (projects/suites/cases/steps/requirements). Secrets are NOT in
+    the archive and must be re-entered manually. Schema-version mismatch → 400.
+    """
+    from suitest_api.services.workspace_import_service import (
+        WorkspaceImportError,
+        WorkspaceImportService,
+    )
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty upload")
+    svc = WorkspaceImportService(session, user_id=str(user.id))
+    try:
+        workspace = await svc.import_archive(raw)
+    except WorkspaceImportError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await session.commit()
+    await publish_event(
+        request,
+        topic=f"workspace:{workspace.id}",
+        event="workspace.imported",
+        data={"workspaceId": workspace.id, "name": workspace.name},
+    )
+    return WorkspaceDetail.model_validate(workspace, from_attributes=True)
+
+
+def _opt_str(value: object) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def _opt_int(value: object) -> int | None:
+    return value if isinstance(value, int) else None

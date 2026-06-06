@@ -32,7 +32,10 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
 import structlog
+from suitest_agent.graphs.execution import translate_single_step
+from suitest_agent.providers.litellm_router import get_provider
 from suitest_db.models.project import Project
+from suitest_db.repositories.llm_configs import LLMConfigRepo
 from suitest_db.repositories.run_step_logs import RunStepLogRepo
 from suitest_db.repositories.runs import RunRepo, RunStepRepo
 from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
@@ -40,7 +43,7 @@ from suitest_mcp.invoker import McpInvoker
 from suitest_mcp.registry import McpRegistry
 from suitest_shared.domain.enums import RunStatus, StepOutcome, Tier
 
-from suitest_runner.executors.step_executor import execute_step
+from suitest_runner.executors.step_executor import StepTranslator, execute_step
 from suitest_runner.handlers.step_handler import on_run_step_failed
 from suitest_runner.observability import get_tracer
 
@@ -78,6 +81,38 @@ class _LogseqIncrementer(Protocol):
     """Redis ``INCR`` surface used to mint the per-run monotonic ``seq`` counter."""
 
     async def incr(self, name: str) -> int: ...
+
+
+async def _build_translator(
+    session: object, *, tier: Tier, workspace_id: str
+) -> StepTranslator | None:
+    """Bind the workspace's active LLM into a per-step action→code translator.
+
+    Returns ``None`` at ZERO tier or when no LLM is configured — agentic steps
+    then stay ``SKIP``. The provider is resolved once and closed over so every
+    step in the run reuses the same client (M3-10).
+    """
+    if tier not in (Tier.LOCAL, Tier.CLOUD):
+        return None
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    if not isinstance(session, AsyncSession):  # pragma: no cover - defensive
+        return None
+    llm = await LLMConfigRepo(session).get_active(workspace_id)
+    if llm is None:
+        return None
+    base_url = llm.config_json.get("base_url")
+    provider = get_provider(
+        llm.provider,
+        api_key=llm.api_key_encrypted,
+        base_url=base_url if isinstance(base_url, str) else None,
+    )
+    model = llm.model
+
+    async def _translate(action: str) -> dict[str, object] | None:
+        return await translate_single_step(provider, model=model, action=action)
+
+    return _translate
 
 
 async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object]:
@@ -138,6 +173,12 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
             )
             triggered_by = run.triggered_by
 
+            # M3-10: at LOCAL/CLOUD tier, bind the workspace's LLM into a
+            # per-step translator so agentic (code-less) steps resolve their
+            # ``action`` to a tool call at execution time. ZERO / no-LLM → None
+            # (such steps stay SKIP, exactly as before).
+            translator = await _build_translator(session, tier=tier, workspace_id=workspace_id)
+
             await run_repo.update_status(
                 run_id,
                 RunStatus.RUNNING,
@@ -186,6 +227,7 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                 actor_user_id=triggered_by,
                 tier=tier,
                 routing_overrides=overrides,
+                translator=translator,
             )
 
             async with factory() as session:

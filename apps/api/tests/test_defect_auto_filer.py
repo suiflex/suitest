@@ -676,3 +676,63 @@ def test_run_step_target_kind_helper_smoke() -> None:
     assert _make_case(priority=Priority.P0).priority is Priority.P0
     # TargetKind sanity — verifies the test imports satisfy the type-checker.
     assert TargetKind.FE_WEB.value == "FE_WEB"
+
+
+# --- M3-11 LLM diagnosis path ----------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_file_for_failed_step_uses_llm_diagnosis_when_diagnoser_present(
+    state: _SessionState, redis: _RecordingRedis, arq: _RecordingArqPool
+) -> None:
+    """A wired diagnoser supplants the regex bucket: kind + confidence + text."""
+    from suitest_api.services.defect_auto_filer import LlmDiagnosis
+
+    captured: dict[str, object] = {}
+
+    async def stub_diagnoser(session: object, workspace_id: str, evidence: str) -> LlmDiagnosis:
+        captured["workspace_id"] = workspace_id
+        captured["evidence"] = evidence
+        return LlmDiagnosis(
+            kind=DiagnosisKind.REGRESSION, confidence=0.91, text="Null guard removed in abc123"
+        )
+
+    filer = DefectAutoFiler(
+        session_factory=_session_factory(state),
+        publisher=redis,
+        arq_pool=arq,
+        categorizer=DefectCategorizer(),
+        diagnoser=stub_diagnoser,
+    )
+    defect = await filer.file_for_failed_step("rs_1")
+    assert defect is not None
+    # ECONNREFUSED would be INFRA via regex; the LLM overrides to REGRESSION.
+    assert defect.agent_diagnosis_kind is DiagnosisKind.REGRESSION
+    assert defect.agent_confidence == pytest.approx(0.91)
+    assert defect.agent_diagnosis is not None
+    assert "Null guard removed" in defect.agent_diagnosis
+    assert captured["workspace_id"] == "ws_1"
+    assert "Stderr" in str(captured["evidence"]) or "Error" in str(captured["evidence"])
+
+
+@pytest.mark.asyncio
+async def test_file_for_failed_step_falls_back_to_regex_when_diagnoser_returns_none(
+    state: _SessionState, redis: _RecordingRedis, arq: _RecordingArqPool
+) -> None:
+    """Diagnoser returning None (no LLM) → regex bucket, no confidence stored."""
+
+    async def none_diagnoser(session: object, workspace_id: str, evidence: str) -> None:
+        return None
+
+    filer = DefectAutoFiler(
+        session_factory=_session_factory(state),
+        publisher=redis,
+        arq_pool=arq,
+        categorizer=DefectCategorizer(),
+        diagnoser=none_diagnoser,
+    )
+    defect = await filer.file_for_failed_step("rs_1")
+    assert defect is not None
+    assert defect.agent_diagnosis_kind is DiagnosisKind.INFRA  # regex path
+    assert defect.agent_confidence is None
+    assert defect.agent_diagnosis is None

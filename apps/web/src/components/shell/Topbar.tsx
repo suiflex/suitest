@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { LanguageSwitcher } from "@/components/shell/LanguageSwitcher";
 import { TierBadge } from "@/components/shared/TierBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,12 +27,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface CommandTarget {
@@ -121,6 +117,9 @@ export function Topbar({
             <span className="text-[10px]">⌘</span>K
           </kbd>
         </button>
+
+        {/* Language switcher (M4-12) */}
+        <LanguageSwitcher />
 
         {/* Help icon */}
         <a

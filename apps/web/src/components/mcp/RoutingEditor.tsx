@@ -101,8 +101,7 @@ export function RoutingEditor({ onClose }: RoutingEditorProps): React.ReactEleme
         <DialogHeader>
           <DialogTitle className="text-fg-1">MCP Routing</DialogTitle>
           <DialogDescription className="text-fg-3">
-            Override which MCP provider services each target kind. Off = bundled
-            default.
+            Override which MCP provider services each target kind. Off = bundled default.
           </DialogDescription>
         </DialogHeader>
 

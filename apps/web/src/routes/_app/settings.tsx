@@ -2,6 +2,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 
+import { AutomationPanel } from "@/components/settings/AutomationPanel";
+import { CostPanel } from "@/components/settings/CostPanel";
+import { LlmSettingsPanel } from "@/components/settings/LlmSettingsPanel";
 import { MembersPanel } from "@/components/settings/MembersPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -52,6 +55,8 @@ function SettingsScreen(): React.ReactElement {
         <TabsList>
           <TabsTrigger value="account">Account</TabsTrigger>
           {showMembers ? <TabsTrigger value="members">Members</TabsTrigger> : null}
+          {workspaceId ? <TabsTrigger value="llm">LLM</TabsTrigger> : null}
+          {workspaceId ? <TabsTrigger value="automation">Automation</TabsTrigger> : null}
         </TabsList>
 
         <TabsContent value="account" className="pt-4">
@@ -61,6 +66,19 @@ function SettingsScreen(): React.ReactElement {
         {showMembers && workspaceId ? (
           <TabsContent value="members" className="pt-4">
             <MembersPanel workspaceId={workspaceId} currentRole={role} />
+          </TabsContent>
+        ) : null}
+
+        {workspaceId ? (
+          <TabsContent value="llm" className="space-y-8 pt-4">
+            <LlmSettingsPanel workspaceId={workspaceId} canWrite={showMembers} />
+            <CostPanel workspaceId={workspaceId} />
+          </TabsContent>
+        ) : null}
+
+        {workspaceId ? (
+          <TabsContent value="automation" className="pt-4">
+            <AutomationPanel workspaceId={workspaceId} canWrite={showMembers} />
           </TabsContent>
         ) : null}
       </Tabs>

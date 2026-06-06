@@ -150,6 +150,43 @@ services:
       timeout: 5s
       retries: 3
 
+  # M4-1: in-cluster Ollama for the LOCAL tier. CPU-only (no GPU reservation) so
+  # it boots on any host / CI runner. Activated by the ``local`` profile (the
+  # LOCAL tier the Makefile advertises) and by ``local-smoke`` (the validation
+  # harness that boots Ollama *alone* to smoke-test the provider plumbing via
+  # scripts/validate_local_tier.py). Models live in a named volume so a pull
+  # survives restarts.
+  ollama:
+    image: ollama/ollama:0.3.12
+    profiles: ["local", "local-smoke"]
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollamadata:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+
+  # Pulls a tiny instruct model (~400 MB) once Ollama is healthy, then exits.
+  # qwen2.5:0.5b is small enough to download + run on a CPU CI runner. Override
+  # the model with SUITEST_LOCAL_SMOKE_MODEL.
+  ollama-pull:
+    image: ollama/ollama:0.3.12
+    profiles: ["local", "local-smoke"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "ollama pull ${SUITEST_LOCAL_SMOKE_MODEL:-qwen2.5:0.5b}"
+    restart: "no"
+
   # E2E-only static page server. Serves tests/e2e/fixtures/test-page/index.html
   # so the M1c smoke (playwright-mcp Navigate → Screenshot → Click) has a
   # deterministic local target without depending on the public internet.
@@ -169,10 +206,47 @@ services:
       timeout: 3s
       retries: 5
 
+  # M4-11: optional Langfuse LLM-observability stack. Opt-in via the
+  # ``observability`` profile (`docker compose --profile observability up`); the
+  # default profiles never pull it. Point the API/runner at it with
+  # OTEL/Langfuse env (see docs/DEPLOYMENT.md). Has its own Postgres so it never
+  # shares the app DB.
+  langfuse-db:
+    image: postgres:16
+    profiles: ["observability"]
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: langfuse
+      POSTGRES_DB: langfuse
+    volumes:
+      - langfusedata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  langfuse:
+    image: langfuse/langfuse:2
+    profiles: ["observability"]
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://langfuse:langfuse@langfuse-db:5432/langfuse
+      NEXTAUTH_URL: http://localhost:3030
+      NEXTAUTH_SECRET: dev-langfuse-secret-change-me
+      SALT: dev-langfuse-salt-change-me
+      TELEMETRY_ENABLED: "false"
+    ports:
+      - "3030:3000"
+
 volumes:
   pgdata:
   redisdata:
   miniodata:
+  langfusedata:
+  ollamadata:
 
 networks:
   default:

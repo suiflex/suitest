@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/suitest/suitest/security/policy
+    about: Please report security issues privately — see SECURITY.md, do not open a public issue.
+  - name: Questions & discussion
+    url: https://github.com/suitest/suitest/discussions
+    about: Ask questions, share setups, and discuss ideas with the community.

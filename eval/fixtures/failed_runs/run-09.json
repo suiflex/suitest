@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-09",
+  "step_log": "Expected 'Welcome' but page showed 'Error 404'",
+  "expected_category": "MANUAL_TRIAGE"
+}

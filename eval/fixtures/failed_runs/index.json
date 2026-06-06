@@ -1,0 +1,47 @@
+{
+  "run-01.json": {
+    "expected_category": "FLAKE"
+  },
+  "run-02.json": {
+    "expected_category": "REGRESSION"
+  },
+  "run-03.json": {
+    "expected_category": "INFRA"
+  },
+  "run-04.json": {
+    "expected_category": "MANUAL_TRIAGE"
+  },
+  "run-05.json": {
+    "expected_category": "FLAKE"
+  },
+  "run-06.json": {
+    "expected_category": "MANUAL_TRIAGE"
+  },
+  "run-07.json": {
+    "expected_category": "MANUAL_TRIAGE"
+  },
+  "run-08.json": {
+    "expected_category": "FLAKE"
+  },
+  "run-09.json": {
+    "expected_category": "MANUAL_TRIAGE"
+  },
+  "run-10.json": {
+    "expected_category": "MANUAL_TRIAGE"
+  },
+  "run-11.json": {
+    "expected_category": "MANUAL_TRIAGE"
+  },
+  "run-12.json": {
+    "expected_category": "FLAKE"
+  },
+  "run-13.json": {
+    "expected_category": "INFRA"
+  },
+  "run-14.json": {
+    "expected_category": "MANUAL_TRIAGE"
+  },
+  "run-15.json": {
+    "expected_category": "FLAKE"
+  }
+}

@@ -331,3 +331,13 @@ class AdHocRunResponse(BaseModel):
     public_id: str = Field(serialization_alias="publicId")
     status_url: str = Field(serialization_alias="statusUrl")
     ws_room: str = Field(serialization_alias="wsRoom")
+
+
+class TestCaseSearchHit(BaseModel):
+    """One semantic/lexical search result (M4-2)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    case_id: str = Field(serialization_alias="caseId")
+    name: str
+    score: float

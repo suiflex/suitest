@@ -18,7 +18,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from suitest_api.services.defect_auto_filer import DefectAutoFiler, DefectCategorizer
+from suitest_api.services.defect_auto_filer import (
+    DefectAutoFiler,
+    DefectCategorizer,
+    build_llm_diagnoser,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -34,12 +38,17 @@ def build_defect_auto_filer(
     publisher: _PublishCapable | None,
     arq_pool: _ArqEnqueueCapable | None,
     categorizer: DefectCategorizer | None = None,
+    enable_llm_diagnosis: bool = True,
 ) -> DefectAutoFiler:
     """Construct a :class:`DefectAutoFiler` ready to serve the runner hook.
 
     ``categorizer`` defaults to a fresh :class:`DefectCategorizer` instance —
     the regex tables are module-level constants so multiple instances share
     the underlying patterns and the construction cost is essentially zero.
+
+    ``enable_llm_diagnosis`` (default True, M3-11) wires the LLM diagnoser. It
+    self-gates: workspaces with no active ``LLMConfig`` transparently fall back
+    to the regex bucket, so this is safe to leave on in ZERO deployments.
 
     The factory takes ``arq_pool`` + ``publisher`` as :class:`Protocol`
     surfaces (no concrete redis / arq type) so unit tests can pass recorder
@@ -50,4 +59,5 @@ def build_defect_auto_filer(
         publisher=publisher,
         arq_pool=arq_pool,
         categorizer=categorizer or DefectCategorizer(),
+        diagnoser=build_llm_diagnoser() if enable_llm_diagnosis else None,
     )

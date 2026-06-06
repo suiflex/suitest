@@ -90,6 +90,10 @@ class OpenApiGeneratorOptions(BaseModel):
     include_required_field_tests: bool = True
     include_boundary_tests: bool = True
     include_rate_limit_tests: bool = True
+    # M3-8: when the workspace has an active LLM, propose extra edge cases
+    # (boundary / fuzz / negative) on top of the deterministic contract suite.
+    # Ignored (graceful ZERO degrade) when no LLM is configured.
+    include_llm_edge_cases: bool = False
     tag_prefix: str | None = None
     tags_filter: list[str] = Field(default_factory=list)
     auth_profile_id: str | None = None
@@ -193,6 +197,57 @@ class CrawlerGenerateRequest(BaseModel):
     start_url: Annotated[str, Field(min_length=1)]
     auth: CrawlerAuthConfig = Field(default_factory=CrawlerAuthConfig)
     options: CrawlerOptions = Field(default_factory=CrawlerOptions)
+
+
+class PrdGenerateRequest(BaseModel):
+    """LLM-driven PRD generation (M3-6) — CLOUD/LOCAL only.
+
+    ``prd_text`` is the requirement / user story / free text. The agent extracts
+    stories and drafts happy-path + edge cases. ``default_target_kind`` decides
+    the steps' default ``mcp_provider`` (steps are agentic — code is translated at
+    execution time, M3-10). ``seed`` is threaded for reproducibility (M3-5).
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    target_suite_id: Annotated[str, Field(min_length=1)]
+    prd_text: Annotated[str, Field(min_length=1, max_length=200_000)]
+    default_target_kind: TargetKind = TargetKind.CUSTOM
+    seed: int | None = None
+    max_cases: Annotated[int, Field(ge=1, le=100)] = 20
+
+
+class UrlSemanticGenerateRequest(BaseModel):
+    """LLM-driven semantic URL generation (M3-7) — CLOUD/LOCAL only.
+
+    Decomposes a natural-language ``intent`` ("checkout flow") into FE_WEB
+    journey cases on ``url``. Steps are agentic browser actions driven by
+    ``playwright-mcp`` (code translated at execution time, M3-10).
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    target_suite_id: Annotated[str, Field(min_length=1)]
+    url: Annotated[str, Field(min_length=1)]
+    intent: Annotated[str, Field(min_length=1, max_length=2_000)]
+    seed: int | None = None
+    max_cases: Annotated[int, Field(ge=1, le=100)] = 20
+
+
+class McpDiscoveryGenerateRequest(BaseModel):
+    """LLM-driven MCP tool-discovery generation (M3-9) — CLOUD/LOCAL only.
+
+    Targets a registered MCP provider by id; the agent explores its persisted
+    tool catalog and proposes contract cases (happy + negative per tool). Steps
+    are agentic (code translated at execution time, M3-10).
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    target_suite_id: Annotated[str, Field(min_length=1)]
+    mcp_provider_id: Annotated[str, Field(min_length=1)]
+    seed: int | None = None
+    max_cases: Annotated[int, Field(ge=1, le=100)] = 20
 
 
 class GeneratorRunResponse(BaseModel):

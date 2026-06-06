@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-10",
+  "step_log": "Connection reset by peer during upload",
+  "expected_category": "MANUAL_TRIAGE"
+}

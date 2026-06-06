@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-11",
+  "step_log": "Selector changed: '.btn-primary' no longer exists",
+  "expected_category": "MANUAL_TRIAGE"
+}

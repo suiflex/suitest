@@ -1,0 +1,40 @@
+name: dogfood
+
+# M4-16: "Suitest tests Suitest". Bring up the full docker-compose stack, wait
+# for the API to be healthy, then run the dogfood smoke suite against it.
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "infra/docker/**"
+      - "tests/dogfood/**"
+      - ".github/workflows/dogfood.yml"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Boot the stack (ZERO tier)
+        run: |
+          cp .env.example .env || true
+          docker compose -f infra/docker/docker-compose.yml --profile zero up -d --build
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:4000/health >/dev/null 2>&1; then
+              echo "API healthy"; exit 0
+            fi
+            sleep 5
+          done
+          echo "API did not become healthy in time" >&2
+          docker compose -f infra/docker/docker-compose.yml logs api | tail -100
+          exit 1
+      - name: Run dogfood smoke
+        run: SUITEST_API_URL=http://localhost:4000 bash tests/dogfood/smoke.sh
+      - name: Tear down
+        if: always()
+        run: docker compose -f infra/docker/docker-compose.yml down -v

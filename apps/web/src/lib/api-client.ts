@@ -117,6 +117,14 @@ export async function fetchRunSignedUrl(
   return res.data;
 }
 
+type RunLogPage = components["schemas"]["RunLogPage"];
+
+/** ``GET /runs/:id/logs`` — persisted log stream (M4-10 time-travel replay reads this). */
+export async function fetchRunLogs(runId: string, limit = 500): Promise<RunLogPage> {
+  const res = await api.get<RunLogPage>(`/runs/${runId}/logs`, { params: { limit } });
+  return res.data;
+}
+
 // ---------------------------------------------------------------------------
 // MCP provider browser (Integrations screen, M1c task 20).
 // ---------------------------------------------------------------------------
@@ -181,9 +189,7 @@ export async function fetchMcpProvider(id: string): Promise<McpProviderDetail> {
   return res.data;
 }
 
-export async function createMcpProvider(
-  body: McpProviderWriteBody,
-): Promise<McpProviderDetail> {
+export async function createMcpProvider(body: McpProviderWriteBody): Promise<McpProviderDetail> {
   const res = await api.post<McpProviderDetail>("/mcp/providers", body);
   return res.data;
 }
@@ -207,9 +213,7 @@ export interface McpProbeResult {
   serverVersion?: string | null;
 }
 
-export async function testMcpConnection(
-  body: McpProviderWriteBody,
-): Promise<McpProbeResult> {
+export async function testMcpConnection(body: McpProviderWriteBody): Promise<McpProbeResult> {
   const res = await api.post<McpProbeResult>("/mcp/providers/test-connection", body);
   return res.data;
 }
@@ -245,21 +249,167 @@ export interface McpRoutingRule {
   isOverride: boolean;
 }
 
-export type McpRoutingOverrides = Record<
-  string,
-  { primary: string; fallback?: string | null }
->;
+export type McpRoutingOverrides = Record<string, { primary: string; fallback?: string | null }>;
 
 export async function fetchMcpRouting(): Promise<McpRoutingRule[]> {
   const res = await api.get<{ items: McpRoutingRule[] }>("/mcp/routing");
   return res.data.items;
 }
 
-export async function updateMcpRouting(
-  overrides: McpRoutingOverrides,
-): Promise<McpRoutingRule[]> {
+export async function updateMcpRouting(overrides: McpRoutingOverrides): Promise<McpRoutingRule[]> {
   const res = await api.put<{ items: McpRoutingRule[] }>("/mcp/routing", { overrides });
   return res.data.items;
+}
+
+// ---------------------------------------------------------------------------
+// Workspace LLM config — Settings → LLM (M3-2). Keys are write-only: requests
+// send `apiKey`, responses only ever return `apiKeyHint`.
+// ---------------------------------------------------------------------------
+
+/** Active LLM config (`GET /workspaces/:id/llm-config`); key redacted. */
+export interface LlmConfigPublic {
+  id: string;
+  provider: string;
+  model: string;
+  apiKeyHint: string | null;
+  config: Record<string, unknown>;
+  isActive: boolean;
+  tier: "ZERO" | "LOCAL" | "CLOUD";
+  lastValidatedAt: string | null;
+}
+
+/** Body for `PUT`/`POST :id/test`. `apiKey` is write-only. */
+export interface LlmConfigWriteBody {
+  provider: string;
+  model: string;
+  apiKey?: string;
+  config?: Record<string, unknown>;
+}
+
+export interface LlmTestResult {
+  ok: boolean;
+  latencyMs: number;
+  modelEcho?: string | null;
+  error?: { code: string; message: string } | null;
+}
+
+export interface LlmModel {
+  id: string;
+  name: string;
+  contextWindow?: number;
+  maxOutput?: number;
+}
+
+export async function fetchLlmConfig(workspaceId: string): Promise<LlmConfigPublic | null> {
+  try {
+    const res = await api.get<LlmConfigPublic>(`/workspaces/${workspaceId}/llm-config`);
+    return res.data;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+export async function putLlmConfig(
+  workspaceId: string,
+  body: LlmConfigWriteBody,
+): Promise<LlmConfigPublic> {
+  const res = await api.put<LlmConfigPublic>(`/workspaces/${workspaceId}/llm-config`, body);
+  return res.data;
+}
+
+export async function testLlmConfig(
+  workspaceId: string,
+  body: LlmConfigWriteBody,
+): Promise<LlmTestResult> {
+  const res = await api.post<LlmTestResult>(`/workspaces/${workspaceId}/llm-config/test`, body);
+  return res.data;
+}
+
+export async function deleteLlmConfig(workspaceId: string): Promise<void> {
+  await api.delete(`/workspaces/${workspaceId}/llm-config`);
+}
+
+export async function fetchLlmModels(workspaceId: string, provider: string): Promise<LlmModel[]> {
+  const res = await api.get<{ provider: string; models: LlmModel[] }>(
+    `/workspaces/${workspaceId}/llm-config/models`,
+    { params: { provider } },
+  );
+  return res.data.models;
+}
+
+// ---------------------------------------------------------------------------
+// Workspace cost tracking (M3-14) — Insights → Cost.
+// ---------------------------------------------------------------------------
+
+export interface ProviderCost {
+  provider: string;
+  costUsd: number;
+  tokensIn: number;
+  tokensOut: number;
+  sessions: number;
+}
+
+export interface WorkspaceCost {
+  totalCostUsd: number;
+  totalTokensIn: number;
+  totalTokensOut: number;
+  sessionCount: number;
+  windowDays: number;
+  byProvider: ProviderCost[];
+  byKind: { kind: string; costUsd: number; sessions: number }[];
+  budget: {
+    dailyCapUsd: number;
+    todaySpendUsd: number;
+    overBudget: boolean;
+    alert: string | null;
+  };
+}
+
+export async function fetchWorkspaceCost(
+  workspaceId: string,
+  windowDays = 30,
+): Promise<WorkspaceCost> {
+  const res = await api.get<WorkspaceCost>(`/workspaces/${workspaceId}/cost`, {
+    params: { windowDays },
+  });
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
+// Workspace autonomy (M3-15 / M3-16) — Settings → Automation.
+// ---------------------------------------------------------------------------
+
+export type AutonomyLevel = "manual" | "assist" | "semi_auto" | "auto";
+
+/** `GET`/`PUT /workspaces/:id/autonomy` — level + overrides + computed effective. */
+export interface AutonomyState {
+  level: AutonomyLevel;
+  overrides: Record<string, boolean>;
+  effective: Record<string, boolean>;
+  tier: "ZERO" | "LOCAL" | "CLOUD";
+  knownOverrideKeys: string[];
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+export interface AutonomyUpdateBody {
+  level: AutonomyLevel;
+  overrides: Record<string, boolean>;
+  reason?: string;
+}
+
+export async function fetchAutonomy(workspaceId: string): Promise<AutonomyState> {
+  const res = await api.get<AutonomyState>(`/workspaces/${workspaceId}/autonomy`);
+  return res.data;
+}
+
+export async function putAutonomy(
+  workspaceId: string,
+  body: AutonomyUpdateBody,
+): Promise<AutonomyState> {
+  const res = await api.put<AutonomyState>(`/workspaces/${workspaceId}/autonomy`, body);
+  return res.data;
 }
 
 // ---------------------------------------------------------------------------

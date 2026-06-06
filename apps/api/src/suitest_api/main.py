@@ -112,16 +112,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Construct the FastAPI app. Pure factory — no side effects at import."""
     from suitest_api.auth.router import router as auth_router
     from suitest_api.routers.admin_users import router as admin_users_router
+    from suitest_api.routers.agent_chat import router as agent_chat_router
     from suitest_api.routers.analytics import router as analytics_router
     from suitest_api.routers.audit_logs import router as audit_logs_router
     from suitest_api.routers.auth_me import router as auth_me_router
+    from suitest_api.routers.autonomy import router as autonomy_router
     from suitest_api.routers.capabilities import router as capabilities_router
+    from suitest_api.routers.cost import router as cost_router
     from suitest_api.routers.defects import router as defects_router
     from suitest_api.routers.documents import router as documents_router
+    from suitest_api.routers.eval_runs import router as eval_runs_router
     from suitest_api.routers.generators import router as generators_router
     from suitest_api.routers.inbox import router as inbox_router
     from suitest_api.routers.integrations import router as integrations_router
     from suitest_api.routers.invitations import router as invitations_router
+    from suitest_api.routers.llm_config import router as llm_config_router
     from suitest_api.routers.mcp_providers import router as mcp_providers_router
     from suitest_api.routers.projects import router as projects_router
     from suitest_api.routers.requirements import requirements_router, traceability_router
@@ -207,10 +212,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(defects_router)
     app.include_router(integrations_router)
     app.include_router(documents_router)
+    app.include_router(eval_runs_router)
     app.include_router(analytics_router)
     app.include_router(audit_logs_router)
     app.include_router(inbox_router)
     app.include_router(mcp_providers_router)
+    app.include_router(llm_config_router)
+    app.include_router(autonomy_router)
+    app.include_router(cost_router)
+    app.include_router(agent_chat_router)
     app.include_router(generators_router)
     app.include_router(webhooks_router)
     # WebSocket gateway — mounted at root (NOT /api/v1) so the path stays

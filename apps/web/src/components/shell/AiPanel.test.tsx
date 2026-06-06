@@ -3,10 +3,7 @@ import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AiPanel } from "@/components/shell/AiPanel";
-import {
-  useCapabilities,
-  type Capabilities,
-} from "@/stores/use-capabilities";
+import { useCapabilities, type Capabilities } from "@/stores/use-capabilities";
 
 const ZERO_CAPS: Capabilities = {
   tier: "ZERO",
@@ -96,20 +93,19 @@ describe("<AiPanel>", () => {
     );
   });
 
-  it("renders the M1b placeholder agent greeting", () => {
+  it("renders the empty-thread agent greeting", () => {
     setCaps(CLOUD_ASSIST_CAPS);
     render(<AiPanel />);
-    expect(screen.getByTestId("ai-panel-thread")).toHaveTextContent(
-      /Wire-up arrives in M3/i,
-    );
+    expect(screen.getByTestId("ai-panel-thread")).toHaveTextContent(/I stream answers live/i);
   });
 
-  it("renders a disabled composer + send button", () => {
+  it("renders an enabled composer (send gated until input typed)", () => {
     setCaps(CLOUD_ASSIST_CAPS);
     render(<AiPanel />);
     const input = screen.getByTestId("ai-panel-composer-input");
-    expect(input).toBeDisabled();
-    expect(input).toHaveAttribute("placeholder", "Composer enabled in M3");
+    expect(input).not.toBeDisabled();
+    expect(input).toHaveAttribute("placeholder", "Ask the agent…");
+    // Send is disabled until the user types something.
     expect(screen.getByTestId("ai-panel-send")).toBeDisabled();
   });
 

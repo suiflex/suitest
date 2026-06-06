@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-04",
+  "step_log": "Element '#submit' not found after 5000ms",
+  "expected_category": "MANUAL_TRIAGE"
+}

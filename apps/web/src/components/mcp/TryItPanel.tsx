@@ -2,11 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  invokeMcpTool,
-  type McpInvokeResult,
-  type McpProviderTool,
-} from "@/lib/api-client";
+import { invokeMcpTool, type McpInvokeResult, type McpProviderTool } from "@/lib/api-client";
 
 interface TryItPanelProps {
   providerId: string;
@@ -90,9 +86,7 @@ export function TryItPanel({ providerId, tools }: TryItPanelProps): React.ReactE
       ) : null}
       {result ? (
         <div data-testid="tryit-result" className="flex flex-col gap-1">
-          <span
-            className={`text-[11px] font-medium ${result.ok ? "text-accent" : "text-red"}`}
-          >
+          <span className={`text-[11px] font-medium ${result.ok ? "text-accent" : "text-red"}`}>
             {result.ok ? `OK · ${result.durationMs.toString()}ms` : `Error: ${result.error ?? ""}`}
           </span>
           {result.stdout ? (

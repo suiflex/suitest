@@ -20,21 +20,33 @@ from __future__ import annotations
 import time
 import uuid
 from collections.abc import AsyncIterator
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from opentelemetry import trace
+from suitest_agent.generators.mcp_discovery import McpDiscoveryGenerator
+from suitest_agent.generators.openapi_enrich import OpenApiEnricher
 from suitest_agent.generators.openapi_generator import OpenApiGenerator, OpenApiSpecError
+from suitest_agent.generators.prd import PrdGenerator
 from suitest_agent.generators.url_crawler import UrlCrawler
+from suitest_agent.generators.url_semantic import UrlSemanticGenerator
+from suitest_agent.prompts.loader import prompt_hash, read_prompt
+from suitest_agent.providers.litellm_router import get_provider
 from suitest_db.audit import write_audit
 from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.generator_run import GeneratorRun
 from suitest_db.public_id import set_workspace_id
-from suitest_shared.domain.enums import CaseStatus
+from suitest_db.repositories.agent_sessions import AgentSessionCreate, AgentSessionRepo
+from suitest_db.repositories.prompt_versions import PromptVersionRepo
+from suitest_shared.domain.enums import AgentSessionKind, CaseStatus, TargetKind
 from suitest_shared.schemas.generator_input import (
     CrawlerGenerateRequest,
     GeneratorSseEvent,
+    McpDiscoveryGenerateRequest,
     OpenApiGenerateRequest,
+    PrdGenerateRequest,
     TestCaseDraft,
+    UrlSemanticGenerateRequest,
 )
 
 if TYPE_CHECKING:
@@ -101,7 +113,15 @@ class GeneratorService:
     # ------------------------------------------------------------------
 
     async def run_openapi(
-        self, workspace_id: str, user_id: str, request: OpenApiGenerateRequest
+        self,
+        workspace_id: str,
+        user_id: str,
+        request: OpenApiGenerateRequest,
+        *,
+        llm_provider: str | None = None,
+        llm_model: str | None = None,
+        llm_api_key: str | None = None,
+        llm_base_url: str | None = None,
     ) -> AsyncIterator[GeneratorSseEvent]:
         """Stream the OpenAPI generation lifecycle as SSE events.
 
@@ -109,6 +129,12 @@ class GeneratorService:
         :class:`SuiteNotInWorkspaceError` for the router to map to 404 *before*
         any stream byte is sent). After that the generator drives the body; a
         spec error becomes an ``error`` event rather than an exception.
+
+        When ``request.options.include_llm_edge_cases`` is set AND the caller
+        passes a resolved LLM (``llm_provider``/``llm_model``), a second pass adds
+        boundary/fuzz/negative edge cases (M3-8). The deterministic core always
+        runs first; the LLM pass is pure enrichment and is skipped gracefully
+        (``llm_enrich_skipped`` progress frame) when no LLM is configured.
         """
         if not await self.suite_in_scope(request.target_suite_id, workspace_id):
             raise SuiteNotInWorkspaceError(request.target_suite_id)
@@ -170,6 +196,21 @@ class GeneratorService:
                     },
                 )
 
+            # M3-8: optional LLM edge-case enrichment on top of the contract suite.
+            if request.options.include_llm_edge_cases:
+                async for event in self._enrich_openapi(
+                    generator,
+                    workspace_id,
+                    user_id,
+                    request,
+                    public_ids=public_ids,
+                    llm_provider=llm_provider,
+                    llm_model=llm_model,
+                    llm_api_key=llm_api_key,
+                    llm_base_url=llm_base_url,
+                ):
+                    yield event
+
             duration_ms = int((time.perf_counter() - start) * 1000)
             span.set_attribute("generator.cases_created", len(public_ids))
             await self._finalize(
@@ -187,6 +228,91 @@ class GeneratorService:
                     "duration_ms": duration_ms,
                 },
             )
+
+    async def _enrich_openapi(
+        self,
+        generator: OpenApiGenerator,
+        workspace_id: str,
+        user_id: str,
+        request: OpenApiGenerateRequest,
+        *,
+        public_ids: list[str],
+        llm_provider: str | None,
+        llm_model: str | None,
+        llm_api_key: str | None,
+        llm_base_url: str | None,
+    ) -> AsyncIterator[GeneratorSseEvent]:
+        """Append LLM edge cases (M3-8). Yields ``progress`` + per-edge ``case``.
+
+        Mutates ``public_ids`` in place so the caller's ``complete`` frame counts
+        the edge cases. No LLM configured → a single ``llm_enrich_skipped`` frame
+        (graceful ZERO degrade); the deterministic suite already persisted.
+        """
+        if not (llm_provider and llm_model):
+            yield GeneratorSseEvent(
+                kind="progress",
+                data={"phase": "llm_enrich_skipped", "reason": "no active LLM"},
+            )
+            return
+
+        yield GeneratorSseEvent(kind="progress", data={"phase": "llm_enrich"})
+
+        prompt_content = read_prompt("enrich-openapi-edges", "v1")
+        prompt_row = await PromptVersionRepo(self._session).ensure(
+            "enrich-openapi-edges", "v1", prompt_content, prompt_hash(prompt_content)
+        )
+        agent_repo = AgentSessionRepo(self._session)
+        agent_session = await agent_repo.create(
+            AgentSessionCreate(
+                workspace_id=workspace_id,
+                kind=AgentSessionKind.GENERATION,
+                model_id=llm_model,
+                provider=llm_provider,
+                user_id=self._as_user_uuid(user_id),
+                prompt_version_id=prompt_row.id,
+                temperature=0.2,
+                metadata_json={"source": "openapi-enrich"},
+            )
+        )
+
+        provider = get_provider(llm_provider, api_key=llm_api_key, base_url=llm_base_url)
+        enricher = OpenApiEnricher(provider, model=llm_model)
+        result = await enricher.enrich(generator.op_summaries())
+
+        if result.error:
+            await agent_repo.complete(agent_session.id, status="error")
+            yield GeneratorSseEvent(
+                kind="progress",
+                data={"phase": "llm_enrich_failed", "reason": result.error},
+            )
+            return
+
+        for draft in result.drafts:
+            public_id = await self._persist_case(
+                draft,
+                suite_id=request.target_suite_id,
+                workspace_id=workspace_id,
+                generated_by="openapi-enricher",
+            )
+            public_ids.append(public_id)
+            yield GeneratorSseEvent(
+                kind="case",
+                data={
+                    "public_id": public_id,
+                    "name": draft.name,
+                    "case_kind": draft.generated_from.get("case_kind"),
+                    "tags": draft.tags,
+                    "llm_edge": True,
+                },
+            )
+
+        usage = result.usage
+        await agent_repo.complete(
+            agent_session.id,
+            cost_usd=Decimal(str(usage.cost_usd)) if usage else None,
+            tokens_in=usage.tokens_in if usage else 0,
+            tokens_out=usage.tokens_out if usage else 0,
+        )
 
     # ------------------------------------------------------------------
 
@@ -269,6 +395,483 @@ class GeneratorService:
                 kind="complete",
                 data={
                     "generator_run_id": run_id,
+                    "target_suite_id": request.target_suite_id,
+                    "cases_created": len(public_ids),
+                    "public_ids": public_ids,
+                    "duration_ms": duration_ms,
+                },
+            )
+
+    # ------------------------------------------------------------------
+
+    async def run_prd(
+        self,
+        workspace_id: str,
+        user_id: str,
+        request: PrdGenerateRequest,
+        *,
+        provider_name: str,
+        model: str,
+        api_key: str | None,
+        base_url: str | None,
+    ) -> AsyncIterator[GeneratorSseEvent]:
+        """Stream LLM-driven PRD generation as SSE (M3-6) — CLOUD/LOCAL only.
+
+        Validates the suite is in-scope FIRST (404 before any stream byte), then
+        drives the GENERATION graph through :class:`PrdGenerator`. Persists an
+        :class:`AgentSession` (reproducibility + cost rollup, M3-5/M3-14) and a
+        ``GeneratorRun`` (provenance), one DRAFT case per draft, and streams
+        ``progress`` → ``case`` → ``complete`` (or a single ``error``).
+
+        The caller resolves ``provider_name`` / ``model`` / key / base_url from the
+        workspace's active ``LLMConfig``; absence of an active config is the real
+        tier gate and is rejected by the router (409) before this runs.
+        """
+        if not await self.suite_in_scope(request.target_suite_id, workspace_id):
+            raise SuiteNotInWorkspaceError(request.target_suite_id)
+
+        with tracer.start_as_current_span("generator.prd") as span:
+            span.set_attribute("generator.source", "prd")
+            span.set_attribute("workspace.id", workspace_id)
+            span.set_attribute("llm.provider", provider_name)
+            span.set_attribute("llm.model", model)
+            start = time.perf_counter()
+
+            # Reproducibility: pin the exact prompt content hash (M3-5). ``ensure``
+            # is idempotent — the first PRD run per (name, version) inserts the row.
+            prompt_content = read_prompt("generate-from-prd", "v1")
+            prompt_row = await PromptVersionRepo(self._session).ensure(
+                "generate-from-prd", "v1", prompt_content, prompt_hash(prompt_content)
+            )
+
+            agent_repo = AgentSessionRepo(self._session)
+            agent_session = await agent_repo.create(
+                AgentSessionCreate(
+                    workspace_id=workspace_id,
+                    kind=AgentSessionKind.GENERATION,
+                    model_id=model,
+                    provider=provider_name,
+                    user_id=self._as_user_uuid(user_id),
+                    prompt_version_id=prompt_row.id,
+                    seed=request.seed,
+                    temperature=0.2,
+                    metadata_json={
+                        "source": "prd",
+                        "target_suite_id": request.target_suite_id,
+                        "default_target_kind": request.default_target_kind.value,
+                    },
+                )
+            )
+
+            run = GeneratorRun(
+                workspace_id=workspace_id,
+                source="prd",
+                input_meta_json={
+                    "target_suite_id": request.target_suite_id,
+                    "prd_chars": len(request.prd_text),
+                    "default_target_kind": request.default_target_kind.value,
+                    "seed": request.seed,
+                    "agent_session_id": agent_session.id,
+                },
+                output_case_ids_json=[],
+                created_by_user_id=self._as_user_uuid(user_id),
+            )
+            self._session.add(run)
+            await self._session.flush()
+            run_id = run.id
+
+            yield GeneratorSseEvent(
+                kind="progress",
+                data={
+                    "phase": "drafting",
+                    "generator_run_id": run_id,
+                    "agent_session_id": agent_session.id,
+                },
+            )
+
+            provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
+            generator = PrdGenerator(
+                provider, model=model, default_target_kind=request.default_target_kind
+            )
+            result = await generator.run(
+                request.prd_text, seed=request.seed, max_cases=request.max_cases
+            )
+
+            if result.error:
+                span.set_attribute("generator.error", result.error)
+                await agent_repo.complete(agent_session.id, status="error")
+                await self._finalize(
+                    run,
+                    workspace_id,
+                    user_id,
+                    public_ids=[],
+                    duration_ms=0,
+                    action="generator.prd.completed",
+                )
+                await self._session.commit()
+                yield GeneratorSseEvent(
+                    kind="error",
+                    data={"code": "GENERATION_FAILED", "message": result.error},
+                )
+                return
+
+            public_ids: list[str] = []
+            for draft in result.drafts:
+                public_id = await self._persist_case(
+                    draft,
+                    suite_id=request.target_suite_id,
+                    workspace_id=workspace_id,
+                    generated_by="prd-generator",
+                )
+                public_ids.append(public_id)
+                yield GeneratorSseEvent(
+                    kind="case",
+                    data={
+                        "public_id": public_id,
+                        "name": draft.name,
+                        "case_kind": draft.generated_from.get("case_kind"),
+                        "tags": draft.tags,
+                    },
+                )
+
+            usage = result.usage
+            duration_ms = int((time.perf_counter() - start) * 1000)
+            span.set_attribute("generator.cases_created", len(public_ids))
+            await agent_repo.complete(
+                agent_session.id,
+                cost_usd=Decimal(str(usage.cost_usd)) if usage else None,
+                tokens_in=usage.tokens_in if usage else 0,
+                tokens_out=usage.tokens_out if usage else 0,
+            )
+            await self._finalize(
+                run,
+                workspace_id,
+                user_id,
+                public_ids=public_ids,
+                duration_ms=duration_ms,
+                action="generator.prd.completed",
+            )
+            await self._session.commit()
+
+            yield GeneratorSseEvent(
+                kind="complete",
+                data={
+                    "generator_run_id": run_id,
+                    "agent_session_id": agent_session.id,
+                    "target_suite_id": request.target_suite_id,
+                    "cases_created": len(public_ids),
+                    "public_ids": public_ids,
+                    "duration_ms": duration_ms,
+                    "tokens_in": usage.tokens_in if usage else 0,
+                    "tokens_out": usage.tokens_out if usage else 0,
+                    "cost_usd": float(usage.cost_usd) if usage else 0.0,
+                },
+            )
+
+    # ------------------------------------------------------------------
+
+    async def run_url_semantic(
+        self,
+        workspace_id: str,
+        user_id: str,
+        request: UrlSemanticGenerateRequest,
+        *,
+        provider_name: str,
+        model: str,
+        api_key: str | None,
+        base_url: str | None,
+    ) -> AsyncIterator[GeneratorSseEvent]:
+        """Stream LLM semantic URL generation as SSE (M3-7) — CLOUD/LOCAL only.
+
+        Decomposes ``request.intent`` into FE_WEB journey cases on ``request.url``
+        (playwright-mcp, agentic). Persists an ``AgentSession`` (repro+cost) and a
+        ``GeneratorRun`` (source=url_semantic); one DRAFT case per journey.
+        """
+        if not await self.suite_in_scope(request.target_suite_id, workspace_id):
+            raise SuiteNotInWorkspaceError(request.target_suite_id)
+
+        with tracer.start_as_current_span("generator.url_semantic") as span:
+            span.set_attribute("generator.source", "url_semantic")
+            span.set_attribute("workspace.id", workspace_id)
+            start = time.perf_counter()
+
+            prompt_content = read_prompt("generate-url-semantic", "v1")
+            prompt_row = await PromptVersionRepo(self._session).ensure(
+                "generate-url-semantic", "v1", prompt_content, prompt_hash(prompt_content)
+            )
+            agent_repo = AgentSessionRepo(self._session)
+            agent_session = await agent_repo.create(
+                AgentSessionCreate(
+                    workspace_id=workspace_id,
+                    kind=AgentSessionKind.GENERATION,
+                    model_id=model,
+                    provider=provider_name,
+                    user_id=self._as_user_uuid(user_id),
+                    prompt_version_id=prompt_row.id,
+                    seed=request.seed,
+                    temperature=0.2,
+                    metadata_json={
+                        "source": "url-semantic",
+                        "url": request.url,
+                        "intent": request.intent,
+                        "target_suite_id": request.target_suite_id,
+                    },
+                )
+            )
+
+            run = GeneratorRun(
+                workspace_id=workspace_id,
+                source="url_semantic",
+                input_meta_json={
+                    "target_suite_id": request.target_suite_id,
+                    "url": request.url,
+                    "intent": request.intent,
+                    "seed": request.seed,
+                    "agent_session_id": agent_session.id,
+                },
+                output_case_ids_json=[],
+                created_by_user_id=self._as_user_uuid(user_id),
+            )
+            self._session.add(run)
+            await self._session.flush()
+            run_id = run.id
+
+            yield GeneratorSseEvent(
+                kind="progress",
+                data={
+                    "phase": "interpreting",
+                    "generator_run_id": run_id,
+                    "agent_session_id": agent_session.id,
+                },
+            )
+
+            provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
+            generator = UrlSemanticGenerator(provider, model=model)
+            result = await generator.run(
+                request.url, request.intent, seed=request.seed, max_cases=request.max_cases
+            )
+
+            if result.error:
+                span.set_attribute("generator.error", result.error)
+                await agent_repo.complete(agent_session.id, status="error")
+                await self._finalize(
+                    run,
+                    workspace_id,
+                    user_id,
+                    public_ids=[],
+                    duration_ms=0,
+                    action="generator.url_semantic.completed",
+                )
+                await self._session.commit()
+                yield GeneratorSseEvent(
+                    kind="error",
+                    data={"code": result.error, "message": "could not interpret intent"},
+                )
+                return
+
+            public_ids: list[str] = []
+            for draft in result.drafts:
+                public_id = await self._persist_case(
+                    draft,
+                    suite_id=request.target_suite_id,
+                    workspace_id=workspace_id,
+                    generated_by="url-semantic-generator",
+                )
+                public_ids.append(public_id)
+                yield GeneratorSseEvent(
+                    kind="case",
+                    data={
+                        "public_id": public_id,
+                        "name": draft.name,
+                        "case_kind": draft.generated_from.get("case_kind"),
+                        "tags": draft.tags,
+                    },
+                )
+
+            usage = result.usage
+            duration_ms = int((time.perf_counter() - start) * 1000)
+            span.set_attribute("generator.cases_created", len(public_ids))
+            await agent_repo.complete(
+                agent_session.id,
+                cost_usd=Decimal(str(usage.cost_usd)) if usage else None,
+                tokens_in=usage.tokens_in if usage else 0,
+                tokens_out=usage.tokens_out if usage else 0,
+            )
+            await self._finalize(
+                run,
+                workspace_id,
+                user_id,
+                public_ids=public_ids,
+                duration_ms=duration_ms,
+                action="generator.url_semantic.completed",
+            )
+            await self._session.commit()
+
+            yield GeneratorSseEvent(
+                kind="complete",
+                data={
+                    "generator_run_id": run_id,
+                    "agent_session_id": agent_session.id,
+                    "target_suite_id": request.target_suite_id,
+                    "cases_created": len(public_ids),
+                    "public_ids": public_ids,
+                    "duration_ms": duration_ms,
+                },
+            )
+
+    # ------------------------------------------------------------------
+
+    async def run_mcp_discovery(
+        self,
+        workspace_id: str,
+        user_id: str,
+        request: McpDiscoveryGenerateRequest,
+        *,
+        provider_name: str,
+        model: str,
+        api_key: str | None,
+        base_url: str | None,
+        mcp_provider_name: str,
+        mcp_target_kind: TargetKind,
+        mcp_tools: list[dict[str, object]],
+    ) -> AsyncIterator[GeneratorSseEvent]:
+        """Stream LLM MCP tool-discovery generation as SSE (M3-9) — CLOUD/LOCAL.
+
+        The router resolves the LLM (``provider_name``/``model``/key) AND the
+        target MCP provider (its name, ``target_kind``, and persisted tool
+        catalog). An empty catalog yields an ``error`` frame (re-run discover
+        first); otherwise one DRAFT case per proposed contract is persisted.
+        """
+        if not await self.suite_in_scope(request.target_suite_id, workspace_id):
+            raise SuiteNotInWorkspaceError(request.target_suite_id)
+
+        with tracer.start_as_current_span("generator.mcp_discovery") as span:
+            span.set_attribute("generator.source", "mcp_discovery")
+            span.set_attribute("workspace.id", workspace_id)
+            span.set_attribute("mcp.provider", mcp_provider_name)
+            start = time.perf_counter()
+
+            prompt_content = read_prompt("discover-mcp-cases", "v1")
+            prompt_row = await PromptVersionRepo(self._session).ensure(
+                "discover-mcp-cases", "v1", prompt_content, prompt_hash(prompt_content)
+            )
+            agent_repo = AgentSessionRepo(self._session)
+            agent_session = await agent_repo.create(
+                AgentSessionCreate(
+                    workspace_id=workspace_id,
+                    kind=AgentSessionKind.GENERATION,
+                    model_id=model,
+                    provider=provider_name,
+                    user_id=self._as_user_uuid(user_id),
+                    prompt_version_id=prompt_row.id,
+                    seed=request.seed,
+                    temperature=0.2,
+                    metadata_json={
+                        "source": "mcp-discovery",
+                        "mcp_provider": mcp_provider_name,
+                        "target_suite_id": request.target_suite_id,
+                    },
+                )
+            )
+
+            run = GeneratorRun(
+                workspace_id=workspace_id,
+                source="mcp_discovery",
+                input_meta_json={
+                    "target_suite_id": request.target_suite_id,
+                    "mcp_provider_id": request.mcp_provider_id,
+                    "mcp_provider": mcp_provider_name,
+                    "tool_count": len(mcp_tools),
+                    "agent_session_id": agent_session.id,
+                },
+                output_case_ids_json=[],
+                created_by_user_id=self._as_user_uuid(user_id),
+            )
+            self._session.add(run)
+            await self._session.flush()
+            run_id = run.id
+
+            yield GeneratorSseEvent(
+                kind="progress",
+                data={
+                    "phase": "exploring",
+                    "generator_run_id": run_id,
+                    "agent_session_id": agent_session.id,
+                    "tool_count": len(mcp_tools),
+                },
+            )
+
+            provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
+            generator = McpDiscoveryGenerator(provider, model=model)
+            result = await generator.run(
+                mcp_tools,
+                target_kind=mcp_target_kind,
+                mcp_provider_name=mcp_provider_name,
+                seed=request.seed,
+                max_cases=request.max_cases,
+            )
+
+            if result.error:
+                span.set_attribute("generator.error", result.error)
+                await agent_repo.complete(agent_session.id, status="error")
+                await self._finalize(
+                    run,
+                    workspace_id,
+                    user_id,
+                    public_ids=[],
+                    duration_ms=0,
+                    action="generator.mcp_discovery.completed",
+                )
+                await self._session.commit()
+                yield GeneratorSseEvent(
+                    kind="error",
+                    data={"code": result.error, "message": "no testable tools in catalog"},
+                )
+                return
+
+            public_ids: list[str] = []
+            for draft in result.drafts:
+                public_id = await self._persist_case(
+                    draft,
+                    suite_id=request.target_suite_id,
+                    workspace_id=workspace_id,
+                    generated_by="mcp-discovery-generator",
+                )
+                public_ids.append(public_id)
+                yield GeneratorSseEvent(
+                    kind="case",
+                    data={
+                        "public_id": public_id,
+                        "name": draft.name,
+                        "case_kind": draft.generated_from.get("case_kind"),
+                        "tags": draft.tags,
+                    },
+                )
+
+            usage = result.usage
+            duration_ms = int((time.perf_counter() - start) * 1000)
+            span.set_attribute("generator.cases_created", len(public_ids))
+            await agent_repo.complete(
+                agent_session.id,
+                cost_usd=Decimal(str(usage.cost_usd)) if usage else None,
+                tokens_in=usage.tokens_in if usage else 0,
+                tokens_out=usage.tokens_out if usage else 0,
+            )
+            await self._finalize(
+                run,
+                workspace_id,
+                user_id,
+                public_ids=public_ids,
+                duration_ms=duration_ms,
+                action="generator.mcp_discovery.completed",
+            )
+            await self._session.commit()
+
+            yield GeneratorSseEvent(
+                kind="complete",
+                data={
+                    "generator_run_id": run_id,
+                    "agent_session_id": agent_session.id,
                     "target_suite_id": request.target_suite_id,
                     "cases_created": len(public_ids),
                     "public_ids": public_ids,

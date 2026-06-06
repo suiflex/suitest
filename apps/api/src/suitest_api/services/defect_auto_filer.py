@@ -42,6 +42,7 @@ behind the same Protocol; the rest of the surface stays unchanged.
 from __future__ import annotations
 
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, NamedTuple, Protocol
 
@@ -63,12 +64,25 @@ from suitest_shared.domain.enums import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from contextlib import AbstractAsyncContextManager
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
 log = structlog.get_logger(__name__)
+
+
+class LlmDiagnosis(NamedTuple):
+    """LLM diagnosis result (M3-11) — supplants the regex bucket when present."""
+
+    kind: DiagnosisKind
+    confidence: float
+    text: str
+
+
+# Resolves a failed-step ``evidence`` blob into an :class:`LlmDiagnosis`, or
+# ``None`` when no LLM is configured / the call fails (regex fallback then wins).
+# The runner wires :func:`build_llm_diagnoser`; tests pass a stub or ``None``.
+DefectDiagnoser = Callable[["AsyncSession", str, str], Awaitable["LlmDiagnosis | None"]]
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +206,9 @@ class CategorizedDefect(NamedTuple):
     diagnosis_kind: DiagnosisKind
     labels: list[str]
     metadata: dict[str, object]
+    # M3-11: populated only on the LLM path; None keeps the regex path's shape.
+    confidence: float | None = None
+    diagnosis_text: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -235,6 +252,8 @@ class DefectAutoFiler:
     publisher: _PublishCapable | None
     arq_pool: _ArqEnqueueCapable | None
     categorizer: DefectCategorizer
+    # M3-11: optional LLM diagnoser. None → pure regex (ZERO-tier behavior).
+    diagnoser: DefectDiagnoser | None = None
 
     async def file_for_failed_step(self, run_step_id: str) -> Defect | None:
         """File one defect for a failed ``RunStep`` (idempotent on retry).
@@ -295,9 +314,27 @@ class DefectAutoFiler:
                 log.info("defect.auto_filer.no_workspace", run_step_id=run_step_id)
                 return None
 
+            # M3-11: when an LLM is wired + configured, classify the failure
+            # (REGRESSION / FLAKE / INFRA / SPEC_DRIFT / MANUAL_TRIAGE +
+            # confidence + root cause). Any failure falls back to the regex
+            # bucket so the defect still files (ZERO-first).
+            llm_diag: LlmDiagnosis | None = None
+            if self.diagnoser is not None:
+                try:
+                    llm_diag = await self.diagnoser(
+                        session, workspace_id, _assemble_evidence(run_step, case)
+                    )
+                except Exception as exc:  # pragma: no cover — logged, swallowed
+                    log.warning(
+                        "defect.auto_filer.diagnose_skip",
+                        run_step_id=run_step_id,
+                        reason=str(exc),
+                    )
+
             categorized = self._categorize_for_step(
                 run_step=run_step,
                 case=case,
+                llm=llm_diag,
             )
 
             defect = Defect(
@@ -309,6 +346,8 @@ class DefectAutoFiler:
                 severity=categorized.severity,
                 status=DefectStatus.OPEN,
                 agent_diagnosis_kind=categorized.diagnosis_kind,
+                agent_confidence=categorized.confidence,
+                agent_diagnosis=categorized.diagnosis_text,
                 created_by="system",
                 stack_trace=run_step.error_message,
             )
@@ -341,6 +380,8 @@ class DefectAutoFiler:
                 metadata={
                     "kind": categorized.diagnosis_kind.value,
                     "severity": categorized.severity.value,
+                    "diagnosis_source": "ai" if llm_diag is not None else "rule-based",
+                    "confidence": categorized.confidence,
                     "run_id": run.id,
                     "test_case_id": case.id,
                     "run_step_id": run_step.id,
@@ -369,19 +410,32 @@ class DefectAutoFiler:
     # Helpers
     # ------------------------------------------------------------------
 
-    def _categorize_for_step(self, *, run_step: RunStep, case: TestCase) -> CategorizedDefect:
+    def _categorize_for_step(
+        self, *, run_step: RunStep, case: TestCase, llm: LlmDiagnosis | None = None
+    ) -> CategorizedDefect:
         """Project a failed ``RunStep`` into a :class:`CategorizedDefect`.
 
-        Description is templated: ``[Auto]`` prefix, the case public id, the
-        regex-inferred diagnosis, and the first 200 chars of ``stderr`` so
-        the operator gets actionable context without scrolling the full step
-        log.
+        Uses the LLM diagnosis (``llm``) when present — its ``kind`` +
+        ``confidence`` + root-cause text — otherwise the deterministic regex
+        bucket. Description is templated: ``[Auto]`` prefix, the case public id,
+        the diagnosis (+ source), and the first 200 chars of ``stderr`` so the
+        operator gets actionable context without scrolling the full step log.
         """
-        kind = self.categorizer.categorize(
-            stderr=run_step.stderr or "",
-            stdout=run_step.stdout or "",
-            assertion_message=run_step.error_message,
-        )
+        if llm is not None:
+            kind = llm.kind
+            confidence: float | None = llm.confidence
+            diagnosis_text: str | None = llm.text
+            source = "ai"
+        else:
+            kind = self.categorizer.categorize(
+                stderr=run_step.stderr or "",
+                stdout=run_step.stdout or "",
+                assertion_message=run_step.error_message,
+            )
+            confidence = None
+            diagnosis_text = None
+            source = "rule-based"
+
         severity = severity_for_priority(case.priority)
         title = f"[Auto] {case.public_id} failed: {kind.value}"
         stderr_excerpt = (run_step.stderr or "")[:200]
@@ -389,9 +443,12 @@ class DefectAutoFiler:
         description_lines = [
             f"Automatic defect filed by runner after step {run_step.step_order} failed.",
             f"Test case: {case.public_id} — {case.name}",
-            f"Diagnosis (rule-based): {kind.value}",
+            f"Diagnosis ({source}): {kind.value}"
+            + (f" (confidence {confidence:.2f})" if confidence is not None else ""),
             f"Severity (from case priority): {severity.value}",
         ]
+        if diagnosis_text:
+            description_lines.append(f"Root cause: {diagnosis_text}")
         if error_excerpt:
             description_lines.append(f"Error: {error_excerpt}")
         if stderr_excerpt:
@@ -402,7 +459,10 @@ class DefectAutoFiler:
             "run_step_id": run_step.id,
             "step_order": run_step.step_order,
             "outcome": run_step.outcome.value,
+            "diagnosis_source": source,
         }
+        if confidence is not None:
+            metadata["confidence"] = confidence
         return CategorizedDefect(
             title=title,
             description=description,
@@ -410,6 +470,8 @@ class DefectAutoFiler:
             diagnosis_kind=kind,
             labels=[f"diagnosis:{kind.value.lower()}", f"severity:{severity.value.lower()}"],
             metadata=metadata,
+            confidence=confidence,
+            diagnosis_text=diagnosis_text,
         )
 
     async def _publish_defect_created(self, defect: Defect, workspace_id: str) -> None:
@@ -493,6 +555,72 @@ class DefectAutoFiler:
 
 
 # ---------------------------------------------------------------------------
+# LLM diagnosis (M3-11)
+# ---------------------------------------------------------------------------
+
+
+def _assemble_evidence(run_step: RunStep, case: TestCase) -> str:
+    """Build the evidence blob fed to the diagnosis LLM.
+
+    Logs + assertion message + the case identity. Bounded so a runaway step log
+    can't blow the prompt budget; richer signals (recent commits, prior-run
+    history) are a follow-up.
+    """
+    parts = [
+        f"Test case: {case.public_id} — {case.name}",
+        f"Failed step order: {run_step.step_order}",
+    ]
+    if run_step.error_message:
+        parts.append(f"Error / assertion: {run_step.error_message[:1000]}")
+    if run_step.stderr:
+        parts.append(f"Stderr:\n{run_step.stderr[:2000]}")
+    if run_step.stdout:
+        parts.append(f"Stdout:\n{run_step.stdout[:2000]}")
+    return "\n\n".join(parts)
+
+
+def build_llm_diagnoser() -> DefectDiagnoser:
+    """Return a :data:`DefectDiagnoser` backed by the DIAGNOSIS graph (M3-11).
+
+    Resolves the workspace's active ``LLMConfig`` per call; ZERO / no-LLM
+    workspaces yield ``None`` so the filer keeps its regex bucket. Agent imports
+    are deferred into the closure so the api package stays ZERO-import-clean.
+    """
+
+    async def _diagnose(
+        session: AsyncSession, workspace_id: str, evidence: str
+    ) -> LlmDiagnosis | None:
+        from suitest_agent.graphs.diagnosis import build_diagnosis_graph
+        from suitest_agent.providers.litellm_router import get_provider
+        from suitest_db.repositories.llm_configs import LLMConfigRepo
+
+        llm = await LLMConfigRepo(session).get_active(workspace_id)
+        if llm is None:
+            return None
+        base_url = llm.config_json.get("base_url")
+        provider = get_provider(
+            llm.provider,
+            api_key=llm.api_key_encrypted,
+            base_url=base_url if isinstance(base_url, str) else None,
+        )
+        graph = build_diagnosis_graph(provider)
+        state = await graph.ainvoke({"evidence": evidence, "model": llm.model})
+        diagnosis = state.get("diagnosis")
+        if diagnosis is None:
+            return None
+        text = diagnosis.root_cause
+        if diagnosis.suggested_fix:
+            text = f"{text} Suggested fix: {diagnosis.suggested_fix}"
+        return LlmDiagnosis(
+            kind=DiagnosisKind(diagnosis.category),
+            confidence=diagnosis.confidence,
+            text=text,
+        )
+
+    return _diagnose
+
+
+# ---------------------------------------------------------------------------
 # Integration lookup
 # ---------------------------------------------------------------------------
 
@@ -552,5 +680,7 @@ __all__ = [
     "CategorizedDefect",
     "DefectAutoFiler",
     "DefectCategorizer",
+    "LlmDiagnosis",
+    "build_llm_diagnoser",
     "severity_for_priority",
 ]

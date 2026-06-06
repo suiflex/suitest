@@ -169,6 +169,12 @@ export type WorkspaceEvent =
   | {
       event: "capability.changed";
       data: { tier: string };
+    }
+  | {
+      // M3-13: the agent requested a tool call in conversation mode; the UI
+      // surfaces a confirm card (mutations always require explicit confirm).
+      event: "agent.tool.call";
+      data: { tool: string; arguments: Record<string, unknown>; agent_session_id: string };
     };
 
 /**
@@ -234,7 +240,11 @@ function isWorkspaceEvent(raw: { event: string; payload: unknown }): raw is {
   event: WorkspaceEvent["event"];
   payload: unknown;
 } {
-  return raw.event === "mcp.provider.health" || raw.event === "capability.changed";
+  return (
+    raw.event === "mcp.provider.health" ||
+    raw.event === "capability.changed" ||
+    raw.event === "agent.tool.call"
+  );
 }
 
 /**

@@ -50,6 +50,7 @@ from suitest_api.schemas.test_case import (
     TestCaseCreate,
     TestCaseDetail,
     TestCaseListItem,
+    TestCaseSearchHit,
     TestCaseUpdate,
     TestStepPublic,
 )
@@ -303,6 +304,47 @@ async def list_test_cases(
         items=[TestCaseListItem.model_validate(r) for r in rows_page],
         meta=PageMeta(next_cursor=encode_next(next_keyset), limit=limit),
     )
+
+
+@router.get("/test-cases/search", response_model=list[TestCaseSearchHit])
+async def search_test_cases(
+    q: str = Query(min_length=1, description="Natural-language query."),
+    limit: int = Query(default=10, ge=1, le=50),
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+) -> list[TestCaseSearchHit]:
+    """Semantic (or lexical) test-case search within the workspace (M4-2).
+
+    Uses the configured local :class:`Embedder` (``SUITEST_EMBEDDINGS=fastembed``)
+    to rank by cosine similarity; falls back to lexical scoring when embeddings
+    are disabled so ZERO-tier search still returns results.
+    """
+    from sqlalchemy import select
+    from suitest_core.embeddings import get_embedder
+    from suitest_db.models.case import TestCase
+    from suitest_db.models.project import Project, Suite
+
+    from suitest_api.services.semantic_search_service import (
+        Candidate,
+        SemanticSearchService,
+    )
+
+    rows = (
+        await session.execute(
+            select(TestCase.id, TestCase.name, TestCase.description)
+            .join(Suite, Suite.id == TestCase.suite_id)
+            .join(Project, Project.id == Suite.project_id)
+            .where(Project.workspace_id == ctx.workspace_id, TestCase.deleted_at.is_(None))
+        )
+    ).all()
+    candidates = [
+        Candidate(case_id=r[0], name=r[1], text=f"{r[1]}\n{r[2] or ''}".strip()) for r in rows
+    ]
+    service = SemanticSearchService(get_embedder())
+    hits = service.rank(q, candidates, top_k=limit)
+    return [
+        TestCaseSearchHit(case_id=h.case_id, name=h.name, score=round(h.score, 4)) for h in hits
+    ]
 
 
 @router.get("/test-cases/{case_id}", response_model=TestCaseDetail)

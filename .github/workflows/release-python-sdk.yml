@@ -1,0 +1,59 @@
+name: release-python-sdk
+
+# M4-5 / M4-7: build + publish suitest-sdk and suitest-cli to PyPI on a
+# `pysdk-v*` tag. Uses PyPI Trusted Publishing (OIDC) — no API token stored;
+# configure the publisher in the PyPI project settings. Until that is set up,
+# the build job still runs on PRs (validates the wheels) but does not publish.
+
+on:
+  push:
+    tags: ["pysdk-v*"]
+  pull_request:
+    paths:
+      - "sdk/python/**"
+      - "cli/**"
+      - ".github/workflows/release-python-sdk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: ["sdk/python", "cli"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build "${{ matrix.package }}" --outdir dist
+      - name: Validate distribution metadata (publish dry-run)
+        # Proves the wheel + sdist would be accepted by PyPI before any
+        # credential exists — catches bad metadata/README rendering at PR time.
+        run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ strategy.job-index }}
+          path: dist/
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/pysdk-v')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # OIDC for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist

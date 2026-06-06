@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-01",
+  "step_log": "TimeoutError: navigation exceeded 30000ms",
+  "expected_category": "FLAKE"
+}

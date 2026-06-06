@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-15",
+  "step_log": "Intermittent: element detached from DOM",
+  "expected_category": "FLAKE"
+}

@@ -98,3 +98,58 @@ securityContext:
   readOnlyRootFilesystem: true
   capabilities:
     drop: ["ALL"]
+
+# M4-3: ARQ worker deployment (no Service — pulls jobs from Redis).
+runner:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+
+# M4-3: HorizontalPodAutoscaler per component.
+autoscaling:
+  enabled: false
+  api:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  web:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+# M4-3: PodDisruptionBudget (api/web/runner).
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# M4-3: default-deny NetworkPolicy + allowlist. egressCidrs should list the
+# datastore CIDRs (postgres/redis/s3); ingressFromNamespaceLabels selects the
+# ingress-controller namespace.
+networkPolicy:
+  enabled: false
+  ingressFromNamespaceLabels:
+    kubernetes.io/metadata.name: ingress-nginx
+  egressCidrs: []
+
+# M4-4: in-cluster Ollama for air-gapped LOCAL tier. Disabled by default; the
+# values-airgapped.yaml overlay turns it on and points llm.baseUrl at it.
+ollama:
+  enabled: false
+  image: ollama/ollama:0.3.12
+  resources:
+    requests:
+      cpu: "1"
+      memory: 4Gi
+    limits:
+      cpu: "4"
+      memory: 12Gi
+  persistence:
+    enabled: true
+    size: 20Gi

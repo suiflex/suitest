@@ -29,6 +29,30 @@ export const handlers: HttpHandler[] = [
   http.get("*/capabilities", () => HttpResponse.json(capabilitiesZero)),
   http.get(`${BASE}/capabilities`, () => HttpResponse.json(capabilitiesZero)),
 
+  // LLM config (M3-2) — default: none set (404). Tests override via server.use.
+  http.get(`${BASE}/workspaces/:wsId/llm-config`, () => new HttpResponse(null, { status: 404 })),
+  http.put(`${BASE}/workspaces/:wsId/llm-config`, async ({ request }) => {
+    const body = (await request.json()) as { provider: string; model: string };
+    return HttpResponse.json({
+      id: "llmcfg_test",
+      provider: body.provider,
+      model: body.model,
+      apiKeyHint: null,
+      config: {},
+      isActive: true,
+      tier: "CLOUD",
+      lastValidatedAt: null,
+    });
+  }),
+  http.post(`${BASE}/workspaces/:wsId/llm-config/test`, () =>
+    HttpResponse.json({ ok: true, latencyMs: 12, modelEcho: "mock-1" }),
+  ),
+  http.delete(`${BASE}/workspaces/:wsId/llm-config`, () => new HttpResponse(null, { status: 204 })),
+  http.get(`${BASE}/workspaces/:wsId/llm-config/models`, ({ request }) => {
+    const url = new URL(request.url);
+    return HttpResponse.json({ provider: url.searchParams.get("provider") ?? "", models: [] });
+  }),
+
   // Analytics
   http.get(`${BASE}/analytics/kpis`, () => HttpResponse.json(kpis)),
   http.get(`${BASE}/analytics/pass-rate`, () => HttpResponse.json(passRate)),

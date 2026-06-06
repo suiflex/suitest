@@ -6,10 +6,7 @@ import { ProviderModal } from "@/components/mcp/ProviderModal";
 import { RegisterMcpModal } from "@/components/mcp/RegisterMcpModal";
 import { RoutingEditor } from "@/components/mcp/RoutingEditor";
 import { Button } from "@/components/ui/button";
-import {
-  fetchMcpProviders,
-  type McpProviderSummary,
-} from "@/lib/api-client";
+import { fetchMcpProviders, type McpProviderSummary } from "@/lib/api-client";
 import { useWorkspaceStream } from "@/lib/ws-client";
 
 function coerceHealth(raw: string): HealthStatus {

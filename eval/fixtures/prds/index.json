@@ -1,0 +1,82 @@
+{
+  "prd-01.md": {
+    "min_cases": 1,
+    "feature": "user login"
+  },
+  "prd-02.md": {
+    "min_cases": 1,
+    "feature": "checkout flow"
+  },
+  "prd-03.md": {
+    "min_cases": 1,
+    "feature": "password reset"
+  },
+  "prd-04.md": {
+    "min_cases": 1,
+    "feature": "profile edit"
+  },
+  "prd-05.md": {
+    "min_cases": 1,
+    "feature": "search products"
+  },
+  "prd-06.md": {
+    "min_cases": 1,
+    "feature": "add to cart"
+  },
+  "prd-07.md": {
+    "min_cases": 1,
+    "feature": "apply coupon"
+  },
+  "prd-08.md": {
+    "min_cases": 1,
+    "feature": "order history"
+  },
+  "prd-09.md": {
+    "min_cases": 1,
+    "feature": "wishlist"
+  },
+  "prd-10.md": {
+    "min_cases": 1,
+    "feature": "product reviews"
+  },
+  "prd-11.md": {
+    "min_cases": 1,
+    "feature": "email notifications"
+  },
+  "prd-12.md": {
+    "min_cases": 1,
+    "feature": "two-factor auth"
+  },
+  "prd-13.md": {
+    "min_cases": 1,
+    "feature": "address book"
+  },
+  "prd-14.md": {
+    "min_cases": 1,
+    "feature": "payment method"
+  },
+  "prd-15.md": {
+    "min_cases": 1,
+    "feature": "refund request"
+  },
+  "prd-16.md": {
+    "min_cases": 1,
+    "feature": "subscription upgrade"
+  },
+  "prd-17.md": {
+    "min_cases": 1,
+    "feature": "team invite"
+  },
+  "prd-18.md": {
+    "min_cases": 1,
+    "feature": "export data"
+  },
+  "prd-19.md": {
+    "min_cases": 1,
+    "feature": "dark mode toggle"
+  },
+  "prd-20.md": {
+    "min_cases": 1,
+    "feature": "notification settings"
+  }
+}

@@ -1,0 +1,43 @@
+name: release-ts-sdk
+
+# M4-6: build + publish @suitest/sdk to npm on a `tssdk-v*` tag. Requires an
+# NPM_TOKEN secret with publish rights (npm automation token). On PRs the build
+# + typecheck run to validate the package; publish only fires on the tag.
+
+on:
+  push:
+    tags: ["tssdk-v*"]
+  pull_request:
+    paths:
+      - "sdk/typescript/**"
+      - ".github/workflows/release-ts-sdk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Validate package contents (publish dry-run)
+        # `npm pack --dry-run` + `npm publish --dry-run` prove the tarball builds
+        # and would be accepted by the registry before NPM_TOKEN exists.
+        run: |
+          npm pack --dry-run
+          npm publish --dry-run --access public
+      - name: Publish
+        if: startsWith(github.ref, 'refs/tags/tssdk-v')
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

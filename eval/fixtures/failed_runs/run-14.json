@@ -1,0 +1,5 @@
+{
+  "run_id": "fixture-run-14",
+  "step_log": "Snapshot mismatch: 12 pixels differ",
+  "expected_category": "MANUAL_TRIAGE"
+}

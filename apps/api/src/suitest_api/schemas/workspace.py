@@ -131,3 +131,19 @@ class WorkspaceDeleteAccepted(BaseModel):
 
     cleanup_job_id: str
     status: str = "QUEUED"
+
+
+class WorkspaceExportAccepted(BaseModel):
+    """``POST /workspaces/:id/export`` 202 response — archive assembled async (M4-29)."""
+
+    export_job_id: str
+    status: str = "QUEUED"
+
+
+class WorkspaceExportStatus(BaseModel):
+    """``GET /workspaces/:id/export/:job_id`` — poll result, surfaces the signed URL."""
+
+    status: str  # queued | in_progress | ready | error | not_found
+    download_url: str | None = None
+    size_bytes: int | None = None
+    error: str | None = None
