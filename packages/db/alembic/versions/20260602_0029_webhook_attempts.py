@@ -1,6 +1,6 @@
 """m4 webhook_dispatch_attempts table for the external webhook retry queue (M4-31)
 
-Revision ID: 0029_m4_webhook_dispatch_attempts
+Revision ID: 0029_webhook_attempts
 Revises: 0028_m2_recorder_sessions
 Create Date: 2026-06-02 00:00:00.000000
 
@@ -24,7 +24,7 @@ from sqlalchemy.dialects import postgresql
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-revision: str = "0029_m4_webhook_dispatch_attempts"
+revision: str = "0029_webhook_attempts"
 down_revision: str | None = "0028_m2_recorder_sessions"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

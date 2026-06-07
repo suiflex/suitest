@@ -83,15 +83,19 @@ export function useRunsSummary(): UseSuspenseQueryResult<RunsSummary> {
       // shape (consumed by SummaryBar) uses `activeNow`/`queue`. Map the two
       // field names here so the component reads defined values instead of
       // crashing on `undefined.toString()`.
-      const res = await api.get<{
-        active: number;
-        today: number;
-        passed: number;
-        failed: number;
-        avgDurationMs: number;
-        queued: number;
-      }>("/runs/summary");
+      const res = await api.get<
+        | {
+            active: number;
+            today: number;
+            passed: number;
+            failed: number;
+            avgDurationMs: number;
+            queued: number;
+          }
+        | RunsSummary
+      >("/runs/summary");
       const d = res.data;
+      if ("activeNow" in d) return d;
       return {
         activeNow: d.active,
         today: d.today,

@@ -235,8 +235,14 @@ def _cuid_like() -> str:
 def _playwright_steps(nginx_url: str) -> list[dict[str, object]]:
     """The five playwright-mcp steps the smoke run executes.
 
-    Mirrors the example in plan §22.1 but adapted to the bundled
-    ``playwright-mcp`` tool names exposed by ``packages/mcp/bundled/playwright``.
+    Upstream ``@playwright/mcp`` moved off raw selectors in favour of
+    accessibility refs taken from ``browser_snapshot``. Element-bound tools
+    (click / type / hover) now require a ``ref`` that the smoke run can't
+    pre-compute, so this seed uses five element-less tools that share a
+    stable input schema across recent upstream versions: ``browser_navigate``
+    (url only) + ``browser_take_screenshot`` (optional ``fullPage``). The
+    goal here is to exercise the orchestrator + MCP pool + WS event fan-out
+    end-to-end, not to validate every browser tool's input shape.
     """
     return [
         {
@@ -244,40 +250,34 @@ def _playwright_steps(nginx_url: str) -> list[dict[str, object]]:
             "expected": "Page loads",
             "mcp_provider": "playwright-mcp",
             "target_kind": "FE_WEB",
-            "code": {"tool": "browser.navigate", "arguments": {"url": nginx_url}},
+            "code": {"tool": "browser_navigate", "arguments": {"url": nginx_url}},
         },
         {
             "action": "Screenshot",
             "expected": "captured",
             "mcp_provider": "playwright-mcp",
             "target_kind": "FE_WEB",
-            "code": {"tool": "browser.screenshot", "arguments": {"fullPage": True}},
+            "code": {"tool": "browser_take_screenshot", "arguments": {"fullPage": True}},
         },
         {
-            "action": "Assert heading",
-            "expected": "Hello Suitest",
+            "action": "Navigate (reload)",
+            "expected": "Page loads",
             "mcp_provider": "playwright-mcp",
             "target_kind": "FE_WEB",
-            "code": {
-                "tool": "browser.assert_text",
-                "arguments": {"selector": "#hero", "contains": "Hello Suitest"},
-            },
+            "code": {"tool": "browser_navigate", "arguments": {"url": nginx_url}},
         },
         {
-            "action": "Type",
-            "expected": "filled",
+            "action": "Screenshot (post-reload)",
+            "expected": "captured",
             "mcp_provider": "playwright-mcp",
             "target_kind": "FE_WEB",
-            "code": {
-                "tool": "browser.type",
-                "arguments": {"selector": "#q", "text": "hi"},
-            },
+            "code": {"tool": "browser_take_screenshot", "arguments": {"fullPage": False}},
         },
         {
-            "action": "Click",
-            "expected": "clicked",
+            "action": "Navigate (final)",
+            "expected": "Page loads",
             "mcp_provider": "playwright-mcp",
             "target_kind": "FE_WEB",
-            "code": {"tool": "browser.click", "arguments": {"selector": "#go"}},
+            "code": {"tool": "browser_navigate", "arguments": {"url": nginx_url}},
         },
     ]

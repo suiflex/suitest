@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 async def test_auth_me_accepts_authorization_bearer_jwt(api_db: ApiDb) -> None:
     """A FastAPI-Users JWT in the Authorization header authenticates web/API calls."""
     user = await api_db.seed_user(email="bearer-user@suitest.local", name="Bearer User")
-    workspace = await api_db.member_workspace(user, slug="bearer-ws", name="Bearer Workspace")
+    await api_db.member_workspace(user, slug="bearer-ws", name="Bearer Workspace")
     token = await get_jwt_strategy().write_token(user)
 
     async with api_db.client(None) as client:

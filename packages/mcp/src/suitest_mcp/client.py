@@ -27,6 +27,7 @@ OpenTelemetry: every ``call_tool`` opens an ``mcp.invoke`` span tagged with
 from __future__ import annotations
 
 import asyncio
+import base64
 import contextlib
 import time
 from contextlib import AsyncExitStack
@@ -41,7 +42,7 @@ from opentelemetry import trace
 
 from mcp import ClientSession, StdioServerParameters
 from suitest_mcp.errors import McpHandshakeFailed, McpToolFailed, McpToolTimeout
-from suitest_mcp.models import McpProviderConfig, McpToolResult, McpTransport
+from suitest_mcp.models import McpArtifact, McpProviderConfig, McpToolResult, McpTransport
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -108,10 +109,40 @@ class McpSession:
             duration_ms = int((time.perf_counter() - start) * 1000)
             stdout = ""
             output: dict[str, Any] = {}
-            for content in result.content:
+            artifacts: list[McpArtifact] = []
+            for idx, content in enumerate(result.content):
                 ctype = getattr(content, "type", "")
                 if ctype == "text":
                     stdout += getattr(content, "text", "") + "\n"
+                elif ctype == "image":
+                    # Upstream MCP ImageContent carries a base64 ``data`` payload
+                    # plus a ``mimeType``. Surface it as a SCREENSHOT artifact so
+                    # the runner orchestrator's upload pipeline persists the
+                    # bytes to S3/MinIO and the API exposes a row in
+                    # ``/runs/<id>/artifacts``. Without this the runner would
+                    # silently drop every screenshot block.
+                    mime = getattr(content, "mimeType", None) or "image/png"
+                    data_b64 = getattr(content, "data", None)
+                    raw: bytes | None = None
+                    if isinstance(data_b64, str):
+                        try:
+                            raw = base64.b64decode(data_b64, validate=False)
+                        except (ValueError, TypeError):
+                            raw = None
+                    if raw is not None:
+                        ext = "png"
+                        if "/" in mime:
+                            ext = mime.split("/", 1)[1].split("+", 1)[0] or "png"
+                        artifacts.append(
+                            McpArtifact(
+                                kind="SCREENSHOT",
+                                filename=f"screenshot-{idx}.{ext}",
+                                content_type=mime,
+                                bytes=raw,
+                            )
+                        )
+                    else:
+                        output.setdefault("blocks", []).append({"type": ctype, "data": data_b64})
                 else:
                     output.setdefault("blocks", []).append(
                         {"type": ctype, "data": getattr(content, "data", None)}
@@ -123,6 +154,7 @@ class McpSession:
                 output=output,
                 stdout=stdout.strip(),
                 stderr="",
+                artifacts=artifacts,
                 duration_ms=duration_ms,
             )
 

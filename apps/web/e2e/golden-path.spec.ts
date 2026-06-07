@@ -32,7 +32,15 @@
 
 import { test, expect, type Route } from "@playwright/test";
 
-import capabilitiesZero from "../src/mocks/fixtures/capabilities-zero.json" with { type: "json" };
+import capabilitiesZeroBase from "../src/mocks/fixtures/capabilities-zero.json" with { type: "json" };
+
+// The shared fixture intentionally omits `auth` (other specs don't want the
+// Google button). Golden-path asserts the login page renders the button, so
+// we layer `auth.google_oauth_enabled` on top here only.
+const capabilitiesZero = {
+  ...capabilitiesZeroBase,
+  auth: { google_oauth_enabled: true },
+};
 import cases from "../src/mocks/fixtures/cases.json" with { type: "json" };
 import runs from "../src/mocks/fixtures/runs.json" with { type: "json" };
 import suites from "../src/mocks/fixtures/suites.json" with { type: "json" };
@@ -183,8 +191,11 @@ function buildBaseRouteTable(overrides: RouteEntry[] = []): RouteEntry[] {
     // Test cases
     { match: (u) => u.includes("/api/v1/test-cases"), handler: (r) => fulfillJson(r, cases) },
 
-    // Suites
-    { match: (u) => u.includes("/api/v1/suites"), handler: (r) => fulfillJson(r, suites) },
+    // Suites — useSuites wraps res.data as { items: res.data }, so the
+    // backend response shape is a bare SuitePublic[]. The fixture is shaped
+    // { items, meta } for MSW handlers that strip .items themselves; here we
+    // send the bare array so CasesBody doesn't crash on suites.items.map.
+    { match: (u) => u.includes("/api/v1/suites"), handler: (r) => fulfillJson(r, suites.items) },
 
     // Analytics (empty stubs so dashboard screens don't error)
     { match: (u) => u.includes("/api/v1/analytics"), handler: (r) => fulfillJson(r, {}) },

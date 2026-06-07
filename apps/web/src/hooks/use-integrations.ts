@@ -26,8 +26,10 @@ export function useIntegrations(): UseSuspenseQueryResult<IntegrationsPage> {
     // Backend returns a bare `IntegrationListItem[]`; wrap as `{ items }` so
     // consumers (which read `integrations.items`) don't crash on `undefined`.
     queryFn: async () => {
-      const res = await api.get<components["schemas"]["IntegrationListItem"][]>("/integrations");
-      return { items: res.data };
+      const res = await api.get<
+        components["schemas"]["IntegrationListItem"][] | { items: components["schemas"]["IntegrationListItem"][] }
+      >("/integrations");
+      return { items: Array.isArray(res.data) ? res.data : res.data.items };
     },
   });
 }

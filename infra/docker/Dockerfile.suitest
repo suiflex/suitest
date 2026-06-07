@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1.7
+
+FROM node:20-bookworm-slim AS web-builder
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@9 --activate
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json* ./
+COPY apps/web/package.json apps/web/
+RUN pnpm install --frozen-lockfile --filter @suitest/web...
+COPY apps/web/ apps/web/
+ARG VITE_API_URL=http://localhost:4000
+ENV VITE_API_URL=$VITE_API_URL
+RUN pnpm --filter @suitest/web build
+
+FROM python:3.12-slim AS runtime
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl build-essential libpq-dev nodejs npm nginx supervisor \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir uv==0.11.8
+# Match the runner image: ship the bundled Playwright MCP provider + browser
+# runtimes so the all-in-one image can execute FE_WEB steps without cold npm
+# bootstrap at runtime.
+RUN npm install -g @playwright/mcp@latest \
+    && npx -y playwright install --with-deps chrome chromium
+
+WORKDIR /app
+COPY pyproject.toml uv.lock* ./
+COPY apps/api/ apps/api/
+COPY apps/runner/ apps/runner/
+COPY packages/ packages/
+RUN uv sync --frozen --no-dev --package suitest-api --package suitest-runner
+
+COPY infra/docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=web-builder /app/apps/web/dist/ /usr/share/nginx/html/
+COPY infra/docker/supervisord.suitest.conf /etc/supervisor/conf.d/suitest.conf
+
+EXPOSE 80 4000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -fsS http://localhost:4000/health && curl -fsS http://localhost/healthz || exit 1
+
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
