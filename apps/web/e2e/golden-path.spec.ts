@@ -32,7 +32,15 @@
 
 import { test, expect, type Route } from "@playwright/test";
 
-import capabilitiesZero from "../src/mocks/fixtures/capabilities-zero.json" with { type: "json" };
+import capabilitiesZeroBase from "../src/mocks/fixtures/capabilities-zero.json" with { type: "json" };
+
+// The shared fixture intentionally omits `auth` (other specs don't want the
+// Google button). Golden-path asserts the login page renders the button, so
+// we layer `auth.google_oauth_enabled` on top here only.
+const capabilitiesZero = {
+  ...capabilitiesZeroBase,
+  auth: { google_oauth_enabled: true },
+};
 import cases from "../src/mocks/fixtures/cases.json" with { type: "json" };
 import runs from "../src/mocks/fixtures/runs.json" with { type: "json" };
 import suites from "../src/mocks/fixtures/suites.json" with { type: "json" };
