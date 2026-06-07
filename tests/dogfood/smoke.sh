@@ -24,6 +24,11 @@ echo "==> OpenAPI schema served"
 curl -fsS "${API}/openapi.json" | grep -q '"openapi"' || fail "openapi.json not served"
 
 echo "==> Prometheus /metrics exposed"
-curl -fsS "${API}/metrics" | grep -q "python_info\|http_request" || fail "/metrics not exposed"
+# Prometheus exposition format always emits ``# HELP`` / ``# TYPE`` lines for
+# every series, so that pair is a stable smoke for ``/metrics`` regardless of
+# which collectors (default ProcessCollector, FastAPI request histogram, …)
+# the runtime image happens to register.
+metrics_body="$(curl -fsS "${API}/metrics")" || fail "/metrics not reachable"
+echo "${metrics_body}" | grep -q "^# HELP" || fail "/metrics not exposed: $(echo "${metrics_body}" | head -c 200)"
 
 echo "DOGFOOD OK — Suitest is up and self-describing."
