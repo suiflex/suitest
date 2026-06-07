@@ -256,6 +256,9 @@ jobs:
           - name: web
             dockerfile: infra/docker/Dockerfile.web
             ghcr: ghcr.io/suiflex/suitest-web
+          - name: suitest
+            dockerfile: infra/docker/Dockerfile.suitest
+            ghcr: ghcr.io/suiflex/suitest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
