@@ -47,7 +47,10 @@ jobs:
       # compose-published ports.
       SUITEST_E2E_API_URL: http://localhost:4000
       SUITEST_E2E_WS_URL: ws://localhost:4000
-      SUITEST_E2E_NGINX_URL: http://localhost:8090
+      # Runner executes inside the docker network — seed steps must use the
+      # compose service DNS, not the host-published port. Host-side pytest
+      # never navigates to nginx itself, so this only affects seed payload.
+      SUITEST_E2E_NGINX_URL: http://e2e-nginx:80
 
     steps:
       - name: Checkout
