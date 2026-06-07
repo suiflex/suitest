@@ -46,7 +46,7 @@ async def test_get_defaults_manual(api_db: ApiDb) -> None:
 async def test_zero_tier_rejects_non_manual(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="auto-zero@example.com")
     ws = await api_db.seed_workspace(slug="auto-zero-ws", name="auto-zero-ws")
-    await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.EDITOR)
+    await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.ADMIN)
     await _capability(api_db, ws.id, tier=Tier.ZERO)
     async with api_db.client(user) as c:
         resp = await c.put(
@@ -62,7 +62,7 @@ async def test_zero_tier_rejects_non_manual(api_db: ApiDb) -> None:
 async def test_set_level_and_overrides_persists_and_audits(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="auto-set@example.com")
     ws = await api_db.seed_workspace(slug="auto-set-ws", name="auto-set-ws")
-    await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.EDITOR)
+    await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.ADMIN)
     await _capability(api_db, ws.id, tier=Tier.CLOUD)
     async with api_db.client(user) as c:
         resp = await c.put(
@@ -105,7 +105,7 @@ async def test_set_level_and_overrides_persists_and_audits(api_db: ApiDb) -> Non
 async def test_unknown_override_key_rejected(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="auto-unknown@example.com")
     ws = await api_db.seed_workspace(slug="auto-unknown-ws", name="auto-unknown-ws")
-    await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.EDITOR)
+    await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.ADMIN)
     await _capability(api_db, ws.id, tier=Tier.CLOUD)
     async with api_db.client(user) as c:
         resp = await c.put(
