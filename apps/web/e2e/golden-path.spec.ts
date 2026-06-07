@@ -191,8 +191,11 @@ function buildBaseRouteTable(overrides: RouteEntry[] = []): RouteEntry[] {
     // Test cases
     { match: (u) => u.includes("/api/v1/test-cases"), handler: (r) => fulfillJson(r, cases) },
 
-    // Suites
-    { match: (u) => u.includes("/api/v1/suites"), handler: (r) => fulfillJson(r, suites) },
+    // Suites — useSuites wraps res.data as { items: res.data }, so the
+    // backend response shape is a bare SuitePublic[]. The fixture is shaped
+    // { items, meta } for MSW handlers that strip .items themselves; here we
+    // send the bare array so CasesBody doesn't crash on suites.items.map.
+    { match: (u) => u.includes("/api/v1/suites"), handler: (r) => fulfillJson(r, suites.items) },
 
     // Analytics (empty stubs so dashboard screens don't error)
     { match: (u) => u.includes("/api/v1/analytics"), handler: (r) => fulfillJson(r, {}) },
