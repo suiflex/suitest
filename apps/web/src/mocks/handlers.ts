@@ -57,19 +57,19 @@ export const handlers: HttpHandler[] = [
   http.get(`${BASE}/analytics/kpis`, () => HttpResponse.json(kpis)),
   http.get(`${BASE}/analytics/pass-rate`, () => HttpResponse.json(passRate)),
   http.get(`${BASE}/analytics/coverage`, () => HttpResponse.json(coverage)),
-  http.get(`${BASE}/analytics/flaky`, () => HttpResponse.json(flaky)),
-  http.get(`${BASE}/analytics/heatmap`, () => HttpResponse.json(heatmap)),
+  http.get(`${BASE}/analytics/flaky`, () => HttpResponse.json(flaky.items)),
+  http.get(`${BASE}/analytics/heatmap`, () => HttpResponse.json(heatmap.cells)),
   http.get(`${BASE}/analytics/readiness`, () => HttpResponse.json(readiness)),
 
   // Runs — /summary must come before the /:runId param matcher.
   http.get(`${BASE}/runs/summary`, () =>
     HttpResponse.json({
-      activeNow: 1,
+      active: 1,
       today: 24,
       passed: 22,
       failed: 2,
       avgDurationMs: 84000,
-      queue: 3,
+      queued: 3,
     }),
   ),
   http.get(`${BASE}/runs`, () => HttpResponse.json(runs)),
@@ -404,7 +404,7 @@ export const handlers: HttpHandler[] = [
   ),
 
   // Integrations
-  http.get(`${BASE}/integrations`, () => HttpResponse.json(integrations)),
+  http.get(`${BASE}/integrations`, () => HttpResponse.json(integrations.items)),
   http.get(`${BASE}/integrations/:integrationId`, ({ params }) =>
     HttpResponse.json({ id: params["integrationId"], kind: "JIRA", status: "CONNECTED" }),
   ),
@@ -413,7 +413,9 @@ export const handlers: HttpHandler[] = [
   http.get(`${BASE}/traceability/matrix`, () => HttpResponse.json(traceability)),
 
   // Projects / workspaces / requirements / suites (thin stubs)
-  http.get(`${BASE}/projects`, () => HttpResponse.json({ items: [] })),
+  http.get(`${BASE}/projects`, () =>
+    HttpResponse.json({ items: [{ id: "prj_demo", name: "Fixture project" }] }),
+  ),
   http.get(`${BASE}/projects/:projectId`, ({ params }) =>
     HttpResponse.json({ id: params["projectId"], name: "Fixture project" }),
   ),
@@ -426,7 +428,7 @@ export const handlers: HttpHandler[] = [
   http.get(`${BASE}/requirements/:requirementId`, ({ params }) =>
     HttpResponse.json({ id: params["requirementId"], title: "Fixture requirement" }),
   ),
-  http.get(`${BASE}/suites`, () => HttpResponse.json(suites)),
+  http.get(`${BASE}/suites`, () => HttpResponse.json(suites.items)),
   http.get(`${BASE}/suites/:suiteId`, ({ params }) =>
     HttpResponse.json({ id: params["suiteId"], name: "Fixture suite" }),
   ),

@@ -1,7 +1,7 @@
 """m5 run_steps.state_snapshot for time-travel diff viewer (M5-1)
 
 Revision ID: 0030_m5_run_step_state_snapshot
-Revises: 0029_m4_webhook_dispatch_attempts
+Revises: 0029_webhook_attempts
 Create Date: 2026-06-03 00:00:00.000000
 
 Adds the nullable ``state_snapshot`` jsonb column to ``run_steps``. The runner
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 revision: str = "0030_m5_run_step_state_snapshot"
-down_revision: str | None = "0029_m4_webhook_dispatch_attempts"
+down_revision: str | None = "0029_webhook_attempts"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

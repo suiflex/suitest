@@ -1,7 +1,7 @@
 """m5 prompt_experiments for prompt A/B testing (M5-4)
 
 Revision ID: 0032_m5_prompt_experiments
-Revises: 0031_m5_workspace_prompt_overrides
+Revises: 0031_workspace_prompts
 Create Date: 2026-06-03 00:00:02.000000
 
 Adds ``prompt_experiments`` — an A/B test between two prompt variants (file
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 revision: str = "0032_m5_prompt_experiments"
-down_revision: str | None = "0031_m5_workspace_prompt_overrides"
+down_revision: str | None = "0031_workspace_prompts"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
