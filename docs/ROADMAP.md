@@ -274,10 +274,10 @@ Tag `v1.0.0`. Announce di HN / Reddit / dev.to. Discord + community forum set up
 
 ## M5 â Time-travel & Eval UI (3 minggu)
 
-- [ ] **M5-1** Full time-travel replay UI dengan diff viewer (state delta per step)
-- [ ] **M5-2** Eval suite UI: define golden datasets, weekly CI run, score regression dashboard
-- [ ] **M5-3** Versioned prompt fork per workspace (DB-backed override layer di atas file-based defaults)
-- [ ] **M5-4** Prompt A/B testing harness
+- [x] **M5-1** Full time-travel replay UI dengan diff viewer (state delta per step)
+- [x] **M5-2** Eval suite UI: define golden datasets, weekly CI run, score regression dashboard
+- [x] **M5-3** Versioned prompt fork per workspace (DB-backed override layer di atas file-based defaults)
+- [x] **M5-4** Prompt A/B testing harness
 
 ## M6 â Diff-aware test selection (3 minggu)
 

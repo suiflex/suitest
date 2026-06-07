@@ -6,6 +6,7 @@ import {
   Bug,
   ChevronDown,
   FileCode2,
+  FlaskConical,
   Inbox,
   LayoutDashboard,
   Network,
@@ -17,11 +18,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
@@ -112,6 +109,7 @@ export function Sidebar({
       items: [
         { label: "Analytics", icon: BarChart3, to: "/analytics" },
         { label: "Traceability", icon: Network, to: "/trace" },
+        { label: "Eval", icon: FlaskConical, to: "/eval" },
       ],
     },
     {

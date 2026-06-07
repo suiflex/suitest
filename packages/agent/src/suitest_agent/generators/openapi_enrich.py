@@ -47,10 +47,19 @@ class EnrichResult:
 class OpenApiEnricher:
     """Propose extra edge cases for a set of OpenAPI operations via the LLM."""
 
-    def __init__(self, provider: LLMProvider, *, model: str, prompt_version: str = "v1") -> None:
+    def __init__(
+        self,
+        provider: LLMProvider,
+        *,
+        model: str,
+        prompt_version: str = "v1",
+        prompt_override: str | None = None,
+    ) -> None:
         self._provider = provider
         self._model = model
         self._prompt_version = prompt_version
+        # M5-3: resolved per-workspace fork content; None → file default.
+        self._prompt_override = prompt_override
 
     async def enrich(
         self, op_summaries: list[str], *, seed: int | None = None, max_cases: int = 20
@@ -59,7 +68,7 @@ class OpenApiEnricher:
         if not op_summaries:
             return EnrichResult(usage=EnrichUsage(model=self._model))
 
-        template = load("enrich-openapi-edges", self._prompt_version)
+        template = self._prompt_override or load("enrich-openapi-edges", self._prompt_version)
         system = template.replace("{operations}", "\n".join(op_summaries))
         result = await complete_with_prompt(
             self._provider,

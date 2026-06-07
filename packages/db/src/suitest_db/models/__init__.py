@@ -20,6 +20,7 @@ import suitest_db.models.llm_config as _llm_config  # noqa: F401
 import suitest_db.models.mcp_provider as _mcp_provider  # noqa: F401
 import suitest_db.models.password_reset_request as _password_reset_request  # noqa: F401
 import suitest_db.models.project as _project  # noqa: F401
+import suitest_db.models.prompt_experiment as _prompt_experiment  # noqa: F401
 import suitest_db.models.prompt_version as _prompt_version  # noqa: F401
 import suitest_db.models.recorder_session as _recorder_session  # noqa: F401
 import suitest_db.models.requirement as _requirement  # noqa: F401
@@ -30,3 +31,4 @@ import suitest_db.models.user as _user  # noqa: F401
 import suitest_db.models.webhook_dispatch as _webhook_dispatch  # noqa: F401
 import suitest_db.models.workspace as _workspace  # noqa: F401
 import suitest_db.models.workspace_capability as _workspace_capability  # noqa: F401
+import suitest_db.models.workspace_prompt_override as _workspace_prompt_override  # noqa: F401

@@ -32,11 +32,15 @@ from suitest_api.schemas.run import (
     RunLogItem,
     RunLogPage,
     RunNetworkResponse,
+    RunReplayResponse,
+    RunReplayStep,
     RunsSummary,
     RunStepPublic,
     RunSummary,
+    StateChangePublic,
 )
 from suitest_api.schemas.runs import CreateRunBody, RunPublic
+from suitest_api.services.replay_service import compute_state_delta
 from suitest_api.services.run_service import RunService
 from suitest_api.settings import get_settings
 
@@ -170,6 +174,45 @@ async def get_run_steps(
         )
         for step, public_id in pairs
     ]
+
+
+@router.get("/runs/{run_id}/replay", response_model=RunReplayResponse)
+async def get_run_replay(
+    run_id: str,
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+) -> RunReplayResponse:
+    """Time-travel replay: ordered steps + per-step state delta (M5-1).
+
+    Deterministic / ZERO-tier — the delta is a pure JSON diff between each step's
+    captured ``state_snapshot`` (normalized MCP output) and the previous step's.
+    The first step has an empty delta (no prior state). 404 when cross-workspace.
+    """
+    await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
+    pairs = await RunRepo(session).get_steps_with_case_public_id(run_id)
+    replay_steps: list[RunReplayStep] = []
+    prev_snapshot: dict[str, object] | None = None
+    for step, public_id in pairs:
+        snapshot = step.state_snapshot
+        delta = compute_state_delta(prev_snapshot, snapshot)
+        replay_steps.append(
+            RunReplayStep(
+                id=step.id,
+                step_order=step.step_order,
+                case_public_id=public_id,
+                outcome=step.outcome,
+                duration_ms=step.duration_ms,
+                started_at=step.started_at,
+                error_message=step.error_message,
+                state_snapshot=snapshot,
+                delta=[
+                    StateChangePublic(path=c.path, op=c.op, before=c.before, after=c.after)
+                    for c in delta
+                ],
+            )
+        )
+        prev_snapshot = snapshot
+    return RunReplayResponse(run_id=run_id, steps=replay_steps)
 
 
 @router.get("/runs/{run_id}/logs", response_model=RunLogPage)

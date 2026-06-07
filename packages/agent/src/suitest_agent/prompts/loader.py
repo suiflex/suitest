@@ -45,6 +45,18 @@ def read_prompt(name: str, version: str = "v1") -> str:
     return path.read_text(encoding="utf-8")
 
 
+def list_prompts(version: str = "v1") -> list[str]:
+    """Return the sorted base names of every ``{version}/*.md`` default prompt.
+
+    Used by the workspace prompt-fork UI (M5-3) to enumerate which prompts can be
+    overridden. Returns an empty list when the version directory does not exist.
+    """
+    version_dir = _PROMPTS_ROOT / version
+    if not version_dir.is_dir():
+        return []
+    return sorted(p.stem for p in version_dir.glob("*.md"))
+
+
 def load(name: str, version: str = "v1", *, stored_hash: str | None = None) -> str:
     """Load ``{version}/{name}`` and guard against drift.
 

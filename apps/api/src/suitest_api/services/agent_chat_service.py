@@ -16,13 +16,13 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from suitest_agent.graphs._util import parse_json_object
-from suitest_agent.prompts.loader import prompt_hash, read_prompt
 from suitest_agent.providers.base import ChatMessage, ModelCall
 from suitest_agent.providers.litellm_router import get_provider
 from suitest_db.repositories.agent_sessions import AgentSessionCreate, AgentSessionRepo
-from suitest_db.repositories.prompt_versions import PromptVersionRepo
 from suitest_shared.domain.enums import AgentSessionKind, MessageRole
 from suitest_shared.schemas.agent_chat import ChatRequest, ChatSseEvent
+
+from suitest_api.services.prompt_resolver import resolve_and_pin
 
 if TYPE_CHECKING:
     import uuid
@@ -60,9 +60,11 @@ class AgentChatService:
         publish: WsPublish | None = None,
     ) -> AsyncIterator[ChatSseEvent]:
         """Stream the assistant reply; persist the session + messages."""
-        prompt_content = read_prompt("converse", "v1")
-        prompt_row = await PromptVersionRepo(self._session).ensure(
-            "converse", "v1", prompt_content, prompt_hash(prompt_content)
+        # M5-3: honour an active per-workspace prompt fork; falls back to the
+        # file default when none exists. ``resolve_and_pin`` also records the
+        # reproducibility row, replacing the direct read_prompt + ensure pair.
+        prompt_content, prompt_row = await resolve_and_pin(
+            self._session, workspace_id=self._workspace_id, prompt_name="converse"
         )
         repo = AgentSessionRepo(self._session)
         agent_session = await repo.create(

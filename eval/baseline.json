@@ -1,0 +1,279 @@
+{
+  "suite_name": "weekly-ci",
+  "fixtures_count": 45,
+  "passed": 45,
+  "failed": 0,
+  "score_pct": 100.0,
+  "results": [
+    {
+      "suite": "prds",
+      "fixture": "prd-01.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-02.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-03.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-04.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-05.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-06.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-07.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-08.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-09.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-10.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-11.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-12.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-13.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-14.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-15.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-16.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-17.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-18.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-19.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "prds",
+      "fixture": "prd-20.md",
+      "passed": true,
+      "detail": "3 stories (min 1)"
+    },
+    {
+      "suite": "openapi",
+      "fixture": "api-01.yaml",
+      "passed": true,
+      "detail": "3 operations (min 3)"
+    },
+    {
+      "suite": "openapi",
+      "fixture": "api-02.yaml",
+      "passed": true,
+      "detail": "3 operations (min 3)"
+    },
+    {
+      "suite": "openapi",
+      "fixture": "api-03.yaml",
+      "passed": true,
+      "detail": "3 operations (min 3)"
+    },
+    {
+      "suite": "openapi",
+      "fixture": "api-04.yaml",
+      "passed": true,
+      "detail": "3 operations (min 3)"
+    },
+    {
+      "suite": "openapi",
+      "fixture": "api-05.yaml",
+      "passed": true,
+      "detail": "3 operations (min 3)"
+    },
+    {
+      "suite": "openapi",
+      "fixture": "api-06.yaml",
+      "passed": true,
+      "detail": "3 operations (min 3)"
+    },
+    {
+      "suite": "openapi",
+      "fixture": "api-07.yaml",
+      "passed": true,
+      "detail": "3 operations (min 3)"
+    },
+    {
+      "suite": "openapi",
+      "fixture": "api-08.yaml",
+      "passed": true,
+      "detail": "3 operations (min 3)"
+    },
+    {
+      "suite": "openapi",
+      "fixture": "api-09.yaml",
+      "passed": true,
+      "detail": "3 operations (min 3)"
+    },
+    {
+      "suite": "openapi",
+      "fixture": "api-10.yaml",
+      "passed": true,
+      "detail": "3 operations (min 3)"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-01.json",
+      "passed": true,
+      "detail": "got FLAKE, expected FLAKE"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-02.json",
+      "passed": true,
+      "detail": "got REGRESSION, expected REGRESSION"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-03.json",
+      "passed": true,
+      "detail": "got INFRA, expected INFRA"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-04.json",
+      "passed": true,
+      "detail": "got MANUAL_TRIAGE, expected MANUAL_TRIAGE"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-05.json",
+      "passed": true,
+      "detail": "got FLAKE, expected FLAKE"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-06.json",
+      "passed": true,
+      "detail": "got MANUAL_TRIAGE, expected MANUAL_TRIAGE"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-07.json",
+      "passed": true,
+      "detail": "got MANUAL_TRIAGE, expected MANUAL_TRIAGE"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-08.json",
+      "passed": true,
+      "detail": "got FLAKE, expected FLAKE"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-09.json",
+      "passed": true,
+      "detail": "got MANUAL_TRIAGE, expected MANUAL_TRIAGE"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-10.json",
+      "passed": true,
+      "detail": "got MANUAL_TRIAGE, expected MANUAL_TRIAGE"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-11.json",
+      "passed": true,
+      "detail": "got MANUAL_TRIAGE, expected MANUAL_TRIAGE"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-12.json",
+      "passed": true,
+      "detail": "got FLAKE, expected FLAKE"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-13.json",
+      "passed": true,
+      "detail": "got INFRA, expected INFRA"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-14.json",
+      "passed": true,
+      "detail": "got MANUAL_TRIAGE, expected MANUAL_TRIAGE"
+    },
+    {
+      "suite": "failed_runs",
+      "fixture": "run-15.json",
+      "passed": true,
+      "detail": "got FLAKE, expected FLAKE"
+    }
+  ]
+}

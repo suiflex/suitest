@@ -80,18 +80,25 @@ class PrdGenerator:
         model: str,
         default_target_kind: TargetKind = TargetKind.CUSTOM,
         prompt_version: str = "v1",
+        prompt_override: str | None = None,
     ) -> None:
         self._provider = provider
         self._model = model
         self._target_kind = default_target_kind
         self._mcp = mcp_for_target_kind(default_target_kind)
         self._prompt_version = prompt_version
+        # M5-3: resolved per-workspace fork content; None → file default.
+        self._prompt_override = prompt_override
 
     async def run(
         self, prd_text: str, *, seed: int | None = None, max_cases: int = 20
     ) -> PrdResult:
         """Generate drafts from ``prd_text``. Empty input → ``EMPTY_INPUT`` error."""
-        graph = build_generation_graph(self._provider, prompt_version=self._prompt_version)
+        graph = build_generation_graph(
+            self._provider,
+            prompt_version=self._prompt_version,
+            prompt_override=self._prompt_override,
+        )
         state = await graph.ainvoke({"input_text": prd_text, "model": self._model, "seed": seed})
         if state.get("error"):
             return PrdResult(error=str(state["error"]))

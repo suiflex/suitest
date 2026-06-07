@@ -46,6 +46,26 @@ class EvalResult:
     results: list[FixtureResult]
 
 
+@dataclass(frozen=True)
+class SuiteInfo:
+    """One golden dataset suite + its fixture count (M5-2 dashboard)."""
+
+    suite: str
+    fixtures: int
+
+
+def list_suites(fixtures_dir: Path) -> list[SuiteInfo]:
+    """Enumerate the bundled golden datasets and their fixture counts.
+
+    Counts each suite's ``index.json`` entries so the Eval UI can show what the
+    weekly CI run scores against without re-reading every fixture file.
+    """
+    out: list[SuiteInfo] = []
+    for suite in SUITES:
+        out.append(SuiteInfo(suite=suite, fixtures=len(_load_index(fixtures_dir / suite))))
+    return out
+
+
 def run_eval(fixtures_dir: Path, *, suite_name: str = "default") -> EvalResult:
     """Score every fixture under ``fixtures_dir`` and aggregate pass/fail."""
     results: list[FixtureResult] = []

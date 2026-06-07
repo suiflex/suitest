@@ -276,6 +276,70 @@
         "title": "AutonomyLevel",
         "type": "string"
       },
+      "AutonomyResponse": {
+        "description": "``GET`` / ``PUT`` response \u2014 the resolved autonomy state.",
+        "properties": {
+          "effective": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Effective",
+            "type": "object"
+          },
+          "knownOverrideKeys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Knownoverridekeys",
+            "type": "array"
+          },
+          "level": {
+            "$ref": "#/components/schemas/AutonomyLevel"
+          },
+          "overrides": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Overrides",
+            "type": "object"
+          },
+          "tier": {
+            "$ref": "#/components/schemas/Tier"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedat"
+          },
+          "updatedBy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedby"
+          }
+        },
+        "required": [
+          "level",
+          "overrides",
+          "effective",
+          "tier",
+          "knownOverrideKeys"
+        ],
+        "title": "AutonomyResponse",
+        "type": "object"
+      },
       "AutonomySection": {
         "description": "Autonomy levels available + the recommended default for the tier.",
         "properties": {
@@ -295,6 +359,37 @@
           "default"
         ],
         "title": "AutonomySection",
+        "type": "object"
+      },
+      "AutonomyUpdate": {
+        "description": "``PUT`` body \u2014 the new level + overrides (+ optional audit reason).",
+        "properties": {
+          "level": {
+            "$ref": "#/components/schemas/AutonomyLevel"
+          },
+          "overrides": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Overrides",
+            "type": "object"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "title": "AutonomyUpdate",
         "type": "object"
       },
       "Body_auth_cookie_jwt_login_auth_cookie_login_post": {
@@ -356,6 +451,21 @@
         "title": "Body_auth_cookie_jwt_login_auth_cookie_login_post",
         "type": "object"
       },
+      "Body_import_workspace_api_v1_workspaces_import_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "workspace-*.tar.gz export archive.",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_workspace_api_v1_workspaces_import_post",
+        "type": "object"
+      },
       "Body_reset_forgot_password_auth_forgot_password_post": {
         "properties": {
           "email": {
@@ -386,6 +496,40 @@
           "password"
         ],
         "title": "Body_reset_reset_password_auth_reset_password_post",
+        "type": "object"
+      },
+      "BudgetOut": {
+        "properties": {
+          "alert": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alert"
+          },
+          "dailyCapUsd": {
+            "title": "Dailycapusd",
+            "type": "number"
+          },
+          "overBudget": {
+            "title": "Overbudget",
+            "type": "boolean"
+          },
+          "todaySpendUsd": {
+            "title": "Todayspendusd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "dailyCapUsd",
+          "todaySpendUsd",
+          "overBudget"
+        ],
+        "title": "BudgetOut",
         "type": "object"
       },
       "BulkAddTagsRequest": {
@@ -645,6 +789,74 @@
         "title": "ChangePasswordRequest",
         "type": "object"
       },
+      "ChatMessageInput": {
+        "description": "One prior turn in the conversation history.",
+        "properties": {
+          "content": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant",
+              "system",
+              "tool"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatMessageInput",
+        "type": "object"
+      },
+      "ChatRequest": {
+        "description": "``POST /agent/chat`` body \u2014 the running history + optional session id.",
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessageInput"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Messages",
+            "type": "array"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "title": "ChatRequest",
+        "type": "object"
+      },
       "ClassificationResult": {
         "properties": {
           "alternatives": {
@@ -730,6 +942,59 @@
           "ok"
         ],
         "title": "ConnectionTestResponse",
+        "type": "object"
+      },
+      "CostSummaryOut": {
+        "properties": {
+          "budget": {
+            "$ref": "#/components/schemas/BudgetOut"
+          },
+          "byKind": {
+            "items": {
+              "$ref": "#/components/schemas/KindCostOut"
+            },
+            "title": "Bykind",
+            "type": "array"
+          },
+          "byProvider": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderCostOut"
+            },
+            "title": "Byprovider",
+            "type": "array"
+          },
+          "sessionCount": {
+            "title": "Sessioncount",
+            "type": "integer"
+          },
+          "totalCostUsd": {
+            "title": "Totalcostusd",
+            "type": "number"
+          },
+          "totalTokensIn": {
+            "title": "Totaltokensin",
+            "type": "integer"
+          },
+          "totalTokensOut": {
+            "title": "Totaltokensout",
+            "type": "integer"
+          },
+          "windowDays": {
+            "title": "Windowdays",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "totalCostUsd",
+          "totalTokensIn",
+          "totalTokensOut",
+          "sessionCount",
+          "windowDays",
+          "byProvider",
+          "byKind",
+          "budget"
+        ],
+        "title": "CostSummaryOut",
         "type": "object"
       },
       "CoverageOut": {
@@ -1693,6 +1958,259 @@
         "title": "ErrorModel",
         "type": "object"
       },
+      "EvalFixtureResult": {
+        "description": "Per-fixture pass/fail row in the report.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "fixture": {
+            "title": "Fixture",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          },
+          "suite": {
+            "title": "Suite",
+            "type": "string"
+          }
+        },
+        "required": [
+          "suite",
+          "fixture",
+          "passed",
+          "detail"
+        ],
+        "title": "EvalFixtureResult",
+        "type": "object"
+      },
+      "EvalFixturesEnvelope": {
+        "description": "``GET /eval/fixtures`` \u2014 the bundled golden datasets the CI run scores.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EvalSuiteInfo"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "EvalFixturesEnvelope",
+        "type": "object"
+      },
+      "EvalRunListEnvelope": {
+        "description": "``GET /eval/runs`` \u2014 newest-first eval run history.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EvalRunListItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "EvalRunListEnvelope",
+        "type": "object"
+      },
+      "EvalRunListItem": {
+        "description": "One row in the score-regression dashboard (M5-2).",
+        "properties": {
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "fixturesCount": {
+            "title": "Fixturescount",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "modelId": {
+            "title": "Modelid",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "integer"
+          },
+          "runAt": {
+            "format": "date-time",
+            "title": "Runat",
+            "type": "string"
+          },
+          "scorePct": {
+            "title": "Scorepct",
+            "type": "number"
+          },
+          "suiteName": {
+            "title": "Suitename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "suiteName",
+          "fixturesCount",
+          "passed",
+          "failed",
+          "scorePct",
+          "modelId",
+          "runAt"
+        ],
+        "title": "EvalRunListItem",
+        "type": "object"
+      },
+      "EvalRunPublic": {
+        "description": "``GET /eval/runs/:id`` + ``POST /eval/runs`` response.",
+        "properties": {
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "fixturesCount": {
+            "title": "Fixturescount",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "modelId": {
+            "title": "Modelid",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "integer"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/EvalFixtureResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "runAt": {
+            "format": "date-time",
+            "title": "Runat",
+            "type": "string"
+          },
+          "suiteName": {
+            "title": "Suitename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "suiteName",
+          "fixturesCount",
+          "passed",
+          "failed",
+          "modelId",
+          "runAt"
+        ],
+        "title": "EvalRunPublic",
+        "type": "object"
+      },
+      "EvalRunRequest": {
+        "additionalProperties": false,
+        "description": "``POST /eval/runs`` body.",
+        "properties": {
+          "suite_name": {
+            "default": "default",
+            "maxLength": 120,
+            "title": "Suite Name",
+            "type": "string"
+          }
+        },
+        "title": "EvalRunRequest",
+        "type": "object"
+      },
+      "EvalSuiteInfo": {
+        "description": "One golden dataset suite + its fixture count (M5-2).",
+        "properties": {
+          "fixtures": {
+            "title": "Fixtures",
+            "type": "integer"
+          },
+          "suite": {
+            "title": "Suite",
+            "type": "string"
+          }
+        },
+        "required": [
+          "suite",
+          "fixtures"
+        ],
+        "title": "EvalSuiteInfo",
+        "type": "object"
+      },
+      "ExperimentOutcomeBody": {
+        "additionalProperties": false,
+        "description": "``POST /prompt-experiments/:id/outcome`` body.",
+        "properties": {
+          "success": {
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          },
+          "variant": {
+            "pattern": "^[AB]$",
+            "title": "Variant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant"
+        ],
+        "title": "ExperimentOutcomeBody",
+        "type": "object"
+      },
+      "ExperimentVariantStats": {
+        "description": "Per-variant impression / success counters + conversion (M5-4).",
+        "properties": {
+          "conversionPct": {
+            "title": "Conversionpct",
+            "type": "number"
+          },
+          "impressions": {
+            "title": "Impressions",
+            "type": "integer"
+          },
+          "overrideId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overrideid"
+          },
+          "successes": {
+            "title": "Successes",
+            "type": "integer"
+          },
+          "variant": {
+            "title": "Variant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant",
+          "impressions",
+          "successes",
+          "conversionPct"
+        ],
+        "title": "ExperimentVariantStats",
+        "type": "object"
+      },
       "ExternalIssuePublic": {
         "description": "One linked external tracker issue (Jira/Linear/etc).",
         "properties": {
@@ -2522,6 +3040,29 @@
         "title": "JiraTestConnectionRequest",
         "type": "object"
       },
+      "KindCostOut": {
+        "properties": {
+          "costUsd": {
+            "title": "Costusd",
+            "type": "number"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "costUsd",
+          "sessions"
+        ],
+        "title": "KindCostOut",
+        "type": "object"
+      },
       "KpisOut": {
         "description": "``GET /analytics/kpis`` \u2192 pass rate, run count, avg duration, open defects.",
         "properties": {
@@ -2549,6 +3090,127 @@
           "defectsOpen"
         ],
         "title": "KpisOut",
+        "type": "object"
+      },
+      "LLMConfigPublic": {
+        "description": "Active config, key redacted to a hint.",
+        "properties": {
+          "apiKeyHint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apikeyhint"
+          },
+          "config": {
+            "additionalProperties": true,
+            "title": "Config",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "isActive": {
+            "title": "Isactive",
+            "type": "boolean"
+          },
+          "lastValidatedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastvalidatedat"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "model",
+          "isActive",
+          "tier"
+        ],
+        "title": "LLMConfigPublic",
+        "type": "object"
+      },
+      "LLMConfigWriteBody": {
+        "description": "Set/rotate provider + key. ``apiKey`` is write-only.",
+        "properties": {
+          "apiKey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apikey"
+          },
+          "config": {
+            "additionalProperties": true,
+            "title": "Config",
+            "type": "object"
+          },
+          "model": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "provider": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "model"
+        ],
+        "title": "LLMConfigWriteBody",
+        "type": "object"
+      },
+      "LLMModelsResponse": {
+        "properties": {
+          "models": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "title": "LLMModelsResponse",
         "type": "object"
       },
       "LLMSection": {
@@ -2590,6 +3252,63 @@
           "provider"
         ],
         "title": "LLMSection",
+        "type": "object"
+      },
+      "LLMTestError": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "LLMTestError",
+        "type": "object"
+      },
+      "LLMTestResult": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LLMTestError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latencyMs": {
+            "default": 0,
+            "title": "Latencyms",
+            "type": "integer"
+          },
+          "modelEcho": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modelecho"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "LLMTestResult",
         "type": "object"
       },
       "MatrixCase": {
@@ -2677,8 +3396,489 @@
         "title": "MatrixRequirement",
         "type": "object"
       },
+      "McpDiscoveryGenerateRequest": {
+        "description": "LLM-driven MCP tool-discovery generation (M3-9) \u2014 CLOUD/LOCAL only.\n\nTargets a registered MCP provider by id; the agent explores its persisted\ntool catalog and proposes contract cases (happy + negative per tool). Steps\nare agentic (code translated at execution time, M3-10).",
+        "properties": {
+          "max_cases": {
+            "default": 20,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Max Cases",
+            "type": "integer"
+          },
+          "mcp_provider_id": {
+            "minLength": 1,
+            "title": "Mcp Provider Id",
+            "type": "string"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "target_suite_id": {
+            "minLength": 1,
+            "title": "Target Suite Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_suite_id",
+          "mcp_provider_id"
+        ],
+        "title": "McpDiscoveryGenerateRequest",
+        "type": "object"
+      },
+      "McpInvokeBody": {
+        "description": "``POST /mcp/providers/:id/invoke`` body \u2014 dev-aid ad-hoc tool call.",
+        "properties": {
+          "arguments": {
+            "additionalProperties": true,
+            "title": "Arguments",
+            "type": "object"
+          },
+          "tool": {
+            "minLength": 1,
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool"
+        ],
+        "title": "McpInvokeBody",
+        "type": "object"
+      },
+      "McpInvokeResult": {
+        "description": "Normalized result of an ad-hoc tool invocation (tool browser).",
+        "properties": {
+          "durationMs": {
+            "default": 0,
+            "title": "Durationms",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "output": {
+            "additionalProperties": true,
+            "title": "Output",
+            "type": "object"
+          },
+          "stderr": {
+            "default": "",
+            "title": "Stderr",
+            "type": "string"
+          },
+          "stdout": {
+            "default": "",
+            "title": "Stdout",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "McpInvokeResult",
+        "type": "object"
+      },
+      "McpProviderCreateBody": {
+        "description": "``POST /mcp/providers`` body \u2014 register a custom MCP server.",
+        "properties": {
+          "configJson": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configjson"
+          },
+          "endpoint": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "isDefaultForTarget": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isdefaultfortarget"
+          },
+          "kind": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "secretsJson": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secretsjson"
+          },
+          "transport": {
+            "$ref": "#/components/schemas/McpTransport"
+          },
+          "validate": {
+            "default": true,
+            "title": "Validate",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "endpoint",
+          "transport"
+        ],
+        "title": "McpProviderCreateBody",
+        "type": "object"
+      },
+      "McpProviderDetail": {
+        "description": "Detail row \u2014 summary + config preview (secrets redacted) + version pins.",
+        "properties": {
+          "commandPin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commandpin"
+          },
+          "configJson": {
+            "additionalProperties": true,
+            "title": "Configjson",
+            "type": "object"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "endpoint": {
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "gitRef": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gitref"
+          },
+          "hasSecrets": {
+            "default": false,
+            "title": "Hassecrets",
+            "type": "boolean"
+          },
+          "healthStatus": {
+            "default": "unknown",
+            "title": "Healthstatus",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imagePin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagepin"
+          },
+          "isBundled": {
+            "default": false,
+            "title": "Isbundled",
+            "type": "boolean"
+          },
+          "isDefaultForTarget": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Isdefaultfortarget",
+            "type": "object"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "lastHealthAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lasthealthat"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/McpProviderTool"
+            },
+            "title": "Tools",
+            "type": "array"
+          },
+          "transport": {
+            "title": "Transport",
+            "type": "string"
+          },
+          "versionPin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versionpin"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "transport",
+          "endpoint"
+        ],
+        "title": "McpProviderDetail",
+        "type": "object"
+      },
+      "McpProviderProbeResult": {
+        "description": "``POST /mcp/providers/test-connection`` response \u2014 dry-run discovery.",
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "serverVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serverversion"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/McpProviderTool"
+            },
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "McpProviderProbeResult",
+        "type": "object"
+      },
+      "McpProviderTool": {
+        "description": "One tool entry (name + description + flattened arg schema preview).",
+        "properties": {
+          "argSchema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Argschema"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "McpProviderTool",
+        "type": "object"
+      },
+      "McpProviderUpdateBody": {
+        "description": "``PATCH /mcp/providers/:id`` body \u2014 partial update of a custom row.",
+        "properties": {
+          "configJson": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configjson"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "maxLength": 1024,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint"
+          },
+          "isDefaultForTarget": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isdefaultfortarget"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "secretsJson": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secretsjson"
+          },
+          "transport": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/McpTransport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "McpProviderUpdateBody",
+        "type": "object"
+      },
       "McpProvidersResponse": {
-        "description": "``GET /mcp/providers`` envelope (read-only in M1b).",
+        "description": "``GET /mcp/providers`` envelope (bundled builtins + custom rows).",
         "properties": {
           "items": {
             "items": {
@@ -2690,6 +3890,43 @@
         },
         "title": "McpProvidersResponse",
         "type": "object"
+      },
+      "McpRoutingResponse": {
+        "description": "``GET /mcp/routing`` \u2014 default table overlaid with workspace overrides.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoutingRule"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "McpRoutingResponse",
+        "type": "object"
+      },
+      "McpRoutingUpdateBody": {
+        "description": "``PUT /mcp/routing`` body \u2014 replace the workspace override map.",
+        "properties": {
+          "overrides": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RoutingRuleInput"
+            },
+            "title": "Overrides",
+            "type": "object"
+          }
+        },
+        "title": "McpRoutingUpdateBody",
+        "type": "object"
+      },
+      "McpTransport": {
+        "enum": [
+          "stdio",
+          "sse",
+          "ws"
+        ],
+        "title": "McpTransport",
+        "type": "string"
       },
       "MeResponse": {
         "description": "``GET /auth/me`` \u2014 the current user plus every workspace they belong to.",
@@ -2883,6 +4120,11 @@
           "include_boundary_tests": {
             "default": true,
             "title": "Include Boundary Tests",
+            "type": "boolean"
+          },
+          "include_llm_edge_cases": {
+            "default": false,
+            "title": "Include Llm Edge Cases",
             "type": "boolean"
           },
           "include_negative_auth": {
@@ -3189,6 +4431,50 @@
         "title": "PasswordResetRequestsEnvelope",
         "type": "object"
       },
+      "PrdGenerateRequest": {
+        "description": "LLM-driven PRD generation (M3-6) \u2014 CLOUD/LOCAL only.\n\n``prd_text`` is the requirement / user story / free text. The agent extracts\nstories and drafts happy-path + edge cases. ``default_target_kind`` decides\nthe steps' default ``mcp_provider`` (steps are agentic \u2014 code is translated at\nexecution time, M3-10). ``seed`` is threaded for reproducibility (M3-5).",
+        "properties": {
+          "default_target_kind": {
+            "$ref": "#/components/schemas/TargetKind",
+            "default": "CUSTOM"
+          },
+          "max_cases": {
+            "default": 20,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Max Cases",
+            "type": "integer"
+          },
+          "prd_text": {
+            "maxLength": 200000,
+            "minLength": 1,
+            "title": "Prd Text",
+            "type": "string"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "target_suite_id": {
+            "minLength": 1,
+            "title": "Target Suite Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_suite_id",
+          "prd_text"
+        ],
+        "title": "PrdGenerateRequest",
+        "type": "object"
+      },
       "Priority": {
         "enum": [
           "P0",
@@ -3372,6 +4658,337 @@
           }
         },
         "title": "ProjectUpdate",
+        "type": "object"
+      },
+      "PromptDefaultPublic": {
+        "description": "A file-based default prompt + whether the workspace forks it.",
+        "properties": {
+          "activeForkVersion": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activeforkversion"
+          },
+          "baseVersion": {
+            "title": "Baseversion",
+            "type": "string"
+          },
+          "hasActiveFork": {
+            "title": "Hasactivefork",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "baseVersion",
+          "hasActiveFork"
+        ],
+        "title": "PromptDefaultPublic",
+        "type": "object"
+      },
+      "PromptDetailPublic": {
+        "description": "``GET /prompts/:name`` \u2014 default content + the workspace's fork history.",
+        "properties": {
+          "baseVersion": {
+            "title": "Baseversion",
+            "type": "string"
+          },
+          "defaultContent": {
+            "title": "Defaultcontent",
+            "type": "string"
+          },
+          "forks": {
+            "items": {
+              "$ref": "#/components/schemas/PromptForkPublic"
+            },
+            "title": "Forks",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "baseVersion",
+          "defaultContent"
+        ],
+        "title": "PromptDetailPublic",
+        "type": "object"
+      },
+      "PromptExperimentCreateBody": {
+        "additionalProperties": false,
+        "description": "``POST /prompt-experiments`` body.",
+        "properties": {
+          "prompt_name": {
+            "maxLength": 120,
+            "title": "Prompt Name",
+            "type": "string"
+          },
+          "split_pct": {
+            "default": 50,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Split Pct",
+            "type": "integer"
+          },
+          "variant_a_override_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant A Override Id"
+          },
+          "variant_b_override_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant B Override Id"
+          }
+        },
+        "required": [
+          "prompt_name"
+        ],
+        "title": "PromptExperimentCreateBody",
+        "type": "object"
+      },
+      "PromptExperimentListEnvelope": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PromptExperimentPublic"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "PromptExperimentListEnvelope",
+        "type": "object"
+      },
+      "PromptExperimentPublic": {
+        "description": "One prompt A/B experiment + live stats.",
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "promptName": {
+            "title": "Promptname",
+            "type": "string"
+          },
+          "splitPct": {
+            "title": "Splitpct",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "variantA": {
+            "$ref": "#/components/schemas/ExperimentVariantStats"
+          },
+          "variantB": {
+            "$ref": "#/components/schemas/ExperimentVariantStats"
+          },
+          "winner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Winner"
+          }
+        },
+        "required": [
+          "id",
+          "promptName",
+          "status",
+          "splitPct",
+          "variantA",
+          "variantB",
+          "createdAt"
+        ],
+        "title": "PromptExperimentPublic",
+        "type": "object"
+      },
+      "PromptForkCreate": {
+        "additionalProperties": false,
+        "description": "``POST /prompts/:name/forks`` body.",
+        "properties": {
+          "activate": {
+            "default": true,
+            "title": "Activate",
+            "type": "boolean"
+          },
+          "base_version": {
+            "default": "v1",
+            "maxLength": 32,
+            "title": "Base Version",
+            "type": "string"
+          },
+          "content": {
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "PromptForkCreate",
+        "type": "object"
+      },
+      "PromptForkPublic": {
+        "description": "One versioned fork of a prompt for a workspace.",
+        "properties": {
+          "baseVersion": {
+            "title": "Baseversion",
+            "type": "string"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "forkVersion": {
+            "title": "Forkversion",
+            "type": "integer"
+          },
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "isActive": {
+            "title": "Isactive",
+            "type": "boolean"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "promptName": {
+            "title": "Promptname",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "promptName",
+          "baseVersion",
+          "forkVersion",
+          "isActive",
+          "hash",
+          "createdAt"
+        ],
+        "title": "PromptForkPublic",
+        "type": "object"
+      },
+      "PromptListEnvelope": {
+        "description": "``GET /prompts`` \u2014 every overridable default + its fork status.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PromptDefaultPublic"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "PromptListEnvelope",
+        "type": "object"
+      },
+      "ProviderCostOut": {
+        "properties": {
+          "costUsd": {
+            "title": "Costusd",
+            "type": "number"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "tokensIn": {
+            "title": "Tokensin",
+            "type": "integer"
+          },
+          "tokensOut": {
+            "title": "Tokensout",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "provider",
+          "costUsd",
+          "tokensIn",
+          "tokensOut",
+          "sessions"
+        ],
+        "title": "ProviderCostOut",
         "type": "object"
       },
       "ReadinessBlocker": {
@@ -3882,6 +5499,67 @@
         "title": "Role",
         "type": "string"
       },
+      "RoutingRule": {
+        "description": "One effective ``target_kind`` -> provider routing row.",
+        "properties": {
+          "fallback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback"
+          },
+          "isOverride": {
+            "default": false,
+            "title": "Isoverride",
+            "type": "boolean"
+          },
+          "primary": {
+            "title": "Primary",
+            "type": "string"
+          },
+          "targetKind": {
+            "title": "Targetkind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "targetKind",
+          "primary"
+        ],
+        "title": "RoutingRule",
+        "type": "object"
+      },
+      "RoutingRuleInput": {
+        "description": "One override rule in ``PUT /mcp/routing``.",
+        "properties": {
+          "fallback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback"
+          },
+          "primary": {
+            "minLength": 1,
+            "title": "Primary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "primary"
+        ],
+        "title": "RoutingRuleInput",
+        "type": "object"
+      },
       "RunDetail": {
         "description": "Detail for ``GET /runs/:id`` \u2014 adds the computed summary.",
         "properties": {
@@ -4315,6 +5993,108 @@
         "title": "RunPublic",
         "type": "object"
       },
+      "RunReplayResponse": {
+        "description": "``GET /runs/:id/replay`` \u2014 ordered steps + per-step state delta (M5-1).",
+        "properties": {
+          "runId": {
+            "title": "Runid",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/RunReplayStep"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "title": "RunReplayResponse",
+        "type": "object"
+      },
+      "RunReplayStep": {
+        "description": "One step in the time-travel replay, with its state delta vs. the prior step.",
+        "properties": {
+          "casePublicId": {
+            "title": "Casepublicid",
+            "type": "string"
+          },
+          "delta": {
+            "items": {
+              "$ref": "#/components/schemas/StateChangePublic"
+            },
+            "title": "Delta",
+            "type": "array"
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Durationms"
+          },
+          "errorMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errormessage"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/StepOutcome"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Startedat"
+          },
+          "stateSnapshot": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statesnapshot"
+          },
+          "stepOrder": {
+            "title": "Steporder",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "stepOrder",
+          "casePublicId",
+          "outcome"
+        ],
+        "title": "RunReplayStep",
+        "type": "object"
+      },
       "RunSelectionItem": {
         "description": "One ``{caseId, selectedStepIds?}`` entry in the create-run selection.\n\n``selected_step_ids`` is optional \u2014 when ``None`` the runner picks every\nactive step on the case. M1c keeps this opt-in flag in the request envelope\nso a future \"rerun only failed steps\" UI can wire through unchanged.",
         "properties": {
@@ -4560,6 +6340,48 @@
         ],
         "title": "Severity",
         "type": "string"
+      },
+      "StateChangePublic": {
+        "description": "One key-level state change at a replay step (M5-1).",
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "op": {
+            "description": "added | removed | changed",
+            "title": "Op",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "op"
+        ],
+        "title": "StateChangePublic",
+        "type": "object"
       },
       "StepAppend": {
         "additionalProperties": false,
@@ -5227,6 +7049,30 @@
         "title": "TestCaseListItem",
         "type": "object"
       },
+      "TestCaseSearchHit": {
+        "description": "One semantic/lexical search result (M4-2).",
+        "properties": {
+          "caseId": {
+            "title": "Caseid",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "caseId",
+          "name",
+          "score"
+        ],
+        "title": "TestCaseSearchHit",
+        "type": "object"
+      },
       "TestCaseUpdate": {
         "additionalProperties": false,
         "description": "Body for ``PATCH /test-cases/:id`` \u2014 metadata + tag replace.\n\nAll fields optional; only ``model_dump(exclude_unset=True)`` keys are\napplied. Tags, if provided, replace the existing set in full.",
@@ -5410,6 +7256,52 @@
           }
         },
         "title": "TraceabilityMatrix",
+        "type": "object"
+      },
+      "UrlSemanticGenerateRequest": {
+        "description": "LLM-driven semantic URL generation (M3-7) \u2014 CLOUD/LOCAL only.\n\nDecomposes a natural-language ``intent`` (\"checkout flow\") into FE_WEB\njourney cases on ``url``. Steps are agentic browser actions driven by\n``playwright-mcp`` (code translated at execution time, M3-10).",
+        "properties": {
+          "intent": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Intent",
+            "type": "string"
+          },
+          "max_cases": {
+            "default": 20,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Max Cases",
+            "type": "integer"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "target_suite_id": {
+            "minLength": 1,
+            "title": "Target Suite Id",
+            "type": "string"
+          },
+          "url": {
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_suite_id",
+          "url",
+          "intent"
+        ],
+        "title": "UrlSemanticGenerateRequest",
         "type": "object"
       },
       "UserRead": {
@@ -5703,6 +7595,72 @@
         "title": "WorkspaceDetail",
         "type": "object"
       },
+      "WorkspaceExportAccepted": {
+        "description": "``POST /workspaces/:id/export`` 202 response \u2014 archive assembled async (M4-29).",
+        "properties": {
+          "export_job_id": {
+            "title": "Export Job Id",
+            "type": "string"
+          },
+          "status": {
+            "default": "QUEUED",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "export_job_id"
+        ],
+        "title": "WorkspaceExportAccepted",
+        "type": "object"
+      },
+      "WorkspaceExportStatus": {
+        "description": "``GET /workspaces/:id/export/:job_id`` \u2014 poll result, surfaces the signed URL.",
+        "properties": {
+          "download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Url"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "WorkspaceExportStatus",
+        "type": "object"
+      },
       "WorkspaceMemberInvite": {
         "additionalProperties": false,
         "description": "``POST /workspaces/:id/members`` body \u2014 invite by email + role.",
@@ -5871,8 +7829,13 @@
         "type": "object"
       },
       "suitest_api__routers__mcp_providers__McpProviderPublic": {
-        "description": "One MCP provider row \u2014 name + transport + health only (no secrets).",
+        "description": "Summary row \u2014 name + transport + health + tool names (no secrets).",
         "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
           "endpoint": {
             "title": "Endpoint",
             "type": "string"
@@ -5890,6 +7853,13 @@
             "default": false,
             "title": "Isbundled",
             "type": "boolean"
+          },
+          "isDefaultForTarget": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Isdefaultfortarget",
+            "type": "object"
           },
           "kind": {
             "title": "Kind",
@@ -5910,6 +7880,13 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/McpProviderTool"
+            },
+            "title": "Tools",
+            "type": "array"
           },
           "transport": {
             "title": "Transport",
@@ -6061,6 +8038,72 @@
         "summary": "Reset User Password",
         "tags": [
           "users"
+        ]
+      }
+    },
+    "/api/v1/agent/chat": {
+      "post": {
+        "description": "Stream a conversation-mode reply (SSE tokens + WS tool events).",
+        "operationId": "agent_chat_api_v1_agent_chat_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Agent Chat",
+        "tags": [
+          "agent"
         ]
       }
     },
@@ -6689,6 +8732,79 @@
           }
         ],
         "summary": "List Audit Logs",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/v1/audit/restore": {
+      "post": {
+        "description": "Enqueue re-import of an archived audit month (M4-32) for this workspace.\n\nThe month lives in MinIO cold storage as\n``s3://<archive>/audit/<workspace>/<YYYY-MM>.jsonl.gz``; the ``restore_audit_logs``\nrunner job pulls it back into the hot table (idempotent on row id). ADMIN+.",
+        "operationId": "restore_audit_month_api_v1_audit_restore_post",
+        "parameters": [
+          {
+            "description": "Archived month to restore, 'YYYY-MM'.",
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "description": "Archived month to restore, 'YYYY-MM'.",
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Restore Audit Month Api V1 Audit Restore Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Restore Audit Month",
         "tags": [
           "audit"
         ]
@@ -7431,6 +9547,281 @@
         ]
       }
     },
+    "/api/v1/eval/fixtures": {
+      "get": {
+        "description": "List the bundled golden datasets + fixture counts the weekly CI scores (M5-2).",
+        "operationId": "list_eval_fixtures_api_v1_eval_fixtures_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalFixturesEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Eval Fixtures",
+        "tags": [
+          "eval"
+        ]
+      }
+    },
+    "/api/v1/eval/runs": {
+      "get": {
+        "description": "Newest-first eval run history for the score-regression dashboard (M5-2).",
+        "operationId": "list_eval_runs_api_v1_eval_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "suite",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Suite"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalRunListEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Eval Runs",
+        "tags": [
+          "eval"
+        ]
+      },
+      "post": {
+        "description": "Run the deterministic eval suite over bundled fixtures + persist the result.",
+        "operationId": "create_eval_run_api_v1_eval_runs_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvalRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalRunPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Eval Run",
+        "tags": [
+          "eval"
+        ]
+      }
+    },
+    "/api/v1/eval/runs/{eval_run_id}": {
+      "get": {
+        "description": "Fetch one eval run; 404 if missing or owned by another workspace.",
+        "operationId": "get_eval_run_api_v1_eval_runs__eval_run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "eval_run_id",
+            "required": true,
+            "schema": {
+              "title": "Eval Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalRunPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Eval Run",
+        "tags": [
+          "eval"
+        ]
+      }
+    },
     "/api/v1/generators/classify": {
       "post": {
         "description": "Classify a generation input into a target kind + recommended strategy/MCP.",
@@ -7565,6 +9956,72 @@
         ]
       }
     },
+    "/api/v1/generators/mcp-discovery": {
+      "post": {
+        "description": "Generate DRAFT cases by exploring a registered MCP provider's tools (SSE).",
+        "operationId": "generate_mcp_discovery_api_v1_generators_mcp_discovery_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpDiscoveryGenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Generate Mcp Discovery",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
     "/api/v1/generators/openapi": {
       "post": {
         "description": "Generate a per-operation contract suite from an OpenAPI 3.0 spec (SSE).",
@@ -7626,6 +10083,72 @@
           }
         ],
         "summary": "Generate Openapi",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
+    "/api/v1/generators/prd": {
+      "post": {
+        "description": "Generate DRAFT cases from a PRD / user story via the LLM agent (SSE).",
+        "operationId": "generate_prd_api_v1_generators_prd_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrdGenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Generate Prd",
         "tags": [
           "generators"
         ]
@@ -7831,6 +10354,72 @@
           }
         ],
         "summary": "Finalize Recorder Session",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
+    "/api/v1/generators/url-semantic": {
+      "post": {
+        "description": "Generate FE_WEB journey cases from a URL + natural-language intent (SSE).",
+        "operationId": "generate_url_semantic_api_v1_generators_url_semantic_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UrlSemanticGenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Generate Url Semantic",
         "tags": [
           "generators"
         ]
@@ -8656,7 +11245,7 @@
     },
     "/api/v1/mcp/providers": {
       "get": {
-        "description": "List MCP providers for the workspace (read-only in M1b; CRUD in M2).",
+        "description": "List MCP providers \u2014 bundled builtins (pinned) + custom workspace rows.",
         "operationId": "list_mcp_providers_api_v1_mcp_providers_get",
         "parameters": [
           {
@@ -8707,6 +11296,608 @@
           }
         ],
         "summary": "List Mcp Providers",
+        "tags": [
+          "mcp"
+        ]
+      },
+      "post": {
+        "description": "Register a custom MCP server.\n\nWith ``validate=true`` (default) the server connects, performs the MCP\n``initialize`` handshake, runs ``tools/list``, and persists the discovered\ncatalog + ``health_status=ok`` + version pins (M2-7). A failed probe rejects\nthe registration with ``422 MCP_REGISTRATION_FAILED`` and writes no row.",
+        "operationId": "create_mcp_provider_api_v1_mcp_providers_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpProviderCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpProviderDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Mcp Provider",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/api/v1/mcp/providers/test-connection": {
+      "post": {
+        "description": "Dry-run connect + ``tools/list`` without persisting (M2-7 register modal).\n\nLets the UI flip the form's status pill before the user saves. Failures\nsurface as ``422 MCP_REGISTRATION_FAILED``.",
+        "operationId": "test_mcp_connection_api_v1_mcp_providers_test_connection_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpProviderCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpProviderProbeResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Test Mcp Connection",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/api/v1/mcp/providers/{provider_id}": {
+      "delete": {
+        "description": "Delete a custom provider. Builtins are read-only (409).",
+        "operationId": "delete_mcp_provider_api_v1_mcp_providers__provider_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete Mcp Provider",
+        "tags": [
+          "mcp"
+        ]
+      },
+      "get": {
+        "description": "Provider detail \u2014 config preview + discovered tool catalog (no secrets).",
+        "operationId": "get_mcp_provider_api_v1_mcp_providers__provider_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpProviderDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Mcp Provider",
+        "tags": [
+          "mcp"
+        ]
+      },
+      "patch": {
+        "description": "Patch a custom provider. Builtins are read-only (409).",
+        "operationId": "update_mcp_provider_api_v1_mcp_providers__provider_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpProviderUpdateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpProviderDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Mcp Provider",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/api/v1/mcp/providers/{provider_id}/discover": {
+      "post": {
+        "description": "Re-run ``tools/list`` against a custom provider and persist the catalog (M2-8).\n\nUpdates ``config_json.tools`` + ``health_status`` + ``last_health_at`` (+\n``version_pin`` when the server advertises one). Builtins are read-only (409).",
+        "operationId": "discover_mcp_provider_api_v1_mcp_providers__provider_id__discover_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpProviderDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Discover Mcp Provider",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/api/v1/mcp/providers/{provider_id}/invoke": {
+      "post": {
+        "description": "Dev-aid: invoke one tool ad-hoc against a custom provider (tool browser).\n\nRole-gated to ``ADMIN``+ (MCP_PLUGINS \u00a711). Every call is audit-logged with\n``invocation_source=tool_browser`` and an ``arg_hash`` (raw args are not\npersisted). Builtins are not ad-hoc invokable here (409) \u2014 they run through\nthe runner. Tool failures surface as ``ok=false`` with the error message.",
+        "operationId": "invoke_mcp_provider_api_v1_mcp_providers__provider_id__invoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpInvokeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpInvokeResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Invoke Mcp Provider",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/api/v1/mcp/routing": {
+      "get": {
+        "description": "Effective routing table \u2014 bundled defaults overlaid with workspace overrides.",
+        "operationId": "get_mcp_routing_api_v1_mcp_routing_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpRoutingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Mcp Routing",
+        "tags": [
+          "mcp"
+        ]
+      },
+      "put": {
+        "description": "Replace the workspace routing overrides (consumed by the runner).\n\nEach key must be a valid ``target_kind`` and every referenced provider\n(``primary`` + ``fallback``) must be a known, enabled provider in the\nworkspace, else ``422``. Stored under\n``workspace_capabilities.features_json.routing_overrides`` in the\n``{primary, fallback}`` shape :func:`suitest_mcp.routing.resolve_provider`\nconsumes.",
+        "operationId": "put_mcp_routing_api_v1_mcp_routing_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpRoutingUpdateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpRoutingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Put Mcp Routing",
         "tags": [
           "mcp"
         ]
@@ -9131,6 +12322,603 @@
         "summary": "Restore Project",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/v1/prompt-experiments": {
+      "get": {
+        "description": "List the workspace's prompt A/B experiments with live stats.",
+        "operationId": "list_prompt_experiments_api_v1_prompt_experiments_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptExperimentListEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Prompt Experiments",
+        "tags": [
+          "prompts"
+        ]
+      },
+      "post": {
+        "description": "Start an A/B test between two variants of ``prompt_name``.\n\nA variant override id of ``null`` means the file default. The prompt must\nexist as a file default; referenced forks must belong to this workspace.",
+        "operationId": "create_prompt_experiment_api_v1_prompt_experiments_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptExperimentCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptExperimentPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Prompt Experiment",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/v1/prompt-experiments/{experiment_id}/outcome": {
+      "post": {
+        "description": "Record a success/failure outcome for a variant (any workspace member).",
+        "operationId": "record_experiment_outcome_api_v1_prompt_experiments__experiment_id__outcome_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "experiment_id",
+            "required": true,
+            "schema": {
+              "title": "Experiment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExperimentOutcomeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptExperimentPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Record Experiment Outcome",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/v1/prompt-experiments/{experiment_id}/stop": {
+      "post": {
+        "description": "Stop an experiment (subsequent resolution falls back to fork/default).",
+        "operationId": "stop_prompt_experiment_api_v1_prompt_experiments__experiment_id__stop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "experiment_id",
+            "required": true,
+            "schema": {
+              "title": "Experiment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptExperimentPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Stop Prompt Experiment",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/v1/prompts": {
+      "get": {
+        "description": "List every overridable default prompt + whether the workspace forks it.",
+        "operationId": "list_default_prompts_api_v1_prompts_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptListEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Default Prompts",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/v1/prompts/forks/{override_id}": {
+      "delete": {
+        "description": "Delete a fork. Reverts the prompt to the file default if it was active.",
+        "operationId": "delete_prompt_fork_api_v1_prompts_forks__override_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "override_id",
+            "required": true,
+            "schema": {
+              "title": "Override Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete Prompt Fork",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/v1/prompts/forks/{override_id}/activate": {
+      "post": {
+        "description": "Make a specific fork the active override for its prompt.",
+        "operationId": "activate_prompt_fork_api_v1_prompts_forks__override_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "override_id",
+            "required": true,
+            "schema": {
+              "title": "Override Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptForkPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Activate Prompt Fork",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/v1/prompts/{prompt_name}": {
+      "get": {
+        "description": "Return a prompt's file default content + the workspace's fork history.",
+        "operationId": "get_prompt_detail_api_v1_prompts__prompt_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "prompt_name",
+            "required": true,
+            "schema": {
+              "title": "Prompt Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptDetailPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Prompt Detail",
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/v1/prompts/{prompt_name}/forks": {
+      "post": {
+        "description": "Create a new versioned fork of ``prompt_name`` for the workspace.",
+        "operationId": "create_prompt_fork_api_v1_prompts__prompt_name__forks_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "prompt_name",
+            "required": true,
+            "schema": {
+              "title": "Prompt Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptForkCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptForkPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Prompt Fork",
+        "tags": [
+          "prompts"
         ]
       }
     },
@@ -10410,6 +14198,73 @@
         ]
       }
     },
+    "/api/v1/runs/{run_id}/replay": {
+      "get": {
+        "description": "Time-travel replay: ordered steps + per-step state delta (M5-1).\n\nDeterministic / ZERO-tier \u2014 the delta is a pure JSON diff between each step's\ncaptured ``state_snapshot`` (normalized MCP output) and the previous step's.\nThe first step has an empty delta (no prior state). 404 when cross-workspace.",
+        "operationId": "get_run_replay_api_v1_runs__run_id__replay_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunReplayResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Run Replay",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/v1/runs/{run_id}/rerun": {
       "post": {
         "description": "Clone the source run's selection into a fresh QUEUED row + enqueue the ARQ job.\n\nA rerun reuses the original selection + routing override (so the runner\nfans out identically) but re-resolves the workspace tier so a tier change\nbetween the two runs is honored. Returns 202 like the create endpoint.",
@@ -11309,6 +15164,92 @@
           }
         ],
         "summary": "Bulk Update Test Cases",
+        "tags": [
+          "test-cases"
+        ]
+      }
+    },
+    "/api/v1/test-cases/search": {
+      "get": {
+        "description": "Semantic (or lexical) test-case search within the workspace (M4-2).\n\nUses the configured local :class:`Embedder` (``SUITEST_EMBEDDINGS=fastembed``)\nto rank by cosine similarity; falls back to lexical scoring when embeddings\nare disabled so ZERO-tier search still returns results.",
+        "operationId": "search_test_cases_api_v1_test_cases_search_get",
+        "parameters": [
+          {
+            "description": "Natural-language query.",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "description": "Natural-language query.",
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TestCaseSearchHit"
+                  },
+                  "title": "Response Search Test Cases Api V1 Test Cases Search Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Search Test Cases",
         "tags": [
           "test-cases"
         ]
@@ -12484,6 +16425,558 @@
         ]
       }
     },
+    "/api/v1/workspaces/import": {
+      "post": {
+        "description": "Restore/clone a workspace from an export archive (M4-30).\n\nCreates a NEW workspace owned by the caller from the archive's structural\ntest assets (projects/suites/cases/steps/requirements). Secrets are NOT in\nthe archive and must be re-entered manually. Schema-version mismatch \u2192 400.",
+        "operationId": "import_workspace_api_v1_workspaces_import_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_workspace_api_v1_workspaces_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Import Workspace",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/autonomy": {
+      "get": {
+        "description": "Return the workspace's autonomy level + overrides + effective map.",
+        "operationId": "get_autonomy_api_v1_workspaces__workspaceId__autonomy_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutonomyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Autonomy",
+        "tags": [
+          "autonomy"
+        ]
+      },
+      "put": {
+        "description": "Set the workspace's autonomy level + overrides (ADMIN+, audited).",
+        "operationId": "put_autonomy_api_v1_workspaces__workspaceId__autonomy_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutonomyUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutonomyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Put Autonomy",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cost": {
+      "get": {
+        "description": "Return per-provider / per-kind spend + soft daily budget for the workspace.",
+        "operationId": "get_workspace_cost_api_v1_workspaces__workspaceId__cost_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "windowDays",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 365,
+              "minimum": 1,
+              "title": "Windowdays",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Workspace Cost",
+        "tags": [
+          "cost"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/llm-config": {
+      "delete": {
+        "description": "Clear the active config; tier downgrades to ZERO. 404 when none set.",
+        "operationId": "delete_llm_config_api_v1_workspaces__workspaceId__llm_config_delete",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete Llm Config",
+        "tags": [
+          "llm"
+        ]
+      },
+      "get": {
+        "description": "Return the active LLM config (key redacted). 404 when none is set.",
+        "operationId": "get_llm_config_api_v1_workspaces__workspaceId__llm_config_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LLMConfigPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Llm Config",
+        "tags": [
+          "llm"
+        ]
+      },
+      "put": {
+        "description": "Set/rotate the provider + key, then recompute capabilities (M3-3).",
+        "operationId": "put_llm_config_api_v1_workspaces__workspaceId__llm_config_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LLMConfigWriteBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LLMConfigPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Put Llm Config",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/llm-config/models": {
+      "get": {
+        "description": "List the curated model catalog for ``provider`` (query param).",
+        "operationId": "list_llm_models_api_v1_workspaces__workspaceId__llm_config_models_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LLMModelsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Llm Models",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/llm-config/test": {
+      "post": {
+        "description": "Round-trip a 1-token completion against the (proposed) provider.",
+        "operationId": "test_llm_config_api_v1_workspaces__workspaceId__llm_config_test_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LLMConfigWriteBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LLMTestResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Test Llm Config",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspace_id}": {
       "delete": {
         "description": "OWNER-only slug-typed-confirm delete. Tombstones now, cleans up async.",
@@ -12649,6 +17142,117 @@
           }
         ],
         "summary": "Update Workspace",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/export": {
+      "post": {
+        "description": "Enqueue assembly of a portable workspace archive (M4-29). OWNER/ADMIN.",
+        "operationId": "export_workspace_api_v1_workspaces__workspace_id__export_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceExportAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Export Workspace",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/export/{job_id}": {
+      "get": {
+        "description": "Poll an export job; surfaces the 24h presigned download URL when ready.",
+        "operationId": "get_workspace_export_api_v1_workspaces__workspace_id__export__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceExportStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Workspace Export",
         "tags": [
           "workspaces"
         ]

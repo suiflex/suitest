@@ -37,3 +37,39 @@ class EvalRunPublic(BaseModel):
     model_id: str = Field(serialization_alias="modelId")
     run_at: datetime = Field(serialization_alias="runAt")
     results: list[EvalFixtureResult] = Field(default_factory=list)
+
+
+class EvalRunListItem(BaseModel):
+    """One row in the score-regression dashboard (M5-2)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    suite_name: str = Field(serialization_alias="suiteName")
+    fixtures_count: int = Field(serialization_alias="fixturesCount")
+    passed: int
+    failed: int
+    score_pct: float = Field(serialization_alias="scorePct")
+    model_id: str = Field(serialization_alias="modelId")
+    run_at: datetime = Field(serialization_alias="runAt")
+
+
+class EvalRunListEnvelope(BaseModel):
+    """``GET /eval/runs`` — newest-first eval run history."""
+
+    items: list[EvalRunListItem] = Field(default_factory=list)
+
+
+class EvalSuiteInfo(BaseModel):
+    """One golden dataset suite + its fixture count (M5-2)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    suite: str
+    fixtures: int
+
+
+class EvalFixturesEnvelope(BaseModel):
+    """``GET /eval/fixtures`` — the bundled golden datasets the CI run scores."""
+
+    items: list[EvalSuiteInfo] = Field(default_factory=list)

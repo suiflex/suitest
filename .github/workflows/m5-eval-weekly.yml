@@ -1,0 +1,56 @@
+name: M5 Eval (weekly)
+
+# M5-2: weekly score-regression gate. Runs the deterministic ZERO-tier eval
+# suite over the bundled golden fixtures (eval/fixtures) and fails if any
+# fixture regresses or the score drops below the committed baseline. No DB /
+# Redis / LLM — the eval harness is pure (see scripts/run_eval.py).
+
+on:
+  schedule:
+    # Mondays 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "eval/**"
+      - "apps/api/src/suitest_api/services/eval_service.py"
+      - "apps/api/src/suitest_api/services/defect_auto_filer.py"
+      - "scripts/run_eval.py"
+      - ".github/workflows/m5-eval-weekly.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    name: Deterministic eval suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev --all-packages
+
+      - name: Run eval (score-regression gate)
+        run: |
+          BASELINE_ARG=""
+          if [ -f eval/baseline.json ]; then
+            BASELINE_ARG="--baseline eval/baseline.json"
+          fi
+          env -u VIRTUAL_ENV uv run python scripts/run_eval.py \
+            --json /tmp/eval-report.json $BASELINE_ARG
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: /tmp/eval-report.json

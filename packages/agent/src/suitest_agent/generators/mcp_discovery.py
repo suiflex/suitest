@@ -65,10 +65,19 @@ def _format_tools(tools: list[dict[str, object]]) -> list[str]:
 class McpDiscoveryGenerator:
     """Drive the LLM over an MCP tool catalog → contract :class:`TestCaseDraft`s."""
 
-    def __init__(self, provider: LLMProvider, *, model: str, prompt_version: str = "v1") -> None:
+    def __init__(
+        self,
+        provider: LLMProvider,
+        *,
+        model: str,
+        prompt_version: str = "v1",
+        prompt_override: str | None = None,
+    ) -> None:
         self._provider = provider
         self._model = model
         self._prompt_version = prompt_version
+        # M5-3: resolved per-workspace fork content; None → file default.
+        self._prompt_override = prompt_override
 
     async def run(
         self,
@@ -84,7 +93,7 @@ class McpDiscoveryGenerator:
         if not tool_lines:
             return McpDiscoveryResult(error="EMPTY_CATALOG")
 
-        template = load("discover-mcp-cases", self._prompt_version)
+        template = self._prompt_override or load("discover-mcp-cases", self._prompt_version)
         system = template.replace("{tools}", "\n".join(tool_lines))
         result = await complete_with_prompt(
             self._provider,

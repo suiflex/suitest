@@ -47,10 +47,19 @@ class UrlSemanticResult:
 class UrlSemanticGenerator:
     """Drive the LLM over a URL + intent → FE_WEB journey :class:`TestCaseDraft`s."""
 
-    def __init__(self, provider: LLMProvider, *, model: str, prompt_version: str = "v1") -> None:
+    def __init__(
+        self,
+        provider: LLMProvider,
+        *,
+        model: str,
+        prompt_version: str = "v1",
+        prompt_override: str | None = None,
+    ) -> None:
         self._provider = provider
         self._model = model
         self._prompt_version = prompt_version
+        # M5-3: resolved per-workspace fork content; None → file default.
+        self._prompt_override = prompt_override
 
     async def run(
         self,
@@ -64,7 +73,7 @@ class UrlSemanticGenerator:
         if not intent.strip():
             return UrlSemanticResult(error="EMPTY_INTENT")
 
-        template = load("generate-url-semantic", self._prompt_version)
+        template = self._prompt_override or load("generate-url-semantic", self._prompt_version)
         system = template.replace("{url}", url).replace("{intent}", intent)
         result = await complete_with_prompt(
             self._provider,

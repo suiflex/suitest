@@ -243,6 +243,13 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                     stdout=result.stdout or None,
                     stderr=result.stderr or None,
                     error_message=result.error_message,
+                    # M5-1: capture the normalized MCP output as the step's state
+                    # snapshot so time-travel replay can diff consecutive steps.
+                    state_snapshot=(
+                        dict(result.mcp_result.output)
+                        if result.mcp_result is not None and result.mcp_result.output
+                        else None
+                    ),
                 )
                 if result.mcp_result is not None and result.mcp_result.artifacts:
                     # Task 13 wires this. Late import keeps the runner importable

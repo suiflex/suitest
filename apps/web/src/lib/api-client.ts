@@ -126,6 +126,217 @@ export async function fetchRunLogs(runId: string, limit = 500): Promise<RunLogPa
 }
 
 // ---------------------------------------------------------------------------
+// Time-travel replay state delta (M5-1).
+// ---------------------------------------------------------------------------
+
+/** One key-level change in a step's state vs. the previous step. */
+export interface StateChange {
+  path: string;
+  op: "added" | "removed" | "changed";
+  before?: string | null;
+  after?: string | null;
+}
+
+/** One replay step with its captured snapshot + computed delta. */
+export interface RunReplayStep {
+  id: string;
+  stepOrder: number;
+  casePublicId: string;
+  outcome: string;
+  durationMs?: number | null;
+  startedAt?: string | null;
+  errorMessage?: string | null;
+  stateSnapshot?: Record<string, unknown> | null;
+  delta: StateChange[];
+}
+
+export interface RunReplay {
+  runId: string;
+  steps: RunReplayStep[];
+}
+
+/** ``GET /runs/:id/replay`` — ordered steps + per-step state delta (M5-1). */
+export async function fetchRunReplay(runId: string): Promise<RunReplay> {
+  const res = await api.get<RunReplay>(`/runs/${runId}/replay`);
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
+// Workspace prompt forks — DB override layer over file defaults (M5-3).
+// ---------------------------------------------------------------------------
+
+export interface PromptDefault {
+  name: string;
+  baseVersion: string;
+  hasActiveFork: boolean;
+  activeForkVersion?: number | null;
+}
+
+export interface PromptFork {
+  id: string;
+  promptName: string;
+  baseVersion: string;
+  forkVersion: number;
+  label?: string | null;
+  isActive: boolean;
+  hash: string;
+  content?: string | null;
+  createdAt: string;
+}
+
+export interface PromptDetail {
+  name: string;
+  baseVersion: string;
+  defaultContent: string;
+  forks: PromptFork[];
+}
+
+/** ``GET /prompts`` — overridable defaults + per-workspace fork status. */
+export async function fetchPrompts(): Promise<PromptDefault[]> {
+  const res = await api.get<{ items: PromptDefault[] }>("/prompts");
+  return res.data.items;
+}
+
+/** ``GET /prompts/:name`` — default content + the workspace's fork history. */
+export async function fetchPromptDetail(name: string): Promise<PromptDetail> {
+  const res = await api.get<PromptDetail>(`/prompts/${name}`);
+  return res.data;
+}
+
+/** ``POST /prompts/:name/forks`` — create (and by default activate) a fork. */
+export async function createPromptFork(
+  name: string,
+  body: { content: string; label?: string; activate?: boolean },
+): Promise<PromptFork> {
+  const res = await api.post<PromptFork>(`/prompts/${name}/forks`, body);
+  return res.data;
+}
+
+/** ``POST /prompts/forks/:id/activate`` — make a fork the active override. */
+export async function activatePromptFork(overrideId: string): Promise<PromptFork> {
+  const res = await api.post<PromptFork>(`/prompts/forks/${overrideId}/activate`);
+  return res.data;
+}
+
+/** ``DELETE /prompts/forks/:id`` — delete a fork (reverts to default if active). */
+export async function deletePromptFork(overrideId: string): Promise<void> {
+  await api.delete(`/prompts/forks/${overrideId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Prompt A/B experiments (M5-4).
+// ---------------------------------------------------------------------------
+
+export interface ExperimentVariantStats {
+  variant: "A" | "B";
+  overrideId?: string | null;
+  impressions: number;
+  successes: number;
+  conversionPct: number;
+}
+
+export interface PromptExperiment {
+  id: string;
+  promptName: string;
+  status: string;
+  splitPct: number;
+  variantA: ExperimentVariantStats;
+  variantB: ExperimentVariantStats;
+  winner?: "A" | "B" | null;
+  createdAt: string;
+}
+
+/** ``GET /prompt-experiments`` — workspace A/B experiments with live stats. */
+export async function fetchPromptExperiments(): Promise<PromptExperiment[]> {
+  const res = await api.get<{ items: PromptExperiment[] }>("/prompt-experiments");
+  return res.data.items;
+}
+
+/** ``POST /prompt-experiments`` — start an A/B test (override id null = default). */
+export async function createPromptExperiment(body: {
+  prompt_name: string;
+  variant_a_override_id?: string | null;
+  variant_b_override_id?: string | null;
+  split_pct?: number;
+}): Promise<PromptExperiment> {
+  const res = await api.post<PromptExperiment>("/prompt-experiments", body);
+  return res.data;
+}
+
+/** ``POST /prompt-experiments/:id/stop`` — stop an experiment. */
+export async function stopPromptExperiment(id: string): Promise<PromptExperiment> {
+  const res = await api.post<PromptExperiment>(`/prompt-experiments/${id}/stop`);
+  return res.data;
+}
+
+/** ``POST /prompt-experiments/:id/outcome`` — record a variant outcome. */
+export async function recordExperimentOutcome(
+  id: string,
+  body: { variant: "A" | "B"; success: boolean },
+): Promise<PromptExperiment> {
+  const res = await api.post<PromptExperiment>(`/prompt-experiments/${id}/outcome`, body);
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
+// Eval suite — golden datasets, runs, score-regression dashboard (M5-2).
+// ---------------------------------------------------------------------------
+
+export interface EvalSuiteInfo {
+  suite: string;
+  fixtures: number;
+}
+
+export interface EvalRunListItem {
+  id: string;
+  suiteName: string;
+  fixturesCount: number;
+  passed: number;
+  failed: number;
+  scorePct: number;
+  modelId: string;
+  runAt: string;
+}
+
+export interface EvalFixtureResult {
+  suite: string;
+  fixture: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface EvalRunPublic {
+  id: string;
+  suiteName: string;
+  fixturesCount: number;
+  passed: number;
+  failed: number;
+  modelId: string;
+  runAt: string;
+  results: EvalFixtureResult[];
+}
+
+/** ``GET /eval/fixtures`` — bundled golden datasets the weekly CI scores. */
+export async function fetchEvalFixtures(): Promise<EvalSuiteInfo[]> {
+  const res = await api.get<{ items: EvalSuiteInfo[] }>("/eval/fixtures");
+  return res.data.items;
+}
+
+/** ``GET /eval/runs`` — newest-first eval run history for the dashboard. */
+export async function fetchEvalRuns(suite?: string): Promise<EvalRunListItem[]> {
+  const res = await api.get<{ items: EvalRunListItem[] }>("/eval/runs", {
+    params: suite ? { suite } : undefined,
+  });
+  return res.data.items;
+}
+
+/** ``POST /eval/runs`` — run the deterministic eval suite (ADMIN+). */
+export async function createEvalRun(suiteName = "default"): Promise<EvalRunPublic> {
+  const res = await api.post<EvalRunPublic>("/eval/runs", { suite_name: suiteName });
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
 // MCP provider browser (Integrations screen, M1c task 20).
 // ---------------------------------------------------------------------------
 

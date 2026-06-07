@@ -318,6 +318,7 @@ class RunStepCreate(BaseModel):
     stdout: str | None = None
     stderr: str | None = None
     error_message: str | None = None
+    state_snapshot: dict[str, object] | None = None
 
 
 class RunStepUpdate(BaseModel):
@@ -327,6 +328,7 @@ class RunStepUpdate(BaseModel):
     stdout: str | None = None
     stderr: str | None = None
     error_message: str | None = None
+    state_snapshot: dict[str, object] | None = None
 
 
 class RunStepRepo(AsyncRepository[RunStep, RunStepCreate, RunStepUpdate]):
@@ -347,11 +349,13 @@ class RunStepRepo(AsyncRepository[RunStep, RunStepCreate, RunStepUpdate]):
         stdout: str | None,
         stderr: str | None,
         error_message: str | None,
+        state_snapshot: dict[str, object] | None = None,
     ) -> RunStep:
         """Insert one ``run_steps`` row and return it.
 
         Named ``create_step`` so it doesn't shadow :meth:`AsyncRepository.create`
         — the orchestrator passes flat keyword args (no DTO) for ergonomics.
+        ``state_snapshot`` is the normalized MCP output captured for M5-1 replay.
         """
         row = RunStep(
             run_id=run_id,
@@ -364,6 +368,7 @@ class RunStepRepo(AsyncRepository[RunStep, RunStepCreate, RunStepUpdate]):
             stdout=stdout,
             stderr=stderr,
             error_message=error_message,
+            state_snapshot=state_snapshot,
         )
         self.session.add(row)
         await self.session.flush()

@@ -4,10 +4,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { BrowserPreview } from "@/components/runs/BrowserPreview";
+import { StateDiff } from "@/components/runs/StateDiff";
 import {
   fetchRun,
   fetchRunArtifacts,
   fetchRunLogs,
+  fetchRunReplay,
   fetchRunSignedUrl,
   fetchRunSteps,
 } from "@/lib/api-client";
@@ -42,6 +44,10 @@ export function RunReplayPage(): React.ReactElement {
     queryKey: ["run-logs", runId] as const,
     queryFn: () => fetchRunLogs(runId),
   });
+  const { data: replayData } = useQuery({
+    queryKey: ["run-replay", runId] as const,
+    queryFn: () => fetchRunReplay(runId),
+  });
 
   const steps = useMemo(
     () => [...(stepsData?.items ?? [])].sort((a, b) => a.step_order - b.step_order),
@@ -63,6 +69,12 @@ export function RunReplayPage(): React.ReactElement {
   }, [steps.length, index]);
 
   const current = steps[index];
+  // M5-1: state delta for the current step, matched by step order so it stays
+  // aligned with the scrubber even though /replay and /steps are separate fetches.
+  const currentDelta = useMemo(() => {
+    const replayStep = replayData?.steps.find((s) => s.stepOrder === current?.step_order);
+    return replayStep?.delta ?? [];
+  }, [replayData, current]);
 
   // Resolve the screenshot for the selected step (kind=SCREENSHOT, same step).
   useEffect(() => {
@@ -170,6 +182,17 @@ export function RunReplayPage(): React.ReactElement {
                 ) : null}
               </dl>
             </div>
+          </div>
+
+          {/* State delta diff viewer (M5-1) */}
+          <div
+            className="rounded-md border border-border bg-bg-elev-1 p-3"
+            data-testid="run-replay-delta"
+          >
+            <h2 className="mb-2 text-[13px] font-medium text-fg-1">
+              State delta <span className="text-fg-4">· what changed at this step</span>
+            </h2>
+            <StateDiff changes={currentDelta} />
           </div>
 
           {/* Log + LLM message stream */}

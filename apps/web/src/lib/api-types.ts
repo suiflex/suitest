@@ -38,6 +38,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agent/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Agent Chat
+         * @description Stream a conversation-mode reply (SSE tokens + WS tool events).
+         */
+        post: operations["agent_chat_api_v1_agent_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/coverage": {
         parameters: {
             query?: never;
@@ -172,6 +192,30 @@ export interface paths {
         get: operations["list_audit_logs_api_v1_audit_logs_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Audit Month
+         * @description Enqueue re-import of an archived audit month (M4-32) for this workspace.
+         *
+         *     The month lives in MinIO cold storage as
+         *     ``s3://<archive>/audit/<workspace>/<YYYY-MM>.jsonl.gz``; the ``restore_audit_logs``
+         *     runner job pulls it back into the hot table (idempotent on row id). ADMIN+.
+         */
+        post: operations["restore_audit_month_api_v1_audit_restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -347,6 +391,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/eval/fixtures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Eval Fixtures
+         * @description List the bundled golden datasets + fixture counts the weekly CI scores (M5-2).
+         */
+        get: operations["list_eval_fixtures_api_v1_eval_fixtures_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/eval/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Eval Runs
+         * @description Newest-first eval run history for the score-regression dashboard (M5-2).
+         */
+        get: operations["list_eval_runs_api_v1_eval_runs_get"];
+        put?: never;
+        /**
+         * Create Eval Run
+         * @description Run the deterministic eval suite over bundled fixtures + persist the result.
+         */
+        post: operations["create_eval_run_api_v1_eval_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/eval/runs/{eval_run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Eval Run
+         * @description Fetch one eval run; 404 if missing or owned by another workspace.
+         */
+        get: operations["get_eval_run_api_v1_eval_runs__eval_run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/generators/classify": {
         parameters: {
             query?: never;
@@ -387,6 +495,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/generators/mcp-discovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Mcp Discovery
+         * @description Generate DRAFT cases by exploring a registered MCP provider's tools (SSE).
+         */
+        post: operations["generate_mcp_discovery_api_v1_generators_mcp_discovery_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/generators/openapi": {
         parameters: {
             query?: never;
@@ -401,6 +529,26 @@ export interface paths {
          * @description Generate a per-operation contract suite from an OpenAPI 3.0 spec (SSE).
          */
         post: operations["generate_openapi_api_v1_generators_openapi_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generators/prd": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Prd
+         * @description Generate DRAFT cases from a PRD / user story via the LLM agent (SSE).
+         */
+        post: operations["generate_prd_api_v1_generators_prd_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -461,6 +609,26 @@ export interface paths {
          * @description Convert a session's captured events into a DRAFT TestCase + return it.
          */
         post: operations["finalize_recorder_session_api_v1_generators_recorder_sessions__session_id__finalize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generators/url-semantic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Url Semantic
+         * @description Generate FE_WEB journey cases from a URL + natural-language intent (SSE).
+         */
+        post: operations["generate_url_semantic_api_v1_generators_url_semantic_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -679,10 +847,149 @@ export interface paths {
         };
         /**
          * List Mcp Providers
-         * @description List MCP providers for the workspace (read-only in M1b; CRUD in M2).
+         * @description List MCP providers — bundled builtins (pinned) + custom workspace rows.
          */
         get: operations["list_mcp_providers_api_v1_mcp_providers_get"];
         put?: never;
+        /**
+         * Create Mcp Provider
+         * @description Register a custom MCP server.
+         *
+         *     With ``validate=true`` (default) the server connects, performs the MCP
+         *     ``initialize`` handshake, runs ``tools/list``, and persists the discovered
+         *     catalog + ``health_status=ok`` + version pins (M2-7). A failed probe rejects
+         *     the registration with ``422 MCP_REGISTRATION_FAILED`` and writes no row.
+         */
+        post: operations["create_mcp_provider_api_v1_mcp_providers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp/providers/test-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Mcp Connection
+         * @description Dry-run connect + ``tools/list`` without persisting (M2-7 register modal).
+         *
+         *     Lets the UI flip the form's status pill before the user saves. Failures
+         *     surface as ``422 MCP_REGISTRATION_FAILED``.
+         */
+        post: operations["test_mcp_connection_api_v1_mcp_providers_test_connection_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp/providers/{provider_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Mcp Provider
+         * @description Provider detail — config preview + discovered tool catalog (no secrets).
+         */
+        get: operations["get_mcp_provider_api_v1_mcp_providers__provider_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Mcp Provider
+         * @description Delete a custom provider. Builtins are read-only (409).
+         */
+        delete: operations["delete_mcp_provider_api_v1_mcp_providers__provider_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Mcp Provider
+         * @description Patch a custom provider. Builtins are read-only (409).
+         */
+        patch: operations["update_mcp_provider_api_v1_mcp_providers__provider_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/mcp/providers/{provider_id}/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discover Mcp Provider
+         * @description Re-run ``tools/list`` against a custom provider and persist the catalog (M2-8).
+         *
+         *     Updates ``config_json.tools`` + ``health_status`` + ``last_health_at`` (+
+         *     ``version_pin`` when the server advertises one). Builtins are read-only (409).
+         */
+        post: operations["discover_mcp_provider_api_v1_mcp_providers__provider_id__discover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp/providers/{provider_id}/invoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Invoke Mcp Provider
+         * @description Dev-aid: invoke one tool ad-hoc against a custom provider (tool browser).
+         *
+         *     Role-gated to ``ADMIN``+ (MCP_PLUGINS §11). Every call is audit-logged with
+         *     ``invocation_source=tool_browser`` and an ``arg_hash`` (raw args are not
+         *     persisted). Builtins are not ad-hoc invokable here (409) — they run through
+         *     the runner. Tool failures surface as ``ok=false`` with the error message.
+         */
+        post: operations["invoke_mcp_provider_api_v1_mcp_providers__provider_id__invoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/mcp/routing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Mcp Routing
+         * @description Effective routing table — bundled defaults overlaid with workspace overrides.
+         */
+        get: operations["get_mcp_routing_api_v1_mcp_routing_get"];
+        /**
+         * Put Mcp Routing
+         * @description Replace the workspace routing overrides (consumed by the runner).
+         *
+         *     Each key must be a valid ``target_kind`` and every referenced provider
+         *     (``primary`` + ``fallback``) must be a known, enabled provider in the
+         *     workspace, else ``422``. Stored under
+         *     ``workspace_capabilities.features_json.routing_overrides`` in the
+         *     ``{primary, fallback}`` shape :func:`suitest_mcp.routing.resolve_provider`
+         *     consumes.
+         */
+        put: operations["put_mcp_routing_api_v1_mcp_routing_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -769,6 +1076,173 @@ export interface paths {
          *     ``POST /suites/:id/restore`` / ``POST /test-cases/:id/restore``.
          */
         post: operations["restore_project_api_v1_projects__project_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/prompt-experiments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Prompt Experiments
+         * @description List the workspace's prompt A/B experiments with live stats.
+         */
+        get: operations["list_prompt_experiments_api_v1_prompt_experiments_get"];
+        put?: never;
+        /**
+         * Create Prompt Experiment
+         * @description Start an A/B test between two variants of ``prompt_name``.
+         *
+         *     A variant override id of ``null`` means the file default. The prompt must
+         *     exist as a file default; referenced forks must belong to this workspace.
+         */
+        post: operations["create_prompt_experiment_api_v1_prompt_experiments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/prompt-experiments/{experiment_id}/outcome": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Experiment Outcome
+         * @description Record a success/failure outcome for a variant (any workspace member).
+         */
+        post: operations["record_experiment_outcome_api_v1_prompt_experiments__experiment_id__outcome_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/prompt-experiments/{experiment_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop Prompt Experiment
+         * @description Stop an experiment (subsequent resolution falls back to fork/default).
+         */
+        post: operations["stop_prompt_experiment_api_v1_prompt_experiments__experiment_id__stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Default Prompts
+         * @description List every overridable default prompt + whether the workspace forks it.
+         */
+        get: operations["list_default_prompts_api_v1_prompts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/prompts/forks/{override_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Prompt Fork
+         * @description Delete a fork. Reverts the prompt to the file default if it was active.
+         */
+        delete: operations["delete_prompt_fork_api_v1_prompts_forks__override_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/prompts/forks/{override_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate Prompt Fork
+         * @description Make a specific fork the active override for its prompt.
+         */
+        post: operations["activate_prompt_fork_api_v1_prompts_forks__override_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/prompts/{prompt_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Prompt Detail
+         * @description Return a prompt's file default content + the workspace's fork history.
+         */
+        get: operations["get_prompt_detail_api_v1_prompts__prompt_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/prompts/{prompt_name}/forks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Prompt Fork
+         * @description Create a new versioned fork of ``prompt_name`` for the workspace.
+         */
+        post: operations["create_prompt_fork_api_v1_prompts__prompt_name__forks_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1091,6 +1565,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/runs/{run_id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Run Replay
+         * @description Time-travel replay: ordered steps + per-step state delta (M5-1).
+         *
+         *     Deterministic / ZERO-tier — the delta is a pure JSON diff between each step's
+         *     captured ``state_snapshot`` (normalized MCP output) and the previous step's.
+         *     The first step has an empty delta (no prior state). 404 when cross-workspace.
+         */
+        get: operations["get_run_replay_api_v1_runs__run_id__replay_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/runs/{run_id}/rerun": {
         parameters: {
             query?: never;
@@ -1270,6 +1768,30 @@ export interface paths {
          *     case AFTER the commit so subscribers never observe a phantom event.
          */
         post: operations["bulk_update_test_cases_api_v1_test_cases_bulk_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/test-cases/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Test Cases
+         * @description Semantic (or lexical) test-case search within the workspace (M4-2).
+         *
+         *     Uses the configured local :class:`Embedder` (``SUITEST_EMBEDDINGS=fastembed``)
+         *     to rank by cosine similarity; falls back to lexical scoring when embeddings
+         *     are disabled so ZERO-tier search still returns results.
+         */
+        get: operations["search_test_cases_api_v1_test_cases_search_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1564,6 +2086,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Workspace
+         * @description Restore/clone a workspace from an export archive (M4-30).
+         *
+         *     Creates a NEW workspace owned by the caller from the archive's structural
+         *     test assets (projects/suites/cases/steps/requirements). Secrets are NOT in
+         *     the archive and must be re-entered manually. Schema-version mismatch → 400.
+         */
+        post: operations["import_workspace_api_v1_workspaces_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/autonomy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Autonomy
+         * @description Return the workspace's autonomy level + overrides + effective map.
+         */
+        get: operations["get_autonomy_api_v1_workspaces__workspaceId__autonomy_get"];
+        /**
+         * Put Autonomy
+         * @description Set the workspace's autonomy level + overrides (ADMIN+, audited).
+         */
+        put: operations["put_autonomy_api_v1_workspaces__workspaceId__autonomy_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/cost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Workspace Cost
+         * @description Return per-provider / per-kind spend + soft daily budget for the workspace.
+         */
+        get: operations["get_workspace_cost_api_v1_workspaces__workspaceId__cost_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/llm-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Llm Config
+         * @description Return the active LLM config (key redacted). 404 when none is set.
+         */
+        get: operations["get_llm_config_api_v1_workspaces__workspaceId__llm_config_get"];
+        /**
+         * Put Llm Config
+         * @description Set/rotate the provider + key, then recompute capabilities (M3-3).
+         */
+        put: operations["put_llm_config_api_v1_workspaces__workspaceId__llm_config_put"];
+        post?: never;
+        /**
+         * Delete Llm Config
+         * @description Clear the active config; tier downgrades to ZERO. 404 when none set.
+         */
+        delete: operations["delete_llm_config_api_v1_workspaces__workspaceId__llm_config_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/llm-config/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Llm Models
+         * @description List the curated model catalog for ``provider`` (query param).
+         */
+        get: operations["list_llm_models_api_v1_workspaces__workspaceId__llm_config_models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/llm-config/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Llm Config
+         * @description Round-trip a 1-token completion against the (proposed) provider.
+         */
+        post: operations["test_llm_config_api_v1_workspaces__workspaceId__llm_config_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspace_id}": {
         parameters: {
             query?: never;
@@ -1590,6 +2248,46 @@ export interface paths {
          * @description Patch General-tab fields. ADMIN+ required; ``slug`` is immutable.
          */
         patch: operations["update_workspace_api_v1_workspaces__workspace_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Export Workspace
+         * @description Enqueue assembly of a portable workspace archive (M4-29). OWNER/ADMIN.
+         */
+        post: operations["export_workspace_api_v1_workspaces__workspace_id__export_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspace_id}/export/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Workspace Export
+         * @description Poll an export job; surfaces the 24h presigned download URL when ready.
+         */
+        get: operations["get_workspace_export_api_v1_workspaces__workspace_id__export__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/workspaces/{workspace_id}/invitations": {
@@ -2009,6 +2707,28 @@ export interface components {
          */
         AutonomyLevel: "manual" | "assist" | "semi_auto" | "auto";
         /**
+         * AutonomyResponse
+         * @description ``GET`` / ``PUT`` response — the resolved autonomy state.
+         */
+        AutonomyResponse: {
+            /** Effective */
+            effective: {
+                [key: string]: boolean;
+            };
+            /** Knownoverridekeys */
+            knownOverrideKeys: string[];
+            level: components["schemas"]["AutonomyLevel"];
+            /** Overrides */
+            overrides: {
+                [key: string]: boolean;
+            };
+            tier: components["schemas"]["Tier"];
+            /** Updatedat */
+            updatedAt?: string | null;
+            /** Updatedby */
+            updatedBy?: string | null;
+        };
+        /**
          * AutonomySection
          * @description Autonomy levels available + the recommended default for the tier.
          */
@@ -2016,6 +2736,19 @@ export interface components {
             /** Available */
             available: components["schemas"]["AutonomyLevel"][];
             default: components["schemas"]["AutonomyLevel"];
+        };
+        /**
+         * AutonomyUpdate
+         * @description ``PUT`` body — the new level + overrides (+ optional audit reason).
+         */
+        AutonomyUpdate: {
+            level: components["schemas"]["AutonomyLevel"];
+            /** Overrides */
+            overrides?: {
+                [key: string]: boolean;
+            };
+            /** Reason */
+            reason?: string | null;
         };
         /** Body_auth_cookie_jwt_login_auth_cookie_login_post */
         Body_auth_cookie_jwt_login_auth_cookie_login_post: {
@@ -2041,6 +2774,14 @@ export interface components {
             /** Username */
             username: string;
         };
+        /** Body_import_workspace_api_v1_workspaces_import_post */
+        Body_import_workspace_api_v1_workspaces_import_post: {
+            /**
+             * File
+             * @description workspace-*.tar.gz export archive.
+             */
+            file: string;
+        };
         /** Body_reset_forgot_password_auth_forgot_password_post */
         Body_reset_forgot_password_auth_forgot_password_post: {
             /**
@@ -2055,6 +2796,17 @@ export interface components {
             password: string;
             /** Token */
             token: string;
+        };
+        /** BudgetOut */
+        BudgetOut: {
+            /** Alert */
+            alert?: string | null;
+            /** Dailycapusd */
+            dailyCapUsd: number;
+            /** Overbudget */
+            overBudget: boolean;
+            /** Todayspendusd */
+            todaySpendUsd: number;
         };
         /**
          * BulkAddTagsRequest
@@ -2171,6 +2923,31 @@ export interface components {
             /** New Password */
             new_password: string;
         };
+        /**
+         * ChatMessageInput
+         * @description One prior turn in the conversation history.
+         */
+        ChatMessageInput: {
+            /** Content */
+            content: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant" | "system" | "tool";
+        };
+        /**
+         * ChatRequest
+         * @description ``POST /agent/chat`` body — the running history + optional session id.
+         */
+        ChatRequest: {
+            /** Messages */
+            messages: components["schemas"]["ChatMessageInput"][];
+            /** Seed */
+            seed?: number | null;
+            /** Session Id */
+            session_id?: string | null;
+        };
         /** ClassificationResult */
         ClassificationResult: {
             /** Alternatives */
@@ -2202,6 +2979,24 @@ export interface components {
             error?: string | null;
             /** Ok */
             ok: boolean;
+        };
+        /** CostSummaryOut */
+        CostSummaryOut: {
+            budget: components["schemas"]["BudgetOut"];
+            /** Bykind */
+            byKind: components["schemas"]["KindCostOut"][];
+            /** Byprovider */
+            byProvider: components["schemas"]["ProviderCostOut"][];
+            /** Sessioncount */
+            sessionCount: number;
+            /** Totalcostusd */
+            totalCostUsd: number;
+            /** Totaltokensin */
+            totalTokensIn: number;
+            /** Totaltokensout */
+            totalTokensOut: number;
+            /** Windowdays */
+            windowDays: number;
         };
         /**
          * CoverageOut
@@ -2576,6 +3371,136 @@ export interface components {
             detail: string | {
                 [key: string]: string;
             };
+        };
+        /**
+         * EvalFixtureResult
+         * @description Per-fixture pass/fail row in the report.
+         */
+        EvalFixtureResult: {
+            /** Detail */
+            detail: string;
+            /** Fixture */
+            fixture: string;
+            /** Passed */
+            passed: boolean;
+            /** Suite */
+            suite: string;
+        };
+        /**
+         * EvalFixturesEnvelope
+         * @description ``GET /eval/fixtures`` — the bundled golden datasets the CI run scores.
+         */
+        EvalFixturesEnvelope: {
+            /** Items */
+            items?: components["schemas"]["EvalSuiteInfo"][];
+        };
+        /**
+         * EvalRunListEnvelope
+         * @description ``GET /eval/runs`` — newest-first eval run history.
+         */
+        EvalRunListEnvelope: {
+            /** Items */
+            items?: components["schemas"]["EvalRunListItem"][];
+        };
+        /**
+         * EvalRunListItem
+         * @description One row in the score-regression dashboard (M5-2).
+         */
+        EvalRunListItem: {
+            /** Failed */
+            failed: number;
+            /** Fixturescount */
+            fixturesCount: number;
+            /** Id */
+            id: string;
+            /** Modelid */
+            modelId: string;
+            /** Passed */
+            passed: number;
+            /**
+             * Runat
+             * Format: date-time
+             */
+            runAt: string;
+            /** Scorepct */
+            scorePct: number;
+            /** Suitename */
+            suiteName: string;
+        };
+        /**
+         * EvalRunPublic
+         * @description ``GET /eval/runs/:id`` + ``POST /eval/runs`` response.
+         */
+        EvalRunPublic: {
+            /** Failed */
+            failed: number;
+            /** Fixturescount */
+            fixturesCount: number;
+            /** Id */
+            id: string;
+            /** Modelid */
+            modelId: string;
+            /** Passed */
+            passed: number;
+            /** Results */
+            results?: components["schemas"]["EvalFixtureResult"][];
+            /**
+             * Runat
+             * Format: date-time
+             */
+            runAt: string;
+            /** Suitename */
+            suiteName: string;
+        };
+        /**
+         * EvalRunRequest
+         * @description ``POST /eval/runs`` body.
+         */
+        EvalRunRequest: {
+            /**
+             * Suite Name
+             * @default default
+             */
+            suite_name: string;
+        };
+        /**
+         * EvalSuiteInfo
+         * @description One golden dataset suite + its fixture count (M5-2).
+         */
+        EvalSuiteInfo: {
+            /** Fixtures */
+            fixtures: number;
+            /** Suite */
+            suite: string;
+        };
+        /**
+         * ExperimentOutcomeBody
+         * @description ``POST /prompt-experiments/:id/outcome`` body.
+         */
+        ExperimentOutcomeBody: {
+            /**
+             * Success
+             * @default true
+             */
+            success: boolean;
+            /** Variant */
+            variant: string;
+        };
+        /**
+         * ExperimentVariantStats
+         * @description Per-variant impression / success counters + conversion (M5-4).
+         */
+        ExperimentVariantStats: {
+            /** Conversionpct */
+            conversionPct: number;
+            /** Impressions */
+            impressions: number;
+            /** Overrideid */
+            overrideId?: string | null;
+            /** Successes */
+            successes: number;
+            /** Variant */
+            variant: string;
         };
         /**
          * ExternalIssuePublic
@@ -2967,6 +3892,15 @@ export interface components {
             /** Jira Url */
             jira_url: string;
         };
+        /** KindCostOut */
+        KindCostOut: {
+            /** Costusd */
+            costUsd: number;
+            /** Kind */
+            kind: string;
+            /** Sessions */
+            sessions: number;
+        };
         /**
          * KpisOut
          * @description ``GET /analytics/kpis`` → pass rate, run count, avg duration, open defects.
@@ -2980,6 +3914,55 @@ export interface components {
             passRate: number;
             /** Runcount */
             runCount: number;
+        };
+        /**
+         * LLMConfigPublic
+         * @description Active config, key redacted to a hint.
+         */
+        LLMConfigPublic: {
+            /** Apikeyhint */
+            apiKeyHint?: string | null;
+            /** Config */
+            config?: {
+                [key: string]: unknown;
+            };
+            /** Id */
+            id: string;
+            /** Isactive */
+            isActive: boolean;
+            /** Lastvalidatedat */
+            lastValidatedAt?: string | null;
+            /** Model */
+            model: string;
+            /** Provider */
+            provider: string;
+            /** Tier */
+            tier: string;
+        };
+        /**
+         * LLMConfigWriteBody
+         * @description Set/rotate provider + key. ``apiKey`` is write-only.
+         */
+        LLMConfigWriteBody: {
+            /** Apikey */
+            apiKey?: string | null;
+            /** Config */
+            config?: {
+                [key: string]: unknown;
+            };
+            /** Model */
+            model: string;
+            /** Provider */
+            provider: string;
+        };
+        /** LLMModelsResponse */
+        LLMModelsResponse: {
+            /** Models */
+            models?: {
+                [key: string]: unknown;
+            }[];
+            /** Provider */
+            provider: string;
         };
         /**
          * LLMSection
@@ -2997,6 +3980,26 @@ export interface components {
             model?: string | null;
             /** Provider */
             provider: string;
+        };
+        /** LLMTestError */
+        LLMTestError: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+        };
+        /** LLMTestResult */
+        LLMTestResult: {
+            error?: components["schemas"]["LLMTestError"] | null;
+            /**
+             * Latencyms
+             * @default 0
+             */
+            latencyMs: number;
+            /** Modelecho */
+            modelEcho?: string | null;
+            /** Ok */
+            ok: boolean;
         };
         /** MatrixCase */
         MatrixCase: {
@@ -3031,13 +4034,240 @@ export interface components {
             title: string;
         };
         /**
+         * McpDiscoveryGenerateRequest
+         * @description LLM-driven MCP tool-discovery generation (M3-9) — CLOUD/LOCAL only.
+         *
+         *     Targets a registered MCP provider by id; the agent explores its persisted
+         *     tool catalog and proposes contract cases (happy + negative per tool). Steps
+         *     are agentic (code translated at execution time, M3-10).
+         */
+        McpDiscoveryGenerateRequest: {
+            /**
+             * Max Cases
+             * @default 20
+             */
+            max_cases: number;
+            /** Mcp Provider Id */
+            mcp_provider_id: string;
+            /** Seed */
+            seed?: number | null;
+            /** Target Suite Id */
+            target_suite_id: string;
+        };
+        /**
+         * McpInvokeBody
+         * @description ``POST /mcp/providers/:id/invoke`` body — dev-aid ad-hoc tool call.
+         */
+        McpInvokeBody: {
+            /** Arguments */
+            arguments?: {
+                [key: string]: unknown;
+            };
+            /** Tool */
+            tool: string;
+        };
+        /**
+         * McpInvokeResult
+         * @description Normalized result of an ad-hoc tool invocation (tool browser).
+         */
+        McpInvokeResult: {
+            /**
+             * Durationms
+             * @default 0
+             */
+            durationMs: number;
+            /** Error */
+            error?: string | null;
+            /** Ok */
+            ok: boolean;
+            /** Output */
+            output?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Stderr
+             * @default
+             */
+            stderr: string;
+            /**
+             * Stdout
+             * @default
+             */
+            stdout: string;
+        };
+        /**
+         * McpProviderCreateBody
+         * @description ``POST /mcp/providers`` body — register a custom MCP server.
+         */
+        McpProviderCreateBody: {
+            /** Configjson */
+            configJson?: {
+                [key: string]: unknown;
+            } | null;
+            /** Endpoint */
+            endpoint: string;
+            /** Isdefaultfortarget */
+            isDefaultForTarget?: {
+                [key: string]: boolean;
+            } | null;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Secretsjson */
+            secretsJson?: {
+                [key: string]: unknown;
+            } | string | null;
+            transport: components["schemas"]["McpTransport"];
+            /**
+             * Validate
+             * @default true
+             */
+            validate: boolean;
+        };
+        /**
+         * McpProviderDetail
+         * @description Detail row — summary + config preview (secrets redacted) + version pins.
+         */
+        McpProviderDetail: {
+            /** Commandpin */
+            commandPin?: string | null;
+            /** Configjson */
+            configJson?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Endpoint */
+            endpoint: string;
+            /** Gitref */
+            gitRef?: string | null;
+            /**
+             * Hassecrets
+             * @default false
+             */
+            hasSecrets: boolean;
+            /**
+             * Healthstatus
+             * @default unknown
+             */
+            healthStatus: string;
+            /** Id */
+            id: string;
+            /** Imagepin */
+            imagePin?: string | null;
+            /**
+             * Isbundled
+             * @default false
+             */
+            isBundled: boolean;
+            /** Isdefaultfortarget */
+            isDefaultForTarget?: {
+                [key: string]: boolean;
+            };
+            /** Kind */
+            kind: string;
+            /** Lasthealthat */
+            lastHealthAt?: string | null;
+            /** Name */
+            name: string;
+            /** Tools */
+            tools?: components["schemas"]["McpProviderTool"][];
+            /** Transport */
+            transport: string;
+            /** Versionpin */
+            versionPin?: string | null;
+        };
+        /**
+         * McpProviderProbeResult
+         * @description ``POST /mcp/providers/test-connection`` response — dry-run discovery.
+         */
+        McpProviderProbeResult: {
+            /** Ok */
+            ok: boolean;
+            /** Serverversion */
+            serverVersion?: string | null;
+            /** Tools */
+            tools?: components["schemas"]["McpProviderTool"][];
+        };
+        /**
+         * McpProviderTool
+         * @description One tool entry (name + description + flattened arg schema preview).
+         */
+        McpProviderTool: {
+            /** Argschema */
+            argSchema?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * McpProviderUpdateBody
+         * @description ``PATCH /mcp/providers/:id`` body — partial update of a custom row.
+         */
+        McpProviderUpdateBody: {
+            /** Configjson */
+            configJson?: {
+                [key: string]: unknown;
+            } | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Endpoint */
+            endpoint?: string | null;
+            /** Isdefaultfortarget */
+            isDefaultForTarget?: {
+                [key: string]: boolean;
+            } | null;
+            /** Kind */
+            kind?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Secretsjson */
+            secretsJson?: {
+                [key: string]: unknown;
+            } | string | null;
+            transport?: components["schemas"]["McpTransport"] | null;
+        };
+        /**
          * McpProvidersResponse
-         * @description ``GET /mcp/providers`` envelope (read-only in M1b).
+         * @description ``GET /mcp/providers`` envelope (bundled builtins + custom rows).
          */
         McpProvidersResponse: {
             /** Items */
             items?: components["schemas"]["suitest_api__routers__mcp_providers__McpProviderPublic"][];
         };
+        /**
+         * McpRoutingResponse
+         * @description ``GET /mcp/routing`` — default table overlaid with workspace overrides.
+         */
+        McpRoutingResponse: {
+            /** Items */
+            items?: components["schemas"]["RoutingRule"][];
+        };
+        /**
+         * McpRoutingUpdateBody
+         * @description ``PUT /mcp/routing`` body — replace the workspace override map.
+         */
+        McpRoutingUpdateBody: {
+            /** Overrides */
+            overrides?: {
+                [key: string]: components["schemas"]["RoutingRuleInput"];
+            };
+        };
+        /**
+         * McpTransport
+         * @enum {string}
+         */
+        McpTransport: "stdio" | "sse" | "ws";
         /**
          * MeResponse
          * @description ``GET /auth/me`` — the current user plus every workspace they belong to.
@@ -3132,6 +4362,11 @@ export interface components {
              * @default true
              */
             include_boundary_tests: boolean;
+            /**
+             * Include Llm Edge Cases
+             * @default false
+             */
+            include_llm_edge_cases: boolean;
             /**
              * Include Negative Auth
              * @default true
@@ -3252,6 +4487,30 @@ export interface components {
             items: components["schemas"]["PasswordResetRequestOut"][];
         };
         /**
+         * PrdGenerateRequest
+         * @description LLM-driven PRD generation (M3-6) — CLOUD/LOCAL only.
+         *
+         *     ``prd_text`` is the requirement / user story / free text. The agent extracts
+         *     stories and drafts happy-path + edge cases. ``default_target_kind`` decides
+         *     the steps' default ``mcp_provider`` (steps are agentic — code is translated at
+         *     execution time, M3-10). ``seed`` is threaded for reproducibility (M3-5).
+         */
+        PrdGenerateRequest: {
+            /** @default CUSTOM */
+            default_target_kind: components["schemas"]["TargetKind"];
+            /**
+             * Max Cases
+             * @default 20
+             */
+            max_cases: number;
+            /** Prd Text */
+            prd_text: string;
+            /** Seed */
+            seed?: number | null;
+            /** Target Suite Id */
+            target_suite_id: string;
+        };
+        /**
          * Priority
          * @enum {string}
          */
@@ -3327,6 +4586,147 @@ export interface components {
             name?: string | null;
             /** Slug */
             slug?: string | null;
+        };
+        /**
+         * PromptDefaultPublic
+         * @description A file-based default prompt + whether the workspace forks it.
+         */
+        PromptDefaultPublic: {
+            /** Activeforkversion */
+            activeForkVersion?: number | null;
+            /** Baseversion */
+            baseVersion: string;
+            /** Hasactivefork */
+            hasActiveFork: boolean;
+            /** Name */
+            name: string;
+        };
+        /**
+         * PromptDetailPublic
+         * @description ``GET /prompts/:name`` — default content + the workspace's fork history.
+         */
+        PromptDetailPublic: {
+            /** Baseversion */
+            baseVersion: string;
+            /** Defaultcontent */
+            defaultContent: string;
+            /** Forks */
+            forks?: components["schemas"]["PromptForkPublic"][];
+            /** Name */
+            name: string;
+        };
+        /**
+         * PromptExperimentCreateBody
+         * @description ``POST /prompt-experiments`` body.
+         */
+        PromptExperimentCreateBody: {
+            /** Prompt Name */
+            prompt_name: string;
+            /**
+             * Split Pct
+             * @default 50
+             */
+            split_pct: number;
+            /** Variant A Override Id */
+            variant_a_override_id?: string | null;
+            /** Variant B Override Id */
+            variant_b_override_id?: string | null;
+        };
+        /** PromptExperimentListEnvelope */
+        PromptExperimentListEnvelope: {
+            /** Items */
+            items?: components["schemas"]["PromptExperimentPublic"][];
+        };
+        /**
+         * PromptExperimentPublic
+         * @description One prompt A/B experiment + live stats.
+         */
+        PromptExperimentPublic: {
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /** Id */
+            id: string;
+            /** Promptname */
+            promptName: string;
+            /** Splitpct */
+            splitPct: number;
+            /** Status */
+            status: string;
+            variantA: components["schemas"]["ExperimentVariantStats"];
+            variantB: components["schemas"]["ExperimentVariantStats"];
+            /** Winner */
+            winner?: string | null;
+        };
+        /**
+         * PromptForkCreate
+         * @description ``POST /prompts/:name/forks`` body.
+         */
+        PromptForkCreate: {
+            /**
+             * Activate
+             * @default true
+             */
+            activate: boolean;
+            /**
+             * Base Version
+             * @default v1
+             */
+            base_version: string;
+            /** Content */
+            content: string;
+            /** Label */
+            label?: string | null;
+        };
+        /**
+         * PromptForkPublic
+         * @description One versioned fork of a prompt for a workspace.
+         */
+        PromptForkPublic: {
+            /** Baseversion */
+            baseVersion: string;
+            /** Content */
+            content?: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /** Forkversion */
+            forkVersion: number;
+            /** Hash */
+            hash: string;
+            /** Id */
+            id: string;
+            /** Isactive */
+            isActive: boolean;
+            /** Label */
+            label?: string | null;
+            /** Promptname */
+            promptName: string;
+        };
+        /**
+         * PromptListEnvelope
+         * @description ``GET /prompts`` — every overridable default + its fork status.
+         */
+        PromptListEnvelope: {
+            /** Items */
+            items?: components["schemas"]["PromptDefaultPublic"][];
+        };
+        /** ProviderCostOut */
+        ProviderCostOut: {
+            /** Costusd */
+            costUsd: number;
+            /** Provider */
+            provider: string;
+            /** Sessions */
+            sessions: number;
+            /** Tokensin */
+            tokensIn: number;
+            /** Tokensout */
+            tokensOut: number;
         };
         /** ReadinessBlocker */
         ReadinessBlocker: {
@@ -3535,6 +4935,33 @@ export interface components {
          */
         Role: "OWNER" | "ADMIN" | "QA" | "VIEWER";
         /**
+         * RoutingRule
+         * @description One effective ``target_kind`` -> provider routing row.
+         */
+        RoutingRule: {
+            /** Fallback */
+            fallback?: string | null;
+            /**
+             * Isoverride
+             * @default false
+             */
+            isOverride: boolean;
+            /** Primary */
+            primary: string;
+            /** Targetkind */
+            targetKind: string;
+        };
+        /**
+         * RoutingRuleInput
+         * @description One override rule in ``PUT /mcp/routing``.
+         */
+        RoutingRuleInput: {
+            /** Fallback */
+            fallback?: string | null;
+            /** Primary */
+            primary: string;
+        };
+        /**
          * RunDetail
          * @description Detail for ``GET /runs/:id`` — adds the computed summary.
          */
@@ -3698,6 +5125,41 @@ export interface components {
             trigger: components["schemas"]["RunTrigger"];
         };
         /**
+         * RunReplayResponse
+         * @description ``GET /runs/:id/replay`` — ordered steps + per-step state delta (M5-1).
+         */
+        RunReplayResponse: {
+            /** Runid */
+            runId: string;
+            /** Steps */
+            steps?: components["schemas"]["RunReplayStep"][];
+        };
+        /**
+         * RunReplayStep
+         * @description One step in the time-travel replay, with its state delta vs. the prior step.
+         */
+        RunReplayStep: {
+            /** Casepublicid */
+            casePublicId: string;
+            /** Delta */
+            delta?: components["schemas"]["StateChangePublic"][];
+            /** Durationms */
+            durationMs?: number | null;
+            /** Errormessage */
+            errorMessage?: string | null;
+            /** Id */
+            id: string;
+            outcome: components["schemas"]["StepOutcome"];
+            /** Startedat */
+            startedAt?: string | null;
+            /** Statesnapshot */
+            stateSnapshot?: {
+                [key: string]: unknown;
+            } | null;
+            /** Steporder */
+            stepOrder: number;
+        };
+        /**
          * RunSelectionItem
          * @description One ``{caseId, selectedStepIds?}`` entry in the create-run selection.
          *
@@ -3809,6 +5271,23 @@ export interface components {
          * @enum {string}
          */
         Severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+        /**
+         * StateChangePublic
+         * @description One key-level state change at a replay step (M5-1).
+         */
+        StateChangePublic: {
+            /** After */
+            after?: string | null;
+            /** Before */
+            before?: string | null;
+            /**
+             * Op
+             * @description added | removed | changed
+             */
+            op: string;
+            /** Path */
+            path: string;
+        };
         /**
          * StepAppend
          * @description Body shape for ``POST /test-cases/:id/steps`` — ``order`` always ignored.
@@ -4100,6 +5579,18 @@ export interface components {
             updated_at: string;
         };
         /**
+         * TestCaseSearchHit
+         * @description One semantic/lexical search result (M4-2).
+         */
+        TestCaseSearchHit: {
+            /** Caseid */
+            caseId: string;
+            /** Name */
+            name: string;
+            /** Score */
+            score: number;
+        };
+        /**
          * TestCaseUpdate
          * @description Body for ``PATCH /test-cases/:id`` — metadata + tag replace.
          *
@@ -4159,6 +5650,29 @@ export interface components {
             defects?: components["schemas"]["MatrixDefect"][];
             /** Requirements */
             requirements?: components["schemas"]["MatrixRequirement"][];
+        };
+        /**
+         * UrlSemanticGenerateRequest
+         * @description LLM-driven semantic URL generation (M3-7) — CLOUD/LOCAL only.
+         *
+         *     Decomposes a natural-language ``intent`` ("checkout flow") into FE_WEB
+         *     journey cases on ``url``. Steps are agentic browser actions driven by
+         *     ``playwright-mcp`` (code translated at execution time, M3-10).
+         */
+        UrlSemanticGenerateRequest: {
+            /** Intent */
+            intent: string;
+            /**
+             * Max Cases
+             * @default 20
+             */
+            max_cases: number;
+            /** Seed */
+            seed?: number | null;
+            /** Target Suite Id */
+            target_suite_id: string;
+            /** Url */
+            url: string;
         };
         /**
          * UserRead
@@ -4332,6 +5846,33 @@ export interface components {
             updated_at: string;
         };
         /**
+         * WorkspaceExportAccepted
+         * @description ``POST /workspaces/:id/export`` 202 response — archive assembled async (M4-29).
+         */
+        WorkspaceExportAccepted: {
+            /** Export Job Id */
+            export_job_id: string;
+            /**
+             * Status
+             * @default QUEUED
+             */
+            status: string;
+        };
+        /**
+         * WorkspaceExportStatus
+         * @description ``GET /workspaces/:id/export/:job_id`` — poll result, surfaces the signed URL.
+         */
+        WorkspaceExportStatus: {
+            /** Download Url */
+            download_url?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Size Bytes */
+            size_bytes?: number | null;
+            /** Status */
+            status: string;
+        };
+        /**
          * WorkspaceMemberInvite
          * @description ``POST /workspaces/:id/members`` body — invite by email + role.
          */
@@ -4425,9 +5966,14 @@ export interface components {
         };
         /**
          * McpProviderPublic
-         * @description One MCP provider row — name + transport + health only (no secrets).
+         * @description Summary row — name + transport + health + tool names (no secrets).
          */
         suitest_api__routers__mcp_providers__McpProviderPublic: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
             /** Endpoint */
             endpoint: string;
             /**
@@ -4442,12 +5988,18 @@ export interface components {
              * @default false
              */
             isBundled: boolean;
+            /** Isdefaultfortarget */
+            isDefaultForTarget?: {
+                [key: string]: boolean;
+            };
             /** Kind */
             kind: string;
             /** Lasthealthat */
             lastHealthAt?: string | null;
             /** Name */
             name: string;
+            /** Tools */
+            tools?: components["schemas"]["McpProviderTool"][];
             /** Transport */
             transport: string;
         };
@@ -4520,6 +6072,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResetPasswordResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    agent_chat_api_v1_agent_chat_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -4768,6 +6355,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditLogsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_audit_month_api_v1_audit_restore_post: {
+        parameters: {
+            query: {
+                /** @description Archived month to restore, 'YYYY-MM'. */
+                from: string;
+            };
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -5111,6 +6734,139 @@ export interface operations {
             };
         };
     };
+    list_eval_fixtures_api_v1_eval_fixtures_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalFixturesEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_eval_runs_api_v1_eval_runs_get: {
+        parameters: {
+            query?: {
+                suite?: string | null;
+                limit?: number;
+            };
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalRunListEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_eval_run_api_v1_eval_runs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvalRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalRunPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_eval_run_api_v1_eval_runs__eval_run_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                eval_run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalRunPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     classify_input_api_v1_generators_classify_post: {
         parameters: {
             query?: never;
@@ -5181,6 +6937,41 @@ export interface operations {
             };
         };
     };
+    generate_mcp_discovery_api_v1_generators_mcp_discovery_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpDiscoveryGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     generate_openapi_api_v1_generators_openapi_post: {
         parameters: {
             query?: never;
@@ -5193,6 +6984,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["OpenApiGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_prd_api_v1_generators_prd_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrdGenerateRequest"];
             };
         };
         responses: {
@@ -5306,6 +7132,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TestCaseDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_url_semantic_api_v1_generators_url_semantic_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UrlSemanticGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -5779,6 +7640,313 @@ export interface operations {
             };
         };
     };
+    create_mcp_provider_api_v1_mcp_providers_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpProviderCreateBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpProviderDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_mcp_connection_api_v1_mcp_providers_test_connection_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpProviderCreateBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpProviderProbeResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_mcp_provider_api_v1_mcp_providers__provider_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpProviderDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_mcp_provider_api_v1_mcp_providers__provider_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_mcp_provider_api_v1_mcp_providers__provider_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpProviderUpdateBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpProviderDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discover_mcp_provider_api_v1_mcp_providers__provider_id__discover_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpProviderDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    invoke_mcp_provider_api_v1_mcp_providers__provider_id__invoke_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpInvokeBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpInvokeResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_mcp_routing_api_v1_mcp_routing_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpRoutingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_mcp_routing_api_v1_mcp_routing_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["McpRoutingUpdateBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpRoutingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_projects_api_v1_projects_get: {
         parameters: {
             query?: {
@@ -5970,6 +8138,307 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_prompt_experiments_api_v1_prompt_experiments_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptExperimentListEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_prompt_experiment_api_v1_prompt_experiments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptExperimentCreateBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptExperimentPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_experiment_outcome_api_v1_prompt_experiments__experiment_id__outcome_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExperimentOutcomeBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptExperimentPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stop_prompt_experiment_api_v1_prompt_experiments__experiment_id__stop_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptExperimentPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_default_prompts_api_v1_prompts_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptListEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_prompt_fork_api_v1_prompts_forks__override_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                override_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_prompt_fork_api_v1_prompts_forks__override_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                override_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptForkPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_prompt_detail_api_v1_prompts__prompt_name__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                prompt_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptDetailPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_prompt_fork_api_v1_prompts__prompt_name__forks_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                prompt_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptForkCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptForkPublic"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -6561,6 +9030,39 @@ export interface operations {
             };
         };
     };
+    get_run_replay_api_v1_runs__run_id__replay_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunReplayResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     rerun_run_api_v1_runs__run_id__rerun_post: {
         parameters: {
             query?: never;
@@ -6928,6 +9430,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkUpdateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_test_cases_api_v1_test_cases_search_get: {
+        parameters: {
+            query: {
+                /** @description Natural-language query. */
+                q: string;
+                limit?: number;
+            };
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestCaseSearchHit"][];
                 };
             };
             /** @description Validation Error */
@@ -7538,6 +10075,301 @@ export interface operations {
             };
         };
     };
+    import_workspace_api_v1_workspaces_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_workspace_api_v1_workspaces_import_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_autonomy_api_v1_workspaces__workspaceId__autonomy_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutonomyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_autonomy_api_v1_workspaces__workspaceId__autonomy_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutonomyUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutonomyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_workspace_cost_api_v1_workspaces__workspaceId__cost_get: {
+        parameters: {
+            query?: {
+                windowDays?: number;
+            };
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_llm_config_api_v1_workspaces__workspaceId__llm_config_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LLMConfigPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_llm_config_api_v1_workspaces__workspaceId__llm_config_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LLMConfigWriteBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LLMConfigPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_llm_config_api_v1_workspaces__workspaceId__llm_config_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_llm_models_api_v1_workspaces__workspaceId__llm_config_models_get: {
+        parameters: {
+            query: {
+                provider: string;
+            };
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LLMModelsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_llm_config_api_v1_workspaces__workspaceId__llm_config_test_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LLMConfigWriteBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LLMTestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_workspace_api_v1_workspaces__workspace_id__get: {
         parameters: {
             query?: never;
@@ -7628,6 +10460,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_workspace_api_v1_workspaces__workspace_id__export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceExportAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_workspace_export_api_v1_workspaces__workspace_id__export__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: string;
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceExportStatus"];
                 };
             };
             /** @description Validation Error */

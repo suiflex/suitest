@@ -14,13 +14,22 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from suitest_db.models.eval_run import EvalRun
+from suitest_db.repositories.eval_runs import EvalRunRepo
 from suitest_shared.domain.enums import Role
 
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
-from suitest_api.schemas.eval import EvalFixtureResult, EvalRunPublic, EvalRunRequest
-from suitest_api.services.eval_service import run_eval
+from suitest_api.schemas.eval import (
+    EvalFixtureResult,
+    EvalFixturesEnvelope,
+    EvalRunListEnvelope,
+    EvalRunListItem,
+    EvalRunPublic,
+    EvalRunRequest,
+    EvalSuiteInfo,
+)
+from suitest_api.services.eval_service import list_suites, run_eval
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -87,6 +96,62 @@ async def create_eval_run(
     await session.commit()
     await session.refresh(row)
     return _to_public(row)
+
+
+def _score_pct(passed: int, total: int) -> float:
+    return round(100.0 * passed / total, 1) if total else 0.0
+
+
+@router.get(
+    "/eval/runs",
+    response_model=EvalRunListEnvelope,
+    dependencies=[Depends(require_role(_EVAL_ROLES))],
+)
+async def list_eval_runs(
+    suite: str | None = None,
+    limit: int = 50,
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+) -> EvalRunListEnvelope:
+    """Newest-first eval run history for the score-regression dashboard (M5-2)."""
+    rows = await EvalRunRepo(session).list_by_workspace(
+        ctx.workspace_id, suite_name=suite, limit=min(max(limit, 1), 100)
+    )
+    return EvalRunListEnvelope(
+        items=[
+            EvalRunListItem(
+                id=r.id,
+                suite_name=r.eval_suite_name,
+                fixtures_count=r.fixtures_count,
+                passed=r.passed,
+                failed=r.failed,
+                score_pct=_score_pct(r.passed, r.fixtures_count),
+                model_id=r.model_id,
+                run_at=r.run_at,
+            )
+            for r in rows
+        ]
+    )
+
+
+@router.get(
+    "/eval/fixtures",
+    response_model=EvalFixturesEnvelope,
+    dependencies=[Depends(require_role(_EVAL_ROLES))],
+)
+async def list_eval_fixtures(
+    _ctx: TenantContext = Depends(require_workspace_membership),
+) -> EvalFixturesEnvelope:
+    """List the bundled golden datasets + fixture counts the weekly CI scores (M5-2)."""
+    fixtures_dir = _fixtures_dir()
+    if not fixtures_dir.is_dir():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"eval fixtures dir not found: {fixtures_dir}",
+        )
+    return EvalFixturesEnvelope(
+        items=[EvalSuiteInfo(suite=s.suite, fixtures=s.fixtures) for s in list_suites(fixtures_dir)]
+    )
 
 
 @router.get(

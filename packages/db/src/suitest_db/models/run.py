@@ -76,6 +76,9 @@ class RunStep(Base, TimestampMixin):
     stderr: Mapped[str | None] = mapped_column(Text)
     error_message: Mapped[str | None] = mapped_column(Text)
     error_stack: Mapped[str | None] = mapped_column(Text)
+    # M5-1: normalized MCP output captured at this step — the application state
+    # snapshot the time-travel replay diff viewer computes per-step deltas from.
+    state_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     __table_args__ = (Index("ix_run_steps_run_outcome", "run_id", "outcome"),)
 

@@ -30,14 +30,12 @@ from suitest_agent.generators.openapi_generator import OpenApiGenerator, OpenApi
 from suitest_agent.generators.prd import PrdGenerator
 from suitest_agent.generators.url_crawler import UrlCrawler
 from suitest_agent.generators.url_semantic import UrlSemanticGenerator
-from suitest_agent.prompts.loader import prompt_hash, read_prompt
 from suitest_agent.providers.litellm_router import get_provider
 from suitest_db.audit import write_audit
 from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.generator_run import GeneratorRun
 from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.agent_sessions import AgentSessionCreate, AgentSessionRepo
-from suitest_db.repositories.prompt_versions import PromptVersionRepo
 from suitest_shared.domain.enums import AgentSessionKind, CaseStatus, TargetKind
 from suitest_shared.schemas.generator_input import (
     CrawlerGenerateRequest,
@@ -48,6 +46,8 @@ from suitest_shared.schemas.generator_input import (
     TestCaseDraft,
     UrlSemanticGenerateRequest,
 )
+
+from suitest_api.services.prompt_resolver import resolve_and_pin
 
 if TYPE_CHECKING:
     import httpx
@@ -257,9 +257,8 @@ class GeneratorService:
 
         yield GeneratorSseEvent(kind="progress", data={"phase": "llm_enrich"})
 
-        prompt_content = read_prompt("enrich-openapi-edges", "v1")
-        prompt_row = await PromptVersionRepo(self._session).ensure(
-            "enrich-openapi-edges", "v1", prompt_content, prompt_hash(prompt_content)
+        prompt_content, prompt_row = await resolve_and_pin(
+            self._session, workspace_id=workspace_id, prompt_name="enrich-openapi-edges"
         )
         agent_repo = AgentSessionRepo(self._session)
         agent_session = await agent_repo.create(
@@ -276,7 +275,7 @@ class GeneratorService:
         )
 
         provider = get_provider(llm_provider, api_key=llm_api_key, base_url=llm_base_url)
-        enricher = OpenApiEnricher(provider, model=llm_model)
+        enricher = OpenApiEnricher(provider, model=llm_model, prompt_override=prompt_content)
         result = await enricher.enrich(generator.op_summaries())
 
         if result.error:
@@ -439,9 +438,8 @@ class GeneratorService:
 
             # Reproducibility: pin the exact prompt content hash (M3-5). ``ensure``
             # is idempotent — the first PRD run per (name, version) inserts the row.
-            prompt_content = read_prompt("generate-from-prd", "v1")
-            prompt_row = await PromptVersionRepo(self._session).ensure(
-                "generate-from-prd", "v1", prompt_content, prompt_hash(prompt_content)
+            prompt_content, prompt_row = await resolve_and_pin(
+                self._session, workspace_id=workspace_id, prompt_name="generate-from-prd"
             )
 
             agent_repo = AgentSessionRepo(self._session)
@@ -491,7 +489,10 @@ class GeneratorService:
 
             provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
             generator = PrdGenerator(
-                provider, model=model, default_target_kind=request.default_target_kind
+                provider,
+                model=model,
+                default_target_kind=request.default_target_kind,
+                prompt_override=prompt_content,
             )
             result = await generator.run(
                 request.prd_text, seed=request.seed, max_cases=request.max_cases
@@ -595,9 +596,8 @@ class GeneratorService:
             span.set_attribute("workspace.id", workspace_id)
             start = time.perf_counter()
 
-            prompt_content = read_prompt("generate-url-semantic", "v1")
-            prompt_row = await PromptVersionRepo(self._session).ensure(
-                "generate-url-semantic", "v1", prompt_content, prompt_hash(prompt_content)
+            prompt_content, prompt_row = await resolve_and_pin(
+                self._session, workspace_id=workspace_id, prompt_name="generate-url-semantic"
             )
             agent_repo = AgentSessionRepo(self._session)
             agent_session = await agent_repo.create(
@@ -646,7 +646,7 @@ class GeneratorService:
             )
 
             provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
-            generator = UrlSemanticGenerator(provider, model=model)
+            generator = UrlSemanticGenerator(provider, model=model, prompt_override=prompt_content)
             result = await generator.run(
                 request.url, request.intent, seed=request.seed, max_cases=request.max_cases
             )
@@ -751,9 +751,8 @@ class GeneratorService:
             span.set_attribute("mcp.provider", mcp_provider_name)
             start = time.perf_counter()
 
-            prompt_content = read_prompt("discover-mcp-cases", "v1")
-            prompt_row = await PromptVersionRepo(self._session).ensure(
-                "discover-mcp-cases", "v1", prompt_content, prompt_hash(prompt_content)
+            prompt_content, prompt_row = await resolve_and_pin(
+                self._session, workspace_id=workspace_id, prompt_name="discover-mcp-cases"
             )
             agent_repo = AgentSessionRepo(self._session)
             agent_session = await agent_repo.create(
@@ -802,7 +801,7 @@ class GeneratorService:
             )
 
             provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
-            generator = McpDiscoveryGenerator(provider, model=model)
+            generator = McpDiscoveryGenerator(provider, model=model, prompt_override=prompt_content)
             result = await generator.run(
                 mcp_tools,
                 target_kind=mcp_target_kind,

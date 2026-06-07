@@ -34,12 +34,16 @@ class GenerationState(TypedDict, total=False):
 
 
 def build_generation_graph(
-    provider: LLMProvider, *, prompt_version: str = "v1"
+    provider: LLMProvider, *, prompt_version: str = "v1", prompt_override: str | None = None
 ) -> CompiledStateGraph[GenerationState]:
-    """Compile the GENERATION graph bound to ``provider``."""
+    """Compile the GENERATION graph bound to ``provider``.
+
+    ``prompt_override`` (M5-3) injects a resolved per-workspace prompt fork; when
+    ``None`` the file default ``generate-from-prd`` is loaded as before.
+    """
     from langgraph.graph import END, START, StateGraph
 
-    system_prompt = load("generate-from-prd", prompt_version)
+    system_prompt = prompt_override or load("generate-from-prd", prompt_version)
 
     async def classify_input(state: GenerationState) -> GenerationState:
         text = state.get("input_text", "").strip()

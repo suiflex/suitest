@@ -68,6 +68,44 @@ class RunStepPublic(BaseModel):
     error_message: str | None = None
 
 
+class StateChangePublic(BaseModel):
+    """One key-level state change at a replay step (M5-1)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    path: str
+    op: str = Field(description="added | removed | changed")
+    before: str | None = None
+    after: str | None = None
+
+
+class RunReplayStep(BaseModel):
+    """One step in the time-travel replay, with its state delta vs. the prior step."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    step_order: int = Field(serialization_alias="stepOrder")
+    case_public_id: str = Field(serialization_alias="casePublicId")
+    outcome: StepOutcome
+    duration_ms: int | None = Field(default=None, serialization_alias="durationMs")
+    started_at: datetime | None = Field(default=None, serialization_alias="startedAt")
+    error_message: str | None = Field(default=None, serialization_alias="errorMessage")
+    state_snapshot: dict[str, object] | None = Field(
+        default=None, serialization_alias="stateSnapshot"
+    )
+    delta: list[StateChangePublic] = Field(default_factory=list)
+
+
+class RunReplayResponse(BaseModel):
+    """``GET /runs/:id/replay`` — ordered steps + per-step state delta (M5-1)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    run_id: str = Field(serialization_alias="runId")
+    steps: list[RunReplayStep] = Field(default_factory=list)
+
+
 class RunLogItem(BaseModel):
     """One persisted ``run_step_logs`` row in the page (M1c).
 
