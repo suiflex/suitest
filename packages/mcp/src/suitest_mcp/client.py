@@ -142,9 +142,7 @@ class McpSession:
                             )
                         )
                     else:
-                        output.setdefault("blocks", []).append(
-                            {"type": ctype, "data": data_b64}
-                        )
+                        output.setdefault("blocks", []).append({"type": ctype, "data": data_b64})
                 else:
                     output.setdefault("blocks", []).append(
                         {"type": ctype, "data": getattr(content, "data", None)}
