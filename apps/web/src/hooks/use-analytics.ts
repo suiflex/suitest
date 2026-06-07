@@ -44,10 +44,10 @@ export function useAnalyticsFlaky(limit = 5): UseSuspenseQueryResult<Flaky> {
     // Backend returns a bare `FlakyCaseOut[]`; wrap it so consumers can read
     // `.items` (and stay stable if the endpoint later paginates).
     queryFn: async () => {
-      const res = await api.get<components["schemas"]["FlakyCaseOut"][]>("/analytics/flaky", {
-        params: { projectId, limit },
-      });
-      return { items: res.data };
+      const res = await api.get<
+        components["schemas"]["FlakyCaseOut"][] | { items: components["schemas"]["FlakyCaseOut"][] }
+      >("/analytics/flaky", { params: { projectId, limit } });
+      return { items: Array.isArray(res.data) ? res.data : res.data.items };
     },
   });
 }
@@ -59,10 +59,10 @@ export function useAnalyticsHeatmap(days = 14): UseSuspenseQueryResult<Heatmap> 
     // Backend returns a bare `HeatmapCell[]`; wrap it as `{ cells }` for the
     // `<Heatmap cells={...} />` consumer.
     queryFn: async () => {
-      const res = await api.get<components["schemas"]["HeatmapCell"][]>("/analytics/heatmap", {
-        params: { projectId, days },
-      });
-      return { cells: res.data };
+      const res = await api.get<
+        components["schemas"]["HeatmapCell"][] | { cells: components["schemas"]["HeatmapCell"][] }
+      >("/analytics/heatmap", { params: { projectId, days } });
+      return { cells: Array.isArray(res.data) ? res.data : res.data.cells };
     },
   });
 }

@@ -17,7 +17,10 @@ import asyncio
 import pytest
 from arq.connections import RedisSettings
 from arq.worker import Worker
+from suitest_runner.jobs.dispatch_webhook import dispatch_webhook
+from suitest_runner.jobs.export_workspace import export_workspace
 from suitest_runner.jobs.file_external_issue import file_external_issue
+from suitest_runner.jobs.rotate_audit_logs import restore_audit_logs, rotate_audit_logs
 from suitest_runner.jobs.run_test_case import run_test_case
 from suitest_runner.jobs.send_slack_notification import send_slack_notification
 from suitest_runner.jobs.workspace_cleanup import workspace_cleanup
@@ -34,12 +37,16 @@ def test_worker_settings_class_attributes() -> None:
 
 
 def test_worker_functions_registry() -> None:
-    """ARQ-registered job list — run job + Slack + external-issue + workspace cleanup."""
+    """ARQ-registered job list stays aligned with WorkerSettings."""
     assert WorkerSettings.functions == [
         run_test_case,
         send_slack_notification,
         file_external_issue,
         workspace_cleanup,
+        dispatch_webhook,
+        rotate_audit_logs,
+        restore_audit_logs,
+        export_workspace,
     ]
 
 
