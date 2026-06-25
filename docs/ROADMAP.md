@@ -167,7 +167,7 @@ Self-host install can be operated without OAuth: bootstrap super-admin logs in w
 
 #### Export
 
-- [ ] **M2-12** Test code export (`GET /test-cases/:id/export?target=playwright|cypress|selenium`) â generate runnable script dari `step.code`
+- [x] **M2-12** Test code export (`GET /test-cases/:id/export?target=playwright|cypress|selenium`) â generate runnable script dari `step.code` (shipped â [`services/code_export_service.py`](../apps/api/src/suitest_api/services/code_export_service.py) playwright/cypress/selenium scaffolds; `code_exports` row per request; endpoint in [`routers/test_cases.py`](../apps/api/src/suitest_api/routers/test_cases.py))
 
 ### Definition of done
 

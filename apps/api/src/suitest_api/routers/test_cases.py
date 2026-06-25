@@ -18,13 +18,14 @@ canonical ``{"error": {"code", "message", "details"}}`` envelope.
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Sequence
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from typing import Annotated, Any
 
 from arq.connections import ArqRedis
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.models.case import TestStep
 from suitest_db.repositories.projects import ProjectRepo
@@ -899,3 +900,70 @@ async def restore_test_case(
             event=outcome.ws_event,
             data=outcome.ws_payload,
         )
+
+
+# ---------------------------------------------------------------------------
+# M2-12 — Code export
+# ---------------------------------------------------------------------------
+
+_EXPORT_TARGETS: frozenset[str] = frozenset({"playwright", "cypress", "selenium"})
+
+
+@router.get(
+    "/test-cases/{case_id}/export",
+    response_class=Response,
+    summary="Export test case as runnable code (docs/API.md §3.18)",
+)
+async def export_test_case_code(
+    case_id: str,
+    target: str = Query(default="playwright"),
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+) -> Response:
+    """Return test case steps as a runnable script (M2-12).
+
+    Walks ``step.code`` and wraps each step in the target framework scaffold.
+    Steps with no ``code`` render as TODO comments — always succeeds at ZERO
+    tier without LLM. Writes a ``code_exports`` row for audit traceability.
+
+    Supported ``target`` values: ``playwright`` (default), ``cypress``,
+    ``selenium``. An unknown value returns 400 ``INVALID_EXPORT_TARGET``.
+    """
+    if target not in _EXPORT_TARGETS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_error_envelope(
+                "INVALID_EXPORT_TARGET",
+                f"Unsupported target {target!r}. Choose: playwright, cypress, selenium.",
+                {"target": target, "supported": sorted(_EXPORT_TARGETS)},
+            ),
+        )
+
+    internal_id = await _resolve_case_internal_id(session, ctx.workspace_id, case_id)
+    if internal_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+
+    repo = TestCaseRepo(session)
+    case = await repo.get_by_id(internal_id)
+    if case is None or not await _suite_in_scope(session, case.suite_id, ctx.workspace_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
+
+    steps: list[Any] = list(await repo.get_steps(internal_id))
+
+    from suitest_api.services.code_export_service import export_filename, generate_export
+
+    export_row = generate_export(
+        case,
+        steps,
+        target,
+        user_id=uuid.UUID(ctx.user_id),
+    )
+    session.add(export_row)
+    await session.commit()
+
+    filename = export_filename(case, target)
+    return Response(
+        content=export_row.exported_code_text,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
