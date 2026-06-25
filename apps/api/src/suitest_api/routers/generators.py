@@ -16,6 +16,7 @@ from collections.abc import AsyncIterator
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_agent.generators.classifier import classify
 from suitest_agent.generators.recorder import (
@@ -544,3 +545,92 @@ async def cancel_recorder_session(
     except RecorderSessionExpired as exc:
         raise HTTPException(status_code=status.HTTP_410_GONE, detail=str(exc)) from exc
     await session.commit()
+
+
+# ---------------------------------------------------------------------------
+# M6-1 — Diff-aware test selection
+# ---------------------------------------------------------------------------
+# LLM-driven diff → case selection (M6-3). CLOUD/LOCAL: the real gate is an
+# active LLMConfig (falls back to full-run at ZERO tier automatically via the
+# service). Non-streaming JSON response. QA+ gate (reads suite + cases).
+
+
+class DiffSelectRequest(BaseModel):
+    """POST /generators/diff-select request body."""
+
+    suite_id: str
+    diff_text: str  # raw unified diff, max 50 KB
+
+
+class DiffSelectResponse(BaseModel):
+    """POST /generators/diff-select response body."""
+
+    selected_case_ids: list[str]
+    rationale: str | None
+    tier_used: str  # "llm" | "fallback_full"
+    parsed_files_count: int
+
+
+@router.post(
+    "/generators/diff-select",
+    response_model=DiffSelectResponse,
+)
+@require_tier(TierFlag.ANY)
+async def diff_select(
+    payload: DiffSelectRequest,
+    ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> DiffSelectResponse:
+    """Select relevant test cases for a PR diff via LLM impact analysis (M6).
+
+    At CLOUD/LOCAL tier the endpoint queries the active LLM to identify which
+    cases are most likely to catch regressions introduced by ``diff_text``.
+    At ZERO tier (or when no LLM is configured) it returns **all** cases in
+    the suite so CI always has a safe fallback.
+
+    ``diff_text`` must not exceed 50 000 characters; a 400 is returned if it
+    does.  The suite must belong to the caller's workspace; a 404 is returned
+    when the suite has no cases.
+    """
+    from suitest_agent.generators.diff_selector import parse_diff
+
+    from suitest_api.services.diff_selection_service import (
+        DiffSelectionService,
+        DiffTooLargeError,
+        SuiteNotFoundError,
+    )
+
+    _MAX_DIFF_CHARS = 50_000
+    if len(payload.diff_text) > _MAX_DIFF_CHARS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"diff_text exceeds {_MAX_DIFF_CHARS} characters",
+        )
+
+    # Parse the diff upfront to return parsed_files_count even on fallback.
+    changed_files = parse_diff(payload.diff_text)
+
+    svc = DiffSelectionService(session)
+    try:
+        result = await svc.select(
+            suite_id=payload.suite_id,
+            diff_text=payload.diff_text,
+            workspace_id=ctx.workspace_id,
+        )
+    except SuiteNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="suite not found",
+        ) from exc
+    except DiffTooLargeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return DiffSelectResponse(
+        selected_case_ids=result.selected_case_ids,
+        rationale=result.rationale if result.tier_used == "llm" else None,
+        tier_used=result.tier_used,
+        parsed_files_count=len(changed_files),
+    )
