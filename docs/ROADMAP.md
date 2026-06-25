@@ -281,29 +281,29 @@ Tag `v1.0.0`. Announce di HN / Reddit / dev.to. Discord + community forum set up
 
 ## M6 â Diff-aware test selection (3 minggu)
 
-- [ ] **M6-1** Git diff parser â impact analysis via LLM â run only relevant cases for PR
-- [ ] **M6-2** 10x faster CI untuk large suites benchmarked
-- [ ] **M6-3** Requires CLOUD tier (LLM-driven); fallback ke full-run di ZERO
+- [x] **M6-1** Git diff parser â impact analysis via LLM â run only relevant cases for PR
+- [x] **M6-2** 10x faster CI untuk large suites benchmarked
+- [x] **M6-3** Requires CLOUD tier (LLM-driven); fallback ke full-run di ZERO
 
 ## M7 â Cost dashboard + budget guard full (2 minggu)
 
-- [ ] **M7-1** Per-user spending limits enforced
-- [ ] **M7-2** Auto-downgrade model rules (e.g., > $10/run â switch to cheaper model)
-- [ ] **M7-3** Hard stop on budget exceeded (block new LLM calls)
-- [ ] **M7-4** Spend alerts via Slack / email
+- [x] **M7-1** Per-user spending limits enforced
+- [x] **M7-2** Auto-downgrade model rules (e.g., > $10/run â switch to cheaper model)
+- [x] **M7-3** Hard stop on budget exceeded (block new LLM calls)
+- [x] **M7-4** Spend alerts via Slack / email
 
 ## M8 â Custom agent definition (4 minggu)
 
-- [ ] **M8-1** YAML / Python plugin: define agent role, prompt, tool whitelist, model preference
-- [ ] **M8-2** Example: `SecurityAgent` untuk pentesting flow; `A11yAgent` untuk accessibility check
-- [ ] **M8-3** Plugin SDK `suitest.plugins` (Python entrypoint discovery)
+- [x] **M8-1** YAML / Python plugin: define agent role, prompt, tool whitelist, model preference
+- [x] **M8-2** Example: `SecurityAgent` untuk pentesting flow; `A11yAgent` untuk accessibility check
+- [x] **M8-3** Plugin SDK `suitest.plugins` (Python entrypoint discovery)
 
 ## M9 â Plugin SDK (3 minggu)
 
-- [ ] **M9-1** Custom MCP via Python entrypoint
-- [ ] **M9-2** Custom reporter plugin (e.g., XRay, qTest)
-- [ ] **M9-3** Custom integration adapter (e.g., Asana, ClickUp)
-- [ ] **M9-4** Marketplace concept page (list community plugins)
+- [x] **M9-1** Custom MCP via Python entrypoint
+- [x] **M9-2** Custom reporter plugin (e.g., XRay, qTest)
+- [x] **M9-3** Custom integration adapter (e.g., Asana, ClickUp)
+- [x] **M9-4** Marketplace concept page (list community plugins)
 
 ---
 
