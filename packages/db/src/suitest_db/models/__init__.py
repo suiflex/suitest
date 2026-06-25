@@ -20,6 +20,7 @@ import suitest_db.models.invitation as _invitation  # noqa: F401
 import suitest_db.models.llm_config as _llm_config  # noqa: F401
 import suitest_db.models.mcp_provider as _mcp_provider  # noqa: F401
 import suitest_db.models.password_reset_request as _password_reset_request  # noqa: F401
+import suitest_db.models.plugin_manifest as _plugin_manifest  # noqa: F401
 import suitest_db.models.project as _project  # noqa: F401
 import suitest_db.models.prompt_experiment as _prompt_experiment  # noqa: F401
 import suitest_db.models.prompt_version as _prompt_version  # noqa: F401
