@@ -42,6 +42,29 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _DB_PKG_ROOT = _REPO_ROOT / "packages" / "db"
 
 
+@pytest.fixture(autouse=True)
+def _disable_app_bootstrap(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Keep API app tests on fixture-owned DB sessions and ZERO defaults.
+
+    The developer `.env` enables first-install super-admin bootstrap for real
+    app boots. Endpoint tests create many lifespan-wired apps under
+    pytest-asyncio's function-scoped loops; letting those apps use the global
+    production sessionmaker leaks asyncpg connections across loops.
+    """
+    monkeypatch.setenv("SUITEST_SUPERADMIN_EMAIL", "")
+    monkeypatch.setenv("SUITEST_SUPERADMIN_PASSWORD", "")
+    for var in (
+        "SUITEST_LLM_PROVIDER",
+        "SUITEST_LLM_BASE_URL",
+        "SUITEST_LLM_API_KEY",
+        "SUITEST_LLM_MODEL",
+        "SUITEST_EMBEDDINGS_BACKEND",
+        "SUITEST_EMBEDDINGS_MODEL",
+    ):
+        monkeypatch.delenv(var, raising=False)
+    yield
+
+
 @pytest_asyncio.fixture
 async def client() -> AsyncIterator[AsyncClient]:
     """Return an httpx AsyncClient wired to the ASGI app via lifespan (no DB)."""

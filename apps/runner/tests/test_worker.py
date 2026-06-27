@@ -28,6 +28,14 @@ from suitest_runner.settings import RunnerSettings
 from suitest_runner.worker import WorkerSettings, shutdown, startup
 
 
+class _FakeArqPool:
+    async def enqueue_job(self, name: str, *args: object, **kwargs: object) -> object:
+        return None
+
+    async def aclose(self) -> None:
+        return None
+
+
 def test_worker_settings_class_attributes() -> None:
     """Sanity-check the class-level attributes ARQ reads."""
     assert WorkerSettings.queue_name == "suitest:runs"
@@ -80,6 +88,11 @@ async def test_startup_populates_ctx(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     monkeypatch.setenv("SUITEST_RUNNER_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
     monkeypatch.setenv("SUITEST_RUNNER_REDIS_URL", "redis://localhost:6379/15")
+
+    async def _fake_create_pool(*_args: object, **_kwargs: object) -> _FakeArqPool:
+        return _FakeArqPool()
+
+    monkeypatch.setattr("suitest_runner.worker.create_pool", _fake_create_pool)
     ctx: dict[str, object] = {}
     await startup(ctx)
     try:

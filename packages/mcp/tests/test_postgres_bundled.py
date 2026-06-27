@@ -15,6 +15,7 @@ TABLE`` and the assertion would fail loudly.
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from collections.abc import AsyncIterator, Iterator
 
@@ -29,7 +30,6 @@ from suitest_mcp.bundled.postgres import (
 from suitest_mcp.client import McpSession, open_session
 from suitest_mcp.errors import McpToolFailed
 from suitest_mcp.models import McpProviderConfig, McpTransport
-from testcontainers.postgres import PostgresContainer
 
 pytestmark = pytest.mark.asyncio
 
@@ -41,11 +41,41 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture(scope="session")
 def postgres_dsn() -> Iterator[str]:
-    """Boot a Postgres 16 testcontainer and yield a libpq DSN for psycopg.
+    """Yield an isolated libpq DSN for psycopg.
 
-    Uses the ``pgvector/pgvector:pg16`` image to match the rest of the repo so
-    Docker layer caches stay warm.
+    Docker-less dev/test runs use ``SUITEST_TEST_DATABASE_URL`` and create a
+    temporary database on that server. When the variable is absent, fall back to
+    the original Postgres 16 testcontainer path.
     """
+    external = os.environ.get("SUITEST_TEST_DATABASE_URL")
+    if external:
+        from sqlalchemy import create_engine, text
+        from sqlalchemy.engine import make_url
+
+        base_url = make_url(external)
+        db_name = f"suitest_mcp_pg_{uuid.uuid4().hex}"
+        admin_url = base_url.set(drivername="postgresql+psycopg", database="postgres")
+        dsn_url = base_url.set(drivername="postgresql", database=db_name)
+        admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT", future=True)
+        try:
+            with admin_engine.connect() as conn:
+                conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+            yield dsn_url.render_as_string(hide_password=False)
+        finally:
+            with admin_engine.connect() as conn:
+                conn.execute(
+                    text(
+                        "SELECT pg_terminate_backend(pid) "
+                        "FROM pg_stat_activity WHERE datname = :db_name"
+                    ),
+                    {"db_name": db_name},
+                )
+                conn.execute(text(f'DROP DATABASE IF EXISTS "{db_name}"'))
+            admin_engine.dispose()
+        return
+
+    from testcontainers.postgres import PostgresContainer
+
     with PostgresContainer("pgvector/pgvector:pg16") as container:
         host = container.get_container_host_ip()
         port = container.get_exposed_port(5432)

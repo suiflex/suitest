@@ -44,20 +44,60 @@ _DB_PKG_ROOT = _REPO_ROOT / "packages" / "db"
 # Last revision *before* the M1d chain — round-trip downgrade target.
 _PRE_M1D_REV = "0015_run_step_logs"
 # Head once the M1d chain is applied — used to assert linear chain integrity.
-# Bumped to 0026 by M1d-28 (workspaces.deleted_at + partial index) on top of
-# the 0025_m1d_10_req_soft_delete chain tip.
-_M1D_HEAD_REV = "0032_m5_prompt_experiments"
+# Alembic head after the v1.x plugin registry migrations.
+_M1D_HEAD_REV = "0036_m9_plugin_registry"
 
 
 @pytest.fixture(scope="module")
 def _m1d_database_url() -> Iterator[str]:
-    """Boot a dedicated pgvector container for the M1d round-trip tests."""
+    """Provide a dedicated pgvector database for the M1d round-trip tests."""
     from sqlalchemy import text
+    from sqlalchemy.engine import URL as SqlAlchemyUrl
+    from sqlalchemy.engine import make_url
     from sqlalchemy.ext.asyncio import create_async_engine
-    from testcontainers.postgres import PostgresContainer
 
     if not os.environ.get("SUITEST_ENCRYPTION_KEY"):
         os.environ["SUITEST_ENCRYPTION_KEY"] = base64.urlsafe_b64encode(b"\x00" * 32).decode()
+
+    external = os.environ.get("SUITEST_TEST_DATABASE_URL")
+    if external:
+        base_url = make_url(external)
+        db_name = f"suitest_m1d_{uuid.uuid4().hex}"
+        admin_url = base_url.set(drivername="postgresql+psycopg", database="postgres")
+        async_url: SqlAlchemyUrl = base_url.set(
+            drivername="postgresql+asyncpg",
+            database=db_name,
+        )
+
+        from sqlalchemy import create_engine
+
+        admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT", future=True)
+        try:
+            with admin_engine.connect() as conn:
+                conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+
+            async def _bootstrap_external() -> None:
+                engine = create_async_engine(async_url, future=True)
+                async with engine.begin() as conn:
+                    await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                await engine.dispose()
+
+            asyncio.run(_bootstrap_external())
+            yield async_url.render_as_string(hide_password=False)
+        finally:
+            with admin_engine.connect() as conn:
+                conn.execute(
+                    text(
+                        "SELECT pg_terminate_backend(pid) "
+                        "FROM pg_stat_activity WHERE datname = :db_name"
+                    ),
+                    {"db_name": db_name},
+                )
+                conn.execute(text(f'DROP DATABASE IF EXISTS "{db_name}"'))
+            admin_engine.dispose()
+        return
+
+    from testcontainers.postgres import PostgresContainer
 
     with PostgresContainer("pgvector/pgvector:pg16", driver="asyncpg") as container:
         host = container.get_container_host_ip()

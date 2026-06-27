@@ -268,28 +268,79 @@ async def test_capabilities_health(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(scope="module")
 def _overlay_database_url() -> Iterator[str]:
-    """Boot a pgvector Postgres container and apply the Alembic chain once."""
+    """Provide a pgvector database and apply the Alembic chain once."""
     from alembic import command
     from alembic.config import Config
-    from sqlalchemy import text
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.engine import URL as SqlAlchemyUrl
+    from sqlalchemy.engine import make_url
     from sqlalchemy.ext.asyncio import create_async_engine
-    from testcontainers.postgres import PostgresContainer
 
     if not os.environ.get("SUITEST_ENCRYPTION_KEY"):
         import base64
 
         os.environ["SUITEST_ENCRYPTION_KEY"] = base64.urlsafe_b64encode(b"\x00" * 32).decode()
 
+    external = os.environ.get("SUITEST_TEST_DATABASE_URL")
+    if external:
+        base_url = make_url(external)
+        db_name = f"suitest_overlay_{os.urandom(8).hex()}"
+        admin_url = base_url.set(drivername="postgresql+psycopg", database="postgres")
+        external_url: SqlAlchemyUrl = base_url.set(
+            drivername="postgresql+asyncpg",
+            database=db_name,
+        )
+        admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT", future=True)
+        try:
+            with admin_engine.connect() as conn:
+                conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+
+            async def _bootstrap_external() -> None:
+                engine = create_async_engine(external_url, future=True)
+                async with engine.begin() as conn:
+                    await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                await engine.dispose()
+
+            asyncio.run(_bootstrap_external())
+            rendered = external_url.render_as_string(hide_password=False)
+            prev = os.environ.get("SUITEST_DATABASE_URL")
+            os.environ["SUITEST_DATABASE_URL"] = rendered
+            try:
+                cfg = Config(str(_DB_PKG_ROOT / "alembic.ini"))
+                cfg.set_main_option("script_location", str(_DB_PKG_ROOT / "alembic"))
+                cfg.set_main_option("sqlalchemy.url", rendered)
+                command.upgrade(cfg, "head")
+            finally:
+                if prev is None:
+                    os.environ.pop("SUITEST_DATABASE_URL", None)
+                else:
+                    os.environ["SUITEST_DATABASE_URL"] = prev
+            yield rendered
+        finally:
+            with admin_engine.connect() as conn:
+                conn.execute(
+                    text(
+                        "SELECT pg_terminate_backend(pid) "
+                        "FROM pg_stat_activity WHERE datname = :db_name"
+                    ),
+                    {"db_name": db_name},
+                )
+                conn.execute(text(f'DROP DATABASE IF EXISTS "{db_name}"'))
+            admin_engine.dispose()
+        return
+
+    from testcontainers.postgres import PostgresContainer
+
     with PostgresContainer("pgvector/pgvector:pg16", driver="asyncpg") as container:
         host = container.get_container_host_ip()
         port = container.get_exposed_port(5432)
-        url = (
+        container_url = (
             f"postgresql+asyncpg://{container.username}:{container.password}"
             f"@{host}:{port}/{container.dbname}"
         )
 
         async def _bootstrap() -> None:
-            engine = create_async_engine(url, future=True)
+            engine = create_async_engine(container_url, future=True)
             async with engine.begin() as conn:
                 await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
             await engine.dispose()
@@ -297,18 +348,18 @@ def _overlay_database_url() -> Iterator[str]:
         asyncio.run(_bootstrap())
 
         prev = os.environ.get("SUITEST_DATABASE_URL")
-        os.environ["SUITEST_DATABASE_URL"] = url
+        os.environ["SUITEST_DATABASE_URL"] = container_url
         try:
             cfg = Config(str(_DB_PKG_ROOT / "alembic.ini"))
             cfg.set_main_option("script_location", str(_DB_PKG_ROOT / "alembic"))
-            cfg.set_main_option("sqlalchemy.url", url)
+            cfg.set_main_option("sqlalchemy.url", container_url)
             command.upgrade(cfg, "head")
         finally:
             if prev is None:
                 os.environ.pop("SUITEST_DATABASE_URL", None)
             else:
                 os.environ["SUITEST_DATABASE_URL"] = prev
-        yield url
+        yield container_url
 
 
 @pytest_asyncio.fixture

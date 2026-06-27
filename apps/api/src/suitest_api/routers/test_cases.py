@@ -945,7 +945,11 @@ async def export_test_case_code(
 
     repo = TestCaseRepo(session)
     case = await repo.get_by_id(internal_id)
-    if case is None or not await _suite_in_scope(session, case.suite_id, ctx.workspace_id):
+    if (
+        case is None
+        or case.deleted_at is not None
+        or not await _suite_in_scope(session, case.suite_id, ctx.workspace_id)
+    ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
 
     steps: list[Any] = list(await repo.get_steps(internal_id))
