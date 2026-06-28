@@ -84,9 +84,10 @@ describe("<_app> route guard", () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/dashboard");
     });
-    expect(
-      await screen.findByRole("heading", { name: /dashboard/i }),
-    ).toBeInTheDocument();
+    // A user with zero workspaces is NOT bounced to /login (the guard skips the
+    // workspace-scoped /projects fetch); the protected shell renders and the
+    // create-workspace flow auto-opens so they can bootstrap from the UI.
+    expect(await screen.findByTestId("create-workspace-dialog")).toBeInTheDocument();
   });
 
   it("redirects on network failure (no response)", async () => {

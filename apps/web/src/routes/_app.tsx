@@ -60,25 +60,31 @@ export const Route = createFileRoute("/_app")({
           ws.setWorkspaceId(first.workspace_id);
         }
       }
-      // Seed / reconcile the active project. Every project-scoped endpoint
-      // (`/analytics/*`, `/suites`, `/runs`, `/traceability/matrix`) returns
-      // 422 without a `projectId`, so the active project MUST be resolved
-      // before the shell renders. The persisted id may be null (first login),
-      // stale (DB reseed), or belong to a different workspace, so we always
-      // reconcile it against the freshly-fetched project list.
-      const projects = await context.queryClient.ensureQueryData<ProjectsPage>({
-        queryKey: ["projects"],
-        queryFn: async () => (await api.get<ProjectsPage>("/projects")).data,
-      });
-      const proj = useActiveProject.getState();
-      const validProjectIds = new Set(projects.items.map((p) => p.id));
-      if (
-        (proj.projectId === null || !validProjectIds.has(proj.projectId)) &&
-        projects.items.length > 0
-      ) {
-        const firstProject = projects.items[0];
-        if (firstProject) {
-          proj.setProjectId(firstProject.id);
+      // Seed / reconcile the active project — but ONLY when we have an active
+      // workspace. A freshly-registered or invited user with zero workspaces
+      // reaches the shell with no workspace and bootstraps one from the sidebar
+      // picker; `/projects` (like every workspace-scoped endpoint) 400s without
+      // an `X-Workspace-Id`, so fetching it here would bounce them to /login.
+      const activeWorkspaceId = useActiveWorkspace.getState().workspaceId;
+      if (activeWorkspaceId) {
+        // Every project-scoped endpoint (`/analytics/*`, `/suites`, `/runs`,
+        // `/traceability/matrix`) returns 422 without a `projectId`, so resolve
+        // the active project before the shell renders. The persisted id may be
+        // null (first login), stale (DB reseed), or belong to another workspace.
+        const projects = await context.queryClient.ensureQueryData<ProjectsPage>({
+          queryKey: ["projects"],
+          queryFn: async () => (await api.get<ProjectsPage>("/projects")).data,
+        });
+        const proj = useActiveProject.getState();
+        const validProjectIds = new Set(projects.items.map((p) => p.id));
+        if (
+          (proj.projectId === null || !validProjectIds.has(proj.projectId)) &&
+          projects.items.length > 0
+        ) {
+          const firstProject = projects.items[0];
+          if (firstProject) {
+            proj.setProjectId(firstProject.id);
+          }
         }
       }
       // Capabilities boot — block render until we know the tier so the
@@ -120,7 +126,12 @@ function AppLayout(): React.ReactElement {
   const activeWorkspaceId = useActiveWorkspace((s) => s.workspaceId);
   const setWorkspaceId = useActiveWorkspace((s) => s.setWorkspaceId);
   const setProjectId = useActiveProject((s) => s.setProjectId);
-  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
+  // Auto-open the create-workspace flow for a user with zero workspaces (fresh
+  // register / invite) so onboarding starts immediately instead of landing on a
+  // workspace-less shell.
+  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(
+    user.memberships.length === 0,
+  );
   const memberships = user.memberships;
   const activeMembership =
     memberships.find((m) => m.workspace_id === activeWorkspaceId) ?? memberships[0];
