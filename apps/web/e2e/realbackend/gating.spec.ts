@@ -21,7 +21,7 @@ test.describe("ZERO mark suite gating (real backend)", () => {
     await page
       .getByTestId("workspace-picker-list")
       .getByTestId("workspace-picker-item")
-      .filter({ hasText: "E2E Run" })
+      .filter({ hasText: "E2E Gate" })
       .click();
     await page.waitForURL("**/dashboard");
 

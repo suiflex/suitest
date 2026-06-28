@@ -42,12 +42,18 @@ E2E_PASSWORD = "dogfood-zero-pw-1"
 E2E_WORKSPACE_SLUG = "e2e-zero"
 E2E_WORKSPACE_NAME = "E2E Zero"
 
-# A SECOND workspace pre-seeded with a runnable saucedemo case (one
-# ``browser_navigate`` step on ``playwright-mcp``) so the run e2e can drive
-# "Run now" → PASS through the UI without authoring steps. Kept separate from
-# the EMPTY e2e-zero workspace so the bootstrap spec still starts from nothing.
+# THREE runnable workspaces, one per run-based spec, so the real-backend specs
+# share NO state (each owns its workspace + case): e2e-run drives the passing
+# "Run now → PASS" (run.spec), e2e-fail the failing run → auto-defect
+# (defect.spec), e2e-gate the mark-suite-gating flow (gating.spec). Kept separate
+# from the EMPTY e2e-zero workspace so the bootstrap spec still starts from
+# nothing.
 RUN_WORKSPACE_SLUG = "e2e-run"
 RUN_WORKSPACE_NAME = "E2E Run"
+FAIL_WORKSPACE_SLUG = "e2e-fail"
+FAIL_WORKSPACE_NAME = "E2E Fail"
+GATE_WORKSPACE_SLUG = "e2e-gate"
+GATE_WORKSPACE_NAME = "E2E Gate"
 NAV_CODE = json.dumps(
     {"tool": "browser_navigate", "arguments": {"url": "https://www.saucedemo.com"}}
 )
@@ -59,11 +65,13 @@ NAV_FAIL_CODE = json.dumps(
 )
 
 
-async def _seed_run_workspace(session: AsyncSession, *, user: User) -> None:
-    """Ensure ``e2e-run`` holds exactly one runnable saucedemo case (idempotent)."""
-    ws = await session.scalar(select(Workspace).where(Workspace.slug == RUN_WORKSPACE_SLUG))
+async def _ensure_workspace(
+    session: AsyncSession, *, user: User, slug: str, name: str
+) -> Workspace:
+    """Upsert a ZERO workspace owned by ``user`` and reset it to empty (FK-safe)."""
+    ws = await session.scalar(select(Workspace).where(Workspace.slug == slug))
     if ws is None:
-        ws = Workspace(slug=RUN_WORKSPACE_SLUG, name=RUN_WORKSPACE_NAME)
+        ws = Workspace(slug=slug, name=name)
         session.add(ws)
         await session.flush()
         session.add(Membership(workspace_id=ws.id, user_id=user.id, role=Role.OWNER))
@@ -77,26 +85,28 @@ async def _seed_run_workspace(session: AsyncSession, *, user: User) -> None:
         )
     else:
         # Order matters or the project-delete cascade hits FK violations:
-        #  - defects.run_id → runs is NOT cascade, so drop the workspace's
-        #    auto-filed defects first;
-        #  - projects.gating_suite_id → suites would block the suite delete, so
-        #    null it before dropping projects.
+        #  - defects.run_id → runs is NOT cascade, so drop defects first;
+        #  - projects.gating_suite_id → suites blocks the suite delete, null it.
         await session.execute(delete(Defect).where(Defect.workspace_id == ws.id))
         await session.execute(
             update(Project).where(Project.workspace_id == ws.id).values(gating_suite_id=None)
         )
         await session.execute(delete(Project).where(Project.workspace_id == ws.id))
     await session.flush()
+    return ws
 
+
+async def _seed_case(
+    session: AsyncSession, ws: Workspace, *, case_name: str, action: str, code: str
+) -> None:
+    """Create one project → suite → case → step under ``ws``."""
     project = Project(workspace_id=ws.id, slug="saucedemo", name="SauceDemo")
     session.add(project)
     await session.flush()
     suite = Suite(project_id=project.id, name="Smoke")
     session.add(suite)
     await session.flush()
-    case = TestCase(
-        workspace_id=ws.id, suite_id=suite.id, name="Open saucedemo", source=CaseSource.MANUAL
-    )
+    case = TestCase(workspace_id=ws.id, suite_id=suite.id, name=case_name, source=CaseSource.MANUAL)
     set_workspace_id(case, ws.id)  # public_id before_insert listener needs this
     session.add(case)
     await session.flush()
@@ -104,32 +114,40 @@ async def _seed_run_workspace(session: AsyncSession, *, user: User) -> None:
         TestStep(
             case_id=case.id,
             order=1,
-            action="Open saucedemo",
-            expected="page loads",
-            code=NAV_CODE,
+            action=action,
+            expected="",
+            code=code,
             mcp_provider="playwright-mcp",
             target_kind=TargetKind.FE_WEB,
         )
     )
 
-    # A deterministically-failing case so the run auto-files a defect (journey
-    # step 10: make it fail → triage → defect).
-    fail_case = TestCase(
-        workspace_id=ws.id, suite_id=suite.id, name="Broken checkout", source=CaseSource.MANUAL
+
+async def _seed_runnable_workspaces(session: AsyncSession, *, user: User) -> None:
+    """Seed the three isolated runnable workspaces (idempotent)."""
+    run_ws = await _ensure_workspace(
+        session, user=user, slug=RUN_WORKSPACE_SLUG, name=RUN_WORKSPACE_NAME
     )
-    set_workspace_id(fail_case, ws.id)
-    session.add(fail_case)
-    await session.flush()
-    session.add(
-        TestStep(
-            case_id=fail_case.id,
-            order=1,
-            action="Open a dead endpoint",
-            expected="should fail",
-            code=NAV_FAIL_CODE,
-            mcp_provider="playwright-mcp",
-            target_kind=TargetKind.FE_WEB,
-        )
+    await _seed_case(
+        session, run_ws, case_name="Open saucedemo", action="Open saucedemo", code=NAV_CODE
+    )
+
+    fail_ws = await _ensure_workspace(
+        session, user=user, slug=FAIL_WORKSPACE_SLUG, name=FAIL_WORKSPACE_NAME
+    )
+    await _seed_case(
+        session,
+        fail_ws,
+        case_name="Broken checkout",
+        action="Open a dead endpoint",
+        code=NAV_FAIL_CODE,
+    )
+
+    gate_ws = await _ensure_workspace(
+        session, user=user, slug=GATE_WORKSPACE_SLUG, name=GATE_WORKSPACE_NAME
+    )
+    await _seed_case(
+        session, gate_ws, case_name="Smoke check", action="Open saucedemo", code=NAV_CODE
     )
 
 
@@ -189,7 +207,7 @@ async def seed() -> str:
                     .values(gating_suite_id=None)
                 )
                 await session.execute(delete(Project).where(Project.workspace_id == workspace.id))
-            await _seed_run_workspace(session, user=user)
+            await _seed_runnable_workspaces(session, user=user)
             await session.commit()
             return workspace.id
     finally:

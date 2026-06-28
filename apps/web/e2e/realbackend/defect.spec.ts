@@ -26,7 +26,7 @@ test.describe("ZERO failing run → auto-filed defect (real backend)", () => {
     await page
       .getByTestId("workspace-picker-list")
       .getByTestId("workspace-picker-item")
-      .filter({ hasText: "E2E Run" })
+      .filter({ hasText: "E2E Fail" })
       .click();
     await page.waitForURL("**/dashboard");
 
@@ -37,9 +37,11 @@ test.describe("ZERO failing run → auto-filed defect (real backend)", () => {
 
     await page.getByTestId("case-run-now").click();
     await page.waitForURL(/\/runs\//);
-    await expect(
-      page.getByTestId("run-summary-card").getByTestId("status-badge"),
-    ).toHaveAttribute("data-status", "fail", { timeout: 260_000 });
+    await expect(page.getByTestId("run-summary-card").getByTestId("status-badge")).toHaveAttribute(
+      "data-status",
+      "fail",
+      { timeout: 260_000 },
+    );
 
     // The failure auto-filed a defect — it shows on the Defects screen, where a
     // ZERO user triages it (manual triage; no LLM).
