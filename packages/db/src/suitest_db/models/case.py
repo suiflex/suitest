@@ -34,7 +34,14 @@ class TestCase(Base, TimestampMixin):
     suite_id: Mapped[str] = mapped_column(
         ForeignKey("suites.id", ondelete="CASCADE"), nullable=False
     )
-    public_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    # Blocker #3: denormalized workspace pointer so ``public_id`` is unique PER
+    # WORKSPACE (composite constraint below) rather than globally. Each workspace
+    # mints its own ``TC-N`` sequence (see :mod:`suitest_db.public_id`), so a
+    # global unique made the first case in any 2nd+ workspace collide on ``TC-1``.
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    public_id: Mapped[str] = mapped_column(String(32), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     preconditions: Mapped[str | None] = mapped_column(Text)
@@ -68,6 +75,7 @@ class TestCase(Base, TimestampMixin):
     tags: Mapped[list[CaseTag]] = relationship(cascade="all, delete-orphan")
 
     __table_args__ = (
+        UniqueConstraint("workspace_id", "public_id", name="uq_test_cases_workspace_public_id"),
         Index("ix_test_cases_suite_status", "suite_id", "status"),
         Index("ix_test_cases_source", "source"),
         Index("ix_test_cases_deleted_at", "deleted_at"),

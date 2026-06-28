@@ -890,6 +890,7 @@ class GeneratorService:
         ``test_cases.id``). Mirrors :meth:`_persist_case` but returns ``case.id``.
         """
         case = TestCase(
+            workspace_id=workspace_id,
             suite_id=suite_id,
             name=draft.name,
             description=draft.description,
@@ -943,6 +944,7 @@ class GeneratorService:
         from ``source=MCP`` + the ``generated_from`` provenance.
         """
         case = TestCase(
+            workspace_id=workspace_id,
             suite_id=suite_id,
             name=draft.name,
             description=draft.description,

@@ -338,6 +338,7 @@ class TestCaseService:
         )
 
         case = TestCase(
+            workspace_id=self._ctx.workspace_id,
             suite_id=body.suite_id,
             name=body.name,
             description=body.description,
@@ -734,6 +735,7 @@ class TestCaseService:
             return None
 
         clone = TestCase(
+            workspace_id=self._ctx.workspace_id,
             suite_id=case.suite_id,
             name=f"{case.name} (Copy)",
             description=case.description,

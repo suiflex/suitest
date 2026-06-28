@@ -59,7 +59,7 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
         (LSP override) — the base lacks the workspace context this generator
         needs.
         """
-        row = TestCase(**dto.model_dump(exclude_unset=True))
+        row = TestCase(**dto.model_dump(exclude_unset=True), workspace_id=workspace_id)
         set_workspace_id(row, workspace_id)
         self.session.add(row)
         await self.session.flush()

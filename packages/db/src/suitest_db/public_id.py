@@ -130,6 +130,32 @@ def _assign_public_id(target: object, conn: Connection, prefix: str) -> None:
 
 
 @event.listens_for(TestCase, "before_insert")
+def _tc_workspace_id(mapper: Mapper[TestCase], connection: Connection, target: TestCase) -> None:
+    """Backfill ``test_cases.workspace_id`` from the suite -> project chain.
+
+    Blocker #3: ``public_id`` is unique PER WORKSPACE, so the row needs its
+    workspace. Production sets it explicitly; this listener derives it from the
+    suite for any caller (incl. test seeders) that didn't — the suite's INSERT
+    has already executed on this connection (FK insert ordering), so the lookup
+    resolves within the same transaction.
+    """
+    if getattr(target, "workspace_id", None):
+        return
+    suite_id = getattr(target, "suite_id", None)
+    if not suite_id:
+        return
+    ws_id = connection.execute(
+        text(
+            "SELECT p.workspace_id FROM suites s "
+            "JOIN projects p ON p.id = s.project_id WHERE s.id = :sid"
+        ),
+        {"sid": suite_id},
+    ).scalar_one_or_none()
+    if ws_id is not None:
+        object.__setattr__(target, "workspace_id", ws_id)
+
+
+@event.listens_for(TestCase, "before_insert")
 def _tc_public_id(mapper: Mapper[TestCase], connection: Connection, target: TestCase) -> None:
     _assign_public_id(target, connection, _TC_PREFIX)
 

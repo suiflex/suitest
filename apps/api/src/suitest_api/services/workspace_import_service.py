@@ -89,7 +89,11 @@ class WorkspaceImportService:
             Project, bundle.get("projects", []), {"workspace_id": workspace.id}
         )
         suite_map = self._restore(Suite, bundle.get("suites", []), {"project_id": proj_map})
-        case_map = self._restore(TestCase, bundle.get("test_cases", []), {"suite_id": suite_map})
+        case_map = self._restore(
+            TestCase,
+            bundle.get("test_cases", []),
+            {"suite_id": suite_map, "workspace_id": workspace.id},
+        )
         self._restore(TestStep, bundle.get("test_steps", []), {"case_id": case_map})
         self._restore(Requirement, bundle.get("requirements", []), {"project_id": proj_map})
 
@@ -142,6 +146,12 @@ class WorkspaceImportService:
                 kwargs[key] = value
             if skip_row:
                 continue
+            # Apply literal fk_remap values (e.g. the new workspace id) even when
+            # the archive row lacks the column — old archives predate
+            # ``test_cases.workspace_id`` (blocker #3), so it must be forced here.
+            for remap_key, remap_target in fk_remap.items():
+                if not isinstance(remap_target, dict) and remap_key not in kwargs:
+                    kwargs[remap_key] = remap_target
             new_row_id = new_id()
             kwargs["id"] = new_row_id
             # Null out intra-table forward refs we can't guarantee yet.
