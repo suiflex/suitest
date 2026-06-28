@@ -20,6 +20,14 @@ export function RunDetailPage(): React.ReactElement {
   const { data: run, refetch: refetchRun } = useQuery({
     queryKey: ["run", runId] as const,
     queryFn: () => fetchRun(runId),
+    // Belt-and-suspenders with the WS stream: poll while the run is non-terminal
+    // so the status badge still resolves if a fast run completes during page
+    // load (before the WS subscription lands) or if the socket drops.
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      const terminal = status === "PASS" || status === "FAIL" || status === "ERROR" || status === "CANCELLED";
+      return terminal ? false : 2000;
+    },
   });
   const { data: stepsData, refetch: refetchSteps } = useQuery({
     queryKey: ["run-steps", runId] as const,

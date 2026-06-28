@@ -53,5 +53,11 @@ test.describe("ZERO Run now → PASS (real backend, real browser)", () => {
     await expect(
       page.getByTestId("run-summary-card").getByTestId("status-badge"),
     ).toHaveAttribute("data-status", "pass", { timeout: 260_000 });
+
+    // Journey step 8: the run shows up on the analytics dashboard.
+    await page.goto("/dashboard");
+    await expect(page.getByTestId("dashboard-screen")).toBeVisible();
+    await expect(page.getByTestId("dashboard-pass-rate")).toBeVisible();
+    await expect(page.getByTestId("recent-run-row").first()).toBeVisible();
   });
 });
