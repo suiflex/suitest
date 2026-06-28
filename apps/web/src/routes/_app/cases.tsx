@@ -737,6 +737,7 @@ function CasesBody(): React.ReactElement {
   const [active, setActive] = useState<Tab>("all");
   const [suiteDialogOpen, setSuiteDialogOpen] = useState(false);
   const [caseDialogOpen, setCaseDialogOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   // GenerateModal state — `null` strategy = open at the target-select step;
   // a concrete strategy deep-links from the split-button dropdown.
@@ -763,19 +764,27 @@ function CasesBody(): React.ReactElement {
   }, [cases]);
 
   const filtered = useMemo(() => {
-    switch (active) {
-      case "manual":
-        return cases.items.filter((c) => c.source === "MANUAL");
-      case "ai":
-        return cases.items.filter((c) => c.source === "AI");
-      case "mcp":
-        return cases.items.filter((c) => c.source === "MCP");
-      case "failing":
-        return [];
-      default:
-        return cases.items;
-    }
-  }, [active, cases]);
+    const byTab = (() => {
+      switch (active) {
+        case "manual":
+          return cases.items.filter((c) => c.source === "MANUAL");
+        case "ai":
+          return cases.items.filter((c) => c.source === "AI");
+        case "mcp":
+          return cases.items.filter((c) => c.source === "MCP");
+        case "failing":
+          return [];
+        default:
+          return cases.items;
+      }
+    })();
+    const q = query.trim().toLowerCase();
+    if (q === "") return byTab;
+    // Client-side, ZERO-friendly search over the loaded cases (name + public id).
+    return byTab.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.public_id.toLowerCase().includes(q),
+    );
+  }, [active, cases, query]);
 
   const selectedId = search.case ?? null;
 
@@ -866,9 +875,16 @@ function CasesBody(): React.ReactElement {
             data-testid="cases-left-pane"
           >
             <div className="flex items-center gap-2">
-              <DisabledTooltip reason="Filter ships in M1d">
-                <Input disabled placeholder="Filter cases…" className="h-8" />
-              </DisabledTooltip>
+              <Input
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                }}
+                placeholder="Search cases…"
+                className="h-8"
+                data-testid="cases-search"
+                aria-label="Search cases"
+              />
               <Button
                 type="button"
                 size="sm"

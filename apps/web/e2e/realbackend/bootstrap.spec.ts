@@ -60,7 +60,14 @@ test.describe("ZERO dogfood bootstrap (real backend)", () => {
     await expect(page.getByTestId("case-detail")).toBeVisible();
     await expect(page.getByTestId("cases-tree-row").first()).toBeVisible();
 
-    // 8. ZERO tier hides every LLM-only control (journey step 11): no AI chat
+    // 8. Search the case you just made (journey step 5) — client-side, ZERO.
+    await page.getByTestId("cases-search").fill("Valid");
+    await expect(page.getByTestId("cases-tree-row").first()).toBeVisible();
+    await page.getByTestId("cases-search").fill("zzz-no-match");
+    await expect(page.getByTestId("cases-tree-row")).toHaveCount(0);
+    await page.getByTestId("cases-search").clear();
+
+    // 9. ZERO tier hides every LLM-only control (journey step 11): no AI chat
     //    rail and no "AI-generated" tab in the cases header.
     await expect(page.getByTestId("ai-panel")).toHaveCount(0);
     await expect(page.getByTestId("cases-tab-ai")).toHaveCount(0);
