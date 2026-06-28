@@ -80,10 +80,19 @@ lint-web: ## ESLint check
 test-web: ## Vitest (frontend tests)
 	cd apps/web && pnpm test
 
+e2e-real: ## Real-backend dogfood e2e: seed ZERO state, boot api+web, drive the UI
+	uv run python apps/api/scripts/seed_zero_e2e.py
+	cd apps/web && pnpm exec playwright test --config=playwright.realbackend.config.ts
+
 ##@ Dev servers
 
 dev-api: ## Start FastAPI dev server (port 4000, hot-reload)
 	uv run uvicorn --factory suitest_api.main:create_app --host 0.0.0.0 --port 4000 --reload
+
+dev-api-zero: ## Start FastAPI at ZERO tier (LLM/embeddings env stripped, port 4000)
+	env -u SUITEST_LLM_PROVIDER -u SUITEST_LLM_API_KEY -u SUITEST_LLM_BASE_URL \
+		-u SUITEST_LLM_MODEL -u SUITEST_EMBEDDINGS_BACKEND -u SUITEST_EMBEDDINGS_MODEL \
+		uv run uvicorn --factory suitest_api.main:create_app --host 0.0.0.0 --port 4000
 
 dev-api-docs: ## Open API docs in browser
 	open http://localhost:4000/docs

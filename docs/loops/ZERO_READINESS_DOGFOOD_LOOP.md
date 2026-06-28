@@ -60,7 +60,7 @@ will hit, in journey order:
 
 | Journey step | State | Note |
 |--------------|-------|------|
-| 2. Create workspace/project/suite | **MISSING** | No creation UI at all — sidebar only picks existing. **This is blocker #1.** A ZERO user with an empty DB is stuck at step 2. |
+| 2. Create workspace/project/suite | **BUILT (2026-06-28)** | Blocker #1 closed. Backend `POST /workspaces` added (creator→OWNER + ZERO capability); FE create dialogs — workspace (sidebar picker `＋ New workspace` + switch), project + suite (Cases screen bootstrap empty states). See Progress note below. |
 | 3. MCP "Test connection" exposure | PARTIAL | Connection-test panel exists; unclear if surfaced in the providers screen. |
 | 6. Search | PARTIAL | Search input exists but no tier gating/messaging. |
 | 9. Gating suite config | PARTIAL | Gating wrappers exist; no dedicated config screen found. |
@@ -70,6 +70,19 @@ E2E harness reality: a Playwright suite exists at `apps/web/` **but it intercept
 `/api/v1/**` with fixtures** — it does not exercise the real backend. For this
 loop, that is not enough: we need a **real-backend E2E mode** (UI → live API →
 runner → DB), because the bugs we care about live in the FE↔BE seam.
+
+## Progress log
+
+**2026-06-28 — blocker #1 (bootstrap UI) + real-backend e2e harness.**
+
+- Backend: `POST /workspaces` (`apps/api/.../routers/workspaces.py`, `services/workspace_service.py::create_workspace_for_user`) — any authenticated user creates a workspace, becomes OWNER, gets a seeded ZERO `WorkspaceCapability`. Tests: `apps/api/tests/test_workspace_create.py`.
+- Frontend create UI: `CreateWorkspaceDialog` (wired into the sidebar picker — `＋ New workspace` + clickable switch), `CreateProjectDialog` + `CreateSuiteDialog` (Cases screen: `projectId === null` → "Create your first project"; `suites === 0` → "Create your first suite"; persistent `New suite` button). Hooks: `use-workspaces.ts`, `use-projects.ts`, `useCreateSuite` in `use-test-cases.ts`.
+- Real-backend e2e (iteration 2): `make e2e-real` → `apps/api/scripts/seed_zero_e2e.py` (one user + one EMPTY workspace) + `apps/web/playwright.realbackend.config.ts` boots ZERO api (`make dev-api-zero`, LLM env stripped) + web and drives `e2e/realbackend/bootstrap.spec.ts` through the live stack (no `/api` mocks).
+
+Findings worth carrying forward:
+
+- **Login at ZERO works** — `routes/login.tsx` has a real email+password form (`POST /auth/cookie/login`); Google OAuth is secondary/optional. The "OAuth-only" note in `e2e/golden-path.spec.ts` is stale.
+- **0-workspace users can't reach the shell (separate onboarding gap).** `routes/_app.tsx#beforeLoad` fetches `/projects`, which 400s without an `X-Workspace-Id`; a user with zero memberships therefore redirects to `/login`. The fresh-install path has the bootstrap default workspace, so the dogfood is unaffected — but a freshly-registered/invited user with no workspace is stuck. Track as a ZERO onboarding follow-up (the create-workspace UI is only reachable once you already have ≥1 workspace).
 
 ## The loop procedure
 

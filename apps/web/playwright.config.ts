@@ -13,6 +13,9 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
+  // The real-backend dogfood specs need a LIVE api+web stack (see
+  // `playwright.realbackend.config.ts`); never run them under this mocked config.
+  testIgnore: "realbackend/**",
   fullyParallel: false,
   forbidOnly: !!process.env["CI"],
   retries: process.env["CI"] ? 1 : 0,
