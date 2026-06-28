@@ -7,13 +7,32 @@
 
 ---
 
-## 0. State at hand-off (2026-06-28)
+## 0. State at hand-off (2026-06-28, updated)
 
-- Branch: `main`. Working tree has the new `docs/loops/` docs (uncommitted) plus prior drift.
+- Branch: `main`. Working tree has prior-session drift (`docs/loops/*`, `SESSION_LOOP.md`, some `M` test files, deleted superpowers spec) **plus this session's committed work** (commits `1581db8`, `130c3b4`, `171cc31`, `dd7b449`, `be3a4a4`).
 - **v1.0 is DONE** — `M2-12` test code export already committed (`ca9a163`). Do not redo it.
-- **PRIMARY target: ZERO-tier readiness via the FE-first dogfood loop** — see [`docs/loops/ZERO_READINESS_DOGFOOD_LOOP.md`](docs/loops/ZERO_READINESS_DOGFOOD_LOOP.md). Goal: ZERO tier production-ready + publishable OSS, validated by driving Suitest's **own web UI** (FE-first, not the API) as a QA user to test https://www.saucedemo.com end-to-end from an **empty DB (keep only the user account)**. Blocker #1 already found: no create-workspace/project/suite UI in `apps/web`.
-- Later phase: v2.x LLM gaps `M10`/`M11`/`M14`/`M15` (all `[ ]` in `docs/ROADMAP.md`) — do NOT start until the ZERO publish checklist (in the dogfood doc) is green.
-- No baseline test output captured yet — capture one before changing code (see §2).
+- **PRIMARY target: ZERO-tier readiness via the FE-first dogfood loop** — see [`docs/loops/ZERO_READINESS_DOGFOOD_LOOP.md`](docs/loops/ZERO_READINESS_DOGFOOD_LOOP.md). Goal: ZERO tier production-ready + publishable OSS, validated by driving Suitest's **own web UI** (FE-first) to test https://www.saucedemo.com end-to-end from an **empty DB (keep only the user account)**.
+
+### Done this session (blocker #1 + real-backend e2e — all committed + verified)
+
+- **Blocker #1 CLOSED — bootstrap UI:** `POST /workspaces` (creator→OWNER + ZERO capability; `test_workspace_create.py` 5 green) + FE create dialogs for workspace (sidebar picker `＋ New workspace` + switch), project + suite (Cases screen empty-state bootstraps + `New suite` button). FE vitest green (12 new tests), typecheck + lint green.
+- **Real-backend (no-mock) e2e harness GREEN:** `make e2e-real` boots ZERO api (`make dev-api-zero`) + web, seeds one user + one empty workspace (`apps/api/scripts/seed_zero_e2e.py`), drives `apps/web/e2e/realbackend/bootstrap.spec.ts`. Proven live: login (password, 204) → create project (201) → create suite (201) → ZERO hides AI panel + AI tab. **Journey steps 1, 2, 4 (partial), 11 now pass through the real UI against the real backend.**
+
+### Next (continue the dogfood loop, in journey order)
+
+- Step 3: surface MCP "Test connection" in the providers screen.
+- Step 5: search tier gating/messaging.
+- Steps 6–7: author a saucedemo case → **Run now** → live status/logs → results/artifacts (needs the **runner** + `playwright-mcp` running — heaviest remaining piece).
+- Steps 8–10: dashboard/readiness, gating-suite config screen, defect triage from artifacts.
+- Publish hygiene: full `make ci` green (run the authoritative full `make test` — NOT yet run this session; the affected slice `test_workspace_create/test_workspaces/test_workspaces_settings/test_capabilities` is 42 green), LICENSE/README quickstart, no dead screens.
+- Known onboarding gap surfaced: a user with **0 workspaces** can't reach the shell (`_app.beforeLoad` `/projects` 400 → `/login`). Fresh-install has the bootstrap default workspace so the dogfood is unaffected, but invited/registered-with-no-workspace users are stuck — fix before claiming full ZERO onboarding.
+- Later phase: v2.x LLM gaps `M10`/`M11`/`M14`/`M15` — do NOT start until the ZERO publish checklist is green.
+
+### Test-run discipline (learned the hard way this session)
+
+- **NEVER run two pytest invocations at once** — `api_db` TRUNCATEs the shared remote `suitest_test` per test, so concurrent runs corrupt each other (spurious FK violations). Run serially; `pkill -f pytest` if a write test flakes with shifting FK errors.
+- **Always run pytest via `make`** (loads `.env` → `SUITEST_TEST_DATABASE_URL`); bare `uv run pytest` falls back to Docker testcontainers (unavailable) → setup ERRORs.
+- This machine is **darwin-arm64 but node_modules was installed for x64** — the arm64 rollup binary is missing; vitest/playwright need `@rollup/rollup-darwin-arm64` linked (env repair, kept out of commits).
 
 ### The loop docs (read these for WHAT to work on)
 
