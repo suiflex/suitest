@@ -47,13 +47,20 @@ test.describe("ZERO dogfood bootstrap (real backend)", () => {
     //    "No cases yet" state — a brand-new empty Suitest now has its first suite.
     await expect(page.getByTestId("new-suite-btn")).toBeVisible();
     await expect(page.getByText("No cases yet")).toBeVisible();
-    // A "New case" button is now present (manual case authoring, journey step 4
-    // — blocker #2). The full create-case assertion is deferred until blocker #3
-    // (per-workspace public_id uniqueness) lands, so this spec stays
-    // deterministic against a shared dev DB; see docs/loops + SESSION_LOOP.
-    await expect(page.getByTestId("new-case-btn")).toBeVisible();
 
-    // 7. ZERO tier hides every LLM-only control (journey step 11): no AI chat
+    // 7. Author a manual test case from scratch (journey step 4 — blocker #2).
+    //    Now deterministic against a shared dev DB because public_id is unique
+    //    PER WORKSPACE (blocker #3 fix), so the seeded workspace's first case
+    //    no longer collides with cases in other workspaces.
+    await page.getByTestId("new-case-btn").click();
+    await expect(page.getByTestId("create-case-dialog")).toBeVisible();
+    await page.getByTestId("create-case-name").fill("Valid login");
+    await page.getByTestId("create-case-submit").click();
+    // The new case opens in the detail panel (step editor) and lists in the tree.
+    await expect(page.getByTestId("case-detail")).toBeVisible();
+    await expect(page.getByTestId("cases-tree-row").first()).toBeVisible();
+
+    // 8. ZERO tier hides every LLM-only control (journey step 11): no AI chat
     //    rail and no "AI-generated" tab in the cases header.
     await expect(page.getByTestId("ai-panel")).toHaveCount(0);
     await expect(page.getByTestId("cases-tab-ai")).toHaveCount(0);
