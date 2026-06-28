@@ -82,6 +82,8 @@ test-web: ## Vitest (frontend tests)
 
 e2e-real: ## Real-backend dogfood e2e: seed ZERO state, boot api+web+runner, drive the UI
 	uv run python apps/api/scripts/seed_zero_e2e.py
+	@echo "pre-warming the playwright-mcp npx package (cuts the first run's cold-start)..."; \
+	npx -y @playwright/mcp@latest --version >/dev/null 2>&1 || true
 	@echo "starting ARQ runner in the background (run e2e needs it; api+web boot via the playwright config)..."; \
 	SUITEST_OTEL_DISABLED=true uv run python -m suitest_runner > /tmp/suitest_e2e_runner.log 2>&1 & \
 	RUNNER_PID=$$!; \
