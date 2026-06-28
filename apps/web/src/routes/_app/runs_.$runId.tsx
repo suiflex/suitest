@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_app/runs_/$runId")({
 export function RunDetailPage(): React.ReactElement {
   const { runId } = Route.useParams();
 
-  const { data: run } = useQuery({
+  const { data: run, refetch: refetchRun } = useQuery({
     queryKey: ["run", runId] as const,
     queryFn: () => fetchRun(runId),
   });
@@ -57,15 +57,19 @@ export function RunDetailPage(): React.ReactElement {
         break;
       case "run.step.started":
       case "run.step.completed":
+        // Refetch the run too: its status + passed/failed counts change as
+        // steps land, and the summary card status badge reads from it.
+        void refetchRun();
         void refetchSteps();
         break;
       case "run.completed":
+        void refetchRun();
         void refetchSteps();
         void refetchArtifacts();
         break;
       case "run.started":
-        // No-op for now — the run summary is already mounted before this
-        // event lands because the user navigated in via the runs list.
+        // Flip QUEUED → RUNNING on the summary card the moment execution begins.
+        void refetchRun();
         break;
     }
   });

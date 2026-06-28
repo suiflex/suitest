@@ -591,7 +591,10 @@ function CaseDetailPanel({
       },
       {
         onSuccess: (run) => {
-          void navigate({ to: "/runs/$runId", params: { runId: run.public_id } });
+          // Navigate with the INTERNAL run id: `GET /runs/:id` resolves by PK
+          // and the runner publishes WS events on `run:{internal_id}`, so the
+          // run-detail fetch + live stream both key off it (public_id 404s).
+          void navigate({ to: "/runs/$runId", params: { runId: run.id } });
         },
       },
     );
