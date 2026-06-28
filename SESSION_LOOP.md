@@ -18,7 +18,11 @@
 - **Blocker #1 CLOSED — bootstrap UI:** `POST /workspaces` (creator→OWNER + ZERO capability; `test_workspace_create.py` 5 green) + FE create dialogs for workspace (sidebar picker `＋ New workspace` + switch), project + suite (Cases screen empty-state bootstraps + `New suite` button). FE vitest green (12 new tests), typecheck + lint green.
 - **Real-backend (no-mock) e2e harness GREEN:** `make e2e-real` boots ZERO api (`make dev-api-zero`) + web, seeds one user + one empty workspace (`apps/api/scripts/seed_zero_e2e.py`), drives `apps/web/e2e/realbackend/bootstrap.spec.ts`. **Journey steps 1 (login), 2 (create project + suite), 4 (author a manual case), 5 (search), 11 (ZERO hides AI panel + AI tab) now pass through the real UI against the real backend.** Also closed: blocker #2 (manual case authoring) + blocker #3 for `test_cases` (per-workspace `public_id`, migration `0037`).
 
-### Next (continue the dogfood loop, in journey order)
+### Status: ALL 11 journey steps implemented + driven through the real UI
+
+Four real-backend specs (`apps/web/e2e/realbackend/{bootstrap,run,defect,gating}.spec.ts`) cover steps 1–11; **each passes reliably on its own**. A real saucedemo run executes via `playwright-mcp` → PASS → dashboard; a failing run auto-files a defect; a suite can be marked gating. **Next: stabilize the FULL `make e2e-real`** (cross-spec shared dev-DB state + cold-start browser make it flaky together) via per-spec DB isolation + a browser pre-warm; then publish hygiene (one full `make test`, README quickstart, the 0-workspace onboarding gap).
+
+### Earlier next-steps (now done — kept for history)
 
 - **Run pipeline (steps 6–7) is LOCKED** in `apps/web/e2e/realbackend/run.spec.ts` (Run now → status badge streams to PASS, ~2.2m). `make e2e-real` starts the ARQ runner + seeds a runnable `e2e-run` workspace. Fixed en route: playwright-mcp cold-start timeouts, run-detail live-status refetch, and run-detail internal-id navigation.
 - **Blocker #3 — per-workspace `public_id`: FULLY CLOSED** (test_cases `0037`, runs `0038`, requirements + defects `0039`). All four entities composite-unique. Apply the dev migration with: `set -a; . ./.env; set +a; uv run python -c "from alembic import command; from alembic.config import Config; c=Config('packages/db/alembic.ini'); c.set_main_option('script_location','packages/db/alembic'); c.set_main_option('sqlalchemy.url',__import__('os').environ['SUITEST_DATABASE_URL']); command.upgrade(c,'head')"` (`make migrate` is broken from repo root — relative `script_location`).
