@@ -37,10 +37,11 @@ test.describe("ZERO Run now → PASS (real backend, real browser)", () => {
       .click();
     await page.waitForURL("**/dashboard");
 
-    // Open the seeded saucedemo case.
+    // Open the seeded (passing) saucedemo case by name — the workspace also
+    // holds a deliberately-failing case used by defect.spec.
     await page.goto("/cases");
     await expect(page.getByTestId("cases-screen")).toBeVisible();
-    await page.getByTestId("cases-tree-row").first().click();
+    await page.getByTestId("cases-tree-row").filter({ hasText: "Open saucedemo" }).click();
     await expect(page.getByTestId("case-detail")).toBeVisible();
 
     // Run now → land on the run-detail page.
@@ -50,9 +51,11 @@ test.describe("ZERO Run now → PASS (real backend, real browser)", () => {
 
     // The run streams (WS) to a terminal PASS — a real browser navigated to
     // saucedemo via playwright-mcp.
-    await expect(
-      page.getByTestId("run-summary-card").getByTestId("status-badge"),
-    ).toHaveAttribute("data-status", "pass", { timeout: 260_000 });
+    await expect(page.getByTestId("run-summary-card").getByTestId("status-badge")).toHaveAttribute(
+      "data-status",
+      "pass",
+      { timeout: 260_000 },
+    );
 
     // Journey step 8: the run shows up on the analytics dashboard.
     await page.goto("/dashboard");

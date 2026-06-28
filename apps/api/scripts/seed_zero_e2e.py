@@ -50,6 +50,12 @@ RUN_WORKSPACE_NAME = "E2E Run"
 NAV_CODE = json.dumps(
     {"tool": "browser_navigate", "arguments": {"url": "https://www.saucedemo.com"}}
 )
+# A deterministically-FAILING step (connection refused on port 1 → the MCP tool
+# returns an error → step FAIL → the runner auto-files a defect). Used to lock
+# the "make it fail → triage → defect" journey step.
+NAV_FAIL_CODE = json.dumps(
+    {"tool": "browser_navigate", "arguments": {"url": "http://127.0.0.1:1/"}}
+)
 
 
 async def _seed_run_workspace(session: AsyncSession, *, user: User) -> None:
@@ -91,6 +97,26 @@ async def _seed_run_workspace(session: AsyncSession, *, user: User) -> None:
             action="Open saucedemo",
             expected="page loads",
             code=NAV_CODE,
+            mcp_provider="playwright-mcp",
+            target_kind=TargetKind.FE_WEB,
+        )
+    )
+
+    # A deterministically-failing case so the run auto-files a defect (journey
+    # step 10: make it fail → triage → defect).
+    fail_case = TestCase(
+        workspace_id=ws.id, suite_id=suite.id, name="Broken checkout", source=CaseSource.MANUAL
+    )
+    set_workspace_id(fail_case, ws.id)
+    session.add(fail_case)
+    await session.flush()
+    session.add(
+        TestStep(
+            case_id=fail_case.id,
+            order=1,
+            action="Open a dead endpoint",
+            expected="should fail",
+            code=NAV_FAIL_CODE,
             mcp_provider="playwright-mcp",
             target_kind=TargetKind.FE_WEB,
         )
