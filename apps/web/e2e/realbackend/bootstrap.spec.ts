@@ -47,6 +47,11 @@ test.describe("ZERO dogfood bootstrap (real backend)", () => {
     //    "No cases yet" state — a brand-new empty Suitest now has its first suite.
     await expect(page.getByTestId("new-suite-btn")).toBeVisible();
     await expect(page.getByText("No cases yet")).toBeVisible();
+    // A "New case" button is now present (manual case authoring, journey step 4
+    // — blocker #2). The full create-case assertion is deferred until blocker #3
+    // (per-workspace public_id uniqueness) lands, so this spec stays
+    // deterministic against a shared dev DB; see docs/loops + SESSION_LOOP.
+    await expect(page.getByTestId("new-case-btn")).toBeVisible();
 
     // 7. ZERO tier hides every LLM-only control (journey step 11): no AI chat
     //    rail and no "AI-generated" tab in the cases header.

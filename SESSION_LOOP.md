@@ -20,7 +20,8 @@
 
 ### Next (continue the dogfood loop, in journey order)
 
-- Step 3: surface MCP "Test connection" in the providers screen.
+- **Blocker #3 (backend TDD, do first): per-workspace `public_id` uniqueness.** `test_cases.public_id` is `unique=True` (GLOBAL) but `generate_public_id` mints per-workspace `TC-N`, so the first case in any 2nd+ workspace collides → `POST /test-cases` 500. `test_cases` has no `workspace_id` column. Fix via migration: add `workspace_id` + composite unique `(workspace_id, public_id)`, OR a single global `TC` sequence seeded above the current max. Then re-add the case-authoring step to the real-backend e2e. (Blocker #2 manual-case UI is DONE + unit-locked; it works in the single-workspace fresh-install path.)
+- Step 3 (DONE, UI): MCP "Test connection" already surfaced in the providers screen (Integrations → MCP → Add Custom MCP → RegisterMcpModal, ungated, vitest-covered). A *live* test needs a real `playwright-mcp` server.
 - Step 5: search tier gating/messaging.
 - Steps 6–7: author a saucedemo case → **Run now** → live status/logs → results/artifacts (needs the **runner** + `playwright-mcp` running — heaviest remaining piece).
 - Steps 8–10: dashboard/readiness, gating-suite config screen, defect triage from artifacts.
