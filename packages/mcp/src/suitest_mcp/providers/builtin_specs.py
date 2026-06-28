@@ -42,7 +42,12 @@ BUILTIN_SPECS: list[McpProviderConfig] = [
         config_json={"version_pin": "@playwright/mcp@latest"},
         is_default_for_target={"FE_WEB": True},
         max_sessions=2,
-        spawn_timeout_seconds=30.0,
+        # Browser automation needs generous timeouts: the first spawn may `npx`-
+        # fetch the package and launch (download) a browser, and real page loads
+        # / interactions routinely exceed the 30s default. Under-budgeting these
+        # surfaced as ``MCP_TOOL_TIMEOUT: browser_navigate ... 30.0s`` on a cold run.
+        spawn_timeout_seconds=120.0,
+        call_timeout_seconds=90.0,
     ),
     McpProviderConfig(
         id="builtin:postgres-mcp",
