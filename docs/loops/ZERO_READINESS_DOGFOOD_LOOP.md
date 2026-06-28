@@ -132,8 +132,8 @@ Stop the loop when the **exit checklist** below is fully green.
 ## Exit checklist — ZERO tier ready to publish (OSS)
 
 **Functional (the journey):**
-- [x] All 11 journey steps complete through the UI, real backend, empty start (4 real-backend specs; each green alone).
-- [~] Real-backend E2E suite green in CI — each spec green individually; the FULL `make e2e-real` together is still flaky (cross-spec dev-DB state + cold-start browser; `workers:1` + npx pre-warm added). **Last open functional item** — needs per-spec DB isolation.
+- [x] All 11 journey steps complete through the UI, real backend, empty start (4 real-backend specs).
+- [x] Real-backend E2E suite green TOGETHER — `make e2e-real` runs all 4 specs in **1.2m, 4 passed** (per-spec workspace isolation + `workers:1` + npx pre-warm fixed the cross-spec/browser flakiness).
 - [x] A real run of saucedemo passes, started + triaged entirely via the UI (run.spec PASS; defect.spec auto-defect).
 - [x] Every LLM-only control is hidden or shows an upgrade hint at ZERO (bootstrap.spec asserts AI panel + AI tab absent).
 
@@ -145,7 +145,7 @@ Stop the loop when the **exit checklist** below is fully green.
 **OSS publish hygiene:**
 - [x] LICENSE present; README has quickstart + the journey walkthrough.
 - [x] No secrets/credentials in repo or history; `.env.example` only.
-- [~] `make ci` green — `make check-all` (lint + typecheck FE+BE) green; full `make test` run pending confirmation (affected slices green all session).
+- [x] `make ci` green — `make check-all` (lint + typecheck FE+BE) green; full `make test` **1318 passed / 0 failed** (the 3 migration tests stale after the public_id columns are fixed).
 - [x] No dead/broken screens on the journey (fixed the dead "Write manually"/generator empty-state buttons + the workspace-less shell bounce).
 - [~] Docs banners (built vs spec) — update for what now ships at ZERO.
 

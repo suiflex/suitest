@@ -18,9 +18,9 @@
 - **Blocker #1 CLOSED — bootstrap UI:** `POST /workspaces` (creator→OWNER + ZERO capability; `test_workspace_create.py` 5 green) + FE create dialogs for workspace (sidebar picker `＋ New workspace` + switch), project + suite (Cases screen empty-state bootstraps + `New suite` button). FE vitest green (12 new tests), typecheck + lint green.
 - **Real-backend (no-mock) e2e harness GREEN:** `make e2e-real` boots ZERO api (`make dev-api-zero`) + web, seeds one user + one empty workspace (`apps/api/scripts/seed_zero_e2e.py`), drives `apps/web/e2e/realbackend/bootstrap.spec.ts`. **Journey steps 1 (login), 2 (create project + suite), 4 (author a manual case), 5 (search), 11 (ZERO hides AI panel + AI tab) now pass through the real UI against the real backend.** Also closed: blocker #2 (manual case authoring) + blocker #3 for `test_cases` (per-workspace `public_id`, migration `0037`).
 
-### Status: ALL 11 journey steps implemented + driven through the real UI
+### Status: ZERO publish checklist GREEN
 
-Four real-backend specs (`apps/web/e2e/realbackend/{bootstrap,run,defect,gating}.spec.ts`) cover steps 1–11; **each passes reliably on its own**. A real saucedemo run executes via `playwright-mcp` → PASS → dashboard; a failing run auto-files a defect; a suite can be marked gating. **Next: stabilize the FULL `make e2e-real`** (cross-spec shared dev-DB state + cold-start browser make it flaky together) via per-spec DB isolation + a browser pre-warm; then publish hygiene (one full `make test`, README quickstart, the 0-workspace onboarding gap).
+The 11-step journey runs through the real UI against the real backend. `make e2e-real` = **4 specs, 4 passed, 1.2m** (`bootstrap,run,defect,gating`; per-spec workspace isolation + `workers:1` + npx pre-warm). Full `make test` = **1318 passed / 0 failed**. `make check-all` green. Onboarding + README + publish hygiene done. Only `[~]` left in the exit checklist: the docs build-vs-spec banners. The v2.x LLM milestones (M10/M11/M14/M15) are the next phase.
 
 ### Earlier next-steps (now done — kept for history)
 
