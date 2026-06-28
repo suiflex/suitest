@@ -46,7 +46,7 @@ class RequirementRepo(AsyncRepository[Requirement, RequirementCreate, Requiremen
 
         See :meth:`TestCaseRepo.create` for the rationale on the LSP override.
         """
-        row = Requirement(**dto.model_dump(exclude_unset=True))
+        row = Requirement(**dto.model_dump(exclude_unset=True), workspace_id=workspace_id)
         set_workspace_id(row, workspace_id)
         self.session.add(row)
         await self.session.flush()

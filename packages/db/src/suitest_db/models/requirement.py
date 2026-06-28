@@ -18,7 +18,12 @@ class Requirement(Base, TimestampMixin):
     project_id: Mapped[str] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
-    public_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    # Blocker #3: per-workspace ``public_id`` (REQ-N minted per workspace).
+    # Denormalized from the project; filled by the before_insert listener.
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    public_id: Mapped[str] = mapped_column(String(32), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str | None] = mapped_column(String(255))
@@ -29,6 +34,7 @@ class Requirement(Base, TimestampMixin):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
+        UniqueConstraint("workspace_id", "public_id", name="uq_requirements_workspace_public_id"),
         Index("ix_requirements_project_id", "project_id"),
         # Partial index — fast active-only lookups (M1d-6).
         Index(

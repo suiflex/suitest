@@ -19,7 +19,9 @@ class Defect(Base, TimestampMixin):
     __tablename__ = "defects"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
-    public_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    # Blocker #3: public_id is minted per-workspace (SUIT-N), so uniqueness is
+    # composite below, not global.
+    public_id: Mapped[str] = mapped_column(String(32), nullable=False)
     workspace_id: Mapped[str] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
     )
@@ -50,6 +52,7 @@ class Defect(Base, TimestampMixin):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
+        UniqueConstraint("workspace_id", "public_id", name="uq_defects_workspace_public_id"),
         Index("ix_defects_workspace_status", "workspace_id", "status"),
         Index("ix_defects_severity", "severity"),
         Index("ix_defects_diagnosis_kind", "agent_diagnosis_kind"),

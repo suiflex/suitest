@@ -182,6 +182,24 @@ def _run_public_id(mapper: Mapper[Run], connection: Connection, target: Run) -> 
 
 
 @event.listens_for(Requirement, "before_insert")
+def _req_workspace_id(
+    mapper: Mapper[Requirement], connection: Connection, target: Requirement
+) -> None:
+    """Backfill ``requirements.workspace_id`` from the project (blocker #3)."""
+    if getattr(target, "workspace_id", None):
+        return
+    project_id = getattr(target, "project_id", None)
+    if not project_id:
+        return
+    ws_id = connection.execute(
+        text("SELECT workspace_id FROM projects WHERE id = :pid"),
+        {"pid": project_id},
+    ).scalar_one_or_none()
+    if ws_id is not None:
+        object.__setattr__(target, "workspace_id", ws_id)
+
+
+@event.listens_for(Requirement, "before_insert")
 def _req_public_id(
     mapper: Mapper[Requirement], connection: Connection, target: Requirement
 ) -> None:
