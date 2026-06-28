@@ -1,4 +1,10 @@
-import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseMutationResult,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 
 import { api } from "@/lib/api-client";
 import type { components } from "@/lib/api-types";
@@ -10,6 +16,43 @@ export interface CreateProjectInput {
   name: string;
   slug?: string;
   description?: string;
+}
+
+/** ``GET /projects/:id`` — carries ``gating_suite_id`` (which suite gates deploys). */
+export function useProject(projectId: string | null): UseQueryResult<ProjectPublic> {
+  return useQuery({
+    queryKey: ["project", projectId] as const,
+    enabled: projectId !== null,
+    queryFn: async () => {
+      const res = await api.get<ProjectPublic>(`/projects/${projectId ?? ""}`);
+      return res.data;
+    },
+  });
+}
+
+export interface SetGatingSuiteInput {
+  projectId: string;
+  suiteId: string | null;
+}
+
+/**
+ * Mark (or clear) the project's gating suite via ``PATCH /projects/:id`` —
+ * journey step 9. ZERO-friendly: deterministic gate, no LLM.
+ */
+export function useSetGatingSuite(): UseMutationResult<ProjectPublic, Error, SetGatingSuiteInput> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ projectId, suiteId }: SetGatingSuiteInput) => {
+      const res = await api.patch<ProjectPublic>(`/projects/${projectId}`, {
+        gatingSuiteId: suiteId,
+      });
+      return res.data;
+    },
+    onSuccess: (project) => {
+      void queryClient.invalidateQueries({ queryKey: ["project", project.id] });
+      void queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
 }
 
 /**

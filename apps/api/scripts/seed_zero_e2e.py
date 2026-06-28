@@ -23,9 +23,10 @@ import os
 import uuid
 
 from fastapi_users.password import PasswordHelper
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from suitest_db.models.case import TestCase, TestStep
+from suitest_db.models.defect import Defect
 from suitest_db.models.project import Project, Suite
 from suitest_db.models.tenancy import Membership
 from suitest_db.models.user import User
@@ -75,6 +76,15 @@ async def _seed_run_workspace(session: AsyncSession, *, user: User) -> None:
             )
         )
     else:
+        # Order matters or the project-delete cascade hits FK violations:
+        #  - defects.run_id → runs is NOT cascade, so drop the workspace's
+        #    auto-filed defects first;
+        #  - projects.gating_suite_id → suites would block the suite delete, so
+        #    null it before dropping projects.
+        await session.execute(delete(Defect).where(Defect.workspace_id == ws.id))
+        await session.execute(
+            update(Project).where(Project.workspace_id == ws.id).values(gating_suite_id=None)
+        )
         await session.execute(delete(Project).where(Project.workspace_id == ws.id))
     await session.flush()
 
@@ -169,8 +179,15 @@ async def seed() -> str:
                     )
                 )
             else:
-                # Reset to empty: drop projects; FK ON DELETE CASCADE removes the
-                # workspace's suites + cases so the bootstrap journey is fresh.
+                # Reset to empty (FK-safe order): drop defects (defects.run_id is
+                # not cascade), null gating_suite_id, then drop projects (FK ON
+                # DELETE CASCADE removes the workspace's suites + cases).
+                await session.execute(delete(Defect).where(Defect.workspace_id == workspace.id))
+                await session.execute(
+                    update(Project)
+                    .where(Project.workspace_id == workspace.id)
+                    .values(gating_suite_id=None)
+                )
                 await session.execute(delete(Project).where(Project.workspace_id == workspace.id))
             await _seed_run_workspace(session, user=user)
             await session.commit()

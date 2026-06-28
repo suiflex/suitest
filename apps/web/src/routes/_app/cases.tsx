@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useFeatureEnabled } from "@/hooks/use-feature-enabled";
+import { useProject, useSetGatingSuite } from "@/hooks/use-projects";
 import { useActiveProject } from "@/stores/use-active-project";
 import { useCreateRun } from "@/hooks/use-runs";
 import {
@@ -361,6 +362,8 @@ function CaseTree({
   onToggleAll,
   onNewCase,
   onGenerate,
+  gatingSuiteId,
+  onSetGating,
 }: {
   suites: Suite[];
   cases: Case[];
@@ -371,6 +374,8 @@ function CaseTree({
   onToggleAll: (ids: string[]) => void;
   onNewCase: () => void;
   onGenerate: (strategy?: GeneratorStrategy) => void;
+  gatingSuiteId: string | null;
+  onSetGating: (suiteId: string) => void;
 }): React.ReactElement {
   const allIds = cases.map((c) => c.id);
   const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
@@ -443,6 +448,27 @@ function CaseTree({
               <FolderTree className="h-3 w-3" aria-hidden="true" />
               {suite?.name ?? "Unassigned"}
               <span className="font-mono text-[10px] text-fg-5">{items.length}</span>
+              {suite ? (
+                suite.id === gatingSuiteId ? (
+                  <span
+                    data-testid="suite-gating-badge"
+                    className="ml-auto rounded-sm bg-accent/10 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-accent"
+                  >
+                    Gating
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    data-testid="suite-set-gating-btn"
+                    onClick={() => {
+                      onSetGating(suite.id);
+                    }}
+                    className="ml-auto rounded-sm px-1 text-[9px] font-medium tracking-wide text-fg-4 hover:text-accent"
+                  >
+                    Set gating
+                  </button>
+                )
+              ) : null}
             </div>
             <ul className="flex flex-col">
               {items.map((c) => (
@@ -736,6 +762,9 @@ function CasesBody(): React.ReactElement {
   const { data: cases } = useTestCases();
   const aiTabVisible = useFeatureEnabled("ai_generation");
   const projectId = useActiveProject((s) => s.projectId);
+  const { data: project } = useProject(projectId);
+  const setGating = useSetGatingSuite();
+  const gatingSuiteId = project?.gating_suite_id ?? null;
 
   const [active, setActive] = useState<Tab>("all");
   const [suiteDialogOpen, setSuiteDialogOpen] = useState(false);
@@ -924,6 +953,10 @@ function CasesBody(): React.ReactElement {
                 setCaseDialogOpen(true);
               }}
               onGenerate={handleGenerate}
+              gatingSuiteId={gatingSuiteId}
+              onSetGating={(suiteId) => {
+                if (projectId) setGating.mutate({ projectId, suiteId });
+              }}
             />
             <BulkActionBar
               selectedIds={selectedIds}
