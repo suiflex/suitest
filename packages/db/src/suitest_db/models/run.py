@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -24,9 +24,15 @@ class Run(Base, TimestampMixin):
     __tablename__ = "runs"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
-    public_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    public_id: Mapped[str] = mapped_column(String(32), nullable=False)
     project_id: Mapped[str] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    # Blocker #3: per-workspace ``public_id`` (R-N is minted per workspace), so
+    # the global unique collided across workspaces. Denormalized from the
+    # project; filled by the ``before_insert`` listener (suitest_db.public_id).
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     branch: Mapped[str | None] = mapped_column(String(120))
@@ -52,6 +58,7 @@ class Run(Base, TimestampMixin):
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
 
     __table_args__ = (
+        UniqueConstraint("workspace_id", "public_id", name="uq_runs_workspace_public_id"),
         Index("ix_runs_project_status", "project_id", "status"),
         Index("ix_runs_created_at", "created_at"),
         Index("ix_runs_tier", "tier_at_runtime"),
