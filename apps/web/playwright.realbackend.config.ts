@@ -22,6 +22,11 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e/realbackend",
   fullyParallel: false,
+  // One worker: the bundled playwright-mcp drives a single shared Chrome profile,
+  // so two specs running in parallel would each trigger a run whose browser
+  // sessions collide on the profile SingletonLock. Serialize the real-backend
+  // specs — one run (one browser) at a time.
+  workers: 1,
   forbidOnly: !!process.env["CI"],
   retries: 0,
   reporter: process.env["CI"] ? "github" : "list",
