@@ -44,8 +44,9 @@ _DB_PKG_ROOT = _REPO_ROOT / "packages" / "db"
 # Last revision *before* the M1d chain — round-trip downgrade target.
 _PRE_M1D_REV = "0015_run_step_logs"
 # Head once the M1d chain is applied — used to assert linear chain integrity.
-# Alembic head after the v1.x plugin registry migrations.
-_M1D_HEAD_REV = "0036_m9_plugin_registry"
+# Advanced to the per-workspace public_id migrations (0037 test_cases, 0038 runs,
+# 0039 requirements + defects).
+_M1D_HEAD_REV = "0039_req_defect_ws_public_id"
 
 
 @pytest.fixture(scope="module")
@@ -337,10 +338,10 @@ async def test_test_cases_order_in_suite_defaults_zero(_conn: object) -> None:
     cid = _new_id()
     await _conn.execute(  # type: ignore[attr-defined]
         text(
-            "INSERT INTO test_cases (id, suite_id, public_id, name, source, status, priority) "
-            "VALUES (:id, :s, :pub, :n, 'MANUAL', 'ACTIVE', 'P2')"
+            "INSERT INTO test_cases (id, suite_id, workspace_id, public_id, name, source, status, priority) "
+            "VALUES (:id, :s, :ws, :pub, :n, 'MANUAL', 'ACTIVE', 'P2')"
         ),
-        {"id": cid, "s": sid, "pub": f"TC-{cid[:6]}", "n": "C"},
+        {"id": cid, "s": sid, "ws": wsid, "pub": f"TC-{cid[:6]}", "n": "C"},
     )
     order = await _conn.execute(  # type: ignore[attr-defined]
         text("SELECT order_in_suite FROM test_cases WHERE id = :id"), {"id": cid}
@@ -426,23 +427,23 @@ async def test_defects_auto_dedup_partial_unique_scoped_to_system(_engine: objec
         cid = _new_id()
         await conn.execute(
             text(
-                "INSERT INTO test_cases (id, suite_id, public_id, name, source, status, priority) "
-                "VALUES (:id, :s, :pub, :n, 'MANUAL', 'ACTIVE', 'P2')"
+                "INSERT INTO test_cases (id, suite_id, workspace_id, public_id, name, source, status, priority) "
+                "VALUES (:id, :s, :ws, :pub, :n, 'MANUAL', 'ACTIVE', 'P2')"
             ),
-            {"id": cid, "s": sid, "pub": f"TC-{cid[:6]}", "n": "C"},
+            {"id": cid, "s": sid, "ws": wsid, "pub": f"TC-{cid[:6]}", "n": "C"},
         )
         rid = _new_id()
         await conn.execute(
             text(
                 "INSERT INTO runs ("
-                "  id, public_id, project_id, name, env, trigger, status,"
+                "  id, public_id, workspace_id, project_id, name, env, trigger, status,"
                 "  tier_at_runtime, total_steps, passed_steps, failed_steps"
                 ") VALUES ("
-                "  :id, :pub, :p, 'r', 'test', 'MANUAL', 'FAIL',"
+                "  :id, :pub, :ws, :p, 'r', 'test', 'MANUAL', 'FAIL',"
                 "  'ZERO', 1, 0, 1"
                 ")"
             ),
-            {"id": rid, "pub": f"RUN-{rid[:6]}", "p": pid},
+            {"id": rid, "pub": f"RUN-{rid[:6]}", "ws": wsid, "p": pid},
         )
 
         # First system defect — succeeds.
@@ -496,23 +497,23 @@ async def test_defects_auto_dedup_partial_unique_scoped_to_system(_engine: objec
         cid = _new_id()
         await conn.execute(
             text(
-                "INSERT INTO test_cases (id, suite_id, public_id, name, source, status, priority) "
-                "VALUES (:id, :s, :pub, :n, 'MANUAL', 'ACTIVE', 'P2')"
+                "INSERT INTO test_cases (id, suite_id, workspace_id, public_id, name, source, status, priority) "
+                "VALUES (:id, :s, :ws, :pub, :n, 'MANUAL', 'ACTIVE', 'P2')"
             ),
-            {"id": cid, "s": sid, "pub": f"TC-{cid[:6]}", "n": "C"},
+            {"id": cid, "s": sid, "ws": wsid, "pub": f"TC-{cid[:6]}", "n": "C"},
         )
         rid = _new_id()
         await conn.execute(
             text(
                 "INSERT INTO runs ("
-                "  id, public_id, project_id, name, env, trigger, status,"
+                "  id, public_id, workspace_id, project_id, name, env, trigger, status,"
                 "  tier_at_runtime, total_steps, passed_steps, failed_steps"
                 ") VALUES ("
-                "  :id, :pub, :p, 'r', 'test', 'MANUAL', 'FAIL',"
+                "  :id, :pub, :ws, :p, 'r', 'test', 'MANUAL', 'FAIL',"
                 "  'ZERO', 1, 0, 1"
                 ")"
             ),
-            {"id": rid, "pub": f"RUN-{rid[:6]}", "p": pid},
+            {"id": rid, "pub": f"RUN-{rid[:6]}", "ws": wsid, "p": pid},
         )
         # User-filed defect on same (run, case) — partial predicate doesn't apply.
         await conn.execute(
