@@ -4,6 +4,7 @@ import { AlertTriangle, ChevronDown, FileText, FolderTree, ListChecks, Trash2 } 
 import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { CreateCaseDialog } from "@/components/cases/CreateCaseDialog";
 import { CreateProjectDialog } from "@/components/cases/CreateProjectDialog";
 import { CreateSuiteDialog } from "@/components/cases/CreateSuiteDialog";
 import { GenerateModal } from "@/components/cases/GenerateModal";
@@ -358,6 +359,8 @@ function CaseTree({
   onSelect,
   onToggleSelection,
   onToggleAll,
+  onNewCase,
+  onGenerate,
 }: {
   suites: Suite[];
   cases: Case[];
@@ -366,6 +369,8 @@ function CaseTree({
   onSelect: (publicId: string) => void;
   onToggleSelection: (id: string) => void;
   onToggleAll: (ids: string[]) => void;
+  onNewCase: () => void;
+  onGenerate: (strategy?: GeneratorStrategy) => void;
 }): React.ReactElement {
   const allIds = cases.map((c) => c.id);
   const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
@@ -391,9 +396,21 @@ function CaseTree({
         title="No cases yet"
         subtitle="Generate from OpenAPI, record a browser session, or write manually."
         action={[
-          { label: "From OpenAPI", variant: "outline" },
-          { label: "Record session", variant: "outline" },
-          { label: "Write manually", variant: "outline" },
+          {
+            label: "From OpenAPI",
+            variant: "outline",
+            onClick: () => {
+              onGenerate("openapi");
+            },
+          },
+          {
+            label: "Record session",
+            variant: "outline",
+            onClick: () => {
+              onGenerate("recorder");
+            },
+          },
+          { label: "Write manually", variant: "default", onClick: onNewCase },
         ]}
       />
     );
@@ -719,6 +736,7 @@ function CasesBody(): React.ReactElement {
 
   const [active, setActive] = useState<Tab>("all");
   const [suiteDialogOpen, setSuiteDialogOpen] = useState(false);
+  const [caseDialogOpen, setCaseDialogOpen] = useState(false);
 
   // GenerateModal state — `null` strategy = open at the target-select step;
   // a concrete strategy deep-links from the split-button dropdown.
@@ -818,6 +836,16 @@ function CasesBody(): React.ReactElement {
           setSuiteDialogOpen(false);
         }}
       />
+      <CreateCaseDialog
+        open={caseDialogOpen}
+        onClose={() => {
+          setCaseDialogOpen(false);
+        }}
+        suites={suites.items}
+        onCreated={(publicId) => {
+          void navigate({ search: { case: publicId } });
+        }}
+      />
       {suites.items.length === 0 ? (
         <EmptyState
           icon={FolderTree}
@@ -852,6 +880,16 @@ function CasesBody(): React.ReactElement {
               >
                 New suite
               </Button>
+              <Button
+                type="button"
+                size="sm"
+                data-testid="new-case-btn"
+                onClick={() => {
+                  setCaseDialogOpen(true);
+                }}
+              >
+                New case
+              </Button>
             </div>
             <CaseTree
               suites={suites.items}
@@ -863,6 +901,10 @@ function CasesBody(): React.ReactElement {
               }}
               onToggleSelection={handleToggleSelection}
               onToggleAll={handleToggleAll}
+              onNewCase={() => {
+                setCaseDialogOpen(true);
+              }}
+              onGenerate={handleGenerate}
             />
             <BulkActionBar
               selectedIds={selectedIds}

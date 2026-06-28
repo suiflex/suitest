@@ -65,6 +65,34 @@ export function useCreateSuite(): UseMutationResult<SuitePublic, Error, CreateSu
   });
 }
 
+export interface CreateTestCaseInput {
+  suiteId: string;
+  name: string;
+}
+
+/**
+ * Create a manual test case via ``POST /test-cases`` (bootstrap blocker #2).
+ * Minimal body (`source` defaults to MANUAL, no steps) so a ZERO user can
+ * author a case from scratch, then add steps in the editor. Invalidates the
+ * cases + suites lists (suite `case_count` changes).
+ */
+export function useCreateTestCase(): UseMutationResult<CaseDetail, Error, CreateTestCaseInput> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateTestCaseInput) => {
+      const res = await api.post<CaseDetail>("/test-cases", {
+        suiteId: input.suiteId,
+        name: input.name,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["test-cases"] });
+      void queryClient.invalidateQueries({ queryKey: ["suites"] });
+    },
+  });
+}
+
 export function useTestCases(suiteId?: string): UseSuspenseQueryResult<CasesPage> {
   const projectId = useActiveProject((s) => s.projectId);
   return useSuspenseQuery({
