@@ -34,6 +34,37 @@ export function useSuites(): UseSuspenseQueryResult<SuitesPage> {
   });
 }
 
+type SuitePublic = components["schemas"]["SuitePublic"];
+
+export interface CreateSuiteInput {
+  name: string;
+  description?: string;
+}
+
+/**
+ * Create a suite under the active project via ``POST /suites`` (bootstrap
+ * blocker #1). The backend body aliases ``project_id`` to ``projectId``.
+ * Invalidates the active project's suites list on success.
+ */
+export function useCreateSuite(): UseMutationResult<SuitePublic, Error, CreateSuiteInput> {
+  const queryClient = useQueryClient();
+  const projectId = useActiveProject((s) => s.projectId);
+  return useMutation({
+    mutationFn: async (input: CreateSuiteInput) => {
+      const res = await api.post<SuitePublic>("/suites", {
+        projectId,
+        name: input.name,
+        ...(input.description ? { description: input.description } : {}),
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["suites", projectId] });
+      void queryClient.invalidateQueries({ queryKey: ["suites"] });
+    },
+  });
+}
+
 export function useTestCases(suiteId?: string): UseSuspenseQueryResult<CasesPage> {
   const projectId = useActiveProject((s) => s.projectId);
   return useSuspenseQuery({

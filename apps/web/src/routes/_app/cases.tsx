@@ -4,6 +4,8 @@ import { AlertTriangle, ChevronDown, FileText, FolderTree, ListChecks, Trash2 } 
 import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { CreateProjectDialog } from "@/components/cases/CreateProjectDialog";
+import { CreateSuiteDialog } from "@/components/cases/CreateSuiteDialog";
 import { GenerateModal } from "@/components/cases/GenerateModal";
 import type { GeneratorStrategy } from "@/components/cases/GenerateModal";
 import { CasesSkeleton } from "@/components/cases/skeleton";
@@ -716,6 +718,7 @@ function CasesBody(): React.ReactElement {
   const projectId = useActiveProject((s) => s.projectId);
 
   const [active, setActive] = useState<Tab>("all");
+  const [suiteDialogOpen, setSuiteDialogOpen] = useState(false);
 
   // GenerateModal state — `null` strategy = open at the target-select step;
   // a concrete strategy deep-links from the split-button dropdown.
@@ -809,38 +812,72 @@ function CasesBody(): React.ReactElement {
           {...(generateStrategy ? { initialStrategy: generateStrategy } : {})}
         />
       ) : null}
-      <div className="grid grid-cols-[280px_1fr] gap-4">
-        <aside
-          className="flex flex-col gap-2 rounded-md border border-border bg-bg-elev-1 p-3"
-          data-testid="cases-left-pane"
-        >
-          <DisabledTooltip reason="Filter ships in M1d">
-            <Input disabled placeholder="Filter cases…" className="h-8" />
-          </DisabledTooltip>
-          <CaseTree
-            suites={suites.items}
-            cases={filtered}
-            selectedId={selectedId}
-            selectedIds={selectedIds}
-            onSelect={(publicId) => {
-              void navigate({ search: { case: publicId } });
-            }}
-            onToggleSelection={handleToggleSelection}
-            onToggleAll={handleToggleAll}
-          />
-          <BulkActionBar
-            selectedIds={selectedIds}
-            suites={suites.items}
-            onClear={handleClearSelection}
-          />
-        </aside>
-        <section
-          className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
-          data-testid="cases-right-pane"
-        >
-          <CaseDetailPanel publicId={selectedId} suites={suites.items} />
-        </section>
-      </div>
+      <CreateSuiteDialog
+        open={suiteDialogOpen}
+        onClose={() => {
+          setSuiteDialogOpen(false);
+        }}
+      />
+      {suites.items.length === 0 ? (
+        <EmptyState
+          icon={FolderTree}
+          title="Create your first suite"
+          subtitle="Test cases live inside suites. Add one to start authoring cases."
+          action={{
+            label: "New suite",
+            variant: "default",
+            onClick: () => {
+              setSuiteDialogOpen(true);
+            },
+          }}
+        />
+      ) : (
+        <div className="grid grid-cols-[280px_1fr] gap-4">
+          <aside
+            className="flex flex-col gap-2 rounded-md border border-border bg-bg-elev-1 p-3"
+            data-testid="cases-left-pane"
+          >
+            <div className="flex items-center gap-2">
+              <DisabledTooltip reason="Filter ships in M1d">
+                <Input disabled placeholder="Filter cases…" className="h-8" />
+              </DisabledTooltip>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid="new-suite-btn"
+                onClick={() => {
+                  setSuiteDialogOpen(true);
+                }}
+              >
+                New suite
+              </Button>
+            </div>
+            <CaseTree
+              suites={suites.items}
+              cases={filtered}
+              selectedId={selectedId}
+              selectedIds={selectedIds}
+              onSelect={(publicId) => {
+                void navigate({ search: { case: publicId } });
+              }}
+              onToggleSelection={handleToggleSelection}
+              onToggleAll={handleToggleAll}
+            />
+            <BulkActionBar
+              selectedIds={selectedIds}
+              suites={suites.items}
+              onClear={handleClearSelection}
+            />
+          </aside>
+          <section
+            className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
+            data-testid="cases-right-pane"
+          >
+            <CaseDetailPanel publicId={selectedId} suites={suites.items} />
+          </section>
+        </div>
+      )}
     </>
   );
 }
@@ -855,14 +892,45 @@ function CasesError({ reset }: { reset: () => void }): React.ReactElement {
   );
 }
 
+// First-project bootstrap (dogfood blocker #1). A fresh ZERO install has a
+// default workspace but no projects; every project-scoped query 422s without
+// an active project, so we short-circuit to a create-project prompt before any
+// data hook runs.
+function NoProjectBootstrap(): React.ReactElement {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <EmptyState
+        icon={FolderTree}
+        title="Create your first project"
+        subtitle="Projects hold your test suites and cases. Make one to start testing."
+        action={{
+          label: "New project",
+          variant: "default",
+          onClick: () => {
+            setOpen(true);
+          },
+        }}
+      />
+      <CreateProjectDialog
+        open={open}
+        onClose={() => {
+          setOpen(false);
+        }}
+      />
+    </>
+  );
+}
+
 // Hide the AI tab in ZERO via wrapper — leverages Gated for ergonomic
 // composition, so the CasesHeader doesn't have to know about capabilities.
 function CasesContainer(): React.ReactElement {
+  const projectId = useActiveProject((s) => s.projectId);
   return (
     <section className="flex flex-col gap-4" data-testid="cases-screen">
       <ErrorBoundary fallback={({ reset }) => <CasesError reset={reset} />}>
         <Suspense fallback={<CasesSkeleton />}>
-          <CasesBody />
+          {projectId === null ? <NoProjectBootstrap /> : <CasesBody />}
         </Suspense>
       </ErrorBoundary>
     </section>
