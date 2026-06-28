@@ -78,6 +78,26 @@ class WorkspaceMemberPublic(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Create DTO — first-workspace bootstrap (dogfood blocker #1)
+# ---------------------------------------------------------------------------
+
+
+class WorkspaceCreate(BaseModel):
+    """``POST /workspaces`` body — bootstrap a workspace; caller becomes OWNER.
+
+    ``slug`` is optional: when omitted it is derived from ``name`` (kebab-case,
+    one ``-2`` retry on collision). Workspace slugs are globally unique, so a
+    second collision surfaces a 409 ``DUPLICATE_WORKSPACE_SLUG``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=128)
+    slug: str | None = Field(default=None, min_length=1, max_length=64)
+    region: str | None = Field(default=None, min_length=1, max_length=32)
+
+
+# ---------------------------------------------------------------------------
 # M1d-28 write DTOs
 # ---------------------------------------------------------------------------
 

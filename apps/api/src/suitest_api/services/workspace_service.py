@@ -30,20 +30,24 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_core.capabilities import TierFlag
 from suitest_db.audit import write_audit
 from suitest_db.models.tenancy import Membership
 from suitest_db.models.workspace import Workspace
+from suitest_db.models.workspace_capability import WorkspaceCapability
 from suitest_db.repositories.workspace_members import (
     WorkspaceMembershipRepo,
     create_placeholder_user,
 )
 from suitest_db.repositories.workspaces import WorkspaceRepo
-from suitest_shared.domain.enums import Role
+from suitest_shared.domain.enums import AutonomyLevel, Role, Tier
 from suitest_shared.schemas.responses import WorkspaceOut
 
 from suitest_api.deps.scope import TenantContext
 from suitest_api.deps.tier import require_tier
+from suitest_api.utils.slug import slugify
 
 # ``WorkspaceOut`` (shared package) covers the M1a list/detail summary surface.
 # The Settings General-tab response carries ``strict_zero_validation`` +
@@ -59,11 +63,14 @@ __all__ = [
     "MemberWriteResult",
     "OwnerGrantRequiresOwnerError",
     "SoleOwnerProtectedError",
+    "WorkspaceCreateResult",
     "WorkspaceDeleteResult",
     "WorkspaceOut",
     "WorkspaceService",
     "WorkspaceServiceError",
+    "WorkspaceSlugConflictError",
     "WorkspaceWriteResult",
+    "create_workspace_for_user",
 ]
 
 
@@ -103,6 +110,17 @@ class MemberAlreadyExistsError(WorkspaceServiceError):
     code = "MEMBER_ALREADY_EXISTS"
 
 
+class WorkspaceSlugConflictError(WorkspaceServiceError):
+    code = "DUPLICATE_WORKSPACE_SLUG"
+
+    def __init__(self, slug: str) -> None:
+        super().__init__(
+            f"workspace slug {slug!r} is already in use",
+            details={"slug": slug},
+        )
+        self.slug = slug
+
+
 # ---------------------------------------------------------------------------
 # Result envelopes — router publishes WS event after commit.
 # ---------------------------------------------------------------------------
@@ -131,7 +149,100 @@ class WorkspaceDeleteResult:
     ws_payload: dict[str, object]
 
 
+@dataclass
+class WorkspaceCreateResult:
+    workspace: Workspace
+    ws_event: str
+    ws_payload: dict[str, object]
+
+
 _ADMIN_OR_OWNER: frozenset[Role] = frozenset({Role.ADMIN, Role.OWNER})
+
+# One ``-2`` suffix retry on slug collision before bubbling the 409 — same cap
+# as the project create path (``project_service._SLUG_RETRY_SUFFIX``).
+_WS_SLUG_RETRY_SUFFIX = "-2"
+_WS_SLUG_MAX = 64
+
+
+async def _next_workspace_slug(repo: WorkspaceRepo, requested: str | None, *, name: str) -> str:
+    """Pick the slug to write: explicit ``requested`` wins, else derive from ``name``.
+
+    Workspace slugs are globally unique. When derived from ``name`` we pre-check
+    once and append ``-2`` on collision; an explicit ``requested`` slug is taken
+    as-is so the caller owns conflict handling (a clash surfaces a 409 at flush).
+    """
+    if requested is not None and requested.strip():
+        return requested.strip()
+    base = slugify(name)
+    if await repo.get_by_slug(base) is None:
+        return base
+    candidate = base + _WS_SLUG_RETRY_SUFFIX
+    if len(candidate) > _WS_SLUG_MAX:
+        candidate = base[: _WS_SLUG_MAX - len(_WS_SLUG_RETRY_SUFFIX)] + _WS_SLUG_RETRY_SUFFIX
+    return candidate
+
+
+@require_tier(TierFlag.ANY)
+async def create_workspace_for_user(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    name: str,
+    slug: str | None,
+    region: str | None = None,
+) -> WorkspaceCreateResult:
+    """Create a workspace owned by ``user_id`` and seed a ZERO-tier capability.
+
+    Bootstrap path (``POST /workspaces``): a freshly-registered or invited user
+    has no workspace, so this is how they get their first one entirely from the
+    UI. The caller becomes the OWNER (so the row lists immediately) and a
+    ``ZERO`` / ``MANUAL`` :class:`WorkspaceCapability` is seeded — mirrors
+    :func:`suitest_api.services.bootstrap.bootstrap_first_install_superadmin` so
+    a brand-new workspace resolves capabilities without an LLM config. Raises
+    :class:`WorkspaceSlugConflictError` (→ 409) when the slug collides.
+    """
+    repo = WorkspaceRepo(session)
+    resolved_slug = await _next_workspace_slug(repo, slug, name=name)
+    workspace = Workspace(slug=resolved_slug, name=name)
+    if region:
+        workspace.region = region
+    session.add(workspace)
+    try:
+        await session.flush()
+    except IntegrityError as exc:
+        await session.rollback()
+        if "workspaces" in str(exc.orig) and "slug" in str(exc.orig):
+            raise WorkspaceSlugConflictError(resolved_slug) from exc
+        raise
+
+    session.add(Membership(workspace_id=workspace.id, user_id=user_id, role=Role.OWNER))
+    session.add(
+        WorkspaceCapability(
+            workspace_id=workspace.id,
+            tier=Tier.ZERO,
+            autonomy_level=AutonomyLevel.MANUAL,
+            features_json={},
+        )
+    )
+    await session.flush()
+    await write_audit(
+        session,
+        workspace_id=workspace.id,
+        user_id=str(user_id),
+        action="workspace.created",
+        resource_type="workspace",
+        resource_id=workspace.id,
+        metadata={"slug": workspace.slug, "name": workspace.name},
+    )
+    return WorkspaceCreateResult(
+        workspace=workspace,
+        ws_event="workspace.created",
+        ws_payload={
+            "workspaceId": workspace.id,
+            "slug": workspace.slug,
+            "name": workspace.name,
+        },
+    )
 
 
 class WorkspaceService:

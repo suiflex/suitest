@@ -47,6 +47,7 @@ from suitest_api.auth.manager import current_active_user
 from suitest_api.deps.arq import get_arq
 from suitest_api.deps.scope import TenantContext
 from suitest_api.schemas.workspace import (
+    WorkspaceCreate,
     WorkspaceDeleteAccepted,
     WorkspaceDeleteConfirm,
     WorkspaceDetail,
@@ -65,6 +66,8 @@ from suitest_api.services.workspace_service import (
     SoleOwnerProtectedError,
     WorkspaceService,
     WorkspaceServiceError,
+    WorkspaceSlugConflictError,
+    create_workspace_for_user,
 )
 from suitest_api.ws.publisher import publish_event
 
@@ -134,6 +137,46 @@ async def list_workspaces(
     """List the workspaces the current user is a member of (active only)."""
     rows = await WorkspaceRepo(session).list_for_user(user.id)
     return [WorkspacePublic.model_validate(r) for r in rows]
+
+
+@router.post(
+    "/workspaces",
+    response_model=WorkspacePublic,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_workspace(
+    body: WorkspaceCreate,
+    request: Request,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> WorkspacePublic:
+    """Create a workspace; the caller becomes its OWNER (bootstrap, ZERO-safe).
+
+    No membership/role gate — a user with zero workspaces must be able to make
+    their first one (dogfood blocker #1). Slug collisions return 409
+    ``DUPLICATE_WORKSPACE_SLUG``.
+    """
+    try:
+        outcome = await create_workspace_for_user(
+            session,
+            user_id=user.id,
+            name=body.name,
+            slug=body.slug,
+            region=body.region,
+        )
+    except WorkspaceSlugConflictError as exc:
+        await session.rollback()
+        _raise_service_error(exc, status_code=status.HTTP_409_CONFLICT)
+    await session.commit()
+    await session.refresh(outcome.workspace)
+    public = WorkspacePublic.model_validate(outcome.workspace)
+    await publish_event(
+        request,
+        topic=f"workspace:{outcome.workspace.id}",
+        event=outcome.ws_event,
+        data=outcome.ws_payload,
+    )
+    return public
 
 
 @router.get("/workspaces/{workspace_id}", response_model=WorkspaceDetail)
