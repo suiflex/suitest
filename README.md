@@ -48,6 +48,18 @@ Log in with the super-admin email/password. From **Settings → invite** others 
 
 To load the demo workspace (Nusantara Retail + sample suites/cases/runs): `make seed` (or `docker compose exec api python -m suitest_db.seed`).
 
+### Your first test — entirely from the UI, no LLM
+
+From an empty install you can bootstrap and run a real browser test without touching the API:
+
+1. **Log in** (super-admin email/password). A first **workspace** is created on install; the sidebar picker (`＋ New workspace`) makes more.
+2. **Create a project, then a suite** — the Test Cases screen prompts you when each is empty.
+3. **Author a test case** — “New case”, then add steps. A step targets an MCP provider (e.g. the bundled **`playwright-mcp`**, `target_kind = FE_WEB`) with a JSON tool call, e.g. `{"tool":"browser_navigate","arguments":{"url":"https://www.saucedemo.com"}}`.
+4. **Run now** — the deterministic runner dispatches each step through MCP (Playwright drives a real browser) and the run-detail page **streams live status to PASS/FAIL**.
+5. **Triage** — a failing step **auto-files a defect** (rule-based at ZERO); mark a suite **gating** to block deploys; watch pass-rate/readiness on the **dashboard**.
+
+This whole journey is locked by a no-mock, real-backend Playwright suite — `make e2e-real` (boots a ZERO api + web + runner, seeds an empty workspace, and drives the UI against the live stack).
+
 ---
 
 ## Local development (no Docker for the app)
