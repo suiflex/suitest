@@ -1,6 +1,8 @@
 import { Outlet, createFileRoute, isRedirect, redirect } from "@tanstack/react-router";
+import { useState } from "react";
 
 import { AiPanel } from "@/components/shell/AiPanel";
+import { CreateWorkspaceDialog } from "@/components/shell/CreateWorkspaceDialog";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { Topbar } from "@/components/shell/Topbar";
 import { useCurrentUser, type CurrentUser } from "@/hooks/use-current-user";
@@ -116,6 +118,9 @@ function AppLayout(): React.ReactElement {
 
   const { data: user } = useCurrentUser();
   const activeWorkspaceId = useActiveWorkspace((s) => s.workspaceId);
+  const setWorkspaceId = useActiveWorkspace((s) => s.setWorkspaceId);
+  const setProjectId = useActiveProject((s) => s.setProjectId);
+  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
   const memberships = user.memberships;
   const activeMembership =
     memberships.find((m) => m.workspace_id === activeWorkspaceId) ?? memberships[0];
@@ -127,6 +132,15 @@ function AppLayout(): React.ReactElement {
   const userName = user.name ?? user.email.split("@")[0] ?? "Account";
   const userRole = activeMembership?.role;
 
+  // Switching tenants resets the active project (a different workspace has its
+  // own projects) and hard-navigates so `_app.beforeLoad` re-seeds the project
+  // + capabilities for the new workspace from scratch.
+  const handleSwitchWorkspace = (id: string): void => {
+    setWorkspaceId(id);
+    setProjectId(null);
+    window.location.assign("/dashboard");
+  };
+
   return (
     <div className={`grid ${cols} min-h-screen`} data-testid="app-shell">
       <Sidebar
@@ -134,7 +148,18 @@ function AppLayout(): React.ReactElement {
         userName={userName}
         {...(userRole !== undefined ? { userRole } : {})}
         {...(workspaces.length > 0 ? { workspaces } : {})}
+        {...(activeWorkspaceId ? { activeWorkspaceId } : {})}
+        onSelectWorkspace={handleSwitchWorkspace}
+        onCreateWorkspace={() => {
+          setWorkspaceDialogOpen(true);
+        }}
         isSuperuser={user.is_superuser === true}
+      />
+      <CreateWorkspaceDialog
+        open={workspaceDialogOpen}
+        onClose={() => {
+          setWorkspaceDialogOpen(false);
+        }}
       />
       <div className="flex min-w-0 flex-col">
         <Topbar />

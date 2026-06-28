@@ -4,6 +4,7 @@ import {
   Bell,
   BookOpen,
   Bug,
+  Check,
   ChevronDown,
   FileCode2,
   FlaskConical,
@@ -12,6 +13,7 @@ import {
   Network,
   Play,
   Plug,
+  Plus,
   Settings,
   Shield,
   type LucideIcon,
@@ -51,6 +53,12 @@ export interface SidebarProps {
   activeRunsCount?: number;
   /** Read-only list of workspaces for the picker popover. */
   workspaces?: ReadonlyArray<{ id: string; name: string }>;
+  /** Id of the active workspace (for the checkmark in the picker). */
+  activeWorkspaceId?: string;
+  /** Switch the active workspace. No-op affordance when omitted. */
+  onSelectWorkspace?: (id: string) => void;
+  /** Open the create-workspace flow (bootstrap blocker #1). */
+  onCreateWorkspace?: () => void;
   /** Show the super-admin "Admin" nav item (M1e). */
   isSuperuser?: boolean;
 }
@@ -70,6 +78,9 @@ export function Sidebar({
   inboxCount = 0,
   activeRunsCount = 0,
   workspaces = [{ id: "default", name: "Acme QA" }],
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onCreateWorkspace,
   isSuperuser = false,
 }: SidebarProps): React.ReactElement {
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -168,25 +179,52 @@ export function Sidebar({
           </PopoverTrigger>
           <PopoverContent
             align="start"
-            className="w-[200px] border-border bg-bg-elev-1 p-1 text-fg-1"
+            className="w-[220px] border-border bg-bg-elev-1 p-1 text-fg-1"
           >
             <ul className="space-y-0.5" data-testid="workspace-picker-list">
-              {workspaces.map((ws) => (
-                <li key={ws.id}>
-                  <div
-                    className={cn(
-                      "rounded-sm px-2 py-1.5 text-[12.5px]",
-                      ws.name === workspaceName ? "bg-bg-elev-2 text-fg-1" : "text-fg-3",
-                    )}
-                  >
-                    {ws.name}
-                  </div>
-                </li>
-              ))}
+              {workspaces.map((ws) => {
+                const isActive =
+                  activeWorkspaceId !== undefined
+                    ? ws.id === activeWorkspaceId
+                    : ws.name === workspaceName;
+                return (
+                  <li key={ws.id}>
+                    <button
+                      type="button"
+                      data-testid="workspace-picker-item"
+                      data-active={isActive ? "true" : "false"}
+                      onClick={() => {
+                        setPickerOpen(false);
+                        if (!isActive) onSelectWorkspace?.(ws.id);
+                      }}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[12.5px] hover:bg-bg-elev-2",
+                        isActive ? "bg-bg-elev-2 text-fg-1" : "text-fg-3",
+                      )}
+                    >
+                      <span className="flex-1 truncate">{ws.name}</span>
+                      {isActive ? (
+                        <Check className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+                      ) : null}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
-            <p className="mt-2 px-2 text-[11px] uppercase tracking-[0.07em] text-fg-5">
-              Switching arrives in M1c
-            </p>
+            <div className="mt-1 border-t border-border-subtle pt-1">
+              <button
+                type="button"
+                data-testid="workspace-picker-create"
+                onClick={() => {
+                  setPickerOpen(false);
+                  onCreateWorkspace?.();
+                }}
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[12.5px] text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
+              >
+                <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                New workspace
+              </button>
+            </div>
           </PopoverContent>
         </Popover>
       </div>
