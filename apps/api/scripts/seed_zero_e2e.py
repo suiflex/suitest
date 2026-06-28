@@ -18,25 +18,83 @@ Run against the dev DB the api serves (``SUITEST_DATABASE_URL``):
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import uuid
 
 from fastapi_users.password import PasswordHelper
 from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from suitest_db.models.project import Project
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from suitest_db.models.case import TestCase, TestStep
+from suitest_db.models.project import Project, Suite
 from suitest_db.models.tenancy import Membership
 from suitest_db.models.user import User
 from suitest_db.models.workspace import Workspace
 from suitest_db.models.workspace_capability import WorkspaceCapability
-from suitest_shared.domain.enums import AutonomyLevel, Role, Tier
+from suitest_db.public_id import set_workspace_id
+from suitest_shared.domain.enums import AutonomyLevel, CaseSource, Role, TargetKind, Tier
 
 # Public, non-secret e2e fixture credentials (local dogfood DB only). Mirrored in
-# apps/web/e2e-realbackend/bootstrap.spec.ts.
+# apps/web/e2e/realbackend/*.spec.ts.
 E2E_EMAIL = "e2e-zero@suitest.local"
 E2E_PASSWORD = "dogfood-zero-pw-1"
 E2E_WORKSPACE_SLUG = "e2e-zero"
 E2E_WORKSPACE_NAME = "E2E Zero"
+
+# A SECOND workspace pre-seeded with a runnable saucedemo case (one
+# ``browser_navigate`` step on ``playwright-mcp``) so the run e2e can drive
+# "Run now" → PASS through the UI without authoring steps. Kept separate from
+# the EMPTY e2e-zero workspace so the bootstrap spec still starts from nothing.
+RUN_WORKSPACE_SLUG = "e2e-run"
+RUN_WORKSPACE_NAME = "E2E Run"
+NAV_CODE = json.dumps(
+    {"tool": "browser_navigate", "arguments": {"url": "https://www.saucedemo.com"}}
+)
+
+
+async def _seed_run_workspace(session: AsyncSession, *, user: User) -> None:
+    """Ensure ``e2e-run`` holds exactly one runnable saucedemo case (idempotent)."""
+    ws = await session.scalar(select(Workspace).where(Workspace.slug == RUN_WORKSPACE_SLUG))
+    if ws is None:
+        ws = Workspace(slug=RUN_WORKSPACE_SLUG, name=RUN_WORKSPACE_NAME)
+        session.add(ws)
+        await session.flush()
+        session.add(Membership(workspace_id=ws.id, user_id=user.id, role=Role.OWNER))
+        session.add(
+            WorkspaceCapability(
+                workspace_id=ws.id,
+                tier=Tier.ZERO,
+                autonomy_level=AutonomyLevel.MANUAL,
+                features_json={},
+            )
+        )
+    else:
+        await session.execute(delete(Project).where(Project.workspace_id == ws.id))
+    await session.flush()
+
+    project = Project(workspace_id=ws.id, slug="saucedemo", name="SauceDemo")
+    session.add(project)
+    await session.flush()
+    suite = Suite(project_id=project.id, name="Smoke")
+    session.add(suite)
+    await session.flush()
+    case = TestCase(
+        workspace_id=ws.id, suite_id=suite.id, name="Open saucedemo", source=CaseSource.MANUAL
+    )
+    set_workspace_id(case, ws.id)  # public_id before_insert listener needs this
+    session.add(case)
+    await session.flush()
+    session.add(
+        TestStep(
+            case_id=case.id,
+            order=1,
+            action="Open saucedemo",
+            expected="page loads",
+            code=NAV_CODE,
+            mcp_provider="playwright-mcp",
+            target_kind=TargetKind.FE_WEB,
+        )
+    )
 
 
 async def seed() -> str:
@@ -88,6 +146,7 @@ async def seed() -> str:
                 # Reset to empty: drop projects; FK ON DELETE CASCADE removes the
                 # workspace's suites + cases so the bootstrap journey is fresh.
                 await session.execute(delete(Project).where(Project.workspace_id == workspace.id))
+            await _seed_run_workspace(session, user=user)
             await session.commit()
             return workspace.id
     finally:

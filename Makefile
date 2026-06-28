@@ -80,8 +80,12 @@ lint-web: ## ESLint check
 test-web: ## Vitest (frontend tests)
 	cd apps/web && pnpm test
 
-e2e-real: ## Real-backend dogfood e2e: seed ZERO state, boot api+web, drive the UI
+e2e-real: ## Real-backend dogfood e2e: seed ZERO state, boot api+web+runner, drive the UI
 	uv run python apps/api/scripts/seed_zero_e2e.py
+	@echo "starting ARQ runner in the background (run e2e needs it; api+web boot via the playwright config)..."; \
+	SUITEST_OTEL_DISABLED=true uv run python -m suitest_runner > /tmp/suitest_e2e_runner.log 2>&1 & \
+	RUNNER_PID=$$!; \
+	trap "kill $$RUNNER_PID 2>/dev/null" EXIT INT TERM; \
 	cd apps/web && pnpm exec playwright test --config=playwright.realbackend.config.ts
 
 ##@ Dev servers
