@@ -16,7 +16,7 @@
 ### Done this session (blocker #1 + real-backend e2e — all committed + verified)
 
 - **Blocker #1 CLOSED — bootstrap UI:** `POST /workspaces` (creator→OWNER + ZERO capability; `test_workspace_create.py` 5 green) + FE create dialogs for workspace (sidebar picker `＋ New workspace` + switch), project + suite (Cases screen empty-state bootstraps + `New suite` button). FE vitest green (12 new tests), typecheck + lint green.
-- **Real-backend (no-mock) e2e harness GREEN:** `make e2e-real` boots ZERO api (`make dev-api-zero`) + web, seeds one user + one empty workspace (`apps/api/scripts/seed_zero_e2e.py`), drives `apps/web/e2e/realbackend/bootstrap.spec.ts`. Proven live: login (password, 204) → create project (201) → create suite (201) → ZERO hides AI panel + AI tab. **Journey steps 1, 2, 4 (partial), 11 now pass through the real UI against the real backend.**
+- **Real-backend (no-mock) e2e harness GREEN:** `make e2e-real` boots ZERO api (`make dev-api-zero`) + web, seeds one user + one empty workspace (`apps/api/scripts/seed_zero_e2e.py`), drives `apps/web/e2e/realbackend/bootstrap.spec.ts`. **Journey steps 1 (login), 2 (create project + suite), 4 (author a manual case), 5 (search), 11 (ZERO hides AI panel + AI tab) now pass through the real UI against the real backend.** Also closed: blocker #2 (manual case authoring) + blocker #3 for `test_cases` (per-workspace `public_id`, migration `0037`).
 
 ### Next (continue the dogfood loop, in journey order)
 
