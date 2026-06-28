@@ -47,5 +47,10 @@ test.describe("ZERO dogfood bootstrap (real backend)", () => {
     //    "No cases yet" state — a brand-new empty Suitest now has its first suite.
     await expect(page.getByTestId("new-suite-btn")).toBeVisible();
     await expect(page.getByText("No cases yet")).toBeVisible();
+
+    // 7. ZERO tier hides every LLM-only control (journey step 11): no AI chat
+    //    rail and no "AI-generated" tab in the cases header.
+    await expect(page.getByTestId("ai-panel")).toHaveCount(0);
+    await expect(page.getByTestId("cases-tab-ai")).toHaveCount(0);
   });
 });
