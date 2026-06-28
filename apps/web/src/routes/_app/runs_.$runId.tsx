@@ -25,7 +25,8 @@ export function RunDetailPage(): React.ReactElement {
     // load (before the WS subscription lands) or if the socket drops.
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      const terminal = status === "PASS" || status === "FAIL" || status === "ERROR" || status === "CANCELLED";
+      const terminal =
+        status === "PASS" || status === "FAIL" || status === "ERROR" || status === "CANCELLED";
       return terminal ? false : 2000;
     },
   });

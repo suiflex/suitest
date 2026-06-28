@@ -25,7 +25,10 @@ export interface CreateProjectDialogProps {
  * without an active project — so the user must be able to create the first one
  * entirely from the UI. On success the new project is made active.
  */
-export function CreateProjectDialog({ open, onClose }: CreateProjectDialogProps): React.ReactElement {
+export function CreateProjectDialog({
+  open,
+  onClose,
+}: CreateProjectDialogProps): React.ReactElement {
   const [name, setName] = useState("");
   const createProject = useCreateProject();
 

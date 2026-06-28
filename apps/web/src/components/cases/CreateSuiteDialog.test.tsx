@@ -67,9 +67,7 @@ describe("CreateSuiteDialog", () => {
 
   it("surfaces an error when the backend rejects the create", async () => {
     const user = userEvent.setup();
-    server.use(
-      http.post("*/api/v1/suites", () => new HttpResponse(null, { status: 400 })),
-    );
+    server.use(http.post("*/api/v1/suites", () => new HttpResponse(null, { status: 400 })));
 
     renderDialog();
     await user.type(screen.getByTestId("create-suite-name"), "Bad");
