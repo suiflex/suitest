@@ -129,9 +129,7 @@ function AppLayout(): React.ReactElement {
   // Auto-open the create-workspace flow for a user with zero workspaces (fresh
   // register / invite) so onboarding starts immediately instead of landing on a
   // workspace-less shell.
-  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(
-    user.memberships.length === 0,
-  );
+  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(user.memberships.length === 0);
   const memberships = user.memberships;
   const activeMembership =
     memberships.find((m) => m.workspace_id === activeWorkspaceId) ?? memberships[0];

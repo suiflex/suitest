@@ -1,9 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  RouterProvider,
-  createMemoryHistory,
-  createRouter,
-} from "@tanstack/react-router";
+import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -91,9 +87,7 @@ describe("<_app> route guard", () => {
   });
 
   it("redirects on network failure (no response)", async () => {
-    server.use(
-      http.get("*/api/v1/auth/me", () => HttpResponse.error()),
-    );
+    server.use(http.get("*/api/v1/auth/me", () => HttpResponse.error()));
 
     const { router } = renderAt("/dashboard");
 
