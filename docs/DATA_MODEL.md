@@ -186,6 +186,14 @@ class TestCase(DomainModel):
     generated_by: str | None = None
     generated_from: dict[str, Any] | None = None
     estimated_ms: int | None = None
+    # Phase 2 (lifecycle ingest): automation linkage + denormalized last-run.
+    automation_file_path: str | None = None
+    automation_code: str | None = None  # full generated source — powers the web Code tab
+    last_run_id: str | None = None
+    last_run_result: str | None = None  # PASSED | FAILED | SKIPPED | ERROR
+    last_run_at: datetime | None = None
+    last_failure_reason: str | None = None
+    last_duration_ms: int | None = None
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
@@ -599,6 +607,14 @@ class TestCase(Base, TimestampMixin):
     generated_by: Mapped[str | None] = mapped_column(String(64))
     generated_from: Mapped[dict | None] = mapped_column(JSONB)
     estimated_ms: Mapped[int | None] = mapped_column(Integer)
+    # Phase 2 (lifecycle ingest) — migration 0040_tcm_automation_lastrun
+    automation_file_path: Mapped[str | None] = mapped_column(String(512))
+    automation_code: Mapped[str | None] = mapped_column(Text)
+    last_run_id: Mapped[str | None] = mapped_column(String(32))
+    last_run_result: Mapped[str | None] = mapped_column(String(16))
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_failure_reason: Mapped[str | None] = mapped_column(Text)
+    last_duration_ms: Mapped[int | None] = mapped_column(Integer)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # NEW (M1d) — manual sort key within a suite. Drives the UI drag-reorder

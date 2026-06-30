@@ -54,14 +54,14 @@ def _encryption_key() -> Iterator[None]:
 def database_url() -> Iterator[str]:
     """Yield an asyncpg URL for a throwaway Postgres 16 (pgvector) database.
 
-    When ``SUITEST_TEST_DATABASE_URL`` is set (Docker-less local runs — see the
+    When ``SUITEST_DATABASE_URL`` is set (Docker-less local runs — see the
     project testing note) it is used verbatim, normalised to the asyncpg driver.
     Otherwise a session-scoped ``pgvector/pgvector:pg16`` testcontainer is booted.
 
     ``testcontainers`` is untyped, so the container object is kept local (never
     exposed in a fixture signature) to satisfy ``disallow_any_unimported``.
     """
-    explicit = os.environ.get("SUITEST_TEST_DATABASE_URL")
+    explicit = os.environ.get("SUITEST_DATABASE_URL")
     if explicit:
         url = explicit
         if url.startswith("postgresql://"):
@@ -71,7 +71,7 @@ def database_url() -> Iterator[str]:
         yield url
         return
     # Lazy import: ``testcontainers`` is only needed for the Docker path, which
-    # is skipped entirely when ``SUITEST_TEST_DATABASE_URL`` is supplied.
+    # is skipped entirely when ``SUITEST_DATABASE_URL`` is supplied.
     from testcontainers.postgres import PostgresContainer
 
     with PostgresContainer("pgvector/pgvector:pg16", driver="asyncpg") as container:

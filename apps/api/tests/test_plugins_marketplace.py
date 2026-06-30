@@ -1,6 +1,6 @@
 """Integration tests for the plugins marketplace endpoints (M9-4).
 
-Uses the real DB (SUITEST_TEST_DATABASE_URL) via the ``api_db`` fixture.
+Uses the real DB (SUITEST_DATABASE_URL) via the ``api_db`` fixture.
 Marketplace GET endpoints are public (no auth required).
 POST requires ADMIN/OWNER role.
 

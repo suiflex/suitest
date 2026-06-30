@@ -22,10 +22,17 @@ import json
 import os
 import sys
 
-from suitest_sdk import SuitestAPIError, SuitestClient
+try:  # the SDK is only needed for run/cases/mcp commands, not the lifecycle ones
+    from suitest_sdk import SuitestAPIError
+except ImportError:  # pragma: no cover - SDK optional for lifecycle-only usage
+
+    class SuitestAPIError(Exception):  # type: ignore[no-redef]
+        """Fallback when suitest-sdk is not installed."""
 
 
-def _client(args: argparse.Namespace) -> SuitestClient:
+def _client(args: argparse.Namespace) -> object:
+    from suitest_sdk import SuitestClient
+
     base = args.api_url or os.environ.get("SUITEST_API_URL", "http://localhost:4000")
     token = args.token or os.environ.get("SUITEST_TOKEN")
     workspace = args.workspace or os.environ.get("SUITEST_WORKSPACE_ID")
@@ -72,6 +79,55 @@ def _cmd_mcp_ls(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_generate(args: argparse.Namespace) -> int:
+    """analyze → PRD → plan → export runnable test files (no execution)."""
+    from suitest_lifecycle.config import load_config
+    from suitest_lifecycle.orchestrator import generate_only
+
+    config = load_config(args.config)
+    summary, cases, paths = generate_only(config)
+    print(f"analyzed {config.mode.value}: {len(summary.endpoints)} endpoint(s), {len(summary.pages)} page(s)")
+    print(f"generated {len(cases)} test case(s) -> {paths.mode_dir}")
+    for c in cases:
+        print(f"  {c.id}  {c.title}")
+    return 0
+
+
+def _cmd_test(args: argparse.Namespace) -> int:
+    """Full lifecycle: analyze → generate → start → wait ready → run → report."""
+    from suitest_lifecycle.config import load_config
+    from suitest_lifecycle.orchestrator import run_lifecycle
+
+    config = load_config(args.config)
+    if args.no_autostart:
+        config.server.autostart = False
+    if args.publish:
+        config.publish.enabled = True
+    if args.enrich:
+        config.enrich = True
+    result = run_lifecycle(config)
+    if args.json:
+        from suitest_lifecycle.serialize import summary_to_json
+
+        payload = {
+            "success": result.success,
+            "summary": result.summary,
+            "steps": result.steps,
+            "errors": result.errors,
+            "data": summary_to_json(result.run) if result.run else None,
+            "artifacts": result.artifacts,
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        for step in result.steps:
+            print(f"· {step}")
+        print(result.summary)
+        for err in result.errors:
+            print(f"error: {err}", file=sys.stderr)
+        print(f"artifacts: {len(result.artifacts)} file(s)")
+    return 0 if result.success else 2
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="suitest", description="Suitest CLI")
     parser.add_argument("--api-url", default=None, help="API base URL (or SUITEST_API_URL).")
@@ -101,6 +157,24 @@ def _build_parser() -> argparse.ArgumentParser:
     mcp_ls.add_argument("--json", action="store_true")
     mcp_ls.set_defaults(func=_cmd_mcp_ls)
 
+    gen = sub.add_parser("generate", help="Analyze + generate test cases (no run).")
+    gen.add_argument("--config", default="suitest.config.json", help="Path to suitest.config.json.")
+    gen.set_defaults(func=_cmd_generate)
+
+    test = sub.add_parser("test", help="Full lifecycle: generate, start, wait, run, report.")
+    test.add_argument("--config", default="suitest.config.json", help="Path to suitest.config.json.")
+    test.add_argument("--json", action="store_true", help="Emit a structured JSON result.")
+    test.add_argument(
+        "--no-autostart", action="store_true", help="Don't spawn the target; only wait for readiness."
+    )
+    test.add_argument(
+        "--publish", action="store_true", help="Publish results into a running Suitest (REST ingest)."
+    )
+    test.add_argument(
+        "--enrich", action="store_true", help="Add LLM edge-case enrichment (mock unless SUITEST_LLM_PROVIDER)."
+    )
+    test.set_defaults(func=_cmd_test)
+
     return parser
 
 
@@ -111,6 +185,9 @@ def main(argv: list[str] | None = None) -> int:
         result: int = args.func(args)
         return result
     except SuitestAPIError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except (ValueError, OSError) as exc:  # ConfigError (ValueError), missing files
         print(f"error: {exc}", file=sys.stderr)
         return 1
 

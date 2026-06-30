@@ -1,0 +1,22 @@
+[project]
+name = "suitest-lifecycle"
+version = "0.1.0"
+description = "Sutest testing lifecycle — TestSprite-parity analyze→generate→start→wait→run→report"
+requires-python = ">=3.11"
+# No third-party runtime deps: the lifecycle core is stdlib-only so it can drive
+# any target project. Generated tests use `requests` / `playwright`, installed in
+# the target's own environment — not here.
+dependencies = []
+
+# Frontend execution runtime. Suitest BUNDLES the browser driver so the user
+# never installs playwright themselves (it provisions Chromium on first run).
+# Install with: pip install "suitest-lifecycle[frontend]"
+[project.optional-dependencies]
+frontend = ["playwright>=1.40"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/suitest_lifecycle"]

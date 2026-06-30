@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime  # runtime import: Pydantic v2 evaluates field annotations
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -15,7 +16,6 @@ from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from datetime import datetime
 
 
 class TestCaseCreate(BaseModel):
@@ -32,6 +32,11 @@ class TestCaseCreate(BaseModel):
     preconditions: str | None = None
     status: CaseStatus = CaseStatus.ACTIVE
     priority: Priority = Priority.P2
+    # Generation provenance + automation linkage (Phase 2 lifecycle ingest).
+    generated_by: str | None = None
+    generated_from: dict[str, object] | None = None
+    automation_file_path: str | None = None
+    automation_code: str | None = None
 
 
 class TestCaseUpdate(BaseModel):
@@ -42,6 +47,14 @@ class TestCaseUpdate(BaseModel):
     preconditions: str | None = None
     status: CaseStatus | None = None
     priority: Priority | None = None
+    # Automation linkage + denormalized last-run pointers (set by run ingest).
+    automation_file_path: str | None = None
+    automation_code: str | None = None
+    last_run_id: str | None = None
+    last_run_result: str | None = None
+    last_run_at: datetime | None = None
+    last_failure_reason: str | None = None
+    last_duration_ms: int | None = None
 
 
 class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):

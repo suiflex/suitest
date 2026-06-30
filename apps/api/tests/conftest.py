@@ -81,7 +81,7 @@ def _database_url() -> Iterator[str]:
 
     Two modes:
 
-    * If ``SUITEST_TEST_DATABASE_URL`` is set, run against that external,
+    * If ``SUITEST_DATABASE_URL`` is set, run against that external,
       pre-provisioned database (no Docker required). Point it at a DEDICATED
       throwaway database — the ``api_db`` fixture TRUNCATEs every table per test,
       so it must never be a database holding real data.
@@ -109,7 +109,7 @@ def _database_url() -> Iterator[str]:
             else:
                 os.environ["SUITEST_DATABASE_URL"] = prev
 
-    external = os.environ.get("SUITEST_TEST_DATABASE_URL")
+    external = os.environ.get("SUITEST_DATABASE_URL")
     if external:
 
         async def _bootstrap_external() -> None:

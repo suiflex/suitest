@@ -13,6 +13,7 @@ members = [
   "packages/db",
   "packages/mcp",
   "packages/shared",
+  "packages/lifecycle",
 ]
 
 [tool.uv]
@@ -52,6 +53,7 @@ suitest-core = { workspace = true }
 suitest-db = { workspace = true }
 suitest-mcp = { workspace = true }
 suitest-shared = { workspace = true }
+suitest-lifecycle = { workspace = true }
 
 [tool.ruff]
 line-length = 100

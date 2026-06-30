@@ -60,7 +60,7 @@ def _m1d_database_url() -> Iterator[str]:
     if not os.environ.get("SUITEST_ENCRYPTION_KEY"):
         os.environ["SUITEST_ENCRYPTION_KEY"] = base64.urlsafe_b64encode(b"\x00" * 32).decode()
 
-    external = os.environ.get("SUITEST_TEST_DATABASE_URL")
+    external = os.environ.get("SUITEST_DATABASE_URL")
     if external:
         base_url = make_url(external)
         db_name = f"suitest_m1d_{uuid.uuid4().hex}"

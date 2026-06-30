@@ -122,6 +122,44 @@ class SuitestClient:
                 return run
             time.sleep(poll_interval)
 
+    # -- lifecycle ingest (Phase 2) -----------------------------------------
+    def bulk_import_cases(
+        self, *, project_id: str, suite_name: str, mode: str, cases: list[JSONDict]
+    ) -> JSONDict:
+        """Upsert a suite's generated cases + steps (idempotent by sourceRef)."""
+        body: JSONDict = {
+            "projectId": project_id,
+            "suiteName": suite_name,
+            "mode": mode,
+            "cases": cases,
+        }
+        return self._request("POST", "/api/v1/test-cases/bulk-import", json=body)
+
+    def ingest_run(
+        self,
+        *,
+        project_id: str,
+        suite_name: str,
+        name: str,
+        results: list[JSONDict],
+        env: str = "staging",
+        branch: str | None = None,
+        commit_sha: str | None = None,
+    ) -> JSONDict:
+        """Record an already-completed lifecycle run (no ARQ execution)."""
+        body: JSONDict = {
+            "projectId": project_id,
+            "suiteName": suite_name,
+            "name": name,
+            "env": env,
+            "results": results,
+        }
+        if branch is not None:
+            body["branch"] = branch
+        if commit_sha is not None:
+            body["commitSha"] = commit_sha
+        return self._request("POST", "/api/v1/runs/ingest", json=body)
+
     # -- mcp ----------------------------------------------------------------
     def list_mcp_providers(self) -> list[JSONDict]:
         result = self._request("GET", "/api/v1/mcp/providers")

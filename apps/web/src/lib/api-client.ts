@@ -117,6 +117,18 @@ export async function fetchRunSignedUrl(
   return res.data;
 }
 
+/** Generated test source for the run-detail Code tab (Phase 2 lifecycle ingest). */
+interface TestCaseCode {
+  automation_code?: string | null;
+  automationCode?: string | null;
+}
+
+/** ``GET /test-cases/:id`` — read just the persisted generated source. */
+export async function fetchTestCaseCode(caseId: string): Promise<string | null> {
+  const res = await api.get<TestCaseCode>(`/test-cases/${caseId}`);
+  return res.data.automation_code ?? res.data.automationCode ?? null;
+}
+
 type RunLogPage = components["schemas"]["RunLogPage"];
 
 /** ``GET /runs/:id/logs`` — persisted log stream (M4-10 time-travel replay reads this). */

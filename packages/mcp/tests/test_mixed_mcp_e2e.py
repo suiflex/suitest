@@ -16,7 +16,7 @@ Real backends used:
   — proves a *subprocess* transport participates in the same case (no browser
   binaries needed in CI).
 
-Skipped unless ``SUITEST_TEST_DATABASE_URL`` points at a reachable Postgres.
+Skipped unless ``SUITEST_DATABASE_URL`` points at a reachable Postgres.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ pytestmark = pytest.mark.asyncio
 
 
 def _pg_dsn() -> str | None:
-    raw = os.environ.get("SUITEST_TEST_DATABASE_URL")
+    raw = os.environ.get("SUITEST_DATABASE_URL")
     if not raw:
         return None
     # postgres-mcp uses psycopg (libpq), not the asyncpg driver URL.
@@ -183,7 +183,7 @@ async def test_mixed_mcp_case_executes_end_to_end(
 ) -> None:
     dsn = _pg_dsn()
     if dsn is None:
-        pytest.skip("SUITEST_TEST_DATABASE_URL not set — mixed-MCP E2E needs live Postgres")
+        pytest.skip("SUITEST_DATABASE_URL not set — mixed-MCP E2E needs live Postgres")
 
     from suitest_mcp.bundled.postgres import close_all_pools
 

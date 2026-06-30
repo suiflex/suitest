@@ -43,11 +43,11 @@ pytestmark = pytest.mark.asyncio
 def postgres_dsn() -> Iterator[str]:
     """Yield an isolated libpq DSN for psycopg.
 
-    Docker-less dev/test runs use ``SUITEST_TEST_DATABASE_URL`` and create a
+    Docker-less dev/test runs use ``SUITEST_DATABASE_URL`` and create a
     temporary database on that server. When the variable is absent, fall back to
     the original Postgres 16 testcontainer path.
     """
-    external = os.environ.get("SUITEST_TEST_DATABASE_URL")
+    external = os.environ.get("SUITEST_DATABASE_URL")
     if external:
         from sqlalchemy import create_engine, text
         from sqlalchemy.engine import make_url

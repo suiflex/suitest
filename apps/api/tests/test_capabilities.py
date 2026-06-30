@@ -281,7 +281,7 @@ def _overlay_database_url() -> Iterator[str]:
 
         os.environ["SUITEST_ENCRYPTION_KEY"] = base64.urlsafe_b64encode(b"\x00" * 32).decode()
 
-    external = os.environ.get("SUITEST_TEST_DATABASE_URL")
+    external = os.environ.get("SUITEST_DATABASE_URL")
     if external:
         base_url = make_url(external)
         db_name = f"suitest_overlay_{os.urandom(8).hex()}"

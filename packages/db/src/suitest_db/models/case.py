@@ -58,6 +58,18 @@ class TestCase(Base, TimestampMixin):
     generated_by: Mapped[str | None] = mapped_column(String(64))
     generated_from: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     estimated_ms: Mapped[int | None] = mapped_column(Integer)
+    # Phase 2 (lifecycle ingest): link a case to its exported runnable test file
+    # and persist the full generated source so the web Code tab works even when
+    # the web app is remote from the lifecycle host. See docs DATA_MODEL §3.4.
+    automation_file_path: Mapped[str | None] = mapped_column(String(512))
+    automation_code: Mapped[str | None] = mapped_column(Text)
+    # Denormalized "last run" pointers — updated by the run-ingest service so the
+    # TCM and case list can show status/duration without joining the runs table.
+    last_run_id: Mapped[str | None] = mapped_column(String(32))
+    last_run_result: Mapped[str | None] = mapped_column(String(16))
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_failure_reason: Mapped[str | None] = mapped_column(Text)
+    last_duration_ms: Mapped[int | None] = mapped_column(Integer)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # M1d: manual sort key within suite — drives drag-reorder UX (M1d-21/22).
     # Default 0; service layer breaks ties by created_at ASC. The composite

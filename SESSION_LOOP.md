@@ -37,7 +37,7 @@ The 11-step journey runs through the real UI against the real backend. `make e2e
 ### Test-run discipline (learned the hard way this session)
 
 - **NEVER run two pytest invocations at once** — `api_db` TRUNCATEs the shared remote `suitest_test` per test, so concurrent runs corrupt each other (spurious FK violations). Run serially; `pkill -f pytest` if a write test flakes with shifting FK errors.
-- **Always run pytest via `make`** (loads `.env` → `SUITEST_TEST_DATABASE_URL`); bare `uv run pytest` falls back to Docker testcontainers (unavailable) → setup ERRORs.
+- **Always run pytest via `make`** (loads `.env` → `SUITEST_DATABASE_URL`); bare `uv run pytest` falls back to Docker testcontainers (unavailable) → setup ERRORs.
 - This machine is **darwin-arm64 but node_modules was installed for x64** — the arm64 rollup binary is missing; vitest/playwright need `@rollup/rollup-darwin-arm64` linked (env repair, kept out of commits).
 
 ### The loop docs (read these for WHAT to work on)
@@ -68,7 +68,7 @@ This repo runs against **remote DB/Redis. NO Docker. NO localhost.**
 
 - `.env` at repo root is fully configured (remote host `128.199.74.52`):
   - `SUITEST_DATABASE_URL` → `suitest`
-  - `SUITEST_TEST_DATABASE_URL` → `suitest_test`
+  - `SUITEST_DATABASE_URL` → `suitest_test`
   - `SUITEST_REDIS_URL`, `SUITEST_LLM_*`, `SUITEST_ENCRYPTION_KEY`, `SUITEST_AUTH_SECRET`, etc.
 - `make` targets auto-load `.env` (`include .env` in `Makefile`). **Prefer `make` targets** so env is always loaded.
 - If running `pytest` raw, load `.env` first or vars fall back to Docker/localhost defaults → wrong DB → invalid results.

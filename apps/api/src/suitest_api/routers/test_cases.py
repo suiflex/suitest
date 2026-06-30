@@ -231,6 +231,11 @@ async def _detail_with_steps(
         updated_at=case.updated_at,
         steps=steps,
         tags=tags,
+        automation_file_path=case.automation_file_path,
+        automation_code=case.automation_code,
+        last_run_result=case.last_run_result,
+        last_run_at=case.last_run_at,
+        last_duration_ms=case.last_duration_ms,
     )
 
 
@@ -398,6 +403,11 @@ async def get_test_case(
         updated_at=case.updated_at,
         steps=[_step_public(s, tier) for s in steps],
         tags=tags,
+        automation_file_path=case.automation_file_path,
+        automation_code=case.automation_code,
+        last_run_result=case.last_run_result,
+        last_run_at=case.last_run_at,
+        last_duration_ms=case.last_duration_ms,
     )
 
 

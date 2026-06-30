@@ -6,7 +6,13 @@ import { BrowserPreview } from "@/components/runs/BrowserPreview";
 import { LogPane, type LogLine } from "@/components/runs/LogPane";
 import { RunSummaryCard } from "@/components/runs/RunSummaryCard";
 import { StepTable } from "@/components/runs/StepTable";
-import { fetchRun, fetchRunArtifacts, fetchRunSignedUrl, fetchRunSteps } from "@/lib/api-client";
+import {
+  fetchRun,
+  fetchRunArtifacts,
+  fetchRunSignedUrl,
+  fetchRunSteps,
+  fetchTestCaseCode,
+} from "@/lib/api-client";
 import { useRunStream } from "@/lib/ws-client";
 
 export const Route = createFileRoute("/_app/runs_/$runId")({
@@ -46,17 +52,21 @@ export function RunDetailPage(): React.ReactElement {
 
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const autoScrollRef = useRef(true);
-  // The latest screenshot artifact id we have already resolved a signed URL
-  // for — guards against re-fetching the same blob on every artifact poll.
+  // The latest screenshot/video artifact id we have already resolved a signed
+  // URL for — guards against re-fetching the same blob on every artifact poll.
   const lastResolvedScreenshotId = useRef<string | null>(null);
+  const lastResolvedVideoId = useRef<string | null>(null);
 
   // Reset transient state whenever the user navigates between two runs.
   useEffect(() => {
     setLogs([]);
     setPreviewUrl(null);
+    setVideoUrl(null);
     autoScrollRef.current = true;
     lastResolvedScreenshotId.current = null;
+    lastResolvedVideoId.current = null;
   }, [runId]);
 
   useRunStream(runId, (e) => {
@@ -100,6 +110,33 @@ export function RunDetailPage(): React.ReactElement {
     };
   }, [artifacts, runId]);
 
+  // Resolve the newest VIDEO artifact's signed URL for the Preview tab.
+  useEffect(() => {
+    const latest = [...artifacts].reverse().find((a) => a.kind === "VIDEO");
+    if (!latest) return;
+    if (lastResolvedVideoId.current === latest.id) return;
+    lastResolvedVideoId.current = latest.id;
+    let cancelled = false;
+    void fetchRunSignedUrl(runId, latest.id).then((signed) => {
+      if (cancelled) return;
+      setVideoUrl(signed.url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [artifacts, runId]);
+
+  // Fetch the generated source of the run's first case for the Code tab.
+  const firstCaseId = useMemo(() => {
+    const first = steps[0] as { caseId?: string; case_id?: string } | undefined;
+    return first?.caseId ?? first?.case_id ?? null;
+  }, [steps]);
+  const { data: code } = useQuery({
+    queryKey: ["case-code", firstCaseId] as const,
+    queryFn: () => (firstCaseId ? fetchTestCaseCode(firstCaseId) : Promise.resolve(null)),
+    enabled: Boolean(firstCaseId),
+  });
+
   return (
     <section className="flex flex-col gap-4" data-testid="run-detail-page">
       <div className="flex justify-end">
@@ -120,7 +157,7 @@ export function RunDetailPage(): React.ReactElement {
           <StepTable steps={steps} />
         </div>
         <div className="col-span-12 lg:col-span-5">
-          <BrowserPreview url={previewUrl} />
+          <BrowserPreview url={previewUrl} videoUrl={videoUrl} code={code ?? null} />
         </div>
         <div className="col-span-12">
           <LogPane logs={logs} autoScrollRef={autoScrollRef} />
