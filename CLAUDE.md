@@ -91,7 +91,7 @@ Tiap doc punya banner build-status di atas (built vs spec M2–M4) — baca itu 
 - React components: `PascalCase.tsx`
 - DB tables: `snake_case`, plural (`test_cases`, `test_runs`, `mcp_providers`)
 - API routes: `kebab-case` plural (`/api/v1/test-cases`, `/api/v1/mcp/providers`)
-- Env vars: `SCREAMING_SNAKE_CASE`, prefix `SUITEST_*` (e.g. `SUITEST_LLM_PROVIDER`, `SUITEST_DATABASE_URL`)
+- Env vars: `SCREAMING_SNAKE_CASE`, prefix `SUITEST_*` (e.g. `SUITEST_DATABASE_URL`, `SUITEST_REDIS_URL`). LLM **bukan** via env — dikonfigurasi per-workspace dari web UI.
 - Python classes: `PascalCase`
 - Python functions/vars: `snake_case`
 - Constants: `UPPER_SNAKE_CASE`
@@ -219,6 +219,8 @@ Suitest jalan di 3 tier (lihat [CAPABILITY_TIERS.md](./docs/CAPABILITY_TIERS.md)
 - **LOCAL** — local LLM (Ollama, llamacpp, vLLM, LM Studio). Full AI features.
 - **CLOUD** — cloud LLM (anthropic, openai, gemini, groq, openrouter, ...). Full AI features.
 
+> **Tier di-resolve dari konfigurasi LLM per-workspace (web UI: Settings → LLM provider), BUKAN dari env.** Base deployment selalu ZERO; provider yang disimpan workspace (AES-encrypted) yang menaikkan tier (`build_workspace_overlay` / `CapabilityService.resolve`). Tidak ada lagi env `SUITEST_LLM_*` / `SUITEST_EMBEDDINGS_BACKEND`. `resolve_tier()` / `resolve_embeddings()` di `packages/core/capabilities.py` sekarang ZERO-always (cuma jadi base + primitive `compute_features`/`compute_autonomy` untuk overlay).
+
 ### Rules WAJIB
 
 - Setiap endpoint baru declare tier requirement via DI:
@@ -310,12 +312,12 @@ Kalau tidak yakin tentang sesuatu yang tidak ada di docs:
 | **Traceability** | Link requirement ↔ test case ↔ defect |
 | **Defect** | Bug record dari test failure |
 | **Artifact** | Output dari run (screenshot, HAR, log, video) |
-| **Tier** | Capability level: `ZERO` / `LOCAL` / `CLOUD` — diresolusi dari env |
+| **Tier** | Capability level: `ZERO` / `LOCAL` / `CLOUD` — base selalu ZERO, dinaikkan per-workspace dari konfigurasi LLM web UI |
 | **Autonomy** | Per-workspace dial: `manual` / `assist` / `semi_auto` / `auto` |
 | **target_kind** | Enum: `BE_REST` / `BE_GRAPHQL` / `BE_GRPC` / `FE_WEB` / `FE_MOBILE` / `DATA` / `INFRA` / `CUSTOM` |
 | **mcp_provider** | Foreign key ke MCP server registry (e.g. `playwright-mcp`, `api-http-mcp`) |
 | **Generator** | Mekanisme bikin test case. Deterministic (OpenAPI, Recorder, Crawler) atau LLM-driven (PRD, semantic URL, MCP discovery) |
-| **Capability resolver** | Service di `packages/core/capabilities.py` yang resolve env config → tier |
+| **Capability resolver** | `packages/core/capabilities.py` — supply ZERO base + primitive (tier → features/autonomy); tier efektif dinaikkan service layer dari LLMConfig workspace |
 | **Mixed-MCP test** | Single test case dengan step menggunakan `mcp_provider` berbeda-beda (e.g. seed pg → call api → drive browser) |
 | **ZERO mode** | Tier tanpa LLM. Fitur AI hidden / disabled. Manual TCM + deterministic run only. |
 | **BYO LLM** | "Bring Your Own LLM" — user pasang API key sendiri (cloud) atau jalankan lokal (Ollama) |

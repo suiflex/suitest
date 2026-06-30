@@ -1,12 +1,13 @@
-"""Assemble the public :class:`Capabilities` response from env + workspace overlay.
+"""Assemble the public :class:`Capabilities` response from the ZERO base + overlay.
 
 Two builders:
 
-* :func:`build_base_capabilities` — env-only, called once at startup and stashed on
-  ``app.state.capabilities``. Raises ``ConfigError`` on misconfig (app fails to boot).
+* :func:`build_base_capabilities` — the ZERO deployment base (no env, no LLM),
+  called once at startup and stashed on ``app.state.capabilities``.
 * :func:`build_workspace_overlay` — layers a workspace ``WorkspaceCapability`` +
   active ``LLMConfig`` + ``McpProvider`` rows on top of the base, per
-  docs/CAPABILITY_TIERS.md §11.2 precedence (workspace ``LLMConfig`` > env).
+  docs/CAPABILITY_TIERS.md §11.2 precedence (workspace ``LLMConfig`` > base). The
+  per-workspace LLM provider (set from the web UI) is what raises the tier.
 
 The lower-level tier/feature/autonomy primitives live in
 ``suitest_core.capabilities``; these builders only wire them into the wire schema.
@@ -14,7 +15,6 @@ The lower-level tier/feature/autonomy primitives live in
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
 from suitest_core.capabilities import (
@@ -69,17 +69,15 @@ def _auth_section() -> AuthSection:
 
 
 def build_base_capabilities() -> Capabilities:
-    """Resolve the env-only base capabilities. Raises ``ConfigError`` on misconfig."""
+    """Build the ZERO deployment base (no env, no LLM).
+
+    LLM/embeddings are configured per-workspace from the web UI; the base is
+    unconditionally ZERO and :func:`build_workspace_overlay` raises the effective
+    tier from the workspace's active ``LLMConfig``.
+    """
     tier = resolve_tier()
     embeddings = resolve_embeddings()
-    provider = (os.getenv("SUITEST_LLM_PROVIDER") or "").strip().lower()
-    resolved_provider = provider if tier is not Tier.ZERO else "none"
-    llm = LLMSection(
-        provider=resolved_provider,
-        model=os.getenv("SUITEST_LLM_MODEL") or None,
-        base_url=os.getenv("SUITEST_LLM_BASE_URL") or None,
-        is_test_provider=resolved_provider == "mock",
-    )
+    llm = LLMSection(provider="none", model=None, base_url=None, is_test_provider=False)
     return Capabilities(
         tier=SharedTier(tier.value),
         llm=llm,
@@ -138,15 +136,15 @@ def build_workspace_overlay(
     """Overlay workspace DB rows on top of ``base`` (CAPABILITY_TIERS §11.2).
 
     Tier precedence: active ``LLMConfig.provider`` > ``WorkspaceCapability.tier`` >
-    env (base). Features/autonomy are recomputed for the effective tier (embeddings
-    stay env-derived). ``McpProvider`` rows populate ``mcp_providers``.
+    ZERO base. Features/autonomy are recomputed for the effective tier (embeddings
+    follow the ZERO base). ``McpProvider`` rows populate ``mcp_providers``.
     """
     embeddings = resolve_embeddings()
 
     if active_llm_config is not None:
         tier = _provider_to_tier(active_llm_config.provider)
-        # CAPABILITY_TIERS §11.2: workspace DB config wins over env. base_url lives in
-        # config_json (DATA_MODEL §4.1); only fall back to env base_url when absent.
+        # CAPABILITY_TIERS §11.2: workspace DB config is the source of truth. base_url
+        # lives in config_json (DATA_MODEL §4.1); fall back to the base only when absent.
         config_base_url = active_llm_config.config_json.get("base_url")
         overlaid_base_url = config_base_url if isinstance(config_base_url, str) else None
         llm = LLMSection(

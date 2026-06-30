@@ -45,6 +45,25 @@ class CreateRunBody(BaseModel):
     mcp_routing_override: dict[str, str] | None = Field(default=None, alias="mcpRoutingOverride")
 
 
+class CreateSuiteRunBody(BaseModel):
+    """``POST /suites/{id}/run`` body — run every active case in a suite as a bundle.
+
+    All fields optional: the selection is derived server-side from the suite's
+    active cases (in suite order), so the caller only supplies run metadata. ``name``
+    defaults to the suite name when omitted. This is the QA "run smoke/regression
+    suite" entry point — one Run row fanning out over N cases.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, str_strip_whitespace=True)
+
+    name: str | None = Field(default=None, max_length=255)
+    branch: str | None = None
+    commit_sha: str | None = Field(default=None, alias="commitSha")
+    env: str = "staging"
+    trigger: RunTrigger = RunTrigger.MANUAL
+    mcp_routing_override: dict[str, str] | None = Field(default=None, alias="mcpRoutingOverride")
+
+
 class RunPublic(BaseModel):
     """``POST /runs`` + ``cancel`` + ``rerun`` response shape.
 

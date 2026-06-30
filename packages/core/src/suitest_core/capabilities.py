@@ -1,52 +1,25 @@
 """Capability tier + autonomy resolver.
 
-Reads env once at call time. Callers should cache the resulting snapshot for the
-lifetime of the process. See docs/CAPABILITY_TIERS.md for the contract.
+The deployment base tier is always ZERO — LLM and embeddings are NOT configured
+from env. Providers are set per-workspace from the web UI (Settings → LLM
+provider) and stored (AES-encrypted) in the DB; the service layer
+(``CapabilityService`` / ``build_workspace_overlay``) raises the effective tier
+from the workspace's active ``LLMConfig``. These resolvers only supply the ZERO
+base + the pure (tier → features/autonomy) primitives the overlay builds on. See
+docs/CAPABILITY_TIERS.md for the contract.
 """
 
 from __future__ import annotations
 
-import os
 from enum import Flag, StrEnum, auto
 from typing import Final
 
 from pydantic import BaseModel, Field
 
-LOCAL_PROVIDERS: Final[frozenset[str]] = frozenset({"ollama", "llamacpp", "vllm", "lmstudio"})
-CLOUD_PROVIDERS: Final[frozenset[str]] = frozenset(
-    {
-        "anthropic",
-        "openai",
-        "gemini",
-        "groq",
-        "openrouter",
-        "azure",
-        "bedrock",
-        "vertex",
-        "deepseek",
-        "mock",
-    }
-)
-ZERO_SENTINELS: Final[frozenset[str]] = frozenset({"", "none", "disabled"})
-
-
-class ConfigError(Exception):
-    """Raised when env capability config is internally inconsistent.
-
-    e.g. a LOCAL provider with no ``SUITEST_LLM_BASE_URL``, or a key-requiring
-    CLOUD provider with no ``SUITEST_LLM_API_KEY``. Surfaced at process startup so
-    a misconfigured deployment fails fast (the app does not boot) rather than
-    silently degrading to a wrong tier.
-    """
-
-
-# CLOUD providers that authenticate via IAM / service-account / canned creds and
-# therefore do NOT require SUITEST_LLM_API_KEY.
-_KEYLESS_CLOUD_PROVIDERS: Final[frozenset[str]] = frozenset({"bedrock", "vertex", "mock"})
-
 
 class Tier(StrEnum):
-    """Capability tier resolved from env."""
+    """Capability tier. The env base is always ZERO; LOCAL/CLOUD come from the
+    per-workspace LLM config (web UI)."""
 
     ZERO = "ZERO"
     LOCAL = "LOCAL"
@@ -140,11 +113,6 @@ class CapabilitySnapshot(BaseModel):
     version: str = "0.1.0"
 
 
-def _read_provider() -> str:
-    raw = os.getenv("SUITEST_LLM_PROVIDER") or ""
-    return raw.strip().lower()
-
-
 class EmbeddingsConfig(BaseModel):
     """Resolved embeddings backend config (independent of the LLM tier).
 
@@ -159,62 +127,26 @@ class EmbeddingsConfig(BaseModel):
 
 
 def resolve_tier() -> Tier:
-    """Pure function: env → :class:`Tier`, strict per docs/CAPABILITY_TIERS.md §3.
+    """The env base tier is always :attr:`Tier.ZERO`.
 
-    Raises :class:`ConfigError` when the provider is set but its required companion
-    env var is missing (LOCAL needs ``SUITEST_LLM_BASE_URL``; key-requiring CLOUD
-    providers need ``SUITEST_LLM_API_KEY``) or when the provider is unknown. No
-    provider (or ``none`` / ``disabled``) resolves to ZERO and never raises, so the
-    default boot stays clean.
+    LLM providers are configured per-workspace from the web UI, not env, so the
+    deployment-wide base is unconditionally ZERO. The effective per-workspace tier
+    is raised by the service layer from the stored ``LLMConfig`` (see
+    ``apps/api/.../capabilities.build_workspace_overlay`` and
+    ``CapabilityService.resolve``).
     """
-    provider = _read_provider()
-    if provider in ZERO_SENTINELS:
-        return Tier.ZERO
-
-    if provider in LOCAL_PROVIDERS:
-        if not os.getenv("SUITEST_LLM_BASE_URL"):
-            raise ConfigError("LOCAL tier requires SUITEST_LLM_BASE_URL")
-        return Tier.LOCAL
-
-    if provider in CLOUD_PROVIDERS:
-        if provider not in _KEYLESS_CLOUD_PROVIDERS and not os.getenv("SUITEST_LLM_API_KEY"):
-            raise ConfigError(f"CLOUD provider {provider} requires SUITEST_LLM_API_KEY")
-        return Tier.CLOUD
-
-    raise ConfigError(f"Unknown SUITEST_LLM_PROVIDER: {provider}")
+    return Tier.ZERO
 
 
 def resolve_embeddings() -> EmbeddingsConfig:
-    """Resolve ``SUITEST_EMBEDDINGS_BACKEND`` → :class:`EmbeddingsConfig` (§3).
+    """Embeddings are disabled at the env base (``EmbeddingsConfig(enabled=False)``).
 
-    Backends: ``none`` (disabled), ``fastembed`` (dim 384), ``openai`` (dim 1536),
-    ``cohere`` (dim 1024). Unknown backend raises :class:`ConfigError`.
+    Not env-configured: the semantic-search feature flag follows this base, and the
+    embedder runtime (``suitest_core.embeddings.get_embedder``) is resolved
+    independently. Kept as a function so the snapshot/feature builders have a stable
+    seam if a workspace-driven embeddings config is added later.
     """
-    backend = (os.getenv("SUITEST_EMBEDDINGS_BACKEND") or "none").strip().lower()
-    if backend == "none":
-        return EmbeddingsConfig(enabled=False)
-    if backend == "fastembed":
-        return EmbeddingsConfig(
-            enabled=True,
-            backend="fastembed",
-            model=os.getenv("SUITEST_EMBEDDINGS_MODEL") or "BAAI/bge-small-en-v1.5",
-            dim=384,
-        )
-    if backend == "openai":
-        return EmbeddingsConfig(
-            enabled=True,
-            backend="openai",
-            model=os.getenv("SUITEST_EMBEDDINGS_MODEL") or "text-embedding-3-small",
-            dim=1536,
-        )
-    if backend == "cohere":
-        return EmbeddingsConfig(
-            enabled=True,
-            backend="cohere",
-            model=os.getenv("SUITEST_EMBEDDINGS_MODEL") or "embed-english-v3.0",
-            dim=1024,
-        )
-    raise ConfigError(f"Unknown SUITEST_EMBEDDINGS_BACKEND: {backend}")
+    return EmbeddingsConfig(enabled=False)
 
 
 def compute_features(tier: Tier, embeddings: EmbeddingsConfig) -> dict[str, bool]:
@@ -258,27 +190,19 @@ def compute_autonomy(tier: Tier) -> AutonomyInfo:
 
 
 def resolve_capabilities() -> CapabilitySnapshot:
-    """Return a fully-populated :class:`CapabilitySnapshot` from current env.
+    """Return the ZERO base :class:`CapabilitySnapshot` (no env, no LLM).
 
-    Retained for the service layer (``CapabilityService``), which works with the
-    lightweight snapshot + workspace overlay. The HTTP ``/capabilities`` response
+    Retained for the service layer (``CapabilityService``), which layers the
+    per-workspace overlay on top of this base. The HTTP ``/capabilities`` response
     uses the richer ``suitest_shared`` ``Capabilities`` schema assembled from the
     same primitives (:func:`resolve_tier`, :func:`resolve_embeddings`,
     :func:`compute_features`, :func:`compute_autonomy`).
     """
     tier = resolve_tier()
-    provider = _read_provider()
-    resolved_provider = provider if tier is not Tier.ZERO else None
     embeddings_cfg = resolve_embeddings()
-    llm = LLMInfo(
-        provider=resolved_provider,
-        model=os.getenv("SUITEST_LLM_MODEL") or None,
-        base_url=os.getenv("SUITEST_LLM_BASE_URL") or None,
-        is_test_provider=resolved_provider == "mock",
-    )
     return CapabilitySnapshot(
         tier=tier,
-        llm=llm,
+        llm=LLMInfo(),
         embeddings=EmbeddingsInfo(
             enabled=embeddings_cfg.enabled,
             backend=embeddings_cfg.backend,

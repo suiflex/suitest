@@ -23,6 +23,7 @@ from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.mcp_providers import McpProviderRepo
 from suitest_db.repositories.projects import ProjectRepo
 from suitest_db.repositories.runs import RunRepo
+from suitest_db.repositories.suites import SuiteRepo
 from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
 from suitest_shared.domain.enums import RunStatus, RunTrigger, Tier
 from suitest_shared.schemas.responses import ArtifactOut, RunOut, SignedUrlOut
@@ -249,6 +250,49 @@ class RunService:
             metadata={"trigger": trigger.value, "selection_size": len(selection)},
         )
         return run
+
+    @require_tier(TierFlag.ANY)
+    async def create_run_for_suite(
+        self,
+        *,
+        suite_id: str,
+        name: str | None,
+        branch: str | None,
+        commit_sha: str | None,
+        env: str,
+        trigger: RunTrigger,
+        user_id: str | None,
+        mcp_routing_override: dict[str, str] | None,
+    ) -> RunRow:
+        """Run every active case in a suite as ONE bundle run (QA suite-run entry).
+
+        Resolves the suite within scope, derives the selection from its active
+        cases in suite order (``SuiteRepo.active_case_ids_in_order``), then delegates
+        to :meth:`create_run` so all the existing validation (MCP provider check,
+        tier resolution, audit) applies unchanged. ``name`` defaults to the suite
+        name. Raises ``ValueError("suite not found")`` for a missing/cross-workspace
+        suite and ``ValueError("suite has no active cases")`` for an empty suite —
+        the router maps both to 400/404.
+        """
+        suite_repo = SuiteRepo(self._session)
+        suite = await suite_repo.get_active_by_id(suite_id)
+        if suite is None or not await self._project_in_scope(suite.project_id):
+            raise ValueError("suite not found")
+        case_ids = await suite_repo.active_case_ids_in_order(suite_id)
+        if not case_ids:
+            raise ValueError("suite has no active cases")
+        selection: list[dict[str, object]] = [{"case_id": cid} for cid in case_ids]
+        return await self.create_run(
+            project_id=suite.project_id,
+            name=name or suite.name,
+            selection=selection,
+            branch=branch,
+            commit_sha=commit_sha,
+            env=env,
+            trigger=trigger,
+            user_id=user_id,
+            mcp_routing_override=mcp_routing_override,
+        )
 
     @require_tier(TierFlag.ANY)
     async def attach_arq_job_id(self, run_id: str, job_id: str) -> None:

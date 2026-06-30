@@ -1,4 +1,8 @@
-"""CapabilityService tests — env snapshot + optional workspace overlay."""
+"""CapabilityService tests — ZERO base + optional workspace overlay.
+
+LLM is configured per-workspace from the web UI (not env), so the base is always
+ZERO and the materialised ``WorkspaceCapability`` overlay is what raises the tier.
+"""
 
 from __future__ import annotations
 
@@ -18,8 +22,7 @@ def _ctx(ws: str = "ws_1") -> TenantContext:
 
 
 @pytest.mark.asyncio
-async def test_capability_resolves_env_when_no_overlay(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("SUITEST_LLM_PROVIDER", raising=False)
+async def test_capability_resolves_zero_base_when_no_overlay() -> None:
     repo = AsyncMock()
     repo.get.return_value = None
     svc = CapabilityService(_ctx("ws_1"), repo)
@@ -33,8 +36,7 @@ async def test_capability_resolves_env_when_no_overlay(monkeypatch: pytest.Monke
 
 
 @pytest.mark.asyncio
-async def test_capability_overlay_overrides_tier(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("SUITEST_LLM_PROVIDER", raising=False)
+async def test_capability_overlay_overrides_tier() -> None:
     repo = AsyncMock()
     overlay = WorkspaceCapability(
         id="wc_1",

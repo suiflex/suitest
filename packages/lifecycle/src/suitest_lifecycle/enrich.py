@@ -3,22 +3,23 @@
 ZERO-safe and additive: with no enrichment the plan is byte-for-byte the
 deterministic baseline. With the built-in deterministic **mock** it gains
 edge-case cases (validation / boundary / auth-negative) tagged ``llm``, each
-still traceable to a `source_ref`. A real provider (`SUITEST_LLM_PROVIDER`) is
-used via a best-effort adapter to ``packages/agent``; if that import fails it
-falls back to the mock so a run never hard-depends on a key.
+still traceable to a `source_ref`.
 
-The lifecycle stays stdlib-only: the agent/LiteLLM stack is imported lazily and
-only when a real provider is requested.
+LLM providers are configured per-workspace from the web UI (not env). A real
+provider bridge that consumes that config lands later; until then enrichment uses
+the deterministic mock, so the lifecycle stays stdlib-only and a run never
+hard-depends on a key.
 """
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
-from suitest_lifecycle.config import Config
 from suitest_lifecycle.models import CodeSummary, Mode, PlanCase, PlanStep, Priority
+
+if TYPE_CHECKING:
+    from suitest_lifecycle.config import Config
 
 
 @dataclass(frozen=True)
@@ -71,29 +72,15 @@ class MockLlmClient:
 
 
 def resolve_client(config: Config) -> LlmClient | None:
-    """None → no enrichment (deterministic baseline). Mock unless a real provider
-    is configured via ``SUITEST_LLM_PROVIDER`` (best-effort agent adapter)."""
+    """None → no enrichment (deterministic baseline); the deterministic mock when
+    ``config.enrich`` is set.
+
+    LLM providers are configured per-workspace from the web UI (not env). A real
+    provider bridge that consumes that workspace config lands later; until then
+    enrichment uses :class:`MockLlmClient` so a run never hard-depends on a key.
+    """
     if not config.enrich:
         return None
-    provider = os.environ.get("SUITEST_LLM_PROVIDER", "").strip()
-    if provider:
-        adapter = _try_agent_adapter(provider)
-        if adapter is not None:
-            return adapter
-    return MockLlmClient()
-
-
-def _try_agent_adapter(provider: str) -> LlmClient | None:
-    """Best-effort: wire to packages/agent (LiteLLM). Returns None on any import
-    failure so the caller falls back to the mock — never hard-fails a run."""
-    try:
-        import importlib
-
-        importlib.import_module("suitest_agent")
-    except ImportError:
-        return None
-    # A full LiteLLM round-trip belongs in the agent package; until that bridge
-    # lands, surface the mock's deterministic behavior rather than a broken call.
     return MockLlmClient()
 
 

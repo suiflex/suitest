@@ -102,7 +102,7 @@ class Config:
     dependencies: list[DependencyConfig] = field(default_factory=list)
     test_ids: list[str] = field(default_factory=list)  # empty = all
     additional_instruction: str = ""
-    enrich: bool = False  # LLM enrichment (mock unless SUITEST_LLM_PROVIDER set)
+    enrich: bool = False  # LLM enrichment (deterministic mock; real provider via per-workspace web config later)
     publish: PublishConfig = field(default_factory=PublishConfig)
     output_dir: Path = field(default_factory=lambda: Path("sutest-output"))
     config_path: Path = field(default_factory=lambda: Path("suitest.config.json"))

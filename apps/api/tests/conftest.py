@@ -50,18 +50,13 @@ def _disable_app_bootstrap(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     app boots. Endpoint tests create many lifespan-wired apps under
     pytest-asyncio's function-scoped loops; letting those apps use the global
     production sessionmaker leaks asyncpg connections across loops.
+
+    (LLM/embeddings env is not stripped here: the deployment base is always ZERO
+    and the providers are workspace-configured via the web UI, so that env is
+    inert.)
     """
     monkeypatch.setenv("SUITEST_SUPERADMIN_EMAIL", "")
     monkeypatch.setenv("SUITEST_SUPERADMIN_PASSWORD", "")
-    for var in (
-        "SUITEST_LLM_PROVIDER",
-        "SUITEST_LLM_BASE_URL",
-        "SUITEST_LLM_API_KEY",
-        "SUITEST_LLM_MODEL",
-        "SUITEST_EMBEDDINGS_BACKEND",
-        "SUITEST_EMBEDDINGS_MODEL",
-    ):
-        monkeypatch.delenv(var, raising=False)
     yield
 
 

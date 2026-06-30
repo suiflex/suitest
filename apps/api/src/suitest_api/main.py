@@ -23,11 +23,12 @@ from suitest_api.settings import Settings, get_settings
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application startup / shutdown hooks.
 
-    Resolves the deployment capabilities from env exactly once and stashes the
-    immutable base :class:`~suitest_shared.schemas.capabilities.Capabilities` on
-    ``app.state.capabilities``. A misconfigured tier (``ConfigError``) propagates
-    here, so the app refuses to boot rather than serving the wrong tier. Also
-    records ``app.state.started_at`` for the ``/capabilities/health`` uptime.
+    Builds the immutable ZERO base
+    :class:`~suitest_shared.schemas.capabilities.Capabilities` exactly once and
+    stashes it on ``app.state.capabilities``. LLM/embeddings are configured
+    per-workspace from the web UI, so the base needs no env and never fails to boot
+    on tier misconfig. Also records ``app.state.started_at`` for the
+    ``/capabilities/health`` uptime.
 
     Also boots the WebSocket connection manager (:mod:`suitest_api.ws.manager`)
     if a Redis-compatible client has been pre-wired onto ``app.state.ws_redis``

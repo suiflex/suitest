@@ -1,11 +1,20 @@
-"""Capability tier resolver tests."""
+"""Capability tier resolver tests.
+
+Post-cabut contract: LLM/embeddings are configured per-workspace from the web UI,
+not env, so the resolvers are env-independent — the deployment base is always ZERO
+with embeddings disabled. The effective per-workspace tier is raised by the service
+layer (``CapabilityService`` / ``build_workspace_overlay``) from the stored
+``LLMConfig`` via the pure ``compute_features`` / ``compute_autonomy`` primitives,
+which these tests also lock.
+"""
 
 import pytest
 from suitest_core.capabilities import (
     AutonomyLevel,
-    ConfigError,
     Tier,
     TierFlag,
+    compute_autonomy,
+    compute_features,
     resolve_capabilities,
     resolve_embeddings,
     resolve_tier,
@@ -13,103 +22,88 @@ from suitest_core.capabilities import (
 )
 
 
-def test_resolve_tier_defaults_to_zero(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Unset env → ZERO tier."""
-    monkeypatch.delenv("SUITEST_LLM_PROVIDER", raising=False)
+def test_resolve_tier_always_zero() -> None:
+    """The env base tier is unconditionally ZERO."""
     assert resolve_tier() is Tier.ZERO
 
 
-def test_resolve_tier_explicit_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    """`none` literal → ZERO tier."""
-    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "none")
-    assert resolve_tier() is Tier.ZERO
-
-
-def test_resolve_tier_ollama_is_local(monkeypatch: pytest.MonkeyPatch) -> None:
-    """`ollama` + base_url → LOCAL tier."""
-    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "ollama")
-    monkeypatch.setenv("SUITEST_LLM_BASE_URL", "http://localhost:11434")
-    assert resolve_tier() is Tier.LOCAL
-
-
-def test_resolve_tier_local_without_base_url_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    """LOCAL provider without SUITEST_LLM_BASE_URL → ConfigError (strict, Task 5)."""
-    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "ollama")
-    monkeypatch.delenv("SUITEST_LLM_BASE_URL", raising=False)
-    with pytest.raises(ConfigError):
-        resolve_tier()
-
-
-def test_resolve_tier_anthropic_is_cloud(monkeypatch: pytest.MonkeyPatch) -> None:
-    """`anthropic` + api_key → CLOUD tier."""
+def test_resolve_tier_ignores_llm_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cabut: ``SUITEST_LLM_*`` env is inert — even a full CLOUD config → ZERO."""
     monkeypatch.setenv("SUITEST_LLM_PROVIDER", "anthropic")
     monkeypatch.setenv("SUITEST_LLM_API_KEY", "sk-x")
-    assert resolve_tier() is Tier.CLOUD
+    monkeypatch.setenv("SUITEST_LLM_BASE_URL", "http://should-be-ignored")
+    monkeypatch.setenv("SUITEST_LLM_MODEL", "claude-sonnet-4-5")
+    assert resolve_tier() is Tier.ZERO
 
 
-def test_resolve_tier_cloud_without_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Key-requiring CLOUD provider without SUITEST_LLM_API_KEY → ConfigError."""
-    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "anthropic")
-    monkeypatch.delenv("SUITEST_LLM_API_KEY", raising=False)
-    with pytest.raises(ConfigError):
-        resolve_tier()
-
-
-def test_resolve_tier_bedrock_no_key_ok(monkeypatch: pytest.MonkeyPatch) -> None:
-    """`bedrock` uses IAM, so no SUITEST_LLM_API_KEY required → CLOUD."""
-    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "bedrock")
-    monkeypatch.delenv("SUITEST_LLM_API_KEY", raising=False)
-    assert resolve_tier() is Tier.CLOUD
-
-
-def test_resolve_tier_unknown_provider_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Unknown provider → ConfigError (strict, Task 5)."""
-    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "totally-made-up")
-    with pytest.raises(ConfigError):
-        resolve_tier()
-
-
-def test_resolve_embeddings_backends(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each embeddings backend resolves to its documented dim (§3)."""
-    monkeypatch.delenv("SUITEST_EMBEDDINGS_MODEL", raising=False)
-    monkeypatch.delenv("SUITEST_EMBEDDINGS_BACKEND", raising=False)
+def test_resolve_embeddings_always_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Embeddings base is disabled regardless of ``SUITEST_EMBEDDINGS_*`` env."""
     assert resolve_embeddings().enabled is False
 
     monkeypatch.setenv("SUITEST_EMBEDDINGS_BACKEND", "fastembed")
+    monkeypatch.setenv("SUITEST_EMBEDDINGS_MODEL", "BAAI/bge-small-en-v1.5")
     cfg = resolve_embeddings()
-    assert cfg.enabled is True
-    assert cfg.dim == 384
-
-    monkeypatch.setenv("SUITEST_EMBEDDINGS_BACKEND", "openai")
-    assert resolve_embeddings().dim == 1536
-
-    monkeypatch.setenv("SUITEST_EMBEDDINGS_BACKEND", "cohere")
-    assert resolve_embeddings().dim == 1024
-
-    monkeypatch.setenv("SUITEST_EMBEDDINGS_BACKEND", "bogus")
-    with pytest.raises(ConfigError):
-        resolve_embeddings()
+    assert cfg.enabled is False
+    assert cfg.backend == "none"
+    assert cfg.dim is None
 
 
 def test_resolve_capabilities_zero_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
-    """ZERO snapshot has AI features OFF and autonomy=['manual']."""
-    monkeypatch.delenv("SUITEST_LLM_PROVIDER", raising=False)
+    """The base snapshot has no LLM, AI features OFF, autonomy=['manual']."""
+    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "anthropic")  # still ignored
     snap = resolve_capabilities()
     assert snap.tier is Tier.ZERO
     assert snap.llm.provider is None
+    assert snap.embeddings.enabled is False
     assert snap.features["ai_generation"] is False
+    assert snap.features["semantic_search"] is False
     assert snap.features["manual_tcm"] is True
     assert snap.autonomy.available == [AutonomyLevel.MANUAL]
     assert snap.autonomy.default is AutonomyLevel.MANUAL
 
 
-def test_capability_snapshot_serialises(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_capability_snapshot_serialises() -> None:
     """Pydantic snapshot can be model_dump()'d."""
-    monkeypatch.delenv("SUITEST_LLM_PROVIDER", raising=False)
     snap = resolve_capabilities()
     payload = snap.model_dump(mode="json")
     assert payload["tier"] == "ZERO"
     assert payload["autonomy"]["default"] == "manual"
+
+
+def test_compute_features_zero_disables_ai() -> None:
+    """ZERO tier turns every ``ai_*`` flag off; deterministic flags stay on."""
+    embeddings = resolve_embeddings()
+    features = compute_features(Tier.ZERO, embeddings)
+    assert features["ai_generation"] is False
+    assert features["ai_diagnose"] is False
+    assert features["semantic_search"] is False
+    assert features["manual_tcm"] is True
+    assert features["deterministic_runner"] is True
+    assert features["fts_search"] is True
+
+
+def test_compute_features_cloud_enables_ai() -> None:
+    """The overlay raises tier → CLOUD; the primitive must then enable AI flags."""
+    embeddings = resolve_embeddings()
+    features = compute_features(Tier.CLOUD, embeddings)
+    assert features["ai_generation"] is True
+    assert features["ai_execution_agentic"] is True
+    assert features["ai_diagnose"] is True
+    assert features["ai_conversation"] is True
+    # embeddings still disabled at base → semantic_search tracks it, not the tier.
+    assert features["semantic_search"] is False
+
+
+def test_compute_autonomy_by_tier() -> None:
+    """ZERO is locked to MANUAL; LLM tiers expose the full dial (default ASSIST)."""
+    zero = compute_autonomy(Tier.ZERO)
+    assert zero.available == [AutonomyLevel.MANUAL]
+    assert zero.default is AutonomyLevel.MANUAL
+
+    cloud = compute_autonomy(Tier.CLOUD)
+    assert cloud.default is AutonomyLevel.ASSIST
+    assert AutonomyLevel.AUTO in cloud.available
+    assert len(cloud.available) == 4
 
 
 def test_tier_in_any_accepts_every_tier() -> None:

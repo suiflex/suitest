@@ -95,10 +95,8 @@ e2e-real: ## Real-backend dogfood e2e: seed ZERO state, boot api+web+runner, dri
 dev-api: ## Start FastAPI dev server (port 4000, hot-reload)
 	uv run uvicorn --factory suitest_api.main:create_app --host 0.0.0.0 --port 4000 --reload
 
-dev-api-zero: ## Start FastAPI at ZERO tier (LLM/embeddings env stripped, port 4000)
-	env -u SUITEST_LLM_PROVIDER -u SUITEST_LLM_API_KEY -u SUITEST_LLM_BASE_URL \
-		-u SUITEST_LLM_MODEL -u SUITEST_EMBEDDINGS_BACKEND -u SUITEST_EMBEDDINGS_MODEL \
-		uv run uvicorn --factory suitest_api.main:create_app --host 0.0.0.0 --port 4000
+dev-api-zero: ## Start FastAPI at the ZERO base (default; LLM is workspace-configured via the web UI)
+	uv run uvicorn --factory suitest_api.main:create_app --host 0.0.0.0 --port 4000
 
 dev-api-docs: ## Open API docs in browser
 	open http://localhost:4000/docs

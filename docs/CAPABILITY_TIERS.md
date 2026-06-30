@@ -14,14 +14,14 @@ Suitest harus jalan di tiga "modus operandi":
 2. **Self-host with local LLM.** Tim yang punya GPU di-prem (Ollama / vLLM / llama.cpp). Privacy preserved, AI features aktif.
 3. **Self-host + cloud LLM (BYO).** Tim yang punya budget API SaaS — bawa key sendiri (Anthropic / OpenAI / Gemini / dst). Fitur full.
 
-Karenanya tier **bukan** pricing tier, melainkan **capability matrix** yang ditentukan oleh env config. Sama binary, beda surface area.
+Karenanya tier **bukan** pricing tier, melainkan **capability matrix** yang ditentukan oleh konfigurasi LLM per-workspace (web UI). Sama binary, beda surface area.
 
 Prinsip:
 
-- **Default = ZERO.** Boot pertama harus jalan tanpa konfigurasi tambahan.
-- **Upgrade = set env.** Switching tier = edit env + restart, no rebuild.
+- **Default = ZERO.** Boot pertama jalan tanpa konfigurasi apa pun — base deployment selalu ZERO.
+- **Upgrade = set provider di web UI.** Switching tier = pilih provider di Settings → LLM (di-test-connect, disimpan AES-encrypted di DB) — langsung berlaku per-workspace, **tanpa restart**, no rebuild, no env.
 - **No silent degradation.** Kalau fitur tidak available di tier ini, endpoint return `503 LLM_DISABLED` dengan reason — UI gate dengan tooltip.
-- **Embeddings tier independent.** Bisa ZERO LLM + `fastembed` embeddings = tetap dapet semantic search.
+- **Embeddings independent dari LLM.** Embedder runtime (`packages/core/embeddings.py`) di-resolve terpisah; base capability embeddings = disabled sampai ada workspace embeddings config.
 
 ---
 
@@ -29,7 +29,7 @@ Prinsip:
 
 | Aspek | ZERO | LOCAL | CLOUD |
 |-------|------|-------|-------|
-| Trigger env (`SUITEST_LLM_PROVIDER`) | `none` / unset | `ollama` / `llamacpp` / `vllm` / `lmstudio` | `anthropic` / `openai` / `gemini` / `groq` / `openrouter` / `azure` / `bedrock` / `vertex` / `deepseek` / `mock` (test/dev only — see §3) |
+| Trigger (workspace LLM provider, web UI) | `none` / belum di-set | `ollama` / `llamacpp` / `vllm` / `lmstudio` | `anthropic` / `openai` / `gemini` / `groq` / `openrouter` / `azure` / `bedrock` / `vertex` / `deepseek` / `mock` (test/dev only — see §3) |
 | Manual TCM (CRUD case/suite) | ✓ | ✓ | ✓ |
 | Deterministic runner (`step.code`) | ✓ | ✓ | ✓ |
 | MCP plugins | ✓ | ✓ | ✓ |
@@ -40,7 +40,7 @@ Prinsip:
 | AI execution (agentic step translate) | ✗ | ✓ | ✓ |
 | AI diagnosis (root-cause narration) | ✗ | ✓ | ✓ |
 | AI conversation (chat panel) | ✗ | ✓ | ✓ |
-| Embeddings (`SUITEST_EMBEDDINGS_BACKEND`) | opt-in via `fastembed` | opt-in any | opt-in any |
+| Embeddings (base disabled; workspace dial future) | off | off | off |
 | Semantic search | only if embeddings on | ✓ if embeddings on | ✓ if embeddings on |
 | FTS fallback search | ✓ (always) | ✓ | ✓ |
 | Autonomy level available | `manual` only | `manual` / `assist` / `semi_auto` / `auto` | `manual` / `assist` / `semi_auto` / `auto` |
@@ -50,63 +50,30 @@ Prinsip:
 
 ---
 
-## 3. Tier resolution algorithm
+## 3. Tier resolution
 
-Implementasi di `packages/core/capabilities.py`. Dipanggil sekali saat process startup (`api` + `runner`), hasil di-cache immutable, expose via `GET /capabilities`.
+> **Tier di-resolve dari konfigurasi LLM per-workspace (web UI), BUKAN dari env.** Tidak ada lagi `SUITEST_LLM_PROVIDER` / `SUITEST_LLM_API_KEY` / `SUITEST_LLM_MODEL` / `SUITEST_LLM_BASE_URL` / `SUITEST_EMBEDDINGS_BACKEND`. Provider di-set di Settings → LLM provider, disimpan AES-encrypted di DB (`LLMConfig`), dan di-test-connect sebelum save.
 
-Pseudocode:
+Dua lapis:
+
+1. **Base (deployment-wide).** `packages/core/capabilities.py` **selalu ZERO** dan tidak baca env: `resolve_tier() → Tier.ZERO`, `resolve_embeddings() → disabled`. Dipanggil sekali saat startup (`api` + `runner`), expose via `GET /capabilities` sebagai base.
+2. **Overlay (per-workspace).** `apps/api/.../capabilities.build_workspace_overlay` + `CapabilityService.resolve` membaca `LLMConfig` aktif workspace tiap request dan menaikkan tier efektif via `_provider_to_tier`:
 
 ```python
 LOCAL_PROVIDERS = {"ollama", "llamacpp", "vllm", "lmstudio"}
-CLOUD_PROVIDERS = {
-    "anthropic", "openai", "gemini", "groq", "openrouter",
-    "azure", "bedrock", "vertex", "deepseek",
-    "mock",   # test/dev only — canned deterministic responses, CI uses this to avoid real API spend
-}
 
-def resolve_tier() -> Tier:
-    provider = (os.getenv("SUITEST_LLM_PROVIDER") or "none").lower().strip()
-
-    if provider in {"", "none", "disabled"}:
+def _provider_to_tier(provider: str) -> Tier:
+    p = provider.strip().lower()
+    if p in {"", "none", "disabled"}:
         return Tier.ZERO
-
-    if provider in LOCAL_PROVIDERS:
-        # base_url required untuk local (no default cluster DNS guess)
-        if not os.getenv("SUITEST_LLM_BASE_URL"):
-            raise ConfigError("LOCAL tier butuh SUITEST_LLM_BASE_URL")
+    if p in LOCAL_PROVIDERS:
         return Tier.LOCAL
-
-    if provider in CLOUD_PROVIDERS:
-        # bedrock/vertex pakai IAM, mock = no creds, lainnya butuh API key
-        if provider not in {"bedrock", "vertex", "mock"} and not os.getenv("SUITEST_LLM_API_KEY"):
-            raise ConfigError(f"CLOUD provider {provider} butuh SUITEST_LLM_API_KEY")
-        return Tier.CLOUD
-
-    raise ConfigError(f"Unknown SUITEST_LLM_PROVIDER: {provider}")
-
-
-def resolve_embeddings() -> EmbeddingsConfig:
-    backend = (os.getenv("SUITEST_EMBEDDINGS_BACKEND") or "none").lower()
-    if backend == "none":
-        return EmbeddingsConfig(enabled=False)
-    if backend == "fastembed":
-        return EmbeddingsConfig(enabled=True, backend="fastembed",
-                                model=os.getenv("SUITEST_EMBEDDINGS_MODEL", "BAAI/bge-small-en-v1.5"),
-                                dim=384)
-    if backend == "openai":
-        return EmbeddingsConfig(enabled=True, backend="openai",
-                                model=os.getenv("SUITEST_EMBEDDINGS_MODEL", "text-embedding-3-small"),
-                                dim=1536)
-    if backend == "cohere":
-        return EmbeddingsConfig(enabled=True, backend="cohere",
-                                model=os.getenv("SUITEST_EMBEDDINGS_MODEL", "embed-english-v3.0"),
-                                dim=1024)
-    raise ConfigError(f"Unknown SUITEST_EMBEDDINGS_BACKEND: {backend}")
+    return Tier.CLOUD        # anthropic/openai/gemini/groq/openrouter/azure/bedrock/vertex/deepseek/mock
 ```
 
-**Catatan penting**: workspace-level DB-stored `LLMConfig` override env hanya **setelah** process re-init (mis. user set provider via Settings → LLM page → trigger graceful restart / signal). Tidak ada hot-swap mid-process untuk hindari surprise.
+Validasi (key wajib untuk CLOUD non-IAM, `base_url` wajib untuk LOCAL) terjadi saat **save** di `apps/api/.../services/llm_config_service.py` (`LLMConfigError`), bukan saat resolve — config DB dianggap trusted. Saat config disimpan, `_refresh_capability` me-materialisasi `WorkspaceCapability`. Flag tier efektif dihitung primitive murni `compute_features(tier, embeddings)` + `compute_autonomy(tier)` (tetap di `packages/core/capabilities.py`). Karena overlay membaca DB tiap request, switch provider langsung berlaku — **tanpa restart**.
 
-> **`mock` provider** returns canned deterministic responses from `packages/agent/providers/mock.py`; used in CI to avoid real API spend and in local dev when `SUITEST_LLM_PROVIDER=mock`. Treated as **CLOUD tier** for capability semantics (full feature surface) but flagged `is_test_provider: true` in the `/capabilities` response so the UI can render a "Test provider — not for production" banner. Not listed in [DEPLOYMENT.md §5 tier matrix](./DEPLOYMENT.md#5-tier-specific-environment-matrix) because it is not a deployable provider.
+> **`mock` provider** returns canned deterministic responses from `packages/agent/providers/mock.py`; dipilih dari web UI untuk CI/dev tanpa real API spend. Diklasifikasi **CLOUD tier** oleh `_provider_to_tier` (full feature surface) tapi di-flag `is_test_provider: true` di `/capabilities` response supaya UI render banner "Test provider — not for production".
 
 ---
 
@@ -141,7 +108,9 @@ Setiap fitur memetakan ke `(required_tier, required_autonomy)`. Decorator `@requ
 
 ## 5. Embeddings tier (independent dial)
 
-`SUITEST_EMBEDDINGS_BACKEND` adalah dial terpisah. Matrix:
+> **Status:** capability base embeddings = **disabled** (`resolve_embeddings()` ZERO-always; env `SUITEST_EMBEDDINGS_BACKEND` sudah dicabut). `semantic_search` feature flag mengikuti base ini. Embedder **runtime** (`packages/core/embeddings.py::get_embedder`) masih ada + terpisah (ZERO-tier feature). Matrix di bawah = target design saat embeddings di-expose sebagai workspace dial (belum); sampai itu, semua baris efektif OFF.
+
+Embeddings adalah dial terpisah dari LLM tier. Matrix (target):
 
 | LLM tier | Embeddings backend | Semantic search | RAG ke LLM | Tipikal use case |
 |----------|--------------------|-----------------|------------|------------------|
@@ -384,25 +353,15 @@ Frontend pakai response ini untuk render `<Gated feature="ai_generation">…</Ga
 
 ## 11. Upgrading tier at runtime
 
-Dua jalan:
+Satu jalan: **Settings → LLM page (per-workspace, DB-stored)**. Tidak ada lagi jalur env.
 
-### 11.1 Via env (compose / Helm)
+1. Admin user buka Settings → LLM (`apps/web/.../components/settings/LlmSettingsPanel.tsx`).
+2. Pilih provider, masukin model + API key (write-only field) / base_url (untuk LOCAL).
+3. Click "Test connection" → `POST /workspaces/{id}/llm-config/test` (LiteLLM check-connect) sebelum boleh save.
+4. Save → `PUT /workspaces/{id}/llm-config` → `LLMConfig` row (api_key di-AES-GCM-encrypt dgn `SUITEST_ENCRYPTION_KEY`); `llm_config_service._refresh_capability` me-materialisasi `WorkspaceCapability`.
+5. Tier efektif langsung berlaku: `GET /capabilities` (overlay baca DB tiap request) reflect tier baru **tanpa restart**; existing test case action-only jadi `executable=true`.
 
-1. Edit `.env` atau `values.yaml` — set `SUITEST_LLM_PROVIDER`, key, model.
-2. Restart `api` + `runner` (`docker compose restart api runner` / Helm `rollout restart`).
-3. `GET /capabilities` reflect tier baru.
-4. Existing test case action-only langsung jadi `executable=true`.
-
-### 11.2 Via Settings → LLM page (DB-stored config)
-
-1. Admin user buka Settings → LLM.
-2. Pilih provider, masukin API key (write-only field).
-3. Click "Test connection" → backend call LiteLLM `health_check()` against provider.
-4. Save → `LLMConfig` row inserted (api_key di-AES-GCM-encrypt dgn `SUITEST_ENCRYPTION_KEY`).
-5. Backend emit `config_reload` event → graceful restart marker → next request schedule worker recycle.
-6. Tier badge update setelah recycle complete.
-
-DB config **override** env (precedence: workspace `LLMConfig` > env). Audit log entry recorded.
+Precedence: workspace `LLMConfig` > `WorkspaceCapability` > ZERO base. Audit log entry recorded.
 
 ---
 

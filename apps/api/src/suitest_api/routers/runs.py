@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import aioboto3
 from arq.connections import ArqRedis
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.audit import write_audit
 from suitest_db.repositories.projects import ProjectRepo
@@ -39,7 +39,8 @@ from suitest_api.schemas.run import (
     RunSummary,
     StateChangePublic,
 )
-from suitest_api.schemas.runs import CreateRunBody, RunPublic
+from suitest_api.schemas.runs import CreateRunBody, CreateSuiteRunBody, RunPublic
+from suitest_api.services.junit_report_service import render_junit
 from suitest_api.services.replay_service import compute_state_delta
 from suitest_api.services.run_service import RunService
 from suitest_api.settings import get_settings
@@ -174,6 +175,30 @@ async def get_run_steps(
         )
         for step, public_id in pairs
     ]
+
+
+@router.get("/runs/{run_id}/report.junit", response_class=Response)
+async def get_run_junit_report(
+    run_id: str,
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+) -> Response:
+    """Render a run as a JUnit XML report for CI consumption (Jenkins / GHA).
+
+    Deterministic / ZERO-tier: each test case becomes one ``<testcase>`` rolled up
+    from its run steps (error > failure > skipped > passed). 404 when cross-workspace.
+    Returned as ``application/xml`` so a CI job can pipe it into its test reporter.
+    """
+    repo = RunRepo(session)
+    pair = await repo.get_with_summary(run_id)
+    if pair is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
+    run, _ = pair
+    if not await _project_in_scope(session, run.project_id, ctx.workspace_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
+    steps = await repo.get_steps_with_case_public_id(run_id)
+    xml = render_junit(run.name, steps)
+    return Response(content=xml, media_type="application/xml")
 
 
 @router.get("/runs/{run_id}/replay", response_model=RunReplayResponse)
@@ -360,6 +385,46 @@ async def create_run(
             project_id=body.project_id,
             name=body.name,
             selection=[item.model_dump(by_alias=False) for item in body.selection],
+            branch=body.branch,
+            commit_sha=body.commit_sha,
+            env=body.env,
+            trigger=body.trigger,
+            user_id=ctx.user_id,
+            mcp_routing_override=body.mcp_routing_override,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    job = await arq.enqueue_job("run_test_case", run.id, _queue_name=_RUNS_QUEUE)
+    if job is not None:
+        await svc.attach_arq_job_id(run.id, job.job_id)
+    await session.commit()
+    await session.refresh(run)
+    return RunPublic.model_validate(run)
+
+
+@router.post(
+    "/suites/{suite_id}/run", response_model=RunPublic, status_code=status.HTTP_202_ACCEPTED
+)
+async def create_suite_run(
+    suite_id: str,
+    body: CreateSuiteRunBody,
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+    arq: ArqRedis = Depends(get_arq),
+) -> RunPublic:
+    """Run every active case in a suite as ONE bundle run, then enqueue the ARQ job.
+
+    QA "run smoke/regression suite" entry point: the selection is derived
+    server-side from the suite's active cases (in suite order), so the caller only
+    sends run metadata. Returns 202 like ``POST /runs``. 400 when the suite is
+    cross-workspace ("suite not found") or empty ("suite has no active cases").
+    """
+    svc = _build_run_service(session, ctx)
+    try:
+        run = await svc.create_run_for_suite(
+            suite_id=suite_id,
+            name=body.name,
             branch=body.branch,
             commit_sha=body.commit_sha,
             env=body.env,

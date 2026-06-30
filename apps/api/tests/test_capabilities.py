@@ -1,11 +1,12 @@
 """Contract + resolution tests for the /capabilities endpoint (Task 5, plan 5.9).
 
-Most cases drive env via ``monkeypatch.setenv`` and assert the resolved snapshot
-returned by ``GET /capabilities`` through a fresh app (so the startup hook re-reads
-env). The two "raises" cases assert the app refuses to boot under a misconfigured
-tier. ``test_capabilities_workspace_overlay`` boots a pgvector testcontainer,
-applies the Alembic chain, seeds a ``WorkspaceCapability`` row, and asserts the DB
-overlay wins over an env-ZERO base.
+The deployment base is unconditionally ZERO — LLM/embeddings are configured
+per-workspace from the web UI, never env, so ``GET /capabilities`` on a fresh app
+returns the ZERO base regardless of any ``SUITEST_LLM_*`` / ``SUITEST_EMBEDDINGS_*``
+env (``test_capabilities_llm_env_is_inert`` locks that). The effective tier comes
+from the DB overlay: ``test_capabilities_workspace_overlay`` boots a pgvector
+testcontainer, applies the Alembic chain, seeds a ``WorkspaceCapability`` /
+``LLMConfig`` row, and asserts the workspace config wins over the ZERO base.
 """
 
 from __future__ import annotations
@@ -21,7 +22,6 @@ from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 from suitest_api.auth.db import get_async_session
 from suitest_api.main import create_app
-from suitest_core.capabilities import ConfigError
 from suitest_db.models.llm_config import LLMConfig
 from suitest_db.models.workspace import Workspace
 from suitest_db.models.workspace_capability import WorkspaceCapability
@@ -43,20 +43,6 @@ async def _capabilities_via_fresh_app(headers: dict[str, str] | None = None) -> 
     return data
 
 
-@pytest.fixture(autouse=True)
-def _clean_llm_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Each test starts from a pristine ZERO env unless it opts into providers."""
-    for var in (
-        "SUITEST_LLM_PROVIDER",
-        "SUITEST_LLM_BASE_URL",
-        "SUITEST_LLM_API_KEY",
-        "SUITEST_LLM_MODEL",
-        "SUITEST_EMBEDDINGS_BACKEND",
-        "SUITEST_EMBEDDINGS_MODEL",
-    ):
-        monkeypatch.delenv(var, raising=False)
-
-
 @pytest.mark.asyncio
 async def test_capabilities_zero_default() -> None:
     data = await _capabilities_via_fresh_app()
@@ -75,84 +61,32 @@ async def test_capabilities_zero_default() -> None:
 
 
 @pytest.mark.asyncio
-async def test_capabilities_local_ollama(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "ollama")
-    monkeypatch.setenv("SUITEST_LLM_BASE_URL", "http://localhost:11434")
-    data = await _capabilities_via_fresh_app()
-    assert data["tier"] == "LOCAL"
-    features = data["features"]
-    assert isinstance(features, dict)
-    assert features["ai_generation"] is True
-    assert features["ai_diagnose"] is True
-    autonomy = data["autonomy"]
-    assert isinstance(autonomy, dict)
-    assert autonomy["default"] == "assist"
+async def test_capabilities_llm_env_is_inert(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cabut regression: ``SUITEST_LLM_*`` / ``SUITEST_EMBEDDINGS_*`` env is ignored.
 
-
-@pytest.mark.asyncio
-async def test_capabilities_local_missing_base_url_raises(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "ollama")
-    app = create_app()
-    with pytest.raises(ConfigError):
-        async with LifespanManager(app):
-            pass  # pragma: no cover -- startup must raise before this runs
-
-
-@pytest.mark.asyncio
-async def test_capabilities_cloud_anthropic(monkeypatch: pytest.MonkeyPatch) -> None:
+    LLM is configured per-workspace from the web UI, so even a fully-populated CLOUD
+    env leaves the deployment base at ZERO (provider ``none``, AI off, embeddings
+    disabled). The effective tier only moves via the DB overlay (below).
+    """
     monkeypatch.setenv("SUITEST_LLM_PROVIDER", "anthropic")
     monkeypatch.setenv("SUITEST_LLM_API_KEY", "sk-x")
-    data = await _capabilities_via_fresh_app()
-    assert data["tier"] == "CLOUD"
-    llm = data["llm"]
-    assert isinstance(llm, dict)
-    assert llm["provider"] == "anthropic"
-    assert llm["is_test_provider"] is False
-
-
-@pytest.mark.asyncio
-async def test_capabilities_cloud_missing_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "anthropic")
-    app = create_app()
-    with pytest.raises(ConfigError):
-        async with LifespanManager(app):
-            pass  # pragma: no cover -- startup must raise before this runs
-
-
-@pytest.mark.asyncio
-async def test_capabilities_cloud_bedrock_no_key_ok(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "bedrock")
-    data = await _capabilities_via_fresh_app()
-    assert data["tier"] == "CLOUD"
-    features = data["features"]
-    assert isinstance(features, dict)
-    assert features["ai_generation"] is True
-
-
-@pytest.mark.asyncio
-async def test_capabilities_embeddings_fastembed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SUITEST_LLM_MODEL", "claude-sonnet-4-5")
+    monkeypatch.setenv("SUITEST_LLM_BASE_URL", "http://should-be-ignored")
     monkeypatch.setenv("SUITEST_EMBEDDINGS_BACKEND", "fastembed")
     data = await _capabilities_via_fresh_app()
-    embeddings = data["embeddings"]
-    assert isinstance(embeddings, dict)
-    assert embeddings["enabled"] is True
-    assert embeddings["backend"] == "fastembed"
-    assert embeddings["dim"] == 384
+    assert data["tier"] == "ZERO"
+    llm = data["llm"]
+    assert isinstance(llm, dict)
+    assert llm["provider"] == "none"
+    assert llm["model"] is None
+    assert llm["base_url"] is None
     features = data["features"]
     assert isinstance(features, dict)
-    assert features["semantic_search"] is True
-
-
-@pytest.mark.asyncio
-async def test_capabilities_embeddings_openai(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SUITEST_EMBEDDINGS_BACKEND", "openai")
-    data = await _capabilities_via_fresh_app()
+    assert features["ai_generation"] is False
+    assert features["semantic_search"] is False
     embeddings = data["embeddings"]
     assert isinstance(embeddings, dict)
-    assert embeddings["enabled"] is True
-    assert embeddings["dim"] == 1536
+    assert embeddings["enabled"] is False
 
 
 @pytest.mark.asyncio
@@ -202,50 +136,6 @@ async def test_capabilities_response_matches_spec_shape_zero() -> None:
     assert data["autonomy"] == {"available": ["manual"], "default": "manual"}
     assert data["mcpProviders"] == []
     assert isinstance(data["version"], str)
-
-
-@pytest.mark.asyncio
-async def test_capabilities_response_matches_spec_shape_cloud(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Snapshot vs the CLOUD sample JSON in CAPABILITY_TIERS §10."""
-    monkeypatch.setenv("SUITEST_LLM_PROVIDER", "anthropic")
-    monkeypatch.setenv("SUITEST_LLM_API_KEY", "sk-x")
-    monkeypatch.setenv("SUITEST_LLM_MODEL", "claude-sonnet-4-5")
-    monkeypatch.setenv("SUITEST_EMBEDDINGS_BACKEND", "openai")
-    data = await _capabilities_via_fresh_app()
-    assert data["tier"] == "CLOUD"
-    assert data["llm"] == {
-        "provider": "anthropic",
-        "model": "claude-sonnet-4-5",
-        "base_url": None,
-        "is_test_provider": False,
-    }
-    assert data["embeddings"] == {
-        "enabled": True,
-        "backend": "openai",
-        "model": "text-embedding-3-small",
-        "dim": 1536,
-    }
-    assert data["features"] == {
-        "manual_tcm": True,
-        "deterministic_runner": True,
-        "deterministic_generator_openapi": True,
-        "deterministic_generator_recorder": True,
-        "deterministic_generator_crawler": True,
-        "ai_generation": True,
-        "ai_execution_agentic": True,
-        "ai_diagnose": True,
-        "ai_conversation": True,
-        "semantic_search": True,
-        "fts_search": True,
-        "auto_defect_filing_ai": True,
-        "auto_defect_filing_rule": True,
-    }
-    assert data["autonomy"] == {
-        "available": ["manual", "assist", "semi_auto", "auto"],
-        "default": "assist",
-    }
 
 
 @pytest.mark.asyncio
@@ -379,7 +269,7 @@ async def _overlay_session_maker(
 
 @pytest.mark.asyncio
 async def test_capabilities_workspace_overlay(_overlay_session_maker: object) -> None:
-    """DB CLOUD WorkspaceCapability overrides an env-ZERO base."""
+    """DB CLOUD WorkspaceCapability overrides the ZERO base."""
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     assert isinstance(_overlay_session_maker, async_sessionmaker)
@@ -435,7 +325,7 @@ async def test_capabilities_workspace_overlay_local_base_url_from_config(
     """Active LLMConfig (LOCAL) overlay reads base_url/model from config_json, not env.
 
     Regression for CAPABILITY_TIERS §11.2: a per-workspace Ollama base_url stored in
-    ``LLMConfig.config_json`` must win over the env base (ZERO → base_url None).
+    ``LLMConfig.config_json`` must win over the ZERO base (base_url None).
     """
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -501,7 +391,7 @@ async def test_capabilities_workspace_overlay_local_base_url_from_config(
 async def test_capabilities_unknown_workspace_returns_base(
     _overlay_session_maker: object,
 ) -> None:
-    """Unknown workspace id → env-derived base (no 404, no overlay)."""
+    """Unknown workspace id → the ZERO base (no 404, no overlay)."""
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     assert isinstance(_overlay_session_maker, async_sessionmaker)

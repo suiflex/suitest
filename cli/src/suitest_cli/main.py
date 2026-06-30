@@ -171,7 +171,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--publish", action="store_true", help="Publish results into a running Suitest (REST ingest)."
     )
     test.add_argument(
-        "--enrich", action="store_true", help="Add LLM edge-case enrichment (mock unless SUITEST_LLM_PROVIDER)."
+        "--enrich", action="store_true", help="Add LLM edge-case enrichment (deterministic mock)."
     )
     test.set_defaults(func=_cmd_test)
 

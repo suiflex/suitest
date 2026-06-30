@@ -1,8 +1,9 @@
 """Deterministic in-process LLM provider (M3-1).
 
-Backs the ``mock`` provider key (a CLOUD-tier sentinel in
-``suitest_core.capabilities.CLOUD_PROVIDERS``) and every test that exercises the
-agent graphs without a network call. Output is a pure function of the request, so
+Backs the ``mock`` provider key (classified CLOUD-tier by the per-workspace LLM
+config; see ``apps/api/.../capabilities._provider_to_tier``) and every test that
+exercises the agent graphs without a network call. Output is a pure function of
+the request, so
 ``seed`` makes it fully reproducible (``determinism="deterministic"``).
 
 Two modes:
