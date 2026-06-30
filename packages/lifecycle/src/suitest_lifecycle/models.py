@@ -42,9 +42,12 @@ class Endpoint:
     method: str  # GET / POST / PUT / DELETE / PATCH
     path: str  # e.g. /api/products/:id  (full, mount-prefixed)
     auth_required: bool
-    source_file: str  # repo-relative path the route was found in
+    source_file: str  # repo-relative path the route was found in, or spec name
     handler: str = ""  # controller/handler name if recoverable
     summary: str = ""
+    # No-repo: an example request body parsed from OpenAPI/Postman so the backend
+    # exporter can build a valid create payload without the project's Zod schema.
+    request_example: dict[str, object] | None = None
 
 
 @dataclass(frozen=True)

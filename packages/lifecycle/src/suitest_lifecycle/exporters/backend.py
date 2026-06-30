@@ -58,6 +58,45 @@ def _collection_for(resource: str, summary: CodeSummary, config: Config) -> tupl
     return None
 
 
+def _example_literal(example: dict[str, object]) -> str:
+    """Render a python dict-literal from an OpenAPI/Postman example body, making
+    obviously-unique fields (sku/email) f-strings keyed on the test's ``token``."""
+    items: list[str] = []
+    for key, val in example.items():
+        lk = str(key).lower()
+        if isinstance(val, str):
+            if lk == "sku":
+                rendered = 'f"SKU-{token}"'
+            elif lk == "email":
+                rendered = 'f"user_{token}@example.com"'
+            else:
+                rendered = '"' + val.replace('"', '\\"') + '"'
+        elif isinstance(val, bool):
+            rendered = "True" if val else "False"
+        elif isinstance(val, (int, float)):
+            rendered = json.dumps(val)
+        else:
+            rendered = json.dumps(val)
+        items.append(f'        "{key}": {rendered},')
+    return "{\n" + "\n".join(items) + "\n    }"
+
+
+def _resolve_payload(res_name: str, summary: CodeSummary, config: Config) -> str:
+    """Prefer a spec/Postman example body (no-repo); fall back to the project's
+    Zod create-schema (repo mode)."""
+    for ep in summary.endpoints:
+        if (
+            ep.method == "POST"
+            and ":" not in ep.path
+            and "{" not in ep.path
+            and res_name in ep.path
+            and ep.request_example
+        ):
+            return _example_literal(ep.request_example)
+    fields = find_create_schema(config.project_path, res_name)
+    return _payload_literal(fields) if fields else "{}"
+
+
 def _payload_literal(fields: list[ZodField]) -> str:
     """Build a python dict-literal string for a valid create payload."""
     items: list[str] = []
@@ -181,8 +220,7 @@ def {fn}():
         resource = [p for p in path.strip("/").split("/") if p and not p.startswith(":") and p != "api"]
         res_name = resource[-1] if resource else "resource"
         coll = _collection_for(res_name, summary, config)
-        fields = find_create_schema(config.project_path, res_name)
-        payload = _payload_literal(fields) if fields else "{}"
+        payload = _resolve_payload(res_name, summary, config)
         coll_rel = coll[0] if coll else rel.rsplit("/", 1)[0] or "/"
         item_rel = rel.replace(":id", "{rid}").replace("{id}", "{rid}")
         seed = f'''
@@ -210,8 +248,7 @@ def {fn}():
     elif arch == "create":
         resource = [p for p in path.strip("/").split("/") if p and not p.startswith(":") and p != "api"]
         res_name = resource[-1] if resource else "resource"
-        fields = find_create_schema(config.project_path, res_name)
-        payload = _payload_literal(fields) if fields else "{}"
+        payload = _resolve_payload(res_name, summary, config)
         body = f'''
 def {fn}():
     headers = _auth_headers()

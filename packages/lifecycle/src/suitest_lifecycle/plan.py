@@ -13,7 +13,14 @@ from suitest_lifecycle.models import CodeSummary, Endpoint, PlanCase, PlanStep, 
 
 
 def _slug(method: str, path: str) -> str:
-    cleaned = path.strip("/").replace("/", "_").replace(":", "").replace("-", "_")
+    cleaned = (
+        path.strip("/")
+        .replace("/", "_")
+        .replace(":", "")
+        .replace("{", "")
+        .replace("}", "")
+        .replace("-", "_")
+    )
     return f"{method.lower()}_{cleaned}".strip("_")
 
 

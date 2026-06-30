@@ -88,6 +88,15 @@ class Config:
     ready_path: str = ""  # readiness probe path; default derived per mode
     port: int = 0  # derived from base_url if 0
     scope: str = "codebase"  # codebase | diff
+    # Where test discovery comes from:
+    #   repo    — static source analysis (needs the project checkout)
+    #   openapi — fetch/read an OpenAPI spec (no repo; backend)
+    #   postman — read a Postman v2 collection (no repo; backend)
+    #   crawl   — live DOM crawl (no repo; frontend)
+    analysis_source: str = "repo"
+    openapi_url: str = ""  # path/URL to openapi.json (analysis_source=openapi)
+    openapi_file: str = ""  # local OpenAPI file (relative to config)
+    postman_file: str = ""  # local Postman v2 collection (relative to config)
     auth: AuthConfig = field(default_factory=AuthConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
     dependencies: list[DependencyConfig] = field(default_factory=list)
@@ -128,10 +137,27 @@ def load_config(path: str | Path) -> Config:
     mode = Mode(str(_require(raw, "mode")).lower())
     base_dir = cfg_path.parent
 
-    project_path_raw = str(_require(raw, "projectPath"))
+    analysis_source = str(raw.get("analysisSource", "repo")).lower()
+    openapi_url = str(raw.get("openapiUrl", ""))
+    openapi_file = str(raw.get("openapiFile", ""))
+    postman_file = str(raw.get("postmanFile", ""))
+
+    # Repo mode needs the checkout; no-repo modes don't (discovery is from the
+    # live service / a spec), so projectPath becomes optional then.
+    project_path_raw = str(raw.get("projectPath", "."))
     project_path = (base_dir / project_path_raw).resolve()
-    if not project_path.is_dir():
+    if analysis_source == "repo" and not project_path.is_dir():
         raise ConfigError(f"projectPath does not exist: {project_path}")
+
+    # HARD RULE: a backend without the repo MUST bring an API contract —
+    # OpenAPI or a Postman collection. Black-box-from-URL-only is not enough to
+    # generate reliable backend tests.
+    if mode is Mode.BACKEND and analysis_source != "repo":
+        if not (openapi_url or openapi_file or postman_file):
+            raise ConfigError(
+                "no-repo backend requires an API contract: set one of "
+                "'openapiUrl', 'openapiFile', or 'postmanFile'"
+            )
 
     base_url = str(_require(raw, "baseUrl")).rstrip("/")
 
@@ -238,6 +264,10 @@ def load_config(path: str | Path) -> Config:
         ready_path=ready_path,
         port=port,
         scope=str(raw.get("scope", "codebase")),
+        analysis_source=analysis_source,
+        openapi_url=openapi_url,
+        openapi_file=str((base_dir / openapi_file).resolve()) if openapi_file else "",
+        postman_file=str((base_dir / postman_file).resolve()) if postman_file else "",
         auth=auth,
         server=server,
         dependencies=dependencies,

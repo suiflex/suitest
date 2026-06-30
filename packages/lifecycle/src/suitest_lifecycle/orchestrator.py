@@ -64,6 +64,17 @@ def _now_iso() -> str:
 
 def _analyze(config: Config) -> CodeSummary:
     if config.mode is Mode.BACKEND:
+        if config.analysis_source == "openapi":
+            from suitest_lifecycle.analyzers.openapi import analyze_openapi, load_spec
+
+            spec = load_spec(
+                url=config.openapi_url, file=config.openapi_file, base_url=config.base_url
+            )
+            return analyze_openapi(spec, config.project_name)
+        if config.analysis_source == "postman":
+            from suitest_lifecycle.analyzers.postman import analyze_postman, load_collection
+
+            return analyze_postman(load_collection(config.postman_file), config.project_name)
         return analyze_express(config.project_path, config.project_name)
     return analyze_react(config.project_path, config.project_name)
 
@@ -80,11 +91,24 @@ def _export(config: Config, cases: list[PlanCase], summary: CodeSummary, paths: 
     return export_frontend_tests(cases, summary, config, paths)
 
 
-def generate_only(config: Config) -> tuple[CodeSummary, list[PlanCase], Paths]:
-    """Run analyze → PRD → plan → export and write artifacts (no execution)."""
+def _is_crawl(config: Config) -> bool:
+    """Crawl discovery needs the live app, so generation is deferred until after
+    the target is ready (unlike repo/openapi which analyze before start)."""
+    return config.mode is Mode.FRONTEND and config.analysis_source == "crawl"
+
+
+def generate_only(
+    config: Config, summary: CodeSummary | None = None
+) -> tuple[CodeSummary, list[PlanCase], Paths]:
+    """Run analyze → PRD → plan → export and write artifacts (no execution).
+
+    ``summary`` may be pre-computed (e.g. from a live DOM crawl that already ran
+    after the app came up); otherwise it is analyzed here.
+    """
     paths = build_paths(config.output_dir, config.mode)
     paths.ensure()
-    summary = _analyze(config)
+    if summary is None:
+        summary = _analyze(config)
     prd = build_prd(summary, _today(), config.project_name)
     cases = _plan(config, summary)
     cases = enrich_plan(summary, cases, config, resolve_client(config))
@@ -120,9 +144,19 @@ def run_lifecycle(config: Config) -> LifecycleResult:
     steps: list[str] = []
     errors: list[str] = []
 
-    summary_code, cases, paths = generate_only(config)
-    steps.append(f"analyzed {config.mode.value}: {_count_label(summary_code)}")
-    steps.append(f"generated {len(cases)} test case(s) + runnable files")
+    crawl_mode = _is_crawl(config)
+    summary_code: CodeSummary | None
+    if crawl_mode:
+        # Discovery needs the live app — defer analyze/generate until after ready.
+        paths = build_paths(config.output_dir, config.mode)
+        paths.ensure()
+        summary_code = None
+        cases = []
+        steps.append("crawl mode: discovery deferred until target is ready")
+    else:
+        summary_code, cases, paths = generate_only(config)
+        steps.append(f"analyzed {config.mode.value}: {_count_label(summary_code)}")
+        steps.append(f"generated {len(cases)} test case(s) + runnable files")
 
     pm = ProcessManager()
     dep_managers: list[tuple[DependencyConfig, ProcessManager]] = []
@@ -204,6 +238,18 @@ def run_lifecycle(config: Config) -> LifecycleResult:
             steps.append(f"browser: {browser.detail}")
             if not browser.ready:
                 return _finish_fail(f"browser unavailable: {browser.detail}")
+
+        # 4) crawl mode: app is up — discover via live DOM, then generate.
+        if crawl_mode:
+            from suitest_lifecycle.analyzers.crawl import analyze_crawl
+
+            crawl = analyze_crawl(config.base_url, config.auth.username, config.auth.password)
+            steps.append(
+                f"crawled {len(crawl.summary.pages)} page(s); "
+                f"login {'found' if crawl.login.email else 'not found'}"
+            )
+            summary_code, cases, paths = generate_only(config, crawl.summary)
+            steps.append(f"generated {len(cases)} test case(s) from crawl")
 
         results = run_tests(
             cases,
