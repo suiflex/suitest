@@ -126,10 +126,12 @@ export function RunDetailPage(): React.ReactElement {
     };
   }, [artifacts, runId]);
 
-  // Fetch the generated source of the run's first case for the Code tab.
+  // Fetch generated source for the Code tab — prefer the first FAILED step's
+  // case (most relevant to triage), else the first step's case.
   const firstCaseId = useMemo(() => {
-    const first = steps[0] as { caseId?: string; case_id?: string } | undefined;
-    return first?.caseId ?? first?.case_id ?? null;
+    const pick = steps.find((s) => s.outcome === "FAIL" || s.outcome === "ERROR") ?? steps[0];
+    const ref = pick as { caseId?: string; case_id?: string } | undefined;
+    return ref?.caseId ?? ref?.case_id ?? null;
   }, [steps]);
   const { data: code } = useQuery({
     queryKey: ["case-code", firstCaseId] as const,

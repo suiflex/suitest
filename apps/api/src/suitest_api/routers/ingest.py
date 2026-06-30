@@ -45,6 +45,7 @@ async def bulk_import(
         resource_id=result.suite_id,
         metadata={"imported": len(result.imported)},
     )
+    await session.commit()
     return result
 
 
@@ -69,4 +70,5 @@ async def ingest_completed_run(
         resource_id=result.run_id,
         metadata={"status": result.status, "total": result.total},
     )
+    await session.commit()
     return result

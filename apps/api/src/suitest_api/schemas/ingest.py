@@ -76,7 +76,8 @@ class IngestArtifact(_Camel):
 
 
 class IngestResult(_Camel):
-    source_ref: str = Field(alias="sourceRef")
+    name: str = ""  # case name — the idempotency/match key (source_ref is not unique)
+    source_ref: str = Field(default="", alias="sourceRef")
     outcome: str = "PASSED"
     duration_ms: int = Field(default=0, alias="durationMs")
     error: str = ""

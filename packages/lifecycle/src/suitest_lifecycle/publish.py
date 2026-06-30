@@ -53,20 +53,62 @@ def _case_payloads(cases: list[PlanCase], paths: Paths) -> list[dict[str, object
     return out
 
 
+def _s3_settings() -> dict[str, str] | None:
+    """Read S3/MinIO settings from env (SUITEST_S3_*). None if not configured."""
+    endpoint = os.environ.get("SUITEST_S3_ENDPOINT", "")
+    bucket = os.environ.get("SUITEST_S3_BUCKET", "")
+    access = os.environ.get("SUITEST_S3_ACCESS_KEY", "")
+    secret = os.environ.get("SUITEST_S3_SECRET_KEY", "")
+    if endpoint and bucket and access and secret:
+        return {
+            "endpoint": endpoint,
+            "bucket": bucket,
+            "access": access,
+            "secret": secret,
+            "region": os.environ.get("SUITEST_S3_REGION", "us-east-1"),
+        }
+    return None
+
+
+def _resolve_url(path: str, mime: str) -> str:
+    """Upload to S3/MinIO when configured (so the web can sign + play it), else a
+    local ``file://`` URL (web falls back to the static /artifacts/raw/ route)."""
+    s3 = _s3_settings()
+    if s3 is None:
+        return "file://" + os.path.abspath(path)
+    try:
+        import boto3  # lazy: only when S3 is configured
+
+        client = boto3.client(
+            "s3",
+            endpoint_url=s3["endpoint"],
+            aws_access_key_id=s3["access"],
+            aws_secret_access_key=s3["secret"],
+            region_name=s3["region"],
+        )
+        key = f"lifecycle/{os.path.basename(os.path.dirname(path))}/{os.path.basename(path)}"
+        client.upload_file(path, s3["bucket"], key, ExtraArgs={"ContentType": mime})
+        return f"s3://{s3['bucket']}/{key}"
+    except Exception:  # never fail publish on an upload hiccup
+        return "file://" + os.path.abspath(path)
+
+
 def _artifact(path: str, kind: str) -> dict[str, object] | None:
     if not path or not os.path.isfile(path):
         return None
     ext = os.path.splitext(path)[1].lower()
+    mime = _MIME.get(ext, "application/octet-stream")
     return {
         "kind": kind,
-        "url": "file://" + os.path.abspath(path),
-        "mimeType": _MIME.get(ext, "application/octet-stream"),
+        "url": _resolve_url(path, mime),
+        "mimeType": mime,
         "sizeBytes": os.path.getsize(path),
     }
 
 
 def _result_payloads(summary: RunSummary, cases: list[PlanCase]) -> list[dict[str, object]]:
     ref_by_id = {c.id: c.source_ref for c in cases}
+    name_by_id = {c.id: c.title for c in cases}
     out: list[dict[str, object]] = []
     for r in summary.results:
         artifacts = [
@@ -76,6 +118,7 @@ def _result_payloads(summary: RunSummary, cases: list[PlanCase]) -> list[dict[st
         ]
         out.append(
             {
+                "name": name_by_id.get(r.test_id, r.title),
                 "sourceRef": ref_by_id.get(r.test_id, r.test_id),
                 "outcome": r.status.value,
                 "durationMs": r.duration_ms,

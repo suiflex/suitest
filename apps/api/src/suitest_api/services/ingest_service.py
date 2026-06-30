@@ -68,10 +68,13 @@ async def _ensure_suite(session: AsyncSession, project_id: str, name: str) -> st
     return created.id
 
 
-async def _find_by_source_ref(session: AsyncSession, suite_id: str, ref: str) -> TestCase | None:
+async def _find_by_name(session: AsyncSession, suite_id: str, name: str) -> TestCase | None:
+    """Idempotency key = (suite, name). A ``source_ref`` is NOT unique — two cases
+    can target the same endpoint (login-valid vs login-invalid), so matching on it
+    would collapse distinct cases. Case names are unique within a generated plan."""
     stmt = select(TestCase).where(
         TestCase.suite_id == suite_id,
-        TestCase.generated_from["source_ref"].astext == ref,
+        TestCase.name == name,
         TestCase.deleted_at.is_(None),
     )
     return (await session.scalars(stmt)).first()
@@ -97,7 +100,7 @@ async def bulk_import_cases(
             "category": c.category,
             "tags": list(c.tags),
         }
-        existing = await _find_by_source_ref(session, suite_id, c.source_ref)
+        existing = await _find_by_name(session, suite_id, c.name)
         if existing is not None:
             await case_repo.update(
                 existing.id,
@@ -187,40 +190,66 @@ async def ingest_run(
     now = _now()
     passed = failed = 0
     total_ms = 0
+    step_seq = 0  # global step ordering across the whole run (StepTable reads this)
+
     for r in body.results:
-        case = await _find_by_source_ref(session, suite_id, r.source_ref)
+        case = await _find_by_name(session, suite_id, r.name or "")
         if case is None:
             continue
-        outcome = _OUTCOME.get(r.outcome, StepOutcome.ERROR)
+        case_outcome = _OUTCOME.get(r.outcome, StepOutcome.ERROR)
         total_ms += r.duration_ms
-        snapshot: dict[str, object] = {
-            "steps": [
-                {"index": s.order, "type": s.type, "description": s.description, "status": s.outcome}
-                for s in r.steps
-            ]
-        }
-        run_step = await step_repo.create_step(
-            run_id=run.id,
-            case_id=case.id,
-            step_order=1,
-            outcome=outcome,
-            started_at=None,
-            completed_at=now,
-            duration_ms=r.duration_ms,
-            stdout=r.stdout or None,
-            stderr=r.stderr or None,
-            error_message=r.error or None,
-            state_snapshot=snapshot,
-        )
-        for a in r.artifacts:
-            await artifact_repo.create_artifact(
-                run_step_id=run_step.id,
-                kind=a.kind,
-                url=a.url,
-                size_bytes=a.size_bytes,
-                mime_type=a.mime_type,
-                metadata=None,
+
+        # One run_step PER recorded step so the web Steps panel is granular
+        # ("Step 1 … PASS, Step 2 … PASS"), not a single row per case.
+        recorded = r.steps or []
+        first_run_step_id: str | None = None
+        if recorded:
+            for s in recorded:
+                step_seq += 1
+                rs = await step_repo.create_step(
+                    run_id=run.id,
+                    case_id=case.id,
+                    step_order=step_seq,
+                    outcome=_OUTCOME.get(s.outcome, StepOutcome.ERROR),
+                    started_at=None,
+                    completed_at=now,
+                    duration_ms=s.duration_ms,
+                    stdout=None,
+                    stderr=None,
+                    error_message=r.error or None if s.outcome in ("FAILED", "ERROR") else None,
+                    state_snapshot={"type": s.type, "description": s.description},
+                )
+                if first_run_step_id is None:
+                    first_run_step_id = rs.id
+        else:
+            step_seq += 1
+            rs = await step_repo.create_step(
+                run_id=run.id,
+                case_id=case.id,
+                step_order=step_seq,
+                outcome=case_outcome,
+                started_at=None,
+                completed_at=now,
+                duration_ms=r.duration_ms,
+                stdout=r.stdout or None,
+                stderr=r.stderr or None,
+                error_message=r.error or None,
+                state_snapshot=None,
             )
+            first_run_step_id = rs.id
+
+        # Attach the case's video/screenshot to its first run step.
+        for a in r.artifacts:
+            if first_run_step_id is not None:
+                await artifact_repo.create_artifact(
+                    run_step_id=first_run_step_id,
+                    kind=a.kind,
+                    url=a.url,
+                    size_bytes=a.size_bytes,
+                    mime_type=a.mime_type,
+                    metadata=None,
+                )
+
         await case_repo.update(
             case.id,
             TestCaseUpdate(
@@ -231,7 +260,7 @@ async def ingest_run(
                 last_duration_ms=r.duration_ms,
             ),
         )
-        if outcome is StepOutcome.PASS:
+        if case_outcome is StepOutcome.PASS:
             passed += 1
         else:
             failed += 1
