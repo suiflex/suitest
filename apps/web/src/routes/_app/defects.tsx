@@ -130,7 +130,7 @@ function DefectCard({ defect }: { defect: Defect }): React.ReactElement {
 
       <div className="grid grid-cols-2 gap-3">
         <pre
-          className="overflow-auto rounded-md bg-[#060606] p-3 font-mono text-[11.5px] leading-relaxed text-fg-3"
+          className="overflow-auto rounded-md bg-bg-code p-3 font-mono text-[11.5px] leading-relaxed text-fg-3"
           data-testid="defect-stack"
         >
           <code>

@@ -35,7 +35,7 @@ describe("Defects screen", () => {
     setCaps(ZERO_CAPS);
     server.use(
       http.get("*/api/v1/auth/me", () =>
-        HttpResponse.json({ id: "u_demo", email: "demo@suitest.dev", name: "Maya", memberships: [] }),
+        HttpResponse.json({ id: "u_demo", email: "demo@suitest.dev", name: "Maya", memberships: [{ workspace_id: "ws_1", role: "OWNER", workspace: { id: "ws_1", slug: "demo", name: "Demo" } }] }),
       ),
     );
     vi.stubGlobal("location", { pathname: "/defects", assign: vi.fn(), origin: "http://localhost" });

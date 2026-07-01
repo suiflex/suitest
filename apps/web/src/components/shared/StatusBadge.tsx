@@ -1,13 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export type StatusBadgeStatus =
-  | "pass"
-  | "fail"
-  | "warn"
-  | "info"
-  | "ai"
-  | "running"
-  | "neutral";
+export type StatusBadgeStatus = "pass" | "fail" | "warn" | "info" | "ai" | "running" | "neutral";
 
 export interface StatusBadgeProps {
   status: StatusBadgeStatus;
@@ -70,7 +63,12 @@ export function StatusBadge({
       {withDot ? (
         <span
           aria-hidden="true"
-          className={cn("h-2 w-2 shrink-0 rounded-full", DOT_CLASSES[status])}
+          className={cn(
+            "h-2 w-2 shrink-0 rounded-full",
+            DOT_CLASSES[status],
+            // A running test is live — pulse the dot so it reads as in-progress.
+            status === "running" && "suitest-pulse",
+          )}
           data-testid="status-badge-dot"
         />
       ) : null}

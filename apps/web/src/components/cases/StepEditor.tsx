@@ -530,7 +530,7 @@ function StepRow({
         <textarea
           data-testid="step-code-input"
           className={cn(
-            "w-full resize-y rounded-md border border-border bg-[#060606] p-2",
+            "w-full resize-y rounded-md border border-border bg-bg-code p-2",
             "font-mono text-[11px] text-fg-3 placeholder:text-fg-5",
             "focus:outline-none focus:ring-1 focus:ring-accent/40",
             "disabled:cursor-not-allowed disabled:opacity-50",

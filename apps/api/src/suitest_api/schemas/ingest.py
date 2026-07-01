@@ -66,6 +66,7 @@ class IngestRunStep(_Camel):
     description: str = ""
     outcome: str = "PASSED"  # PASSED | FAILED | SKIPPED | ERROR
     duration_ms: int | None = Field(default=None, alias="durationMs")
+    screenshot: str = ""  # per-step screenshot URL (drives "Preview: Step N")
 
 
 class IngestArtifact(_Camel):

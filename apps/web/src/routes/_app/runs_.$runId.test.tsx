@@ -1,10 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  RouterProvider,
-  createMemoryHistory,
-  createRouter,
-} from "@tanstack/react-router";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -86,12 +82,30 @@ function withFreshMocks(): TestRefs {
             run_id: RUN_ID,
             case_id: "case_01",
             case_public_id: "TC-101",
+            case_name: "successful_login_opens_the_dashboard",
+            title: "Click 'Sign in'",
+            type: "action",
             step_order: 1,
             outcome: "PASS",
             started_at: "2026-05-27T10:00:00Z",
             completed_at: "2026-05-27T10:00:10Z",
             duration_ms: 10000,
             error_message: null,
+          },
+          {
+            id: "rs_02",
+            run_id: RUN_ID,
+            case_id: "case_02",
+            case_public_id: "TC-102",
+            case_name: "expired_card_is_rejected",
+            // no title → falls back to `${type} · step N`
+            type: "assertion",
+            step_order: 2,
+            outcome: "FAIL",
+            started_at: "2026-05-27T10:00:10Z",
+            completed_at: "2026-05-27T10:00:12Z",
+            duration_ms: 2000,
+            error_message: "expected 402 but got 200",
           },
         ],
       });
@@ -100,6 +114,12 @@ function withFreshMocks(): TestRefs {
       artifactsCallCount.value += 1;
       return HttpResponse.json({ items: [] });
     }),
+    http.get(`*/api/v1/runs/${RUN_ID}/logs`, () =>
+      HttpResponse.json({ items: [], hasMore: false, nextCursor: 0 }),
+    ),
+    http.get("*/api/v1/test-cases/:caseId", () =>
+      HttpResponse.json({ automation_code: "await page.click('#signin')", description: null }),
+    ),
   );
 
   const { ws, restore } = installMockWs();
@@ -124,73 +144,53 @@ describe("RunDetailPage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("appends a log line when WS publishes run.step.log", async () => {
+  it("renders a TEST CASE list grouped by case (not a flat step list)", async () => {
     renderRunDetail();
     await screen.findByTestId("run-detail-page", undefined, { timeout: 3000 });
 
-    await act(async () => {
-      refs.ws.emit({
-        topic: `run:${RUN_ID}`,
-        event: "run.step.log",
-        data: {
-          runId: RUN_ID,
-          stepIndex: 0,
-          level: "info",
-          message: "hello from runner",
-          time: "2026-05-27T10:00:05Z",
-        },
-      });
-    });
-
-    expect(await screen.findByText(/hello from runner/)).toBeInTheDocument();
+    const rows = await screen.findAllByTestId("case-row");
+    expect(rows).toHaveLength(2);
+    // Case titles come from case_name, not the TC id.
+    const titles = screen.getAllByTestId("case-row-title").map((el) => el.textContent);
+    expect(titles).toContain("successful_login_opens_the_dashboard");
+    expect(titles).toContain("expired_card_is_rejected");
   });
 
-  it("preserves user scroll position when scrolled up (auto-scroll suspended)", async () => {
+  it("defaults selection to the failing case and shows step titles + type badges", async () => {
     renderRunDetail();
     await screen.findByTestId("run-detail-page", undefined, { timeout: 3000 });
 
-    // Append one log line so the scroller has content.
+    // The failing case (TC-102) is auto-selected → its detail is shown.
+    const detail = await screen.findByTestId("case-detail");
+    expect(within(detail).getByTestId("case-detail-title")).toHaveTextContent(
+      "expired_card_is_rejected",
+    );
+    // Step with no title falls back to `${type} · step N`, never the TC id.
+    const stepTitle = within(detail).getByTestId("step-title");
+    expect(stepTitle).toHaveTextContent("assertion · step 2");
+    expect(stepTitle.textContent).not.toContain("TC-102");
+    // Result summary surfaces the first failure message.
+    expect(within(detail).getByTestId("case-result-summary")).toHaveTextContent(
+      "expected 402 but got 200",
+    );
+  });
+
+  it("switches case detail when another case row is clicked", async () => {
+    renderRunDetail();
+    await screen.findByTestId("run-detail-page", undefined, { timeout: 3000 });
+
+    const rows = await screen.findAllByTestId("case-row");
+    const passingRow = rows.find((r) => r.textContent?.includes("successful_login"));
+    expect(passingRow).toBeDefined();
     await act(async () => {
-      refs.ws.emit({
-        topic: `run:${RUN_ID}`,
-        event: "run.step.log",
-        data: {
-          runId: RUN_ID,
-          stepIndex: 0,
-          level: "info",
-          message: "first line",
-          time: "2026-05-27T10:00:05Z",
-        },
-      });
+      passingRow?.click();
     });
 
-    const scroller = await screen.findByTestId("log-pane-scroller");
-    // Simulate the user scrolling away from the bottom — set scrollTop and
-    // dispatch a scroll event so the handler flips `autoScrollRef`.
-    Object.defineProperty(scroller, "scrollHeight", { configurable: true, value: 500 });
-    Object.defineProperty(scroller, "clientHeight", { configurable: true, value: 100 });
-    scroller.scrollTop = 50;
-    await act(async () => {
-      scroller.dispatchEvent(new Event("scroll"));
-    });
-
-    // Emit a new log line. The auto-scroll effect must NOT yank scrollTop
-    // back to scrollHeight — it should stay at 50.
-    await act(async () => {
-      refs.ws.emit({
-        topic: `run:${RUN_ID}`,
-        event: "run.step.log",
-        data: {
-          runId: RUN_ID,
-          stepIndex: 0,
-          level: "info",
-          message: "second line",
-          time: "2026-05-27T10:00:06Z",
-        },
-      });
-    });
-
-    expect(scroller.scrollTop).toBe(50);
+    const detail = screen.getByTestId("case-detail");
+    expect(within(detail).getByTestId("case-detail-title")).toHaveTextContent(
+      "successful_login_opens_the_dashboard",
+    );
+    expect(within(detail).getByTestId("step-title")).toHaveTextContent("Click 'Sign in'");
   });
 
   it("refetches steps when WS publishes run.step.completed", async () => {
@@ -230,10 +230,10 @@ describe("RunDetailPage", () => {
         data: {
           runId: RUN_ID,
           status: "PASS",
-          totalSteps: 1,
+          totalSteps: 2,
           passedSteps: 1,
-          failedSteps: 0,
-          durationMs: 11000,
+          failedSteps: 1,
+          durationMs: 12000,
         },
       });
     });

@@ -124,8 +124,9 @@ export function useRunSteps(runId: string | undefined): UseQueryResult<Steps> {
     queryKey: ["runs", runId, "steps"] as const,
     enabled: Boolean(runId),
     queryFn: async () => {
-      const res = await api.get<Steps>(`/runs/${runId ?? ""}/steps`);
-      return res.data;
+      // Endpoint returns a BARE array (`list[RunStepPublic]`) — wrap as { items }.
+      const res = await api.get<Steps["items"] | Steps>(`/runs/${runId ?? ""}/steps`);
+      return { items: Array.isArray(res.data) ? res.data : res.data.items };
     },
   });
 }
@@ -146,8 +147,9 @@ export function useRunArtifacts(runId: string | undefined): UseQueryResult<Artif
     queryKey: ["runs", runId, "artifacts"] as const,
     enabled: Boolean(runId),
     queryFn: async () => {
-      const res = await api.get<Artifacts>(`/runs/${runId ?? ""}/artifacts`);
-      return res.data;
+      // Endpoint returns a BARE array (`list[ArtifactPublic]`) — wrap as { items }.
+      const res = await api.get<Artifacts["items"] | Artifacts>(`/runs/${runId ?? ""}/artifacts`);
+      return { items: Array.isArray(res.data) ? res.data : res.data.items };
     },
   });
 }

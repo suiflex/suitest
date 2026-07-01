@@ -36,19 +36,24 @@ export function EmptyState({
     <div
       data-testid="empty-state"
       className={cn(
-        "flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border bg-bg-elev-1 px-6 py-10 text-center",
+        "flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border bg-bg-elev-1 px-6 py-14 text-center",
         className,
       )}
     >
-      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-bg-elev-2 text-fg-4">
+      <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-bg-elev-2 text-fg-3 ring-1 ring-border-subtle">
         <Icon className="h-5 w-5" aria-hidden="true" />
       </span>
-      <div className="flex flex-col gap-1">
-        <div className="text-[13px] font-medium text-fg-1">{title}</div>
-        {subtitle ? <div className="text-[12.5px] text-fg-3">{subtitle}</div> : null}
+      <div className="flex max-w-sm flex-col gap-1.5">
+        <div className="text-[14px] font-semibold tracking-[-.01em] text-fg-1">{title}</div>
+        {subtitle ? (
+          <div className="text-[12.5px] leading-relaxed text-fg-3">{subtitle}</div>
+        ) : null}
       </div>
       {actions.length > 0 ? (
-        <div className="mt-1 flex flex-wrap items-center justify-center gap-2" data-testid="empty-state-actions">
+        <div
+          className="mt-1 flex flex-wrap items-center justify-center gap-2"
+          data-testid="empty-state-actions"
+        >
           {actions.map((a, idx) =>
             a.href ? (
               <a

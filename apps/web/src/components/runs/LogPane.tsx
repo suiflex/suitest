@@ -66,7 +66,7 @@ export function LogPane({ logs, autoScrollRef }: LogPaneProps): React.ReactEleme
   return (
     <div
       data-testid="log-pane"
-      className="flex h-[280px] flex-col rounded-md border border-border bg-[#060606]"
+      className="flex h-[280px] flex-col rounded-md border border-border bg-bg-code"
     >
       <div
         ref={containerRef}

@@ -96,16 +96,19 @@ export async function fetchRun(runId: string): Promise<RunDetail> {
   return res.data;
 }
 
-/** ``GET /runs/:id/steps`` — every recorded step (no pagination in M1c). */
+/** ``GET /runs/:id/steps`` — every recorded step (no pagination in M1c).
+ * The endpoint returns a BARE array (`list[RunStepPublic]`), so wrap it. */
 export async function fetchRunSteps(runId: string): Promise<{ items: RunStepPublic[] }> {
-  const res = await api.get<{ items: RunStepPublic[] }>(`/runs/${runId}/steps`);
-  return res.data;
+  const res = await api.get<RunStepPublic[] | { items: RunStepPublic[] }>(`/runs/${runId}/steps`);
+  return { items: Array.isArray(res.data) ? res.data : res.data.items };
 }
 
-/** ``GET /runs/:id/artifacts`` — list of artifacts captured during the run. */
+/** ``GET /runs/:id/artifacts`` — bare array (`list[ArtifactPublic]`); wrap it. */
 export async function fetchRunArtifacts(runId: string): Promise<{ items: ArtifactPublic[] }> {
-  const res = await api.get<{ items: ArtifactPublic[] }>(`/runs/${runId}/artifacts`);
-  return res.data;
+  const res = await api.get<ArtifactPublic[] | { items: ArtifactPublic[] }>(
+    `/runs/${runId}/artifacts`,
+  );
+  return { items: Array.isArray(res.data) ? res.data : res.data.items };
 }
 
 /** ``GET /runs/:id/artifacts/:artifactId`` — presigned S3 URL + metadata. */
@@ -121,12 +124,19 @@ export async function fetchRunSignedUrl(
 interface TestCaseCode {
   automation_code?: string | null;
   automationCode?: string | null;
+  description?: string | null;
 }
 
 /** ``GET /test-cases/:id`` — read just the persisted generated source. */
 export async function fetchTestCaseCode(caseId: string): Promise<string | null> {
   const res = await api.get<TestCaseCode>(`/test-cases/${caseId}`);
   return res.data.automation_code ?? res.data.automationCode ?? null;
+}
+
+/** ``GET /test-cases/:id`` — read just the human-readable case description. */
+export async function fetchTestCaseDescription(caseId: string): Promise<string | null> {
+  const res = await api.get<TestCaseCode>(`/test-cases/${caseId}`);
+  return res.data.description ?? null;
 }
 
 type RunLogPage = components["schemas"]["RunLogPage"];
@@ -804,4 +814,54 @@ export async function listPasswordResetRequests(): Promise<PasswordResetRequests
     }
     throw err;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Programmatic API keys — MCP / SDK / CI access (workspace-scoped).
+// ---------------------------------------------------------------------------
+
+export interface ApiKeyItem {
+  id: string;
+  name: string;
+  key_prefix: string;
+  /** Full token, decrypted server-side (admin list only); null for pre-0043 keys. */
+  key?: string | null;
+  created_at: string;
+  last_used_at: string | null;
+  expires_at: string | null;
+  revoked_at: string | null;
+}
+
+/** Create response — carries the plaintext `key` exactly once. */
+export interface ApiKeyCreated extends ApiKeyItem {
+  key: string;
+}
+
+function requireWorkspaceId(): string {
+  const ws = useActiveWorkspace.getState().workspaceId;
+  if (!ws) throw new Error("No active workspace selected");
+  return ws;
+}
+
+/** ``GET /workspaces/:id/api-keys`` — live keys, secrets never returned. */
+export async function listApiKeys(): Promise<ApiKeyItem[]> {
+  const ws = requireWorkspaceId();
+  const res = await api.get<{ items: ApiKeyItem[] }>(`/workspaces/${ws}/api-keys`);
+  return res.data.items;
+}
+
+/** ``POST /workspaces/:id/api-keys`` — mint a key; plaintext returned once. */
+export async function createApiKey(name: string, expiresInDays?: number): Promise<ApiKeyCreated> {
+  const ws = requireWorkspaceId();
+  const res = await api.post<ApiKeyCreated>(`/workspaces/${ws}/api-keys`, {
+    name,
+    expires_in_days: expiresInDays ?? null,
+  });
+  return res.data;
+}
+
+/** ``DELETE /workspaces/:id/api-keys/:keyId`` — revoke a key. */
+export async function revokeApiKey(id: string): Promise<void> {
+  const ws = requireWorkspaceId();
+  await api.delete(`/workspaces/${ws}/api-keys/${id}`);
 }

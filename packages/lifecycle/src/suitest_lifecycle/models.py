@@ -129,6 +129,7 @@ class StepResult:
     description: str
     status: TestOutcome
     duration_ms: int = 0
+    screenshot_path: str = ""  # per-step screenshot (frontend) — "Preview: Step N"
 
 
 @dataclass

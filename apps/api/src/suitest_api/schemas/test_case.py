@@ -73,6 +73,7 @@ class TestCaseDetail(TestCaseListItem):
     # Phase 2 (lifecycle ingest): automation source + denormalized last-run.
     automation_file_path: str | None = None
     automation_code: str | None = None  # full generated source — drives the web Code tab
+    last_run_id: str | None = None  # denormalized latest run — drives the web Result view
     last_run_result: str | None = None
     last_run_at: datetime | None = None
     last_duration_ms: int | None = None

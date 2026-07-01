@@ -59,10 +59,19 @@ async def _project_in_scope(session: AsyncSession, project_id: str, workspace_id
     return project is not None and project.workspace_id == workspace_id
 
 
-async def _run_in_scope_or_404(session: AsyncSession, run_id: str, workspace_id: str) -> None:
-    run = await RunRepo(session).get_by_id(run_id)
+async def _run_in_scope_or_404(session: AsyncSession, run_id: str, workspace_id: str) -> str:
+    """Resolve a run reference (internal id OR public_id like ``R-1004``) to its
+    internal id, 404ing when it doesn't exist or is cross-workspace.
+
+    The web routes on the per-workspace ``public_id``; step/artifact queries need
+    the internal id, so callers must use the value returned from here on.
+    """
+    repo = RunRepo(session)
+    resolved = await repo.resolve_id(run_id, workspace_id)
+    run = await repo.get_by_id(resolved) if resolved is not None else None
     if run is None or not await _project_in_scope(session, run.project_id, workspace_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
+    return run.id
 
 
 @router.get("/runs", response_model=Page[RunListItem])
@@ -118,9 +127,14 @@ async def get_run(
     ctx: TenantContext = Depends(require_workspace_membership),
     session: AsyncSession = Depends(get_async_session),
 ) -> RunDetail:
-    """Return a run with a step-outcome summary; 404 when cross-workspace."""
+    """Return a run with a step-outcome summary; 404 when cross-workspace.
+
+    Accepts the internal id OR the per-workspace ``public_id`` (e.g. ``R-1004``)
+    that the web routes on.
+    """
     repo = RunRepo(session)
-    pair = await repo.get_with_summary(run_id)
+    resolved = await repo.resolve_id(run_id, ctx.workspace_id)
+    pair = await repo.get_with_summary(resolved) if resolved is not None else None
     if pair is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
     run, summary = pair
@@ -158,23 +172,29 @@ async def get_run_steps(
     session: AsyncSession = Depends(get_async_session),
 ) -> list[RunStepPublic]:
     """Return a run's steps (ordered) with outcomes + case public ids; 404 if cross-ws."""
-    await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
-    pairs = await RunRepo(session).get_steps_with_case_public_id(run_id)
-    return [
-        RunStepPublic(
-            id=step.id,
-            run_id=step.run_id,
-            case_id=step.case_id,
-            case_public_id=public_id,
-            step_order=step.step_order,
-            outcome=step.outcome,
-            started_at=step.started_at,
-            completed_at=step.completed_at,
-            duration_ms=step.duration_ms,
-            error_message=step.error_message,
+    run_id = await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
+    triples = await RunRepo(session).get_steps_with_case_public_id(run_id)
+    out: list[RunStepPublic] = []
+    for step, public_id, name in triples:
+        snap = step.state_snapshot if isinstance(step.state_snapshot, dict) else {}
+        out.append(
+            RunStepPublic(
+                id=step.id,
+                run_id=step.run_id,
+                case_id=step.case_id,
+                case_public_id=public_id,
+                case_name=name or "",
+                step_order=step.step_order,
+                outcome=step.outcome,
+                title=str(snap.get("description") or ""),
+                type=str(snap.get("type") or "action"),
+                started_at=step.started_at,
+                completed_at=step.completed_at,
+                duration_ms=step.duration_ms,
+                error_message=step.error_message,
+            )
         )
-        for step, public_id in pairs
-    ]
+    return out
 
 
 @router.get("/runs/{run_id}/report.junit", response_class=Response)
@@ -190,14 +210,15 @@ async def get_run_junit_report(
     Returned as ``application/xml`` so a CI job can pipe it into its test reporter.
     """
     repo = RunRepo(session)
-    pair = await repo.get_with_summary(run_id)
+    resolved = await repo.resolve_id(run_id, ctx.workspace_id)
+    pair = await repo.get_with_summary(resolved) if resolved is not None else None
     if pair is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
     run, _ = pair
     if not await _project_in_scope(session, run.project_id, ctx.workspace_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
-    steps = await repo.get_steps_with_case_public_id(run_id)
-    xml = render_junit(run.name, steps)
+    steps = await repo.get_steps_with_case_public_id(run.id)
+    xml = render_junit(run.name, [(step, public_id) for step, public_id, _ in steps])
     return Response(content=xml, media_type="application/xml")
 
 
@@ -213,11 +234,11 @@ async def get_run_replay(
     captured ``state_snapshot`` (normalized MCP output) and the previous step's.
     The first step has an empty delta (no prior state). 404 when cross-workspace.
     """
-    await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
+    run_id = await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
     pairs = await RunRepo(session).get_steps_with_case_public_id(run_id)
     replay_steps: list[RunReplayStep] = []
     prev_snapshot: dict[str, object] | None = None
-    for step, public_id in pairs:
+    for step, public_id, _case_name in pairs:
         snapshot = step.state_snapshot
         delta = compute_state_delta(prev_snapshot, snapshot)
         replay_steps.append(
@@ -256,7 +277,7 @@ async def get_run_logs(
     ``hasMore`` so the FE knows when to stop polling. A request that returns
     fewer rows than ``limit`` is the natural EOF marker.
     """
-    await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
+    run_id = await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
     rows = await RunStepLogRepo(session).list_after(run_id, cursor=cursor, limit=limit)
     items = [
         RunLogItem(seq=r.seq, level=r.level, message=r.message, created_at=r.created_at)
@@ -273,7 +294,7 @@ async def get_run_artifacts(
     session: AsyncSession = Depends(get_async_session),
 ) -> list[ArtifactPublic]:
     """List a run's artifacts; 404 when the run is cross-workspace."""
-    await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
+    run_id = await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
     rows = await RunRepo(session).get_artifacts(run_id)
     return [ArtifactPublic.model_validate(r) for r in rows]
 
@@ -297,7 +318,7 @@ async def get_artifact_signed_url(
     Emits an ``artifact.signed_url`` audit row so download attribution is
     captured even though the actual fetch happens directly against S3.
     """
-    await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
+    run_id = await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
     repo = RunRepo(session)
     artifacts = await repo.get_artifacts(run_id)
     artifact = next((a for a in artifacts if a.id == artifact_id), None)
@@ -351,7 +372,7 @@ async def get_run_network(
     Network tab already renders the empty state today, so wiring this stub now
     means the screen stops 404-ing in real dev.
     """
-    await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
+    run_id = await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
     return RunNetworkResponse(items=[])
 
 

@@ -60,8 +60,16 @@ class RunStepPublic(BaseModel):
     run_id: str
     case_id: str
     case_public_id: str
+    # The test case's title — lets the run detail group + label cases instead of
+    # showing the bare ``TC-xxxx`` id.
+    case_name: str = ""
     step_order: int
     outcome: StepOutcome
+    # Human-readable step instruction + kind, recorded in ``state_snapshot``.
+    # ``title`` is the action/assertion sentence; ``type`` ∈ action | assertion |
+    # navigation | wait | api. Empty/"action" when a step has no snapshot (backend).
+    title: str = ""
+    type: str = "action"
     started_at: datetime | None = None
     completed_at: datetime | None = None
     duration_ms: int | None = None

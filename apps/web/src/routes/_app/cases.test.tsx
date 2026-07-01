@@ -35,7 +35,7 @@ describe("Test Cases screen", () => {
           id: "u_demo",
           email: "demo@suitest.dev",
           name: "Maya",
-          memberships: [],
+          memberships: [{ workspace_id: "ws_1", role: "OWNER", workspace: { id: "ws_1", slug: "demo", name: "Demo" } }],
         }),
       ),
     );

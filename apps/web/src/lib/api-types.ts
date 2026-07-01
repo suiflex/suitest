@@ -4,11284 +4,11366 @@
  */
 
 export interface paths {
-    "/api/v1/admin/password-reset-requests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Password Reset Requests */
-        get: operations["list_password_reset_requests_api_v1_admin_password_reset_requests_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/users/{user_id}/reset-password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Reset User Password */
-        post: operations["reset_user_password_api_v1_admin_users__user_id__reset_password_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/agent/chat": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Agent Chat
-         * @description Stream a conversation-mode reply (SSE tokens + WS tool events).
-         */
-        post: operations["agent_chat_api_v1_agent_chat_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/analytics/coverage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Analytics Coverage
-         * @description Coverage by suite (cases with a requirement link) + by requirement.
-         */
-        get: operations["analytics_coverage_api_v1_analytics_coverage_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/analytics/flaky": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Analytics Flaky
-         * @description Flaky cases above ``minRate`` (reuses the Task 4 AnalyticsService rule).
-         */
-        get: operations["analytics_flaky_api_v1_analytics_flaky_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/analytics/heatmap": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Analytics Heatmap
-         * @description Run-count grid (day x hour) over the window (docs/API.md §3.8).
-         */
-        get: operations["analytics_heatmap_api_v1_analytics_heatmap_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/analytics/kpis": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Analytics Kpis
-         * @description Pass rate, run count, avg duration, and open defect count for the window.
-         */
-        get: operations["analytics_kpis_api_v1_analytics_kpis_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/analytics/pass-rate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Analytics Pass Rate
-         * @description Daily pass-rate time series (ascending by date) over the window.
-         */
-        get: operations["analytics_pass_rate_api_v1_analytics_pass_rate_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/analytics/readiness": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Analytics Readiness
-         * @description Deterministic release-readiness score + blocker list (no LLM).
-         */
-        get: operations["analytics_readiness_api_v1_analytics_readiness_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/audit-logs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Audit Logs
-         * @description List workspace audit rows newest-first with cursor pagination + filters.
-         */
-        get: operations["list_audit_logs_api_v1_audit_logs_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/audit/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Restore Audit Month
-         * @description Enqueue re-import of an archived audit month (M4-32) for this workspace.
-         *
-         *     The month lives in MinIO cold storage as
-         *     ``s3://<archive>/audit/<workspace>/<YYYY-MM>.jsonl.gz``; the ``restore_audit_logs``
-         *     runner job pulls it back into the hot table (idempotent on row id). ADMIN+.
-         */
-        post: operations["restore_audit_month_api_v1_audit_restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/accept-invite": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Accept Invitation */
-        post: operations["accept_invitation_api_v1_auth_accept_invite_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Me
-         * @description Return the authenticated user plus every workspace membership they hold.
-         */
-        get: operations["get_me_api_v1_auth_me_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/defects": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Defects
-         * @description List the workspace's defects with filters, keyset-paginated.
-         */
-        get: operations["list_defects_api_v1_defects_get"];
-        put?: never;
-        /**
-         * Create Defect
-         * @description Manually file a defect (``SUIT-N`` public id, ``created_by='user:<id>'``).
-         */
-        post: operations["create_defect_api_v1_defects_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/defects/{defect_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Defect
-         * @description Return a defect with linked public ids + external issues; 404 if cross-ws.
-         */
-        get: operations["get_defect_api_v1_defects__defect_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Update Defect
-         * @description Patch status / severity / assignee / description; honours the transition matrix.
-         */
-        patch: operations["update_defect_api_v1_defects__defect_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/defects/{defect_id}/sync-external": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Sync Defect External
-         * @description Force re-sync the defect to the configured external tracker.
-         *
-         *     Returns 404 for cross-workspace ids before raising 501
-         *     ``ADAPTER_NOT_REGISTERED`` — the adapter registry lands in M1d-11+ and
-         *     will replace the unconditional 501 with real Jira / Linear dispatch.
-         */
-        post: operations["sync_defect_external_api_v1_defects__defect_id__sync_external_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/defects/{defect_id}/timeline": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Defect Timeline
-         * @description Return the defect's creation event + audit rows in ascending time; 404 if cross-ws.
-         */
-        get: operations["get_defect_timeline_api_v1_defects__defect_id__timeline_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/documents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Documents
-         * @description List the workspace's indexed documents (optionally by kind), paginated.
-         */
-        get: operations["list_documents_api_v1_documents_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/documents/{document_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Document
-         * @description Return one document with its chunk_count; 404 when cross-workspace.
-         */
-        get: operations["get_document_api_v1_documents__document_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/eval/fixtures": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Eval Fixtures
-         * @description List the bundled golden datasets + fixture counts the weekly CI scores (M5-2).
-         */
-        get: operations["list_eval_fixtures_api_v1_eval_fixtures_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/eval/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Eval Runs
-         * @description Newest-first eval run history for the score-regression dashboard (M5-2).
-         */
-        get: operations["list_eval_runs_api_v1_eval_runs_get"];
-        put?: never;
-        /**
-         * Create Eval Run
-         * @description Run the deterministic eval suite over bundled fixtures + persist the result.
-         */
-        post: operations["create_eval_run_api_v1_eval_runs_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/eval/runs/{eval_run_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Eval Run
-         * @description Fetch one eval run; 404 if missing or owned by another workspace.
-         */
-        get: operations["get_eval_run_api_v1_eval_runs__eval_run_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/generators/classify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Classify Input
-         * @description Classify a generation input into a target kind + recommended strategy/MCP.
-         */
-        post: operations["classify_input_api_v1_generators_classify_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/generators/crawler": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Generate Crawler
-         * @description Generate a smoke + form suite by crawling a start URL (SSE).
-         */
-        post: operations["generate_crawler_api_v1_generators_crawler_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/generators/mcp-discovery": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Generate Mcp Discovery
-         * @description Generate DRAFT cases by exploring a registered MCP provider's tools (SSE).
-         */
-        post: operations["generate_mcp_discovery_api_v1_generators_mcp_discovery_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/generators/openapi": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Generate Openapi
-         * @description Generate a per-operation contract suite from an OpenAPI 3.0 spec (SSE).
-         */
-        post: operations["generate_openapi_api_v1_generators_openapi_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/generators/prd": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Generate Prd
-         * @description Generate DRAFT cases from a PRD / user story via the LLM agent (SSE).
-         */
-        post: operations["generate_prd_api_v1_generators_prd_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/generators/recorder/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start Recorder Session
-         * @description Open a live browser-recording session. Returns the WS room to subscribe.
-         */
-        post: operations["start_recorder_session_api_v1_generators_recorder_sessions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/generators/recorder/sessions/{session_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Cancel Recorder Session
-         * @description Cancel an active recording session (idempotent within its lifetime).
-         */
-        delete: operations["cancel_recorder_session_api_v1_generators_recorder_sessions__session_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/generators/recorder/sessions/{session_id}/finalize": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Finalize Recorder Session
-         * @description Convert a session's captured events into a DRAFT TestCase + return it.
-         */
-        post: operations["finalize_recorder_session_api_v1_generators_recorder_sessions__session_id__finalize_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/generators/url-semantic": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Generate Url Semantic
-         * @description Generate FE_WEB journey cases from a URL + natural-language intent (SSE).
-         */
-        post: operations["generate_url_semantic_api_v1_generators_url_semantic_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/inbox": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Inbox
-         * @description List inbox items for the active workspace (empty stub in M1a).
-         */
-        get: operations["list_inbox_api_v1_inbox_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Integrations
-         * @description List the workspace's integrations (optionally filtered by kind).
-         */
-        get: operations["list_integrations_api_v1_integrations_get"];
-        put?: never;
-        /**
-         * Create Integration
-         * @description Connect a new integration. ADMIN/OWNER; secrets AES-GCM encrypted; never echoed.
-         */
-        post: operations["create_integration_api_v1_integrations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/github/test-connection": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Test Github Pre Save
-         * @description Validate GitHub App credentials BEFORE persisting. Never logs ``private_key_pem``.
-         */
-        post: operations["test_github_pre_save_api_v1_integrations_github_test_connection_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/jira/test-connection": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Test Jira Pre Save
-         * @description Validate Jira credentials BEFORE persisting. Never logs ``jira_token``.
-         */
-        post: operations["test_jira_pre_save_api_v1_integrations_jira_test_connection_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/{integration_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Integration
-         * @description Return an integration with config + REDACTED secrets; 404 if cross-workspace.
-         */
-        get: operations["get_integration_api_v1_integrations__integration_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Integration
-         * @description Hard-delete an integration. ADMIN/OWNER. No body.
-         */
-        delete: operations["delete_integration_api_v1_integrations__integration_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Update Integration
-         * @description Patch an integration. Partial; absent ``secrets`` preserves the existing blob.
-         */
-        patch: operations["update_integration_api_v1_integrations__integration_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/integrations/{integration_id}/sync": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Sync Integration
-         * @description Refetch external statuses for every linked defect; update local status with conflict reporting.
-         */
-        post: operations["sync_integration_api_v1_integrations__integration_id__sync_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/integrations/{integration_id}/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Test Integration
-         * @description Smoke-test an existing integration's credentials. Never 500s on bad creds.
-         */
-        post: operations["test_integration_api_v1_integrations__integration_id__test_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/invitations/validate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Validate Invitation */
-        get: operations["validate_invitation_api_v1_invitations_validate_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/invitations/{invitation_id}/resend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Resend Invitation */
-        post: operations["resend_invitation_api_v1_invitations__invitation_id__resend_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/invitations/{invitation_id}/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Revoke Invitation */
-        post: operations["revoke_invitation_api_v1_invitations__invitation_id__revoke_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mcp/providers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Mcp Providers
-         * @description List MCP providers — bundled builtins (pinned) + custom workspace rows.
-         */
-        get: operations["list_mcp_providers_api_v1_mcp_providers_get"];
-        put?: never;
-        /**
-         * Create Mcp Provider
-         * @description Register a custom MCP server.
-         *
-         *     With ``validate=true`` (default) the server connects, performs the MCP
-         *     ``initialize`` handshake, runs ``tools/list``, and persists the discovered
-         *     catalog + ``health_status=ok`` + version pins (M2-7). A failed probe rejects
-         *     the registration with ``422 MCP_REGISTRATION_FAILED`` and writes no row.
-         */
-        post: operations["create_mcp_provider_api_v1_mcp_providers_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mcp/providers/test-connection": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Test Mcp Connection
-         * @description Dry-run connect + ``tools/list`` without persisting (M2-7 register modal).
-         *
-         *     Lets the UI flip the form's status pill before the user saves. Failures
-         *     surface as ``422 MCP_REGISTRATION_FAILED``.
-         */
-        post: operations["test_mcp_connection_api_v1_mcp_providers_test_connection_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mcp/providers/{provider_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Mcp Provider
-         * @description Provider detail — config preview + discovered tool catalog (no secrets).
-         */
-        get: operations["get_mcp_provider_api_v1_mcp_providers__provider_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Mcp Provider
-         * @description Delete a custom provider. Builtins are read-only (409).
-         */
-        delete: operations["delete_mcp_provider_api_v1_mcp_providers__provider_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Update Mcp Provider
-         * @description Patch a custom provider. Builtins are read-only (409).
-         */
-        patch: operations["update_mcp_provider_api_v1_mcp_providers__provider_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/mcp/providers/{provider_id}/discover": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Discover Mcp Provider
-         * @description Re-run ``tools/list`` against a custom provider and persist the catalog (M2-8).
-         *
-         *     Updates ``config_json.tools`` + ``health_status`` + ``last_health_at`` (+
-         *     ``version_pin`` when the server advertises one). Builtins are read-only (409).
-         */
-        post: operations["discover_mcp_provider_api_v1_mcp_providers__provider_id__discover_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mcp/providers/{provider_id}/invoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Invoke Mcp Provider
-         * @description Dev-aid: invoke one tool ad-hoc against a custom provider (tool browser).
-         *
-         *     Role-gated to ``ADMIN``+ (MCP_PLUGINS §11). Every call is audit-logged with
-         *     ``invocation_source=tool_browser`` and an ``arg_hash`` (raw args are not
-         *     persisted). Builtins are not ad-hoc invokable here (409) — they run through
-         *     the runner. Tool failures surface as ``ok=false`` with the error message.
-         */
-        post: operations["invoke_mcp_provider_api_v1_mcp_providers__provider_id__invoke_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mcp/routing": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Mcp Routing
-         * @description Effective routing table — bundled defaults overlaid with workspace overrides.
-         */
-        get: operations["get_mcp_routing_api_v1_mcp_routing_get"];
-        /**
-         * Put Mcp Routing
-         * @description Replace the workspace routing overrides (consumed by the runner).
-         *
-         *     Each key must be a valid ``target_kind`` and every referenced provider
-         *     (``primary`` + ``fallback``) must be a known, enabled provider in the
-         *     workspace, else ``422``. Stored under
-         *     ``workspace_capabilities.features_json.routing_overrides`` in the
-         *     ``{primary, fallback}`` shape :func:`suitest_mcp.routing.resolve_provider`
-         *     consumes.
-         */
-        put: operations["put_mcp_routing_api_v1_mcp_routing_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/projects": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Projects
-         * @description List the current workspace's active projects, keyset-paginated.
-         */
-        get: operations["list_projects_api_v1_projects_get"];
-        put?: never;
-        /**
-         * Create Project
-         * @description Create a project under the active workspace (ADMIN/OWNER only).
-         */
-        post: operations["create_project_api_v1_projects_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/projects/{project_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Project
-         * @description Return one active project; 404 when cross-workspace or tombstoned.
-         */
-        get: operations["get_project_api_v1_projects__project_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Project
-         * @description Soft-delete the project + cascade child suites + cases (with ``confirmCascade=true``).
-         *
-         *     Returns 204 on success. Without ``confirmCascade=true`` against a project
-         *     that has at least one active child suite, returns 409
-         *     ``CONFIRM_CASCADE_REQUIRED`` with ``suiteCount`` / ``caseCount`` /
-         *     ``resourceType``.
-         */
-        delete: operations["delete_project_api_v1_projects__project_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Update Project
-         * @description Patch metadata (ADMIN/OWNER only).
-         *
-         *     Slug is immutable — PATCH with a ``slug`` field returns 400
-         *     ``IMMUTABLE_SLUG``. ``gating_suite_id`` must belong to the target project,
-         *     else 400 ``INVALID_GATING_SUITE``.
-         */
-        patch: operations["update_project_api_v1_projects__project_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/projects/{project_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Restore Project
-         * @description Revive a soft-deleted project (idempotent; children stay tombstoned).
-         *
-         *     Re-POST after a successful restore returns 204 (idempotent). Does NOT
-         *     auto-restore child suites + cases — restore each individually via
-         *     ``POST /suites/:id/restore`` / ``POST /test-cases/:id/restore``.
-         */
-        post: operations["restore_project_api_v1_projects__project_id__restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/prompt-experiments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Prompt Experiments
-         * @description List the workspace's prompt A/B experiments with live stats.
-         */
-        get: operations["list_prompt_experiments_api_v1_prompt_experiments_get"];
-        put?: never;
-        /**
-         * Create Prompt Experiment
-         * @description Start an A/B test between two variants of ``prompt_name``.
-         *
-         *     A variant override id of ``null`` means the file default. The prompt must
-         *     exist as a file default; referenced forks must belong to this workspace.
-         */
-        post: operations["create_prompt_experiment_api_v1_prompt_experiments_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/prompt-experiments/{experiment_id}/outcome": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Record Experiment Outcome
-         * @description Record a success/failure outcome for a variant (any workspace member).
-         */
-        post: operations["record_experiment_outcome_api_v1_prompt_experiments__experiment_id__outcome_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/prompt-experiments/{experiment_id}/stop": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Stop Prompt Experiment
-         * @description Stop an experiment (subsequent resolution falls back to fork/default).
-         */
-        post: operations["stop_prompt_experiment_api_v1_prompt_experiments__experiment_id__stop_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/prompts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Default Prompts
-         * @description List every overridable default prompt + whether the workspace forks it.
-         */
-        get: operations["list_default_prompts_api_v1_prompts_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/prompts/forks/{override_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Prompt Fork
-         * @description Delete a fork. Reverts the prompt to the file default if it was active.
-         */
-        delete: operations["delete_prompt_fork_api_v1_prompts_forks__override_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/prompts/forks/{override_id}/activate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Activate Prompt Fork
-         * @description Make a specific fork the active override for its prompt.
-         */
-        post: operations["activate_prompt_fork_api_v1_prompts_forks__override_id__activate_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/prompts/{prompt_name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Prompt Detail
-         * @description Return a prompt's file default content + the workspace's fork history.
-         */
-        get: operations["get_prompt_detail_api_v1_prompts__prompt_name__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/prompts/{prompt_name}/forks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Prompt Fork
-         * @description Create a new versioned fork of ``prompt_name`` for the workspace.
-         */
-        post: operations["create_prompt_fork_api_v1_prompts__prompt_name__forks_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/requirements": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Requirements
-         * @description List a project's requirements with link counts; 404 when cross-workspace.
-         */
-        get: operations["list_requirements_api_v1_requirements_get"];
-        put?: never;
-        /**
-         * Create Requirement
-         * @description Create a requirement under ``project_id``; ``REQ-N`` public id is assigned by listener.
-         */
-        post: operations["create_requirement_api_v1_requirements_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/requirements/{requirement_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Requirement
-         * @description Return a requirement with linked case + defect public ids; 404 if cross-ws.
-         *
-         *     Soft-deleted requirements are invisible (404) to keep the public id namespace
-         *     consistent with the LIST endpoint. Use ``POST /restore`` to bring them back.
-         */
-        get: operations["get_requirement_api_v1_requirements__requirement_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Requirement
-         * @description Soft-delete; subsequent re-delete returns 404 (the row is already hidden).
-         */
-        delete: operations["delete_requirement_api_v1_requirements__requirement_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Update Requirement
-         * @description Patch metadata; only present fields are applied (``exclude_unset=True``).
-         */
-        patch: operations["update_requirement_api_v1_requirements__requirement_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/requirements/{requirement_id}/links": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Requirement Link
-         * @description Link a requirement to a test case. Same workspace required.
-         *
-         *     Cross-workspace ``test_case_id`` → 400 ``CROSS_WORKSPACE_LINK`` (both ws ids
-         *     in ``details``). Idempotent: re-POSTing an existing pair returns ``201`` with
-         *     the existing link id (no extra audit / WS row).
-         */
-        post: operations["create_requirement_link_api_v1_requirements__requirement_id__links_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/requirements/{requirement_id}/links/{case_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Requirement Link
-         * @description Remove a link. 404 when the requirement is out-of-scope OR the link is gone.
-         */
-        delete: operations["delete_requirement_link_api_v1_requirements__requirement_id__links__case_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/requirements/{requirement_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Restore Requirement
-         * @description Clear the ``deleted_at`` tombstone. Idempotent on already-active rows.
-         */
-        post: operations["restore_requirement_api_v1_requirements__requirement_id__restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Runs
-         * @description List a project's runs with filters; 404 when the project is cross-workspace.
-         */
-        get: operations["list_runs_api_v1_runs_get"];
-        put?: never;
-        /**
-         * Create Run
-         * @description Validate selection + MCP routing, persist the run, enqueue the ARQ job.
-         *
-         *     Returns 202 once the row exists and the job has been enqueued — the runner
-         *     flips the status to ``RUNNING`` / ``PASS`` / ``FAIL`` asynchronously. The
-         *     metadata blob carries the original selection so a rerun (or the orchestrator
-         *     on resume) can rehydrate it without re-deriving suite ordering.
-         */
-        post: operations["create_run_api_v1_runs_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/runs/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Runs Summary
-         * @description Aggregated counters for the Runs dashboard summary bar (docs/API.md §3.5).
-         *
-         *     Counts are workspace-scoped (joined via ``projects``). ``failed`` folds
-         *     ``FAIL`` + ``ERROR`` together to match the Runs UI's binary outcome card.
-         *     Static endpoint declared BEFORE the dynamic ``/runs/{run_id}`` route below
-         *     so FastAPI's path matcher doesn't try to treat ``summary`` as a run id.
-         */
-        get: operations["get_runs_summary_api_v1_runs_summary_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/runs/{run_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Run
-         * @description Return a run with a step-outcome summary; 404 when cross-workspace.
-         */
-        get: operations["get_run_api_v1_runs__run_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/runs/{run_id}/artifacts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Run Artifacts
-         * @description List a run's artifacts; 404 when the run is cross-workspace.
-         */
-        get: operations["get_run_artifacts_api_v1_runs__run_id__artifacts_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/runs/{run_id}/artifacts/{artifact_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Artifact Signed Url
-         * @description Return a real S3/MinIO presigned download URL for one artifact (M1c Task 18).
-         *
-         *     Replaces the M1a stub presigner with an :mod:`aioboto3` ``generate_presigned_url``
-         *     call against the configured bucket. Only ``s3://...`` artifacts are presigned —
-         *     legacy ``file://`` artifacts (dev fixtures) return 404 here, the client should
-         *     fall back to the static ``/artifacts/raw/`` route the static server exposes.
-         *     Emits an ``artifact.signed_url`` audit row so download attribution is
-         *     captured even though the actual fetch happens directly against S3.
-         */
-        get: operations["get_artifact_signed_url_api_v1_runs__run_id__artifacts__artifact_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/runs/{run_id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Cancel Run
-         * @description Transition a QUEUED / RUNNING run to CANCELLED and best-effort abort the ARQ job.
-         *
-         *     The DB transition is authoritative — even if ARQ is unreachable, the run
-         *     row flips to CANCELLED so the UI no longer shows it as live. We then try
-         *     to abort the in-flight job (no-op if the job already completed / never
-         *     started). Returns 409 when the run is already in a terminal state.
-         */
-        post: operations["cancel_run_api_v1_runs__run_id__cancel_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/runs/{run_id}/logs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Run Logs
-         * @description Cursor-paginated slice of the orchestrator's persisted log stream (M1c).
-         *
-         *     ``cursor`` is the last ``seq`` the client has already seen — pass ``0`` to
-         *     fetch the head of the stream. Returns up to ``limit`` rows ordered ascending
-         *     by ``seq`` plus the next ``seq`` for follow-up paging and a boolean
-         *     ``hasMore`` so the FE knows when to stop polling. A request that returns
-         *     fewer rows than ``limit`` is the natural EOF marker.
-         */
-        get: operations["get_run_logs_api_v1_runs__run_id__logs_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/runs/{run_id}/network": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Run Network
-         * @description Network events captured during the run (M1b stub).
-         *
-         *     Validates run-in-workspace scope (404 cross-workspace) and returns an empty
-         *     page — HAR-driven event extraction lands with the runner in M1c. Frontend
-         *     Network tab already renders the empty state today, so wiring this stub now
-         *     means the screen stops 404-ing in real dev.
-         */
-        get: operations["get_run_network_api_v1_runs__run_id__network_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/runs/{run_id}/replay": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Run Replay
-         * @description Time-travel replay: ordered steps + per-step state delta (M5-1).
-         *
-         *     Deterministic / ZERO-tier — the delta is a pure JSON diff between each step's
-         *     captured ``state_snapshot`` (normalized MCP output) and the previous step's.
-         *     The first step has an empty delta (no prior state). 404 when cross-workspace.
-         */
-        get: operations["get_run_replay_api_v1_runs__run_id__replay_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/runs/{run_id}/rerun": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Rerun Run
-         * @description Clone the source run's selection into a fresh QUEUED row + enqueue the ARQ job.
-         *
-         *     A rerun reuses the original selection + routing override (so the runner
-         *     fans out identically) but re-resolves the workspace tier so a tier change
-         *     between the two runs is honored. Returns 202 like the create endpoint.
-         */
-        post: operations["rerun_run_api_v1_runs__run_id__rerun_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/runs/{run_id}/steps": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Run Steps
-         * @description Return a run's steps (ordered) with outcomes + case public ids; 404 if cross-ws.
-         */
-        get: operations["get_run_steps_api_v1_runs__run_id__steps_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/suites": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Suites
-         * @description List active (non-deleted) suites for a project; 404 cross-workspace.
-         */
-        get: operations["list_suites_api_v1_suites_get"];
-        put?: never;
-        /**
-         * Create Suite
-         * @description Create a suite under an in-scope project (QA+ only).
-         */
-        post: operations["create_suite_api_v1_suites_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/suites/{suite_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Suite
-         * @description Return one suite with its case_count; 404 when cross-workspace.
-         */
-        get: operations["get_suite_api_v1_suites__suite_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Suite
-         * @description Soft-delete the suite + cascade child cases (with ``confirmCascade=true``).
-         *
-         *     Returns 204 on success. Without ``confirmCascade=true`` against a suite
-         *     that has at least one active child case, returns 409
-         *     ``CONFIRM_CASCADE_REQUIRED`` with ``childCount`` + ``resourceType``.
-         */
-        delete: operations["delete_suite_api_v1_suites__suite_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Update Suite
-         * @description Patch metadata + optional atomic ``case_order`` reorder (QA+ only).
-         */
-        patch: operations["update_suite_api_v1_suites__suite_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/suites/{suite_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Restore Suite
-         * @description Revive a soft-deleted suite (idempotent; children stay tombstoned).
-         *
-         *     Re-POST after a successful restore returns the same 204 (per
-         *     docs/API.md §328). Does not auto-restore child cases — restore each
-         *     individually via ``POST /test-cases/:id/restore``.
-         */
-        post: operations["restore_suite_api_v1_suites__suite_id__restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test-cases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Test Cases
-         * @description List cases by suite (filtered, paginated) or by project (all suites).
-         *
-         *     Pass exactly one of ``suiteId`` or ``projectId``. The per-suite path applies
-         *     the full filter/keyset-pagination contract; the per-project path returns
-         *     every non-deleted case across the project's suites (used by the Cases tree
-         *     which groups cases under their suites). Both 404 when the target is
-         *     cross-workspace.
-         *
-         *     ``?includeDeleted=true`` surfaces tombstoned rows. Per ``docs/API.md §3.3``
-         *     that capability is ADMIN/OWNER only — QA + VIEWER asking for it get 403.
-         *     Default behaviour (no query param / ``false``) hides every soft-deleted row
-         *     so VIEWER reads remain safe.
-         */
-        get: operations["list_test_cases_api_v1_test_cases_get"];
-        put?: never;
-        /**
-         * Create Test Case
-         * @description Create a test case + its steps + its tag set atomically.
-         */
-        post: operations["create_test_case_api_v1_test_cases_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test-cases/bulk-update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Bulk Update Test Cases
-         * @description Apply ``action`` (delete / move / priority / tag-add / tag-remove) to ≤100 cases.
-         *
-         *     Single transaction (no partial apply). The Pydantic discriminator already
-         *     narrowed ``body`` to one variant; the service validates the 100-id cap,
-         *     the cross-workspace constraint, and the move-target before mutating. On
-         *     success returns ``{updated, auditIds}`` and emits one WS event per affected
-         *     case AFTER the commit so subscribers never observe a phantom event.
-         */
-        post: operations["bulk_update_test_cases_api_v1_test_cases_bulk_update_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test-cases/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Search Test Cases
-         * @description Semantic (or lexical) test-case search within the workspace (M4-2).
-         *
-         *     Uses the configured local :class:`Embedder` (``SUITEST_EMBEDDINGS=fastembed``)
-         *     to rank by cosine similarity; falls back to lexical scoring when embeddings
-         *     are disabled so ZERO-tier search still returns results.
-         */
-        get: operations["search_test_cases_api_v1_test_cases_search_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test-cases/{case_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Test Case
-         * @description Return a case with its ordered steps (+ executable) and tags; 404 if cross-ws.
-         *
-         *     Tombstoned rows are 404 by default. ADMIN/OWNER can surface them via
-         *     ``?includeDeleted=true`` (matches the LIST contract).
-         */
-        get: operations["get_test_case_api_v1_test_cases__case_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Test Case
-         * @description Soft-delete a test case (set ``deleted_at=NOW()``).
-         *
-         *     Returns 204 on the active -> deleted transition. Returns 404 when the row
-         *     is cross-workspace, never existed, OR is already tombstoned — re-DELETE is
-         *     indistinguishable from "no such row" because the default LIST / GET
-         *     queries hide tombstones (per ``docs/API.md §3.3``).
-         */
-        delete: operations["delete_test_case_api_v1_test_cases__case_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Update Test Case
-         * @description Patch metadata + tag set; honours ``If-Unmodified-Since``.
-         */
-        patch: operations["update_test_case_api_v1_test_cases__case_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/test-cases/{case_id}/duplicate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Duplicate Test Case
-         * @description Clone a case + its steps + tags inside the same suite (new public id).
-         */
-        post: operations["duplicate_test_case_api_v1_test_cases__case_id__duplicate_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test-cases/{case_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Restore Test Case
-         * @description Restore a soft-deleted test case (clear ``deleted_at``).
-         *
-         *     Idempotent per ``docs/API.md §3.3``: re-POST after restore returns 204.
-         *     Returns 404 when the row is cross-workspace or never existed.
-         */
-        post: operations["restore_test_case_api_v1_test_cases__case_id__restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test-cases/{case_id}/run": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Run Test Case Now
-         * @description Ad-hoc shortcut: validate then delegate to M1c ``RunService.create_run``.
-         *
-         *     Pre-flight re-runs :func:`validate_steps` against the CURRENT workspace tier
-         *     + strict-zero setting (a case authored under LOCAL/CLOUD that later flips to
-         *     ZERO+strict must not silently queue an unrunnable run). Validator failures
-         *     surface through the same canonical envelope as ``POST /test-cases`` so the
-         *     FE editor's error rendering doesn't fork. No ``runs`` row is created when
-         *     pre-flight fails — the validator raises BEFORE we enter ``RunService.create_run``.
-         *
-         *     On success returns 202 with ``runId`` / ``publicId`` / ``statusUrl`` /
-         *     ``wsRoom`` so the FE can immediately deep-link to ``/runs/<publicId>`` and
-         *     subscribe to the live ``run:<id>`` channel.
-         */
-        post: operations["run_test_case_now_api_v1_test_cases__case_id__run_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test-cases/{case_id}/steps": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Test Case Steps
-         * @description Return a case's steps only (step editor pre-load); 404 when cross-workspace.
-         */
-        get: operations["get_test_case_steps_api_v1_test_cases__case_id__steps_get"];
-        put?: never;
-        /**
-         * Append Test Case Step
-         * @description Append one step using a row-locked ``SELECT MAX(order)`` for race safety.
-         */
-        post: operations["append_test_case_step_api_v1_test_cases__case_id__steps_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Replace Test Case Steps
-         * @description Atomic replace-all-steps; honours ``If-Unmodified-Since``.
-         */
-        patch: operations["replace_test_case_steps_api_v1_test_cases__case_id__steps_patch"];
-        trace?: never;
-    };
-    "/api/v1/test-cases/{case_id}/steps/reorder": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Reorder Test Case Steps
-         * @description Atomic step reorder.
-         */
-        patch: operations["reorder_test_case_steps_api_v1_test_cases__case_id__steps_reorder_patch"];
-        trace?: never;
-    };
-    "/api/v1/traceability/matrix": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Traceability Matrix
-         * @description Full traceability grid for a project (docs/API.md §3.7); 404 if cross-ws.
-         */
-        get: operations["traceability_matrix_api_v1_traceability_matrix_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/me/password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Change Own Password */
-        patch: operations["change_own_password_api_v1_users_me_password_patch"];
-        trace?: never;
-    };
-    "/api/v1/webhooks/github": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Receive Github
-         * @description Handle a GitHub inbound webhook.
-         */
-        post: operations["receive_github_api_v1_webhooks_github_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/webhooks/gitlab": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Receive Gitlab
-         * @description Handle a GitLab inbound webhook.
-         *
-         *     Flow:
-         *
-         *     1. Reject unsigned / wrong-token requests with 401 (constant-time compare
-         *        lives in :func:`resolve_workspace_by_token`).
-         *     2. Parse the payload according to ``X-Gitlab-Event``; unknown events return
-         *        200 ``unsupported_event`` without enqueuing.
-         *     3. Resolve the local project from the integration mapping; missing → 404.
-         *     4. SETNX dedup over ``(project_id, commit_sha, trigger=WEBHOOK_GITLAB)``;
-         *        duplicate → 200 ``duplicate``.
-         *     5. Resolve the gating selection; empty → 200 ``no_gating_suite``.
-         *     6. Enqueue a Run via :class:`RunService.create_run` with
-         *        ``triggered_by="webhook:gitlab"`` and ``user_id=None``; return 202.
-         */
-        post: operations["receive_gitlab_api_v1_webhooks_gitlab_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/webhooks/jira": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Receive Jira
-         * @description Handle an inbound Jira webhook (M1d-18).
-         */
-        post: operations["receive_jira_api_v1_webhooks_jira_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Workspaces
-         * @description List the workspaces the current user is a member of (active only).
-         */
-        get: operations["list_workspaces_api_v1_workspaces_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Import Workspace
-         * @description Restore/clone a workspace from an export archive (M4-30).
-         *
-         *     Creates a NEW workspace owned by the caller from the archive's structural
-         *     test assets (projects/suites/cases/steps/requirements). Secrets are NOT in
-         *     the archive and must be re-entered manually. Schema-version mismatch → 400.
-         */
-        post: operations["import_workspace_api_v1_workspaces_import_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspaceId}/autonomy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Autonomy
-         * @description Return the workspace's autonomy level + overrides + effective map.
-         */
-        get: operations["get_autonomy_api_v1_workspaces__workspaceId__autonomy_get"];
-        /**
-         * Put Autonomy
-         * @description Set the workspace's autonomy level + overrides (ADMIN+, audited).
-         */
-        put: operations["put_autonomy_api_v1_workspaces__workspaceId__autonomy_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspaceId}/cost": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Workspace Cost
-         * @description Return per-provider / per-kind spend + soft daily budget for the workspace.
-         */
-        get: operations["get_workspace_cost_api_v1_workspaces__workspaceId__cost_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspaceId}/llm-config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Llm Config
-         * @description Return the active LLM config (key redacted). 404 when none is set.
-         */
-        get: operations["get_llm_config_api_v1_workspaces__workspaceId__llm_config_get"];
-        /**
-         * Put Llm Config
-         * @description Set/rotate the provider + key, then recompute capabilities (M3-3).
-         */
-        put: operations["put_llm_config_api_v1_workspaces__workspaceId__llm_config_put"];
-        post?: never;
-        /**
-         * Delete Llm Config
-         * @description Clear the active config; tier downgrades to ZERO. 404 when none set.
-         */
-        delete: operations["delete_llm_config_api_v1_workspaces__workspaceId__llm_config_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspaceId}/llm-config/models": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Llm Models
-         * @description List the curated model catalog for ``provider`` (query param).
-         */
-        get: operations["list_llm_models_api_v1_workspaces__workspaceId__llm_config_models_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspaceId}/llm-config/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Test Llm Config
-         * @description Round-trip a 1-token completion against the (proposed) provider.
-         */
-        post: operations["test_llm_config_api_v1_workspaces__workspaceId__llm_config_test_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspace_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Workspace
-         * @description Return one workspace; 403 when the caller is not a member.
-         */
-        get: operations["get_workspace_api_v1_workspaces__workspace_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Workspace
-         * @description OWNER-only slug-typed-confirm delete. Tombstones now, cleans up async.
-         */
-        delete: operations["delete_workspace_api_v1_workspaces__workspace_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Update Workspace
-         * @description Patch General-tab fields. ADMIN+ required; ``slug`` is immutable.
-         */
-        patch: operations["update_workspace_api_v1_workspaces__workspace_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspace_id}/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Export Workspace
-         * @description Enqueue assembly of a portable workspace archive (M4-29). OWNER/ADMIN.
-         */
-        post: operations["export_workspace_api_v1_workspaces__workspace_id__export_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspace_id}/export/{job_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Workspace Export
-         * @description Poll an export job; surfaces the 24h presigned download URL when ready.
-         */
-        get: operations["get_workspace_export_api_v1_workspaces__workspace_id__export__job_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspace_id}/invitations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Invitations */
-        get: operations["list_invitations_api_v1_workspaces__workspace_id__invitations_get"];
-        put?: never;
-        /** Create Invitation */
-        post: operations["create_invitation_api_v1_workspaces__workspace_id__invitations_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspace_id}/members": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Workspace Members
-         * @description List all members of a workspace; 403 when the caller is not a member.
-         */
-        get: operations["list_workspace_members_api_v1_workspaces__workspace_id__members_get"];
-        put?: never;
-        /**
-         * Invite Workspace Member
-         * @description Add a member by email + role. OWNER/ADMIN required; OWNER grant is OWNER-only.
-         */
-        post: operations["invite_workspace_member_api_v1_workspaces__workspace_id__members_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workspaces/{workspace_id}/members/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Remove Workspace Member
-         * @description Remove a member. Self-removal is allowed except for the sole OWNER.
-         */
-        delete: operations["remove_workspace_member_api_v1_workspaces__workspace_id__members__user_id__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Change Workspace Member Role
-         * @description Change one member's role. OWNER/ADMIN required; OWNER grant is OWNER-only.
-         */
-        patch: operations["change_workspace_member_role_api_v1_workspaces__workspace_id__members__user_id__patch"];
-        trace?: never;
-    };
-    "/auth/cookie/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Auth:Cookie-Jwt.Login */
-        post: operations["auth_cookie_jwt_login_auth_cookie_login_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/cookie/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Auth:Cookie-Jwt.Logout */
-        post: operations["auth_cookie_jwt_logout_auth_cookie_logout_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/forgot-password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Reset:Forgot Password */
-        post: operations["reset_forgot_password_auth_forgot_password_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/google/authorize": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Oauth:Google.Cookie-Jwt.Authorize */
-        get: operations["oauth_google_cookie_jwt_authorize_auth_google_authorize_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/google/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Oauth:Google.Cookie-Jwt.Callback
-         * @description The response varies based on the authentication backend used.
-         */
-        get: operations["oauth_google_cookie_jwt_callback_auth_google_callback_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/auth/reset-password": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Reset:Reset Password */
-        post: operations["reset_reset_password_auth_reset_password_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/capabilities": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Capabilities
-         * @description Return the resolved capabilities, overlaying workspace config when present.
-         */
-        get: operations["get_capabilities_capabilities_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/capabilities/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Capabilities Health
-         * @description Lightweight liveness probe: ``{tier, status, uptimeSec}`` (docs/API.md §3.0).
-         */
-        get: operations["get_capabilities_health_capabilities_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Health
-         * @description Liveness probe — no DB / Redis touch.
-         */
-        get: operations["health_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/users/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Users:Current User */
-        get: operations["users_current_user_users_me_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Users:Patch Current User */
-        patch: operations["users_patch_current_user_users_me_patch"];
-        trace?: never;
-    };
-    "/users/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Users:User */
-        get: operations["users_user_users__id__get"];
-        put?: never;
-        post?: never;
-        /** Users:Delete User */
-        delete: operations["users_delete_user_users__id__delete"];
-        options?: never;
-        head?: never;
-        /** Users:Patch User */
-        patch: operations["users_patch_user_users__id__patch"];
-        trace?: never;
-    };
+  "/api/v1/admin/password-reset-requests": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Password Reset Requests */
+    get: operations["list_password_reset_requests_api_v1_admin_password_reset_requests_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/admin/users/{user_id}/reset-password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reset User Password */
+    post: operations["reset_user_password_api_v1_admin_users__user_id__reset_password_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/agent/chat": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Agent Chat
+     * @description Stream a conversation-mode reply (SSE tokens + WS tool events).
+     */
+    post: operations["agent_chat_api_v1_agent_chat_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/analytics/coverage": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Analytics Coverage
+     * @description Coverage by suite (cases with a requirement link) + by requirement.
+     */
+    get: operations["analytics_coverage_api_v1_analytics_coverage_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/analytics/flaky": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Analytics Flaky
+     * @description Flaky cases above ``minRate`` (reuses the Task 4 AnalyticsService rule).
+     */
+    get: operations["analytics_flaky_api_v1_analytics_flaky_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/analytics/heatmap": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Analytics Heatmap
+     * @description Run-count grid (day x hour) over the window (docs/API.md §3.8).
+     */
+    get: operations["analytics_heatmap_api_v1_analytics_heatmap_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/analytics/kpis": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Analytics Kpis
+     * @description Pass rate, run count, avg duration, and open defect count for the window.
+     */
+    get: operations["analytics_kpis_api_v1_analytics_kpis_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/analytics/pass-rate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Analytics Pass Rate
+     * @description Daily pass-rate time series (ascending by date) over the window.
+     */
+    get: operations["analytics_pass_rate_api_v1_analytics_pass_rate_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/analytics/readiness": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Analytics Readiness
+     * @description Deterministic release-readiness score + blocker list (no LLM).
+     */
+    get: operations["analytics_readiness_api_v1_analytics_readiness_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/audit-logs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Audit Logs
+     * @description List workspace audit rows newest-first with cursor pagination + filters.
+     */
+    get: operations["list_audit_logs_api_v1_audit_logs_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/audit/restore": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Restore Audit Month
+     * @description Enqueue re-import of an archived audit month (M4-32) for this workspace.
+     *
+     *     The month lives in MinIO cold storage as
+     *     ``s3://<archive>/audit/<workspace>/<YYYY-MM>.jsonl.gz``; the ``restore_audit_logs``
+     *     runner job pulls it back into the hot table (idempotent on row id). ADMIN+.
+     */
+    post: operations["restore_audit_month_api_v1_audit_restore_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/accept-invite": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Accept Invitation */
+    post: operations["accept_invitation_api_v1_auth_accept_invite_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/me": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Me
+     * @description Return the authenticated user plus every workspace membership they hold.
+     */
+    get: operations["get_me_api_v1_auth_me_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/defects": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Defects
+     * @description List the workspace's defects with filters, keyset-paginated.
+     */
+    get: operations["list_defects_api_v1_defects_get"];
+    put?: never;
+    /**
+     * Create Defect
+     * @description Manually file a defect (``SUIT-N`` public id, ``created_by='user:<id>'``).
+     */
+    post: operations["create_defect_api_v1_defects_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/defects/{defect_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Defect
+     * @description Return a defect with linked public ids + external issues; 404 if cross-ws.
+     */
+    get: operations["get_defect_api_v1_defects__defect_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Update Defect
+     * @description Patch status / severity / assignee / description; honours the transition matrix.
+     */
+    patch: operations["update_defect_api_v1_defects__defect_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/defects/{defect_id}/sync-external": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Sync Defect External
+     * @description Force re-sync the defect to the configured external tracker.
+     *
+     *     Returns 404 for cross-workspace ids before raising 501
+     *     ``ADAPTER_NOT_REGISTERED`` — the adapter registry lands in M1d-11+ and
+     *     will replace the unconditional 501 with real Jira / Linear dispatch.
+     */
+    post: operations["sync_defect_external_api_v1_defects__defect_id__sync_external_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/defects/{defect_id}/timeline": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Defect Timeline
+     * @description Return the defect's creation event + audit rows in ascending time; 404 if cross-ws.
+     */
+    get: operations["get_defect_timeline_api_v1_defects__defect_id__timeline_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/documents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Documents
+     * @description List the workspace's indexed documents (optionally by kind), paginated.
+     */
+    get: operations["list_documents_api_v1_documents_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/documents/{document_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Document
+     * @description Return one document with its chunk_count; 404 when cross-workspace.
+     */
+    get: operations["get_document_api_v1_documents__document_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/eval/fixtures": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Eval Fixtures
+     * @description List the bundled golden datasets + fixture counts the weekly CI scores (M5-2).
+     */
+    get: operations["list_eval_fixtures_api_v1_eval_fixtures_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/eval/runs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Eval Runs
+     * @description Newest-first eval run history for the score-regression dashboard (M5-2).
+     */
+    get: operations["list_eval_runs_api_v1_eval_runs_get"];
+    put?: never;
+    /**
+     * Create Eval Run
+     * @description Run the deterministic eval suite over bundled fixtures + persist the result.
+     */
+    post: operations["create_eval_run_api_v1_eval_runs_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/eval/runs/{eval_run_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Eval Run
+     * @description Fetch one eval run; 404 if missing or owned by another workspace.
+     */
+    get: operations["get_eval_run_api_v1_eval_runs__eval_run_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/generators/classify": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Classify Input
+     * @description Classify a generation input into a target kind + recommended strategy/MCP.
+     */
+    post: operations["classify_input_api_v1_generators_classify_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/generators/crawler": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Generate Crawler
+     * @description Generate a smoke + form suite by crawling a start URL (SSE).
+     */
+    post: operations["generate_crawler_api_v1_generators_crawler_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/generators/mcp-discovery": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Generate Mcp Discovery
+     * @description Generate DRAFT cases by exploring a registered MCP provider's tools (SSE).
+     */
+    post: operations["generate_mcp_discovery_api_v1_generators_mcp_discovery_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/generators/openapi": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Generate Openapi
+     * @description Generate a per-operation contract suite from an OpenAPI 3.0 spec (SSE).
+     */
+    post: operations["generate_openapi_api_v1_generators_openapi_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/generators/prd": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Generate Prd
+     * @description Generate DRAFT cases from a PRD / user story via the LLM agent (SSE).
+     */
+    post: operations["generate_prd_api_v1_generators_prd_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/generators/recorder/sessions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Start Recorder Session
+     * @description Open a live browser-recording session. Returns the WS room to subscribe.
+     */
+    post: operations["start_recorder_session_api_v1_generators_recorder_sessions_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/generators/recorder/sessions/{session_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Cancel Recorder Session
+     * @description Cancel an active recording session (idempotent within its lifetime).
+     */
+    delete: operations["cancel_recorder_session_api_v1_generators_recorder_sessions__session_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/generators/recorder/sessions/{session_id}/finalize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Finalize Recorder Session
+     * @description Convert a session's captured events into a DRAFT TestCase + return it.
+     */
+    post: operations["finalize_recorder_session_api_v1_generators_recorder_sessions__session_id__finalize_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/generators/url-semantic": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Generate Url Semantic
+     * @description Generate FE_WEB journey cases from a URL + natural-language intent (SSE).
+     */
+    post: operations["generate_url_semantic_api_v1_generators_url_semantic_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/inbox": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Inbox
+     * @description List inbox items for the active workspace (empty stub in M1a).
+     */
+    get: operations["list_inbox_api_v1_inbox_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/integrations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Integrations
+     * @description List the workspace's integrations (optionally filtered by kind).
+     */
+    get: operations["list_integrations_api_v1_integrations_get"];
+    put?: never;
+    /**
+     * Create Integration
+     * @description Connect a new integration. ADMIN/OWNER; secrets AES-GCM encrypted; never echoed.
+     */
+    post: operations["create_integration_api_v1_integrations_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/integrations/github/test-connection": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Test Github Pre Save
+     * @description Validate GitHub App credentials BEFORE persisting. Never logs ``private_key_pem``.
+     */
+    post: operations["test_github_pre_save_api_v1_integrations_github_test_connection_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/integrations/jira/test-connection": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Test Jira Pre Save
+     * @description Validate Jira credentials BEFORE persisting. Never logs ``jira_token``.
+     */
+    post: operations["test_jira_pre_save_api_v1_integrations_jira_test_connection_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/integrations/{integration_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Integration
+     * @description Return an integration with config + REDACTED secrets; 404 if cross-workspace.
+     */
+    get: operations["get_integration_api_v1_integrations__integration_id__get"];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Integration
+     * @description Hard-delete an integration. ADMIN/OWNER. No body.
+     */
+    delete: operations["delete_integration_api_v1_integrations__integration_id__delete"];
+    options?: never;
+    head?: never;
+    /**
+     * Update Integration
+     * @description Patch an integration. Partial; absent ``secrets`` preserves the existing blob.
+     */
+    patch: operations["update_integration_api_v1_integrations__integration_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/integrations/{integration_id}/sync": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Sync Integration
+     * @description Refetch external statuses for every linked defect; update local status with conflict reporting.
+     */
+    post: operations["sync_integration_api_v1_integrations__integration_id__sync_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/integrations/{integration_id}/test": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Test Integration
+     * @description Smoke-test an existing integration's credentials. Never 500s on bad creds.
+     */
+    post: operations["test_integration_api_v1_integrations__integration_id__test_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/invitations/validate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Validate Invitation */
+    get: operations["validate_invitation_api_v1_invitations_validate_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/invitations/{invitation_id}/resend": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Resend Invitation */
+    post: operations["resend_invitation_api_v1_invitations__invitation_id__resend_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/invitations/{invitation_id}/revoke": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Revoke Invitation */
+    post: operations["revoke_invitation_api_v1_invitations__invitation_id__revoke_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/mcp/providers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Mcp Providers
+     * @description List MCP providers — bundled builtins (pinned) + custom workspace rows.
+     */
+    get: operations["list_mcp_providers_api_v1_mcp_providers_get"];
+    put?: never;
+    /**
+     * Create Mcp Provider
+     * @description Register a custom MCP server.
+     *
+     *     With ``validate=true`` (default) the server connects, performs the MCP
+     *     ``initialize`` handshake, runs ``tools/list``, and persists the discovered
+     *     catalog + ``health_status=ok`` + version pins (M2-7). A failed probe rejects
+     *     the registration with ``422 MCP_REGISTRATION_FAILED`` and writes no row.
+     */
+    post: operations["create_mcp_provider_api_v1_mcp_providers_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/mcp/providers/test-connection": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Test Mcp Connection
+     * @description Dry-run connect + ``tools/list`` without persisting (M2-7 register modal).
+     *
+     *     Lets the UI flip the form's status pill before the user saves. Failures
+     *     surface as ``422 MCP_REGISTRATION_FAILED``.
+     */
+    post: operations["test_mcp_connection_api_v1_mcp_providers_test_connection_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/mcp/providers/{provider_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Mcp Provider
+     * @description Provider detail — config preview + discovered tool catalog (no secrets).
+     */
+    get: operations["get_mcp_provider_api_v1_mcp_providers__provider_id__get"];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Mcp Provider
+     * @description Delete a custom provider. Builtins are read-only (409).
+     */
+    delete: operations["delete_mcp_provider_api_v1_mcp_providers__provider_id__delete"];
+    options?: never;
+    head?: never;
+    /**
+     * Update Mcp Provider
+     * @description Patch a custom provider. Builtins are read-only (409).
+     */
+    patch: operations["update_mcp_provider_api_v1_mcp_providers__provider_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/mcp/providers/{provider_id}/discover": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Discover Mcp Provider
+     * @description Re-run ``tools/list`` against a custom provider and persist the catalog (M2-8).
+     *
+     *     Updates ``config_json.tools`` + ``health_status`` + ``last_health_at`` (+
+     *     ``version_pin`` when the server advertises one). Builtins are read-only (409).
+     */
+    post: operations["discover_mcp_provider_api_v1_mcp_providers__provider_id__discover_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/mcp/providers/{provider_id}/invoke": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Invoke Mcp Provider
+     * @description Dev-aid: invoke one tool ad-hoc against a custom provider (tool browser).
+     *
+     *     Role-gated to ``ADMIN``+ (MCP_PLUGINS §11). Every call is audit-logged with
+     *     ``invocation_source=tool_browser`` and an ``arg_hash`` (raw args are not
+     *     persisted). Builtins are not ad-hoc invokable here (409) — they run through
+     *     the runner. Tool failures surface as ``ok=false`` with the error message.
+     */
+    post: operations["invoke_mcp_provider_api_v1_mcp_providers__provider_id__invoke_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/mcp/routing": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Mcp Routing
+     * @description Effective routing table — bundled defaults overlaid with workspace overrides.
+     */
+    get: operations["get_mcp_routing_api_v1_mcp_routing_get"];
+    /**
+     * Put Mcp Routing
+     * @description Replace the workspace routing overrides (consumed by the runner).
+     *
+     *     Each key must be a valid ``target_kind`` and every referenced provider
+     *     (``primary`` + ``fallback``) must be a known, enabled provider in the
+     *     workspace, else ``422``. Stored under
+     *     ``workspace_capabilities.features_json.routing_overrides`` in the
+     *     ``{primary, fallback}`` shape :func:`suitest_mcp.routing.resolve_provider`
+     *     consumes.
+     */
+    put: operations["put_mcp_routing_api_v1_mcp_routing_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/projects": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Projects
+     * @description List the current workspace's active projects, keyset-paginated.
+     */
+    get: operations["list_projects_api_v1_projects_get"];
+    put?: never;
+    /**
+     * Create Project
+     * @description Create a project under the active workspace (ADMIN/OWNER only).
+     */
+    post: operations["create_project_api_v1_projects_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/projects/{project_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Project
+     * @description Return one active project; 404 when cross-workspace or tombstoned.
+     */
+    get: operations["get_project_api_v1_projects__project_id__get"];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Project
+     * @description Soft-delete the project + cascade child suites + cases (with ``confirmCascade=true``).
+     *
+     *     Returns 204 on success. Without ``confirmCascade=true`` against a project
+     *     that has at least one active child suite, returns 409
+     *     ``CONFIRM_CASCADE_REQUIRED`` with ``suiteCount`` / ``caseCount`` /
+     *     ``resourceType``.
+     */
+    delete: operations["delete_project_api_v1_projects__project_id__delete"];
+    options?: never;
+    head?: never;
+    /**
+     * Update Project
+     * @description Patch metadata (ADMIN/OWNER only).
+     *
+     *     Slug is immutable — PATCH with a ``slug`` field returns 400
+     *     ``IMMUTABLE_SLUG``. ``gating_suite_id`` must belong to the target project,
+     *     else 400 ``INVALID_GATING_SUITE``.
+     */
+    patch: operations["update_project_api_v1_projects__project_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/projects/{project_id}/restore": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Restore Project
+     * @description Revive a soft-deleted project (idempotent; children stay tombstoned).
+     *
+     *     Re-POST after a successful restore returns 204 (idempotent). Does NOT
+     *     auto-restore child suites + cases — restore each individually via
+     *     ``POST /suites/:id/restore`` / ``POST /test-cases/:id/restore``.
+     */
+    post: operations["restore_project_api_v1_projects__project_id__restore_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/prompt-experiments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Prompt Experiments
+     * @description List the workspace's prompt A/B experiments with live stats.
+     */
+    get: operations["list_prompt_experiments_api_v1_prompt_experiments_get"];
+    put?: never;
+    /**
+     * Create Prompt Experiment
+     * @description Start an A/B test between two variants of ``prompt_name``.
+     *
+     *     A variant override id of ``null`` means the file default. The prompt must
+     *     exist as a file default; referenced forks must belong to this workspace.
+     */
+    post: operations["create_prompt_experiment_api_v1_prompt_experiments_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/prompt-experiments/{experiment_id}/outcome": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Record Experiment Outcome
+     * @description Record a success/failure outcome for a variant (any workspace member).
+     */
+    post: operations["record_experiment_outcome_api_v1_prompt_experiments__experiment_id__outcome_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/prompt-experiments/{experiment_id}/stop": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Stop Prompt Experiment
+     * @description Stop an experiment (subsequent resolution falls back to fork/default).
+     */
+    post: operations["stop_prompt_experiment_api_v1_prompt_experiments__experiment_id__stop_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/prompts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Default Prompts
+     * @description List every overridable default prompt + whether the workspace forks it.
+     */
+    get: operations["list_default_prompts_api_v1_prompts_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/prompts/forks/{override_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete Prompt Fork
+     * @description Delete a fork. Reverts the prompt to the file default if it was active.
+     */
+    delete: operations["delete_prompt_fork_api_v1_prompts_forks__override_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/prompts/forks/{override_id}/activate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Activate Prompt Fork
+     * @description Make a specific fork the active override for its prompt.
+     */
+    post: operations["activate_prompt_fork_api_v1_prompts_forks__override_id__activate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/prompts/{prompt_name}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Prompt Detail
+     * @description Return a prompt's file default content + the workspace's fork history.
+     */
+    get: operations["get_prompt_detail_api_v1_prompts__prompt_name__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/prompts/{prompt_name}/forks": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create Prompt Fork
+     * @description Create a new versioned fork of ``prompt_name`` for the workspace.
+     */
+    post: operations["create_prompt_fork_api_v1_prompts__prompt_name__forks_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/requirements": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Requirements
+     * @description List a project's requirements with link counts; 404 when cross-workspace.
+     */
+    get: operations["list_requirements_api_v1_requirements_get"];
+    put?: never;
+    /**
+     * Create Requirement
+     * @description Create a requirement under ``project_id``; ``REQ-N`` public id is assigned by listener.
+     */
+    post: operations["create_requirement_api_v1_requirements_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/requirements/{requirement_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Requirement
+     * @description Return a requirement with linked case + defect public ids; 404 if cross-ws.
+     *
+     *     Soft-deleted requirements are invisible (404) to keep the public id namespace
+     *     consistent with the LIST endpoint. Use ``POST /restore`` to bring them back.
+     */
+    get: operations["get_requirement_api_v1_requirements__requirement_id__get"];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Requirement
+     * @description Soft-delete; subsequent re-delete returns 404 (the row is already hidden).
+     */
+    delete: operations["delete_requirement_api_v1_requirements__requirement_id__delete"];
+    options?: never;
+    head?: never;
+    /**
+     * Update Requirement
+     * @description Patch metadata; only present fields are applied (``exclude_unset=True``).
+     */
+    patch: operations["update_requirement_api_v1_requirements__requirement_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/requirements/{requirement_id}/links": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create Requirement Link
+     * @description Link a requirement to a test case. Same workspace required.
+     *
+     *     Cross-workspace ``test_case_id`` → 400 ``CROSS_WORKSPACE_LINK`` (both ws ids
+     *     in ``details``). Idempotent: re-POSTing an existing pair returns ``201`` with
+     *     the existing link id (no extra audit / WS row).
+     */
+    post: operations["create_requirement_link_api_v1_requirements__requirement_id__links_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/requirements/{requirement_id}/links/{case_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete Requirement Link
+     * @description Remove a link. 404 when the requirement is out-of-scope OR the link is gone.
+     */
+    delete: operations["delete_requirement_link_api_v1_requirements__requirement_id__links__case_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/requirements/{requirement_id}/restore": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Restore Requirement
+     * @description Clear the ``deleted_at`` tombstone. Idempotent on already-active rows.
+     */
+    post: operations["restore_requirement_api_v1_requirements__requirement_id__restore_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/runs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Runs
+     * @description List a project's runs with filters; 404 when the project is cross-workspace.
+     */
+    get: operations["list_runs_api_v1_runs_get"];
+    put?: never;
+    /**
+     * Create Run
+     * @description Validate selection + MCP routing, persist the run, enqueue the ARQ job.
+     *
+     *     Returns 202 once the row exists and the job has been enqueued — the runner
+     *     flips the status to ``RUNNING`` / ``PASS`` / ``FAIL`` asynchronously. The
+     *     metadata blob carries the original selection so a rerun (or the orchestrator
+     *     on resume) can rehydrate it without re-deriving suite ordering.
+     */
+    post: operations["create_run_api_v1_runs_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/runs/summary": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Runs Summary
+     * @description Aggregated counters for the Runs dashboard summary bar (docs/API.md §3.5).
+     *
+     *     Counts are workspace-scoped (joined via ``projects``). ``failed`` folds
+     *     ``FAIL`` + ``ERROR`` together to match the Runs UI's binary outcome card.
+     *     Static endpoint declared BEFORE the dynamic ``/runs/{run_id}`` route below
+     *     so FastAPI's path matcher doesn't try to treat ``summary`` as a run id.
+     */
+    get: operations["get_runs_summary_api_v1_runs_summary_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/runs/{run_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Run
+     * @description Return a run with a step-outcome summary; 404 when cross-workspace.
+     */
+    get: operations["get_run_api_v1_runs__run_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/runs/{run_id}/artifacts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Run Artifacts
+     * @description List a run's artifacts; 404 when the run is cross-workspace.
+     */
+    get: operations["get_run_artifacts_api_v1_runs__run_id__artifacts_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/runs/{run_id}/artifacts/{artifact_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Artifact Signed Url
+     * @description Return a real S3/MinIO presigned download URL for one artifact (M1c Task 18).
+     *
+     *     Replaces the M1a stub presigner with an :mod:`aioboto3` ``generate_presigned_url``
+     *     call against the configured bucket. Only ``s3://...`` artifacts are presigned —
+     *     legacy ``file://`` artifacts (dev fixtures) return 404 here, the client should
+     *     fall back to the static ``/artifacts/raw/`` route the static server exposes.
+     *     Emits an ``artifact.signed_url`` audit row so download attribution is
+     *     captured even though the actual fetch happens directly against S3.
+     */
+    get: operations["get_artifact_signed_url_api_v1_runs__run_id__artifacts__artifact_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/runs/{run_id}/cancel": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Cancel Run
+     * @description Transition a QUEUED / RUNNING run to CANCELLED and best-effort abort the ARQ job.
+     *
+     *     The DB transition is authoritative — even if ARQ is unreachable, the run
+     *     row flips to CANCELLED so the UI no longer shows it as live. We then try
+     *     to abort the in-flight job (no-op if the job already completed / never
+     *     started). Returns 409 when the run is already in a terminal state.
+     */
+    post: operations["cancel_run_api_v1_runs__run_id__cancel_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/runs/{run_id}/logs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Run Logs
+     * @description Cursor-paginated slice of the orchestrator's persisted log stream (M1c).
+     *
+     *     ``cursor`` is the last ``seq`` the client has already seen — pass ``0`` to
+     *     fetch the head of the stream. Returns up to ``limit`` rows ordered ascending
+     *     by ``seq`` plus the next ``seq`` for follow-up paging and a boolean
+     *     ``hasMore`` so the FE knows when to stop polling. A request that returns
+     *     fewer rows than ``limit`` is the natural EOF marker.
+     */
+    get: operations["get_run_logs_api_v1_runs__run_id__logs_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/runs/{run_id}/network": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Run Network
+     * @description Network events captured during the run (M1b stub).
+     *
+     *     Validates run-in-workspace scope (404 cross-workspace) and returns an empty
+     *     page — HAR-driven event extraction lands with the runner in M1c. Frontend
+     *     Network tab already renders the empty state today, so wiring this stub now
+     *     means the screen stops 404-ing in real dev.
+     */
+    get: operations["get_run_network_api_v1_runs__run_id__network_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/runs/{run_id}/replay": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Run Replay
+     * @description Time-travel replay: ordered steps + per-step state delta (M5-1).
+     *
+     *     Deterministic / ZERO-tier — the delta is a pure JSON diff between each step's
+     *     captured ``state_snapshot`` (normalized MCP output) and the previous step's.
+     *     The first step has an empty delta (no prior state). 404 when cross-workspace.
+     */
+    get: operations["get_run_replay_api_v1_runs__run_id__replay_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/runs/{run_id}/rerun": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Rerun Run
+     * @description Clone the source run's selection into a fresh QUEUED row + enqueue the ARQ job.
+     *
+     *     A rerun reuses the original selection + routing override (so the runner
+     *     fans out identically) but re-resolves the workspace tier so a tier change
+     *     between the two runs is honored. Returns 202 like the create endpoint.
+     */
+    post: operations["rerun_run_api_v1_runs__run_id__rerun_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/runs/{run_id}/steps": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Run Steps
+     * @description Return a run's steps (ordered) with outcomes + case public ids; 404 if cross-ws.
+     */
+    get: operations["get_run_steps_api_v1_runs__run_id__steps_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/suites": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Suites
+     * @description List active (non-deleted) suites for a project; 404 cross-workspace.
+     */
+    get: operations["list_suites_api_v1_suites_get"];
+    put?: never;
+    /**
+     * Create Suite
+     * @description Create a suite under an in-scope project (QA+ only).
+     */
+    post: operations["create_suite_api_v1_suites_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/suites/{suite_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Suite
+     * @description Return one suite with its case_count; 404 when cross-workspace.
+     */
+    get: operations["get_suite_api_v1_suites__suite_id__get"];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Suite
+     * @description Soft-delete the suite + cascade child cases (with ``confirmCascade=true``).
+     *
+     *     Returns 204 on success. Without ``confirmCascade=true`` against a suite
+     *     that has at least one active child case, returns 409
+     *     ``CONFIRM_CASCADE_REQUIRED`` with ``childCount`` + ``resourceType``.
+     */
+    delete: operations["delete_suite_api_v1_suites__suite_id__delete"];
+    options?: never;
+    head?: never;
+    /**
+     * Update Suite
+     * @description Patch metadata + optional atomic ``case_order`` reorder (QA+ only).
+     */
+    patch: operations["update_suite_api_v1_suites__suite_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/suites/{suite_id}/restore": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Restore Suite
+     * @description Revive a soft-deleted suite (idempotent; children stay tombstoned).
+     *
+     *     Re-POST after a successful restore returns the same 204 (per
+     *     docs/API.md §328). Does not auto-restore child cases — restore each
+     *     individually via ``POST /test-cases/:id/restore``.
+     */
+    post: operations["restore_suite_api_v1_suites__suite_id__restore_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/test-cases": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Test Cases
+     * @description List cases by suite (filtered, paginated) or by project (all suites).
+     *
+     *     Pass exactly one of ``suiteId`` or ``projectId``. The per-suite path applies
+     *     the full filter/keyset-pagination contract; the per-project path returns
+     *     every non-deleted case across the project's suites (used by the Cases tree
+     *     which groups cases under their suites). Both 404 when the target is
+     *     cross-workspace.
+     *
+     *     ``?includeDeleted=true`` surfaces tombstoned rows. Per ``docs/API.md §3.3``
+     *     that capability is ADMIN/OWNER only — QA + VIEWER asking for it get 403.
+     *     Default behaviour (no query param / ``false``) hides every soft-deleted row
+     *     so VIEWER reads remain safe.
+     */
+    get: operations["list_test_cases_api_v1_test_cases_get"];
+    put?: never;
+    /**
+     * Create Test Case
+     * @description Create a test case + its steps + its tag set atomically.
+     */
+    post: operations["create_test_case_api_v1_test_cases_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/test-cases/bulk-update": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Bulk Update Test Cases
+     * @description Apply ``action`` (delete / move / priority / tag-add / tag-remove) to ≤100 cases.
+     *
+     *     Single transaction (no partial apply). The Pydantic discriminator already
+     *     narrowed ``body`` to one variant; the service validates the 100-id cap,
+     *     the cross-workspace constraint, and the move-target before mutating. On
+     *     success returns ``{updated, auditIds}`` and emits one WS event per affected
+     *     case AFTER the commit so subscribers never observe a phantom event.
+     */
+    post: operations["bulk_update_test_cases_api_v1_test_cases_bulk_update_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/test-cases/search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Search Test Cases
+     * @description Semantic (or lexical) test-case search within the workspace (M4-2).
+     *
+     *     Uses the configured local :class:`Embedder` (``SUITEST_EMBEDDINGS=fastembed``)
+     *     to rank by cosine similarity; falls back to lexical scoring when embeddings
+     *     are disabled so ZERO-tier search still returns results.
+     */
+    get: operations["search_test_cases_api_v1_test_cases_search_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/test-cases/{case_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Test Case
+     * @description Return a case with its ordered steps (+ executable) and tags; 404 if cross-ws.
+     *
+     *     Tombstoned rows are 404 by default. ADMIN/OWNER can surface them via
+     *     ``?includeDeleted=true`` (matches the LIST contract).
+     */
+    get: operations["get_test_case_api_v1_test_cases__case_id__get"];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Test Case
+     * @description Soft-delete a test case (set ``deleted_at=NOW()``).
+     *
+     *     Returns 204 on the active -> deleted transition. Returns 404 when the row
+     *     is cross-workspace, never existed, OR is already tombstoned — re-DELETE is
+     *     indistinguishable from "no such row" because the default LIST / GET
+     *     queries hide tombstones (per ``docs/API.md §3.3``).
+     */
+    delete: operations["delete_test_case_api_v1_test_cases__case_id__delete"];
+    options?: never;
+    head?: never;
+    /**
+     * Update Test Case
+     * @description Patch metadata + tag set; honours ``If-Unmodified-Since``.
+     */
+    patch: operations["update_test_case_api_v1_test_cases__case_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/test-cases/{case_id}/duplicate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Duplicate Test Case
+     * @description Clone a case + its steps + tags inside the same suite (new public id).
+     */
+    post: operations["duplicate_test_case_api_v1_test_cases__case_id__duplicate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/test-cases/{case_id}/restore": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Restore Test Case
+     * @description Restore a soft-deleted test case (clear ``deleted_at``).
+     *
+     *     Idempotent per ``docs/API.md §3.3``: re-POST after restore returns 204.
+     *     Returns 404 when the row is cross-workspace or never existed.
+     */
+    post: operations["restore_test_case_api_v1_test_cases__case_id__restore_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/test-cases/{case_id}/run": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Run Test Case Now
+     * @description Ad-hoc shortcut: validate then delegate to M1c ``RunService.create_run``.
+     *
+     *     Pre-flight re-runs :func:`validate_steps` against the CURRENT workspace tier
+     *     + strict-zero setting (a case authored under LOCAL/CLOUD that later flips to
+     *     ZERO+strict must not silently queue an unrunnable run). Validator failures
+     *     surface through the same canonical envelope as ``POST /test-cases`` so the
+     *     FE editor's error rendering doesn't fork. No ``runs`` row is created when
+     *     pre-flight fails — the validator raises BEFORE we enter ``RunService.create_run``.
+     *
+     *     On success returns 202 with ``runId`` / ``publicId`` / ``statusUrl`` /
+     *     ``wsRoom`` so the FE can immediately deep-link to ``/runs/<publicId>`` and
+     *     subscribe to the live ``run:<id>`` channel.
+     */
+    post: operations["run_test_case_now_api_v1_test_cases__case_id__run_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/test-cases/{case_id}/steps": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Test Case Steps
+     * @description Return a case's steps only (step editor pre-load); 404 when cross-workspace.
+     */
+    get: operations["get_test_case_steps_api_v1_test_cases__case_id__steps_get"];
+    put?: never;
+    /**
+     * Append Test Case Step
+     * @description Append one step using a row-locked ``SELECT MAX(order)`` for race safety.
+     */
+    post: operations["append_test_case_step_api_v1_test_cases__case_id__steps_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Replace Test Case Steps
+     * @description Atomic replace-all-steps; honours ``If-Unmodified-Since``.
+     */
+    patch: operations["replace_test_case_steps_api_v1_test_cases__case_id__steps_patch"];
+    trace?: never;
+  };
+  "/api/v1/test-cases/{case_id}/steps/reorder": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Reorder Test Case Steps
+     * @description Atomic step reorder.
+     */
+    patch: operations["reorder_test_case_steps_api_v1_test_cases__case_id__steps_reorder_patch"];
+    trace?: never;
+  };
+  "/api/v1/traceability/matrix": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Traceability Matrix
+     * @description Full traceability grid for a project (docs/API.md §3.7); 404 if cross-ws.
+     */
+    get: operations["traceability_matrix_api_v1_traceability_matrix_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/me/password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Change Own Password */
+    patch: operations["change_own_password_api_v1_users_me_password_patch"];
+    trace?: never;
+  };
+  "/api/v1/webhooks/github": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Receive Github
+     * @description Handle a GitHub inbound webhook.
+     */
+    post: operations["receive_github_api_v1_webhooks_github_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/webhooks/gitlab": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Receive Gitlab
+     * @description Handle a GitLab inbound webhook.
+     *
+     *     Flow:
+     *
+     *     1. Reject unsigned / wrong-token requests with 401 (constant-time compare
+     *        lives in :func:`resolve_workspace_by_token`).
+     *     2. Parse the payload according to ``X-Gitlab-Event``; unknown events return
+     *        200 ``unsupported_event`` without enqueuing.
+     *     3. Resolve the local project from the integration mapping; missing → 404.
+     *     4. SETNX dedup over ``(project_id, commit_sha, trigger=WEBHOOK_GITLAB)``;
+     *        duplicate → 200 ``duplicate``.
+     *     5. Resolve the gating selection; empty → 200 ``no_gating_suite``.
+     *     6. Enqueue a Run via :class:`RunService.create_run` with
+     *        ``triggered_by="webhook:gitlab"`` and ``user_id=None``; return 202.
+     */
+    post: operations["receive_gitlab_api_v1_webhooks_gitlab_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/webhooks/jira": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Receive Jira
+     * @description Handle an inbound Jira webhook (M1d-18).
+     */
+    post: operations["receive_jira_api_v1_webhooks_jira_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Workspaces
+     * @description List the workspaces the current user is a member of (active only).
+     */
+    get: operations["list_workspaces_api_v1_workspaces_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/import": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Import Workspace
+     * @description Restore/clone a workspace from an export archive (M4-30).
+     *
+     *     Creates a NEW workspace owned by the caller from the archive's structural
+     *     test assets (projects/suites/cases/steps/requirements). Secrets are NOT in
+     *     the archive and must be re-entered manually. Schema-version mismatch → 400.
+     */
+    post: operations["import_workspace_api_v1_workspaces_import_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspaceId}/autonomy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Autonomy
+     * @description Return the workspace's autonomy level + overrides + effective map.
+     */
+    get: operations["get_autonomy_api_v1_workspaces__workspaceId__autonomy_get"];
+    /**
+     * Put Autonomy
+     * @description Set the workspace's autonomy level + overrides (ADMIN+, audited).
+     */
+    put: operations["put_autonomy_api_v1_workspaces__workspaceId__autonomy_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspaceId}/cost": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Workspace Cost
+     * @description Return per-provider / per-kind spend + soft daily budget for the workspace.
+     */
+    get: operations["get_workspace_cost_api_v1_workspaces__workspaceId__cost_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspaceId}/llm-config": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Llm Config
+     * @description Return the active LLM config (key redacted). 404 when none is set.
+     */
+    get: operations["get_llm_config_api_v1_workspaces__workspaceId__llm_config_get"];
+    /**
+     * Put Llm Config
+     * @description Set/rotate the provider + key, then recompute capabilities (M3-3).
+     */
+    put: operations["put_llm_config_api_v1_workspaces__workspaceId__llm_config_put"];
+    post?: never;
+    /**
+     * Delete Llm Config
+     * @description Clear the active config; tier downgrades to ZERO. 404 when none set.
+     */
+    delete: operations["delete_llm_config_api_v1_workspaces__workspaceId__llm_config_delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspaceId}/llm-config/models": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Llm Models
+     * @description List the curated model catalog for ``provider`` (query param).
+     */
+    get: operations["list_llm_models_api_v1_workspaces__workspaceId__llm_config_models_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspaceId}/llm-config/test": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Test Llm Config
+     * @description Round-trip a 1-token completion against the (proposed) provider.
+     */
+    post: operations["test_llm_config_api_v1_workspaces__workspaceId__llm_config_test_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspace_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Workspace
+     * @description Return one workspace; 403 when the caller is not a member.
+     */
+    get: operations["get_workspace_api_v1_workspaces__workspace_id__get"];
+    put?: never;
+    post?: never;
+    /**
+     * Delete Workspace
+     * @description OWNER-only slug-typed-confirm delete. Tombstones now, cleans up async.
+     */
+    delete: operations["delete_workspace_api_v1_workspaces__workspace_id__delete"];
+    options?: never;
+    head?: never;
+    /**
+     * Update Workspace
+     * @description Patch General-tab fields. ADMIN+ required; ``slug`` is immutable.
+     */
+    patch: operations["update_workspace_api_v1_workspaces__workspace_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspace_id}/export": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Export Workspace
+     * @description Enqueue assembly of a portable workspace archive (M4-29). OWNER/ADMIN.
+     */
+    post: operations["export_workspace_api_v1_workspaces__workspace_id__export_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspace_id}/export/{job_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Workspace Export
+     * @description Poll an export job; surfaces the 24h presigned download URL when ready.
+     */
+    get: operations["get_workspace_export_api_v1_workspaces__workspace_id__export__job_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspace_id}/invitations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Invitations */
+    get: operations["list_invitations_api_v1_workspaces__workspace_id__invitations_get"];
+    put?: never;
+    /** Create Invitation */
+    post: operations["create_invitation_api_v1_workspaces__workspace_id__invitations_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspace_id}/members": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Workspace Members
+     * @description List all members of a workspace; 403 when the caller is not a member.
+     */
+    get: operations["list_workspace_members_api_v1_workspaces__workspace_id__members_get"];
+    put?: never;
+    /**
+     * Invite Workspace Member
+     * @description Add a member by email + role. OWNER/ADMIN required; OWNER grant is OWNER-only.
+     */
+    post: operations["invite_workspace_member_api_v1_workspaces__workspace_id__members_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/workspaces/{workspace_id}/members/{user_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Remove Workspace Member
+     * @description Remove a member. Self-removal is allowed except for the sole OWNER.
+     */
+    delete: operations["remove_workspace_member_api_v1_workspaces__workspace_id__members__user_id__delete"];
+    options?: never;
+    head?: never;
+    /**
+     * Change Workspace Member Role
+     * @description Change one member's role. OWNER/ADMIN required; OWNER grant is OWNER-only.
+     */
+    patch: operations["change_workspace_member_role_api_v1_workspaces__workspace_id__members__user_id__patch"];
+    trace?: never;
+  };
+  "/auth/cookie/login": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Auth:Cookie-Jwt.Login */
+    post: operations["auth_cookie_jwt_login_auth_cookie_login_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/cookie/logout": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Auth:Cookie-Jwt.Logout */
+    post: operations["auth_cookie_jwt_logout_auth_cookie_logout_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/forgot-password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reset:Forgot Password */
+    post: operations["reset_forgot_password_auth_forgot_password_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/google/authorize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Oauth:Google.Cookie-Jwt.Authorize */
+    get: operations["oauth_google_cookie_jwt_authorize_auth_google_authorize_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/google/callback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Oauth:Google.Cookie-Jwt.Callback
+     * @description The response varies based on the authentication backend used.
+     */
+    get: operations["oauth_google_cookie_jwt_callback_auth_google_callback_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/auth/reset-password": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reset:Reset Password */
+    post: operations["reset_reset_password_auth_reset_password_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/capabilities": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Capabilities
+     * @description Return the resolved capabilities, overlaying workspace config when present.
+     */
+    get: operations["get_capabilities_capabilities_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/capabilities/health": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Capabilities Health
+     * @description Lightweight liveness probe: ``{tier, status, uptimeSec}`` (docs/API.md §3.0).
+     */
+    get: operations["get_capabilities_health_capabilities_health_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/health": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Health
+     * @description Liveness probe — no DB / Redis touch.
+     */
+    get: operations["health_health_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/users/me": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Users:Current User */
+    get: operations["users_current_user_users_me_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Users:Patch Current User */
+    patch: operations["users_patch_current_user_users_me_patch"];
+    trace?: never;
+  };
+  "/users/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Users:User */
+    get: operations["users_user_users__id__get"];
+    put?: never;
+    post?: never;
+    /** Users:Delete User */
+    delete: operations["users_delete_user_users__id__delete"];
+    options?: never;
+    head?: never;
+    /** Users:Patch User */
+    patch: operations["users_patch_user_users__id__patch"];
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /** AcceptInviteRequest */
-        AcceptInviteRequest: {
-            /** Name */
-            name: string;
-            /** Password */
-            password: string;
-            /** Token */
-            token: string;
-        };
-        /** AcceptInviteResponse */
-        AcceptInviteResponse: {
-            /**
-             * Ok
-             * @default true
-             */
-            ok: boolean;
-        };
-        /**
-         * AdHocRunResponse
-         * @description Response shape for ``POST /test-cases/:id/run`` (docs/API.md §3.3).
-         *
-         *     A thin descriptor the FE uses to deep-link the newly queued run + open the
-         *     matching live-events room. ``statusUrl`` is path-relative to the API root so
-         *     the client can reuse its existing ``apiClient`` base URL; ``wsRoom`` follows
-         *     the canonical ``run:<id>`` channel name shared with the live-events gateway.
-         */
-        AdHocRunResponse: {
-            /** Publicid */
-            publicId: string;
-            /** Runid */
-            runId: string;
-            /** Statusurl */
-            statusUrl: string;
-            /** Wsroom */
-            wsRoom: string;
-        };
-        /**
-         * ArtifactKind
-         * @enum {string}
-         */
-        ArtifactKind: "SCREENSHOT" | "HAR" | "DOM_SNAPSHOT" | "VIDEO" | "CONSOLE_LOG" | "TRACE" | "CUSTOM";
-        /**
-         * ArtifactPublic
-         * @description One artifact in ``GET /runs/:id/artifacts`` (docs/API.md §3.5).
-         */
-        ArtifactPublic: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Id */
-            id: string;
-            kind: components["schemas"]["ArtifactKind"];
-            /** Mime Type */
-            mime_type: string;
-            /** Run Step Id */
-            run_step_id: string;
-            /** Size Bytes */
-            size_bytes: number;
-        };
-        /**
-         * ArtifactSignedUrl
-         * @description ``GET /runs/:id/artifacts/:artifactId`` — presigned download URL (M1c).
-         *
-         *     The M1a stub returned a placeholder URL alongside the artifact id + scheme;
-         *     M1c replaces it with a real S3 / MinIO presign + the artifact's MIME type
-         *     so the FE can decide how to render the response (inline image vs. download).
-         */
-        ArtifactSignedUrl: {
-            /** Expiresinseconds */
-            expiresInSeconds: number;
-            kind: components["schemas"]["ArtifactKind"];
-            /** Mimetype */
-            mimeType: string;
-            /** Url */
-            url: string;
-        };
-        /**
-         * AuditLogRead
-         * @description One audit row in the workspace audit trail (``GET /audit-logs`` item).
-         */
-        AuditLogRead: {
-            /** Action */
-            action: string;
-            /**
-             * Createdat
-             * Format: date-time
-             */
-            createdAt: string;
-            /** Details */
-            details?: {
-                [key: string]: unknown;
-            } | null;
-            /** Id */
-            id: string;
-            /** Resourceid */
-            resourceId?: string | null;
-            /** Resourcetype */
-            resourceType: string;
-            /** Useremail */
-            userEmail?: string | null;
-            /** Userid */
-            userId?: string | null;
-            /** Workspaceid */
-            workspaceId: string;
-        };
-        /**
-         * AuditLogsResponse
-         * @description Cursor-paginated envelope for ``GET /audit-logs``.
-         *
-         *     ``next_cursor`` is an opaque base64 token encoding ``(created_at, id)``; when
-         *     ``None`` the caller has reached the head of the workspace audit log. The
-         *     wire key stays snake_case to match the example envelope in ``docs/API.md``
-         *     (§179) — the per-row keys are camelCase by alias, only the envelope keys
-         *     follow the spec verbatim.
-         */
-        AuditLogsResponse: {
-            /** Items */
-            items?: components["schemas"]["AuditLogRead"][];
-            /** Next Cursor */
-            next_cursor?: string | null;
-        };
-        /**
-         * AuthSection
-         * @description Auth-related capability flags resolved from process settings (M1e).
-         *
-         *     ``google_oauth_enabled`` is ``True`` only when BOTH the Google OAuth client id
-         *     and client secret are configured; the login page renders the Google button
-         *     solely off this flag.
-         */
-        AuthSection: {
-            /**
-             * Google Oauth Enabled
-             * @default false
-             */
-            google_oauth_enabled: boolean;
-        };
-        /**
-         * AutonomyLevel
-         * @description Workspace autonomy dial. ZERO tier is locked to MANUAL.
-         * @enum {string}
-         */
-        AutonomyLevel: "manual" | "assist" | "semi_auto" | "auto";
-        /**
-         * AutonomyResponse
-         * @description ``GET`` / ``PUT`` response — the resolved autonomy state.
-         */
-        AutonomyResponse: {
-            /** Effective */
-            effective: {
-                [key: string]: boolean;
-            };
-            /** Knownoverridekeys */
-            knownOverrideKeys: string[];
-            level: components["schemas"]["AutonomyLevel"];
-            /** Overrides */
-            overrides: {
-                [key: string]: boolean;
-            };
-            tier: components["schemas"]["Tier"];
-            /** Updatedat */
-            updatedAt?: string | null;
-            /** Updatedby */
-            updatedBy?: string | null;
-        };
-        /**
-         * AutonomySection
-         * @description Autonomy levels available + the recommended default for the tier.
-         */
-        AutonomySection: {
-            /** Available */
-            available: components["schemas"]["AutonomyLevel"][];
-            default: components["schemas"]["AutonomyLevel"];
-        };
-        /**
-         * AutonomyUpdate
-         * @description ``PUT`` body — the new level + overrides (+ optional audit reason).
-         */
-        AutonomyUpdate: {
-            level: components["schemas"]["AutonomyLevel"];
-            /** Overrides */
-            overrides?: {
-                [key: string]: boolean;
-            };
-            /** Reason */
-            reason?: string | null;
-        };
-        /** Body_auth_cookie_jwt_login_auth_cookie_login_post */
-        Body_auth_cookie_jwt_login_auth_cookie_login_post: {
-            /** Client Id */
-            client_id?: string | null;
-            /**
-             * Client Secret
-             * Format: password
-             */
-            client_secret?: string | null;
-            /** Grant Type */
-            grant_type?: string | null;
-            /**
-             * Password
-             * Format: password
-             */
-            password: string;
-            /**
-             * Scope
-             * @default
-             */
-            scope: string;
-            /** Username */
-            username: string;
-        };
-        /** Body_import_workspace_api_v1_workspaces_import_post */
-        Body_import_workspace_api_v1_workspaces_import_post: {
-            /**
-             * File
-             * @description workspace-*.tar.gz export archive.
-             */
-            file: string;
-        };
-        /** Body_reset_forgot_password_auth_forgot_password_post */
-        Body_reset_forgot_password_auth_forgot_password_post: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
-        };
-        /** Body_reset_reset_password_auth_reset_password_post */
-        Body_reset_reset_password_auth_reset_password_post: {
-            /** Password */
-            password: string;
-            /** Token */
-            token: string;
-        };
-        /** BudgetOut */
-        BudgetOut: {
-            /** Alert */
-            alert?: string | null;
-            /** Dailycapusd */
-            dailyCapUsd: number;
-            /** Overbudget */
-            overBudget: boolean;
-            /** Todayspendusd */
-            todaySpendUsd: number;
-        };
-        /**
-         * BulkAddTagsRequest
-         * @description ``action = "add_tags"`` variant.
-         */
-        BulkAddTagsRequest: {
-            /**
-             * Action
-             * @constant
-             */
-            action: "add_tags";
-            /** Ids */
-            ids: string[];
-            payload: components["schemas"]["_BulkTagsPayload"];
-        };
-        /**
-         * BulkDeleteRequest
-         * @description ``action = "delete"`` variant.
-         */
-        BulkDeleteRequest: {
-            /**
-             * Action
-             * @constant
-             */
-            action: "delete";
-            /** Ids */
-            ids: string[];
-            payload?: components["schemas"]["_BulkDeletePayload"];
-        };
-        /**
-         * BulkMoveToSuiteRequest
-         * @description ``action = "move_to_suite"`` variant.
-         */
-        BulkMoveToSuiteRequest: {
-            /**
-             * Action
-             * @constant
-             */
-            action: "move_to_suite";
-            /** Ids */
-            ids: string[];
-            payload: components["schemas"]["_BulkMoveToSuitePayload"];
-        };
-        /**
-         * BulkRemoveTagsRequest
-         * @description ``action = "remove_tags"`` variant.
-         */
-        BulkRemoveTagsRequest: {
-            /**
-             * Action
-             * @constant
-             */
-            action: "remove_tags";
-            /** Ids */
-            ids: string[];
-            payload: components["schemas"]["_BulkTagsPayload"];
-        };
-        /**
-         * BulkSetPriorityRequest
-         * @description ``action = "set_priority"`` variant.
-         */
-        BulkSetPriorityRequest: {
-            /**
-             * Action
-             * @constant
-             */
-            action: "set_priority";
-            /** Ids */
-            ids: string[];
-            payload: components["schemas"]["_BulkSetPriorityPayload"];
-        };
-        /**
-         * BulkUpdateResponse
-         * @description ``POST /test-cases/bulk-update`` 200 body (docs/API.md §3.3).
-         */
-        BulkUpdateResponse: {
-            /** Auditids */
-            auditIds?: string[];
-            /** Updated */
-            updated: number;
-        };
-        /**
-         * Capabilities
-         * @description Full ``GET /capabilities`` response.
-         */
-        Capabilities: {
-            auth?: components["schemas"]["AuthSection"];
-            autonomy: components["schemas"]["AutonomySection"];
-            /** Build */
-            build?: string | null;
-            embeddings: components["schemas"]["EmbeddingsSection"];
-            features: components["schemas"]["FeaturesSection"];
-            llm: components["schemas"]["LLMSection"];
-            /** Mcpproviders */
-            mcpProviders?: components["schemas"]["suitest_shared__schemas__capabilities__McpProviderPublic"][];
-            tier: components["schemas"]["Tier"];
-            /** Version */
-            version: string;
-        };
-        /**
-         * CaseSource
-         * @enum {string}
-         */
-        CaseSource: "MANUAL" | "AI" | "MCP" | "IMPORT" | "RECORDER" | "HEURISTIC_CRAWL";
-        /**
-         * CaseStatus
-         * @enum {string}
-         */
-        CaseStatus: "DRAFT" | "ACTIVE" | "DEPRECATED" | "ARCHIVED";
-        /** ChangePasswordRequest */
-        ChangePasswordRequest: {
-            /** Current Password */
-            current_password: string;
-            /** New Password */
-            new_password: string;
-        };
-        /**
-         * ChatMessageInput
-         * @description One prior turn in the conversation history.
-         */
-        ChatMessageInput: {
-            /** Content */
-            content: string;
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "user" | "assistant" | "system" | "tool";
-        };
-        /**
-         * ChatRequest
-         * @description ``POST /agent/chat`` body — the running history + optional session id.
-         */
-        ChatRequest: {
-            /** Messages */
-            messages: components["schemas"]["ChatMessageInput"][];
-            /** Seed */
-            seed?: number | null;
-            /** Session Id */
-            session_id?: string | null;
-        };
-        /** ClassificationResult */
-        ClassificationResult: {
-            /** Alternatives */
-            alternatives?: components["schemas"]["StrategyAlternative"][];
-            /** Confidence */
-            confidence: number;
-            /** Rationale */
-            rationale: string;
-            recommended_mcp: components["schemas"]["RecommendedMcp"];
-            recommended_strategy: components["schemas"]["RecommendedStrategy"];
-            target_kind: components["schemas"]["TargetKind"];
-        };
-        /**
-         * ConnectionTestResponse
-         * @description JSON response for ``/test`` + pre-save ``test-connection`` endpoints.
-         *
-         *     Mirrors :class:`suitest_api.integrations.base.ConnectionTestResult` 1:1 so
-         *     the FE can render the same UI for both pre-save and post-save flows. On
-         *     success ``ok=True`` and ``account_id``/``display_name`` describe who the
-         *     adapter authenticated as. On failure ``ok=False`` and ``error`` carries
-         *     the human-readable string the FE renders inline.
-         */
-        ConnectionTestResponse: {
-            /** Account Id */
-            account_id?: string | null;
-            /** Display Name */
-            display_name?: string | null;
-            /** Error */
-            error?: string | null;
-            /** Ok */
-            ok: boolean;
-        };
-        /** CostSummaryOut */
-        CostSummaryOut: {
-            budget: components["schemas"]["BudgetOut"];
-            /** Bykind */
-            byKind: components["schemas"]["KindCostOut"][];
-            /** Byprovider */
-            byProvider: components["schemas"]["ProviderCostOut"][];
-            /** Sessioncount */
-            sessionCount: number;
-            /** Totalcostusd */
-            totalCostUsd: number;
-            /** Totaltokensin */
-            totalTokensIn: number;
-            /** Totaltokensout */
-            totalTokensOut: number;
-            /** Windowdays */
-            windowDays: number;
-        };
-        /**
-         * CoverageOut
-         * @description ``GET /analytics/coverage`` → coverage by suite + by requirement.
-         */
-        CoverageOut: {
-            /** Byrequirement */
-            byRequirement?: components["schemas"]["CoverageRequirementRow"][];
-            /** Bysuite */
-            bySuite?: components["schemas"]["CoverageSuiteRow"][];
-        };
-        /** CoverageRequirementRow */
-        CoverageRequirementRow: {
-            /** Covered */
-            covered: number;
-            /** Requirementid */
-            requirementId: string;
-            /** Total */
-            total: number;
-        };
-        /** CoverageSuiteRow */
-        CoverageSuiteRow: {
-            /** Coverage */
-            coverage: number;
-            /** Covered */
-            covered: number;
-            /** Name */
-            name: string;
-            /** Suiteid */
-            suiteId: string;
-            /** Total */
-            total: number;
-        };
-        /**
-         * CrawlerAuthConfig
-         * @description Optional pre-crawl authentication. ``kind="none"`` (default) skips auth.
-         *
-         *     The crawler does not itself perform login today — the config is captured on
-         *     the :class:`~suitest_db.models.generator_run.GeneratorRun` for provenance and
-         *     threaded into generated cases so a later run can replay the auth context.
-         */
-        CrawlerAuthConfig: {
-            /** Cookie */
-            cookie?: string | null;
-            /** Credentials */
-            credentials?: {
-                [key: string]: string;
-            } | null;
-            /**
-             * Kind
-             * @default none
-             * @enum {string}
-             */
-            kind: "none" | "cookie" | "bearer" | "form";
-            /** Login Url */
-            login_url?: string | null;
-            /** Token */
-            token?: string | null;
-        };
-        /**
-         * CrawlerGenerateRequest
-         * @description Crawl request: a target suite + a start URL + bounds/auth.
-         */
-        CrawlerGenerateRequest: {
-            auth?: components["schemas"]["CrawlerAuthConfig"];
-            options?: components["schemas"]["CrawlerOptions"];
-            /** Start Url */
-            start_url: string;
-            /** Target Suite Id */
-            target_suite_id: string;
-        };
-        /**
-         * CrawlerOptions
-         * @description Per-request crawl bounds + emission toggles.
-         *
-         *     ``max_depth`` / ``max_pages`` cap the BFS so a large site cannot run away;
-         *     ``same_origin_only`` drops off-origin links from the frontier;
-         *     ``include_form_cases`` toggles the per-``<form>`` fill cases.
-         */
-        CrawlerOptions: {
-            /**
-             * Faker Locale
-             * @default en_US
-             */
-            faker_locale: string;
-            /**
-             * Include Form Cases
-             * @default true
-             */
-            include_form_cases: boolean;
-            /**
-             * Max Depth
-             * @default 2
-             */
-            max_depth: number;
-            /**
-             * Max Pages
-             * @default 20
-             */
-            max_pages: number;
-            /**
-             * Same Origin Only
-             * @default true
-             */
-            same_origin_only: boolean;
-            /** Tag Prefix */
-            tag_prefix?: string | null;
-        };
-        /**
-         * CreateRunBody
-         * @description ``POST /runs`` body. Mixed snake / camel aliases for FE convenience.
-         */
-        CreateRunBody: {
-            /** Branch */
-            branch?: string | null;
-            /** Commitsha */
-            commitSha?: string | null;
-            /**
-             * Env
-             * @default staging
-             */
-            env: string;
-            /** Mcproutingoverride */
-            mcpRoutingOverride?: {
-                [key: string]: string;
-            } | null;
-            /** Name */
-            name: string;
-            /** Projectid */
-            projectId: string;
-            /** Selection */
-            selection: components["schemas"]["RunSelectionItem"][];
-            /** @default MANUAL */
-            trigger: components["schemas"]["RunTrigger"];
-        };
-        /**
-         * DefectCreate
-         * @description Body for ``POST /defects`` — manual file (docs/API.md §3.6).
-         */
-        DefectCreate: {
-            /** Assigneeid */
-            assigneeId?: string | null;
-            /** Component */
-            component?: string | null;
-            /** Description */
-            description?: string | null;
-            /** Requirementid */
-            requirementId?: string | null;
-            /** Runid */
-            runId?: string | null;
-            severity: components["schemas"]["Severity"];
-            /** Testcaseid */
-            testCaseId?: string | null;
-            /** Title */
-            title: string;
-        };
-        /**
-         * DefectDetail
-         * @description Detail — adds linked resource public ids + external issues.
-         */
-        DefectDetail: {
-            agent_diagnosis_kind: components["schemas"]["DiagnosisKind"];
-            /** Assignee Id */
-            assignee_id?: string | null;
-            /** Component */
-            component?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Created By */
-            created_by: string;
-            /** Description */
-            description?: string | null;
-            /** External Issues */
-            external_issues?: components["schemas"]["ExternalIssuePublic"][];
-            /** Id */
-            id: string;
-            /** Public Id */
-            public_id: string;
-            /** Requirement Public Id */
-            requirement_public_id?: string | null;
-            /** Resolved At */
-            resolved_at?: string | null;
-            /** Run Public Id */
-            run_public_id?: string | null;
-            severity: components["schemas"]["Severity"];
-            status: components["schemas"]["DefectStatus"];
-            /** Test Case Public Id */
-            test_case_public_id?: string | null;
-            /** Title */
-            title: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Workspace Id */
-            workspace_id: string;
-        };
-        /**
-         * DefectListItem
-         * @description List row for ``GET /defects`` (docs/API.md §3.6).
-         */
-        DefectListItem: {
-            agent_diagnosis_kind: components["schemas"]["DiagnosisKind"];
-            /** Assignee Id */
-            assignee_id?: string | null;
-            /** Component */
-            component?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Created By */
-            created_by: string;
-            /** Id */
-            id: string;
-            /** Public Id */
-            public_id: string;
-            /** Resolved At */
-            resolved_at?: string | null;
-            severity: components["schemas"]["Severity"];
-            status: components["schemas"]["DefectStatus"];
-            /** Title */
-            title: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Workspace Id */
-            workspace_id: string;
-        };
-        /**
-         * DefectStatus
-         * @enum {string}
-         */
-        DefectStatus: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED" | "WONT_FIX";
-        /**
-         * DefectTimelineEntry
-         * @description One ordered event in a defect's history (creation + each audit row).
-         */
-        DefectTimelineEntry: {
-            /** Action */
-            action: string;
-            /** Actor Id */
-            actor_id?: string | null;
-            /**
-             * At
-             * Format: date-time
-             */
-            at: string;
-        };
-        /**
-         * DefectUpdate
-         * @description Body for ``PATCH /defects/:id`` — status / severity / assignee / description.
-         *
-         *     ``force`` (default ``False``) lets QA+ override the linear status flow for
-         *     workflow corrections (e.g. CLOSED → OPEN reopen after a real regression).
-         *     Without ``force`` a non-allowed transition returns 400
-         *     ``INVALID_STATUS_TRANSITION``.
-         */
-        DefectUpdate: {
-            /** Assigneeid */
-            assigneeId?: string | null;
-            /** Component */
-            component?: string | null;
-            /** Description */
-            description?: string | null;
-            /**
-             * Force
-             * @default false
-             */
-            force: boolean;
-            severity?: components["schemas"]["Severity"] | null;
-            status?: components["schemas"]["DefectStatus"] | null;
-            /** Title */
-            title?: string | null;
-        };
-        /**
-         * DiagnosisKind
-         * @enum {string}
-         */
-        DiagnosisKind: "REGRESSION" | "FLAKE" | "INFRA" | "SPEC_DRIFT" | "MANUAL_TRIAGE";
-        /**
-         * DocumentDetail
-         * @description Detail for ``GET /documents/:id`` — no chunk bodies in M1a.
-         */
-        DocumentDetail: {
-            /** Chunk Count */
-            chunk_count: number;
-            /** Content Hash */
-            content_hash: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Id */
-            id: string;
-            /** Indexed At */
-            indexed_at?: string | null;
-            kind: components["schemas"]["DocumentKind"];
-            /** Source */
-            source: string;
-            /** Title */
-            title: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Workspace Id */
-            workspace_id: string;
-        };
-        /**
-         * DocumentKind
-         * @enum {string}
-         */
-        DocumentKind: "PRD" | "OPENAPI" | "URL_CRAWL" | "LINEAR_ISSUE" | "NOTION_PAGE" | "CUSTOM";
-        /**
-         * DocumentListItem
-         * @description List row for ``GET /documents`` with a computed ``chunk_count``.
-         */
-        DocumentListItem: {
-            /** Chunk Count */
-            chunk_count: number;
-            /** Content Hash */
-            content_hash: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Id */
-            id: string;
-            /** Indexed At */
-            indexed_at?: string | null;
-            kind: components["schemas"]["DocumentKind"];
-            /** Source */
-            source: string;
-            /** Title */
-            title: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Workspace Id */
-            workspace_id: string;
-        };
-        /**
-         * EmbeddingsSection
-         * @description Embeddings backend info (independent of LLM tier).
-         */
-        EmbeddingsSection: {
-            /** Backend */
-            backend: string;
-            /** Dim */
-            dim?: number | null;
-            /** Enabled */
-            enabled: boolean;
-            /** Model */
-            model?: string | null;
-        };
-        /** ErrorModel */
-        ErrorModel: {
-            /** Detail */
-            detail: string | {
-                [key: string]: string;
-            };
-        };
-        /**
-         * EvalFixtureResult
-         * @description Per-fixture pass/fail row in the report.
-         */
-        EvalFixtureResult: {
-            /** Detail */
-            detail: string;
-            /** Fixture */
-            fixture: string;
-            /** Passed */
-            passed: boolean;
-            /** Suite */
-            suite: string;
-        };
-        /**
-         * EvalFixturesEnvelope
-         * @description ``GET /eval/fixtures`` — the bundled golden datasets the CI run scores.
-         */
-        EvalFixturesEnvelope: {
-            /** Items */
-            items?: components["schemas"]["EvalSuiteInfo"][];
-        };
-        /**
-         * EvalRunListEnvelope
-         * @description ``GET /eval/runs`` — newest-first eval run history.
-         */
-        EvalRunListEnvelope: {
-            /** Items */
-            items?: components["schemas"]["EvalRunListItem"][];
-        };
-        /**
-         * EvalRunListItem
-         * @description One row in the score-regression dashboard (M5-2).
-         */
-        EvalRunListItem: {
-            /** Failed */
-            failed: number;
-            /** Fixturescount */
-            fixturesCount: number;
-            /** Id */
-            id: string;
-            /** Modelid */
-            modelId: string;
-            /** Passed */
-            passed: number;
-            /**
-             * Runat
-             * Format: date-time
-             */
-            runAt: string;
-            /** Scorepct */
-            scorePct: number;
-            /** Suitename */
-            suiteName: string;
-        };
-        /**
-         * EvalRunPublic
-         * @description ``GET /eval/runs/:id`` + ``POST /eval/runs`` response.
-         */
-        EvalRunPublic: {
-            /** Failed */
-            failed: number;
-            /** Fixturescount */
-            fixturesCount: number;
-            /** Id */
-            id: string;
-            /** Modelid */
-            modelId: string;
-            /** Passed */
-            passed: number;
-            /** Results */
-            results?: components["schemas"]["EvalFixtureResult"][];
-            /**
-             * Runat
-             * Format: date-time
-             */
-            runAt: string;
-            /** Suitename */
-            suiteName: string;
-        };
-        /**
-         * EvalRunRequest
-         * @description ``POST /eval/runs`` body.
-         */
-        EvalRunRequest: {
-            /**
-             * Suite Name
-             * @default default
-             */
-            suite_name: string;
-        };
-        /**
-         * EvalSuiteInfo
-         * @description One golden dataset suite + its fixture count (M5-2).
-         */
-        EvalSuiteInfo: {
-            /** Fixtures */
-            fixtures: number;
-            /** Suite */
-            suite: string;
-        };
-        /**
-         * ExperimentOutcomeBody
-         * @description ``POST /prompt-experiments/:id/outcome`` body.
-         */
-        ExperimentOutcomeBody: {
-            /**
-             * Success
-             * @default true
-             */
-            success: boolean;
-            /** Variant */
-            variant: string;
-        };
-        /**
-         * ExperimentVariantStats
-         * @description Per-variant impression / success counters + conversion (M5-4).
-         */
-        ExperimentVariantStats: {
-            /** Conversionpct */
-            conversionPct: number;
-            /** Impressions */
-            impressions: number;
-            /** Overrideid */
-            overrideId?: string | null;
-            /** Successes */
-            successes: number;
-            /** Variant */
-            variant: string;
-        };
-        /**
-         * ExternalIssuePublic
-         * @description One linked external tracker issue (Jira/Linear/etc).
-         */
-        ExternalIssuePublic: {
-            /** External Id */
-            external_id: string;
-            /** External Url */
-            external_url: string;
-            /** Provider */
-            provider: string;
-            /**
-             * Synced At
-             * Format: date-time
-             */
-            synced_at: string;
-        };
-        /**
-         * FeaturesSection
-         * @description The 13 capability feature flags resolved from (tier, embeddings).
-         */
-        FeaturesSection: {
-            /** Ai Conversation */
-            ai_conversation: boolean;
-            /** Ai Diagnose */
-            ai_diagnose: boolean;
-            /** Ai Execution Agentic */
-            ai_execution_agentic: boolean;
-            /** Ai Generation */
-            ai_generation: boolean;
-            /** Auto Defect Filing Ai */
-            auto_defect_filing_ai: boolean;
-            /** Auto Defect Filing Rule */
-            auto_defect_filing_rule: boolean;
-            /** Deterministic Generator Crawler */
-            deterministic_generator_crawler: boolean;
-            /** Deterministic Generator Openapi */
-            deterministic_generator_openapi: boolean;
-            /** Deterministic Generator Recorder */
-            deterministic_generator_recorder: boolean;
-            /** Deterministic Runner */
-            deterministic_runner: boolean;
-            /** Fts Search */
-            fts_search: boolean;
-            /** Manual Tcm */
-            manual_tcm: boolean;
-            /** Semantic Search */
-            semantic_search: boolean;
-        };
-        /** FlakyCaseOut */
-        FlakyCaseOut: {
-            /** Caseid */
-            caseId: string;
-            /** Flakerate */
-            flakeRate: number;
-            /** Publicid */
-            publicId: string;
-            /** Samplesize */
-            sampleSize: number;
-        };
-        /** GenerationInput */
-        GenerationInput: {
-            /** Content Type Hint */
-            content_type_hint?: string | null;
-            /** Filename */
-            filename?: string | null;
-            kind: components["schemas"]["GenerationInputKind"];
-            /** Value */
-            value: string;
-        };
-        /**
-         * GenerationInputKind
-         * @enum {string}
-         */
-        GenerationInputKind: "url" | "file_content" | "raw_text";
-        /**
-         * GitHubTestConnectionRequest
-         * @description Pre-save credential payload for ``POST /integrations/github/test-connection``.
-         *
-         *     No row is persisted. ``private_key_pem`` is never logged and never stored
-         *     by this endpoint (per ``docs/API.md §3.9``). The router spawns an ephemeral
-         *     ``github-mcp-server`` process, derives an installation token, calls a
-         *     cheap whoami / list-repos tool, and discards.
-         */
-        GitHubTestConnectionRequest: {
-            /** App Installation Id */
-            app_installation_id: string;
-            /** Private Key Pem */
-            private_key_pem: string;
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /**
-         * HeatmapCell
-         * @description One run-count cell in the day x hour grid.
-         */
-        HeatmapCell: {
-            /** Count */
-            count: number;
-            /**
-             * Day
-             * Format: date-time
-             */
-            day: string;
-            /** Hour */
-            hour: number;
-        };
-        /**
-         * InboxItem
-         * @description One notification card in the Inbox feed.
-         */
-        InboxItem: {
-            /** Body */
-            body: string;
-            /** Createdat */
-            createdAt: string;
-            /** Id */
-            id: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "DEPLOY_GATE_FAIL" | "MANUAL_RUN_FAIL" | "MCP_HEALTH" | "FLAKY_PROMOTION" | "AGENT_GENERATION" | "AGENT_DIAGNOSIS";
-            /**
-             * Status
-             * @default unread
-             * @enum {string}
-             */
-            status: "unread" | "read" | "dismissed";
-            /** Title */
-            title: string;
-        };
-        /**
-         * InboxResponse
-         * @description ``GET /inbox`` envelope — items list + unread badge counter.
-         */
-        InboxResponse: {
-            /** Items */
-            items?: components["schemas"]["InboxItem"][];
-            /**
-             * Unreadcount
-             * @default 0
-             */
-            unreadCount: number;
-        };
-        /**
-         * IntegrationCreate
-         * @description ``POST /integrations`` request body.
-         *
-         *     ``secrets`` is an arbitrary JSON-object the kind-specific adapter consumes
-         *     (e.g. Slack: ``{"webhook_url": "..."}``, Jira: ``{"jira_token": "..."}``).
-         *     The service AES-GCM-encrypts it via ``packages/core/crypto`` before INSERT.
-         *     ``status`` defaults to ``active`` and is set by the service — accepting it
-         *     from the wire would let an admin force-set bypassed states.
-         */
-        IntegrationCreate: {
-            /** Config */
-            config?: {
-                [key: string]: unknown;
-            };
-            kind: components["schemas"]["IntegrationKind"];
-            /** Name */
-            name: string;
-            /**
-             * Secrets
-             * @description Adapter-specific secret material (e.g. Slack webhook_url, Jira token). Encrypted at rest via AES-GCM; never echoed back.
-             */
-            secrets?: {
-                [key: string]: unknown;
-            } | null;
-        };
-        /**
-         * IntegrationDetail
-         * @description Detail — adds visible ``config`` and the redacted ``secrets`` block.
-         */
-        IntegrationDetail: {
-            /** Config */
-            config: {
-                [key: string]: unknown;
-            };
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Has Secrets */
-            has_secrets: boolean;
-            /** Id */
-            id: string;
-            kind: components["schemas"]["IntegrationKind"];
-            /** Last Synced At */
-            last_synced_at?: string | null;
-            /** Name */
-            name: string;
-            secrets?: components["schemas"]["SecretsHint"] | null;
-            /** Status */
-            status: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Workspace Id */
-            workspace_id: string;
-        };
-        /**
-         * IntegrationKind
-         * @enum {string}
-         */
-        IntegrationKind: "GITHUB" | "GITLAB" | "JENKINS" | "JIRA" | "LINEAR" | "SLACK" | "MCP_BROWSER_USE" | "MCP_PLAYWRIGHT" | "MCP_CUSTOM" | "OPENAPI" | "MCP_API" | "MCP_POSTGRES" | "MCP_KUBERNETES" | "MCP_GRAPHQL" | "MCP_GRPC" | "MCP_APPIUM" | "MCP_MONGO" | "MCP_MYSQL";
-        /**
-         * IntegrationListItem
-         * @description List row for ``GET /integrations`` (config visible, no secret material).
-         */
-        IntegrationListItem: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Has Secrets */
-            has_secrets: boolean;
-            /** Id */
-            id: string;
-            kind: components["schemas"]["IntegrationKind"];
-            /** Last Synced At */
-            last_synced_at?: string | null;
-            /** Name */
-            name: string;
-            /** Status */
-            status: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Workspace Id */
-            workspace_id: string;
-        };
-        /**
-         * IntegrationRead
-         * @description Write-path response: ``config`` is visible but secrets stay opaque.
-         *
-         *     Deliberately ``model_config`` does NOT add a ``secrets`` field — the only
-         *     cue the FE gets that secrets exist is ``has_secrets: bool``. The ``config``
-         *     field is allowed because integration config (``Jira url``, ``Slack channel
-         *     name``) is non-sensitive metadata; the AES-GCM blob lives only in the
-         *     database column. See ``docs/API.md §3.9``.
-         */
-        IntegrationRead: {
-            /** Config */
-            config: {
-                [key: string]: unknown;
-            };
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Has Secrets */
-            has_secrets: boolean;
-            /** Id */
-            id: string;
-            kind: components["schemas"]["IntegrationKind"];
-            /** Last Synced At */
-            last_synced_at?: string | null;
-            /** Name */
-            name: string;
-            /** Status */
-            status: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Workspace Id */
-            workspace_id: string;
-        };
-        /**
-         * IntegrationUpdate
-         * @description ``PATCH /integrations/:id`` request body — partial update.
-         *
-         *     ``secrets`` semantics:
-         *
-         *     * absent from body → existing encrypted blob preserved verbatim.
-         *     * present but empty dict → existing blob CLEARED (the integration becomes
-         *       secret-less; ``has_secrets`` flips to False).
-         *     * present with keys → MERGED with the existing decrypted dict before
-         *       re-encrypting (FE doesn't have to know every secret key). Submitted keys
-         *       overwrite; unsubmitted keys retain prior values.
-         */
-        IntegrationUpdate: {
-            /** Config */
-            config?: {
-                [key: string]: unknown;
-            } | null;
-            /** Name */
-            name?: string | null;
-            /** Secrets */
-            secrets?: {
-                [key: string]: unknown;
-            } | null;
-            /** Status */
-            status?: string | null;
-        };
-        /** InvitationCreateRequest */
-        InvitationCreateRequest: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
-            role: components["schemas"]["Role"];
-        };
-        /** InvitationListEnvelope */
-        InvitationListEnvelope: {
-            /** Items */
-            items: components["schemas"]["InvitationOut"][];
-        };
-        /** InvitationOut */
-        InvitationOut: {
-            /** Accepted At */
-            accepted_at: string | null;
-            /** Email */
-            email: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-            /** Id */
-            id: string;
-            /** Link */
-            link?: string | null;
-            /** Revoked At */
-            revoked_at: string | null;
-            role: components["schemas"]["Role"];
-        };
-        /** InvitationValidateResponse */
-        InvitationValidateResponse: {
-            /** Email */
-            email: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-            role: components["schemas"]["Role"];
-            /** Workspace Name */
-            workspace_name: string;
-        };
-        /**
-         * JiraSyncedResponse
-         * @description 202 response when the Jira webhook successfully syncs a defect status.
-         */
-        JiraSyncedResponse: {
-            /** Defectid */
-            defectId: string;
-            /** Fromstatus */
-            fromStatus: string;
-            /** Tostatus */
-            toStatus: string;
-        };
-        /**
-         * JiraTestConnectionRequest
-         * @description Pre-save credential payload for ``POST /integrations/jira/test-connection``.
-         *
-         *     No row is persisted; the router spawns an ephemeral ``jirac-mcp`` adapter
-         *     with these creds, calls ``test_connection`` (``GET /rest/api/3/myself``),
-         *     and discards the process. ``jira_auth_type`` selects between cloud OAuth
-         *     token (``cloud_token``) and PAT (``pat``). M1d ships PAT-only — OAuth flow
-         *     deferred to v1.x.
-         */
-        JiraTestConnectionRequest: {
-            /**
-             * Jira Auth Type
-             * @default cloud_token
-             * @enum {string}
-             */
-            jira_auth_type: "cloud_token" | "pat";
-            /** Jira Email */
-            jira_email: string;
-            /** Jira Token */
-            jira_token: string;
-            /** Jira Url */
-            jira_url: string;
-        };
-        /** KindCostOut */
-        KindCostOut: {
-            /** Costusd */
-            costUsd: number;
-            /** Kind */
-            kind: string;
-            /** Sessions */
-            sessions: number;
-        };
-        /**
-         * KpisOut
-         * @description ``GET /analytics/kpis`` → pass rate, run count, avg duration, open defects.
-         */
-        KpisOut: {
-            /** Avgdurationms */
-            avgDurationMs: number;
-            /** Defectsopen */
-            defectsOpen: number;
-            /** Passrate */
-            passRate: number;
-            /** Runcount */
-            runCount: number;
-        };
-        /**
-         * LLMConfigPublic
-         * @description Active config, key redacted to a hint.
-         */
-        LLMConfigPublic: {
-            /** Apikeyhint */
-            apiKeyHint?: string | null;
-            /** Config */
-            config?: {
-                [key: string]: unknown;
-            };
-            /** Id */
-            id: string;
-            /** Isactive */
-            isActive: boolean;
-            /** Lastvalidatedat */
-            lastValidatedAt?: string | null;
-            /** Model */
-            model: string;
-            /** Provider */
-            provider: string;
-            /** Tier */
-            tier: string;
-        };
-        /**
-         * LLMConfigWriteBody
-         * @description Set/rotate provider + key. ``apiKey`` is write-only.
-         */
-        LLMConfigWriteBody: {
-            /** Apikey */
-            apiKey?: string | null;
-            /** Config */
-            config?: {
-                [key: string]: unknown;
-            };
-            /** Model */
-            model: string;
-            /** Provider */
-            provider: string;
-        };
-        /** LLMModelsResponse */
-        LLMModelsResponse: {
-            /** Models */
-            models?: {
-                [key: string]: unknown;
-            }[];
-            /** Provider */
-            provider: string;
-        };
-        /**
-         * LLMSection
-         * @description LLM provider info. ``provider`` is ``"none"`` in ZERO tier.
-         */
-        LLMSection: {
-            /** Base Url */
-            base_url?: string | null;
-            /**
-             * Is Test Provider
-             * @default false
-             */
-            is_test_provider: boolean;
-            /** Model */
-            model?: string | null;
-            /** Provider */
-            provider: string;
-        };
-        /** LLMTestError */
-        LLMTestError: {
-            /** Code */
-            code: string;
-            /** Message */
-            message: string;
-        };
-        /** LLMTestResult */
-        LLMTestResult: {
-            error?: components["schemas"]["LLMTestError"] | null;
-            /**
-             * Latencyms
-             * @default 0
-             */
-            latencyMs: number;
-            /** Modelecho */
-            modelEcho?: string | null;
-            /** Ok */
-            ok: boolean;
-        };
-        /** MatrixCase */
-        MatrixCase: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            source: components["schemas"]["CaseSource"];
-            status: components["schemas"]["CaseStatus"];
-        };
-        /** MatrixDefect */
-        MatrixDefect: {
-            /** Id */
-            id: string;
-            severity: components["schemas"]["Severity"];
-            status: components["schemas"]["DefectStatus"];
-            /** Title */
-            title: string;
-        };
-        /**
-         * MatrixRequirement
-         * @description One requirement row: its public id, title, and linked test/defect public ids.
-         */
-        MatrixRequirement: {
-            /** Defects */
-            defects?: string[];
-            /** Id */
-            id: string;
-            /** Tests */
-            tests?: string[];
-            /** Title */
-            title: string;
-        };
-        /**
-         * McpDiscoveryGenerateRequest
-         * @description LLM-driven MCP tool-discovery generation (M3-9) — CLOUD/LOCAL only.
-         *
-         *     Targets a registered MCP provider by id; the agent explores its persisted
-         *     tool catalog and proposes contract cases (happy + negative per tool). Steps
-         *     are agentic (code translated at execution time, M3-10).
-         */
-        McpDiscoveryGenerateRequest: {
-            /**
-             * Max Cases
-             * @default 20
-             */
-            max_cases: number;
-            /** Mcp Provider Id */
-            mcp_provider_id: string;
-            /** Seed */
-            seed?: number | null;
-            /** Target Suite Id */
-            target_suite_id: string;
-        };
-        /**
-         * McpInvokeBody
-         * @description ``POST /mcp/providers/:id/invoke`` body — dev-aid ad-hoc tool call.
-         */
-        McpInvokeBody: {
-            /** Arguments */
-            arguments?: {
-                [key: string]: unknown;
-            };
-            /** Tool */
-            tool: string;
-        };
-        /**
-         * McpInvokeResult
-         * @description Normalized result of an ad-hoc tool invocation (tool browser).
-         */
-        McpInvokeResult: {
-            /**
-             * Durationms
-             * @default 0
-             */
-            durationMs: number;
-            /** Error */
-            error?: string | null;
-            /** Ok */
-            ok: boolean;
-            /** Output */
-            output?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Stderr
-             * @default
-             */
-            stderr: string;
-            /**
-             * Stdout
-             * @default
-             */
-            stdout: string;
-        };
-        /**
-         * McpProviderCreateBody
-         * @description ``POST /mcp/providers`` body — register a custom MCP server.
-         */
-        McpProviderCreateBody: {
-            /** Configjson */
-            configJson?: {
-                [key: string]: unknown;
-            } | null;
-            /** Endpoint */
-            endpoint: string;
-            /** Isdefaultfortarget */
-            isDefaultForTarget?: {
-                [key: string]: boolean;
-            } | null;
-            /** Kind */
-            kind: string;
-            /** Name */
-            name: string;
-            /** Secretsjson */
-            secretsJson?: {
-                [key: string]: unknown;
-            } | string | null;
-            transport: components["schemas"]["McpTransport"];
-            /**
-             * Validate
-             * @default true
-             */
-            validate: boolean;
-        };
-        /**
-         * McpProviderDetail
-         * @description Detail row — summary + config preview (secrets redacted) + version pins.
-         */
-        McpProviderDetail: {
-            /** Commandpin */
-            commandPin?: string | null;
-            /** Configjson */
-            configJson?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Enabled
-             * @default true
-             */
-            enabled: boolean;
-            /** Endpoint */
-            endpoint: string;
-            /** Gitref */
-            gitRef?: string | null;
-            /**
-             * Hassecrets
-             * @default false
-             */
-            hasSecrets: boolean;
-            /**
-             * Healthstatus
-             * @default unknown
-             */
-            healthStatus: string;
-            /** Id */
-            id: string;
-            /** Imagepin */
-            imagePin?: string | null;
-            /**
-             * Isbundled
-             * @default false
-             */
-            isBundled: boolean;
-            /** Isdefaultfortarget */
-            isDefaultForTarget?: {
-                [key: string]: boolean;
-            };
-            /** Kind */
-            kind: string;
-            /** Lasthealthat */
-            lastHealthAt?: string | null;
-            /** Name */
-            name: string;
-            /** Tools */
-            tools?: components["schemas"]["McpProviderTool"][];
-            /** Transport */
-            transport: string;
-            /** Versionpin */
-            versionPin?: string | null;
-        };
-        /**
-         * McpProviderProbeResult
-         * @description ``POST /mcp/providers/test-connection`` response — dry-run discovery.
-         */
-        McpProviderProbeResult: {
-            /** Ok */
-            ok: boolean;
-            /** Serverversion */
-            serverVersion?: string | null;
-            /** Tools */
-            tools?: components["schemas"]["McpProviderTool"][];
-        };
-        /**
-         * McpProviderTool
-         * @description One tool entry (name + description + flattened arg schema preview).
-         */
-        McpProviderTool: {
-            /** Argschema */
-            argSchema?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Description
-             * @default
-             */
-            description: string;
-            /** Name */
-            name: string;
-        };
-        /**
-         * McpProviderUpdateBody
-         * @description ``PATCH /mcp/providers/:id`` body — partial update of a custom row.
-         */
-        McpProviderUpdateBody: {
-            /** Configjson */
-            configJson?: {
-                [key: string]: unknown;
-            } | null;
-            /** Enabled */
-            enabled?: boolean | null;
-            /** Endpoint */
-            endpoint?: string | null;
-            /** Isdefaultfortarget */
-            isDefaultForTarget?: {
-                [key: string]: boolean;
-            } | null;
-            /** Kind */
-            kind?: string | null;
-            /** Name */
-            name?: string | null;
-            /** Secretsjson */
-            secretsJson?: {
-                [key: string]: unknown;
-            } | string | null;
-            transport?: components["schemas"]["McpTransport"] | null;
-        };
-        /**
-         * McpProvidersResponse
-         * @description ``GET /mcp/providers`` envelope (bundled builtins + custom rows).
-         */
-        McpProvidersResponse: {
-            /** Items */
-            items?: components["schemas"]["suitest_api__routers__mcp_providers__McpProviderPublic"][];
-        };
-        /**
-         * McpRoutingResponse
-         * @description ``GET /mcp/routing`` — default table overlaid with workspace overrides.
-         */
-        McpRoutingResponse: {
-            /** Items */
-            items?: components["schemas"]["RoutingRule"][];
-        };
-        /**
-         * McpRoutingUpdateBody
-         * @description ``PUT /mcp/routing`` body — replace the workspace override map.
-         */
-        McpRoutingUpdateBody: {
-            /** Overrides */
-            overrides?: {
-                [key: string]: components["schemas"]["RoutingRuleInput"];
-            };
-        };
-        /**
-         * McpTransport
-         * @enum {string}
-         */
-        McpTransport: "stdio" | "sse" | "ws";
-        /**
-         * MeResponse
-         * @description ``GET /auth/me`` — the current user plus every workspace they belong to.
-         */
-        MeResponse: {
-            /** Avatar Url */
-            avatar_url?: string | null;
-            /** Email */
-            email: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Is Superuser
-             * @default false
-             */
-            is_superuser: boolean;
-            /** Memberships */
-            memberships: components["schemas"]["MembershipPublic"][];
-            /**
-             * Must Change Password
-             * @default false
-             */
-            must_change_password: boolean;
-            /** Name */
-            name: string;
-        };
-        /**
-         * MembershipPublic
-         * @description A user's membership in a workspace, with the workspace embedded.
-         */
-        MembershipPublic: {
-            role: components["schemas"]["Role"];
-            workspace: components["schemas"]["WorkspacePublic"];
-            /** Workspace Id */
-            workspace_id: string;
-        };
-        /**
-         * NetworkEvent
-         * @description One network event captured during a run (HAR-derived, M1c).
-         */
-        NetworkEvent: {
-            /** Durationms */
-            durationMs: number;
-            /** Method */
-            method: string;
-            /** Path */
-            path: string;
-            /**
-             * Startedat
-             * Format: date-time
-             */
-            startedAt: string;
-            /** Status */
-            status: number;
-        };
-        /** OAuth2AuthorizeResponse */
-        OAuth2AuthorizeResponse: {
-            /** Authorization Url */
-            authorization_url: string;
-        };
-        /**
-         * OpenApiGenerateRequest
-         * @description Generation request: exactly one of ``spec_url`` / ``spec_content``.
-         */
-        OpenApiGenerateRequest: {
-            options?: components["schemas"]["OpenApiGeneratorOptions"];
-            /** Spec Content */
-            spec_content?: string | null;
-            /** Spec Url */
-            spec_url?: string | null;
-            /** Target Suite Id */
-            target_suite_id: string;
-        };
-        /**
-         * OpenApiGeneratorOptions
-         * @description Per-request toggles for which case kinds the generator emits.
-         *
-         *     Defaults emit the full deterministic suite; callers disable categories to
-         *     keep a generated suite focused (e.g. contract-only). ``tags_filter`` limits
-         *     generation to operations carrying at least one of the listed OpenAPI tags.
-         */
-        OpenApiGeneratorOptions: {
-            /** Auth Profile Id */
-            auth_profile_id?: string | null;
-            /** Base Url Override */
-            base_url_override?: string | null;
-            /**
-             * Include Boundary Tests
-             * @default true
-             */
-            include_boundary_tests: boolean;
-            /**
-             * Include Llm Edge Cases
-             * @default false
-             */
-            include_llm_edge_cases: boolean;
-            /**
-             * Include Negative Auth
-             * @default true
-             */
-            include_negative_auth: boolean;
-            /**
-             * Include Rate Limit Tests
-             * @default true
-             */
-            include_rate_limit_tests: boolean;
-            /**
-             * Include Required Field Tests
-             * @default true
-             */
-            include_required_field_tests: boolean;
-            /**
-             * Include Schema Validation
-             * @default true
-             */
-            include_schema_validation: boolean;
-            /**
-             * Max Cases Per Operation
-             * @default 20
-             */
-            max_cases_per_operation: number;
-            /** Tag Prefix */
-            tag_prefix?: string | null;
-            /** Tags Filter */
-            tags_filter?: string[];
-        };
-        /**
-         * PageMeta
-         * @description Pagination metadata: the next cursor (``null`` when exhausted) + page size.
-         */
-        PageMeta: {
-            /** Limit */
-            limit: number;
-            /** Nextcursor */
-            nextCursor?: string | null;
-        };
-        /** Page[DefectListItem] */
-        Page_DefectListItem_: {
-            /** Items */
-            items: components["schemas"]["DefectListItem"][];
-            meta: components["schemas"]["PageMeta"];
-        };
-        /** Page[DocumentListItem] */
-        Page_DocumentListItem_: {
-            /** Items */
-            items: components["schemas"]["DocumentListItem"][];
-            meta: components["schemas"]["PageMeta"];
-        };
-        /** Page[ProjectPublic] */
-        Page_ProjectPublic_: {
-            /** Items */
-            items: components["schemas"]["ProjectPublic"][];
-            meta: components["schemas"]["PageMeta"];
-        };
-        /** Page[RequirementListItem] */
-        Page_RequirementListItem_: {
-            /** Items */
-            items: components["schemas"]["RequirementListItem"][];
-            meta: components["schemas"]["PageMeta"];
-        };
-        /** Page[RunListItem] */
-        Page_RunListItem_: {
-            /** Items */
-            items: components["schemas"]["RunListItem"][];
-            meta: components["schemas"]["PageMeta"];
-        };
-        /** Page[TestCaseListItem] */
-        Page_TestCaseListItem_: {
-            /** Items */
-            items: components["schemas"]["TestCaseListItem"][];
-            meta: components["schemas"]["PageMeta"];
-        };
-        /** PassRatePoint */
-        PassRatePoint: {
-            /** Date */
-            date: string;
-            /** Passrate */
-            passRate: number;
-        };
-        /**
-         * PassRateSeriesOut
-         * @description ``GET /analytics/pass-rate`` → ascending time series + total sample size.
-         */
-        PassRateSeriesOut: {
-            /** Series */
-            series?: components["schemas"]["PassRatePoint"][];
-            /** Total */
-            total: number;
-        };
-        /** PasswordResetRequestOut */
-        PasswordResetRequestOut: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Email */
-            email: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-            /** Id */
-            id: string;
-            /** Resetlink */
-            resetLink: string | null;
-            /** Used At */
-            used_at: string | null;
-        };
-        /** PasswordResetRequestsEnvelope */
-        PasswordResetRequestsEnvelope: {
-            /** Items */
-            items: components["schemas"]["PasswordResetRequestOut"][];
-        };
-        /**
-         * PrdGenerateRequest
-         * @description LLM-driven PRD generation (M3-6) — CLOUD/LOCAL only.
-         *
-         *     ``prd_text`` is the requirement / user story / free text. The agent extracts
-         *     stories and drafts happy-path + edge cases. ``default_target_kind`` decides
-         *     the steps' default ``mcp_provider`` (steps are agentic — code is translated at
-         *     execution time, M3-10). ``seed`` is threaded for reproducibility (M3-5).
-         */
-        PrdGenerateRequest: {
-            /** @default CUSTOM */
-            default_target_kind: components["schemas"]["TargetKind"];
-            /**
-             * Max Cases
-             * @default 20
-             */
-            max_cases: number;
-            /** Prd Text */
-            prd_text: string;
-            /** Seed */
-            seed?: number | null;
-            /** Target Suite Id */
-            target_suite_id: string;
-        };
-        /**
-         * Priority
-         * @enum {string}
-         */
-        Priority: "P0" | "P1" | "P2" | "P3";
-        /**
-         * ProjectCreate
-         * @description Body for ``POST /projects`` (docs/API.md §3.2).
-         *
-         *     ``slug`` is optional — when omitted the service derives it from ``name``
-         *     via :func:`suitest_api.utils.slug.slugify` and retries with a ``-2``
-         *     suffix once on collision before bubbling 409.
-         */
-        ProjectCreate: {
-            /** Description */
-            description?: string | null;
-            /** Name */
-            name: string;
-            /** Slug */
-            slug?: string | null;
-        };
-        /**
-         * ProjectPublic
-         * @description A project, workspace-scoped (docs/API.md §3.2).
-         */
-        ProjectPublic: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Default Mcp Routing */
-            default_mcp_routing?: {
-                [key: string]: unknown;
-            };
-            /** Description */
-            description?: string | null;
-            /** Gating Suite Id */
-            gating_suite_id?: string | null;
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Slug */
-            slug: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Workspace Id */
-            workspace_id: string;
-        };
-        /**
-         * ProjectUpdate
-         * @description Body for ``PATCH /projects/:id`` (docs/API.md §3.2).
-         *
-         *     Slug is **immutable** post-create — attempting to PATCH it raises a 400
-         *     ``IMMUTABLE_SLUG``. ``gating_suite_id`` must reference a suite that lives
-         *     in this project (cross-project assignments raise 400
-         *     ``INVALID_GATING_SUITE``). All fields optional; only
-         *     ``model_dump(exclude_unset=True)`` keys are applied.
-         */
-        ProjectUpdate: {
-            /** Defaultmcprouting */
-            defaultMcpRouting?: {
-                [key: string]: unknown;
-            } | null;
-            /** Description */
-            description?: string | null;
-            /** Gatingsuiteid */
-            gatingSuiteId?: string | null;
-            /** Name */
-            name?: string | null;
-            /** Slug */
-            slug?: string | null;
-        };
-        /**
-         * PromptDefaultPublic
-         * @description A file-based default prompt + whether the workspace forks it.
-         */
-        PromptDefaultPublic: {
-            /** Activeforkversion */
-            activeForkVersion?: number | null;
-            /** Baseversion */
-            baseVersion: string;
-            /** Hasactivefork */
-            hasActiveFork: boolean;
-            /** Name */
-            name: string;
-        };
-        /**
-         * PromptDetailPublic
-         * @description ``GET /prompts/:name`` — default content + the workspace's fork history.
-         */
-        PromptDetailPublic: {
-            /** Baseversion */
-            baseVersion: string;
-            /** Defaultcontent */
-            defaultContent: string;
-            /** Forks */
-            forks?: components["schemas"]["PromptForkPublic"][];
-            /** Name */
-            name: string;
-        };
-        /**
-         * PromptExperimentCreateBody
-         * @description ``POST /prompt-experiments`` body.
-         */
-        PromptExperimentCreateBody: {
-            /** Prompt Name */
-            prompt_name: string;
-            /**
-             * Split Pct
-             * @default 50
-             */
-            split_pct: number;
-            /** Variant A Override Id */
-            variant_a_override_id?: string | null;
-            /** Variant B Override Id */
-            variant_b_override_id?: string | null;
-        };
-        /** PromptExperimentListEnvelope */
-        PromptExperimentListEnvelope: {
-            /** Items */
-            items?: components["schemas"]["PromptExperimentPublic"][];
-        };
-        /**
-         * PromptExperimentPublic
-         * @description One prompt A/B experiment + live stats.
-         */
-        PromptExperimentPublic: {
-            /**
-             * Createdat
-             * Format: date-time
-             */
-            createdAt: string;
-            /** Id */
-            id: string;
-            /** Promptname */
-            promptName: string;
-            /** Splitpct */
-            splitPct: number;
-            /** Status */
-            status: string;
-            variantA: components["schemas"]["ExperimentVariantStats"];
-            variantB: components["schemas"]["ExperimentVariantStats"];
-            /** Winner */
-            winner?: string | null;
-        };
-        /**
-         * PromptForkCreate
-         * @description ``POST /prompts/:name/forks`` body.
-         */
-        PromptForkCreate: {
-            /**
-             * Activate
-             * @default true
-             */
-            activate: boolean;
-            /**
-             * Base Version
-             * @default v1
-             */
-            base_version: string;
-            /** Content */
-            content: string;
-            /** Label */
-            label?: string | null;
-        };
-        /**
-         * PromptForkPublic
-         * @description One versioned fork of a prompt for a workspace.
-         */
-        PromptForkPublic: {
-            /** Baseversion */
-            baseVersion: string;
-            /** Content */
-            content?: string | null;
-            /**
-             * Createdat
-             * Format: date-time
-             */
-            createdAt: string;
-            /** Forkversion */
-            forkVersion: number;
-            /** Hash */
-            hash: string;
-            /** Id */
-            id: string;
-            /** Isactive */
-            isActive: boolean;
-            /** Label */
-            label?: string | null;
-            /** Promptname */
-            promptName: string;
-        };
-        /**
-         * PromptListEnvelope
-         * @description ``GET /prompts`` — every overridable default + its fork status.
-         */
-        PromptListEnvelope: {
-            /** Items */
-            items?: components["schemas"]["PromptDefaultPublic"][];
-        };
-        /** ProviderCostOut */
-        ProviderCostOut: {
-            /** Costusd */
-            costUsd: number;
-            /** Provider */
-            provider: string;
-            /** Sessions */
-            sessions: number;
-            /** Tokensin */
-            tokensIn: number;
-            /** Tokensout */
-            tokensOut: number;
-        };
-        /** ReadinessBlocker */
-        ReadinessBlocker: {
-            /** Message */
-            message: string;
-            /** Ref */
-            ref?: string | null;
-            /** Type */
-            type: string;
-        };
-        /**
-         * ReadinessOut
-         * @description ``GET /analytics/readiness`` → deterministic release-readiness score.
-         */
-        ReadinessOut: {
-            /** Blockers */
-            blockers?: components["schemas"]["ReadinessBlocker"][];
-            /** Score */
-            score: number;
-        };
-        /** RecommendedMcp */
-        RecommendedMcp: {
-            /** Id */
-            id?: string | null;
-            /** Name */
-            name: string;
-        };
-        /**
-         * RecommendedStrategy
-         * @enum {string}
-         */
-        RecommendedStrategy: "openapi-generator" | "url-crawler" | "recorder" | "url-semantic" | "mcp-discovery" | "prd-parsing";
-        /**
-         * RecorderFinalizeRequest
-         * @description Body for ``POST .../finalize`` — where + how to persist the new case.
-         */
-        RecorderFinalizeRequest: {
-            /** Description */
-            description?: string | null;
-            /** Name */
-            name: string;
-            /**
-             * Priority
-             * @default P2
-             * @enum {string}
-             */
-            priority: "P0" | "P1" | "P2" | "P3";
-            /** Target Suite Id */
-            target_suite_id: string;
-        };
-        /**
-         * RecorderSessionStartRequest
-         * @description Body for ``POST /generators/recorder/sessions``.
-         */
-        RecorderSessionStartRequest: {
-            /**
-             * Mcp Provider
-             * @default playwright-mcp
-             */
-            mcp_provider: string;
-            /** Project Id */
-            project_id: string;
-            /** Start Url */
-            start_url: string;
-        };
-        /**
-         * RecorderSessionStartResponse
-         * @description 200 body — the session id + the WS room to subscribe for live events.
-         */
-        RecorderSessionStartResponse: {
-            /** Browser Url */
-            browser_url?: string | null;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-            /** Session Id */
-            session_id: string;
-            /** Ws Room */
-            ws_room: string;
-        };
-        /**
-         * RequirementCreate
-         * @description Body for ``POST /requirements`` (docs/API.md §3.7).
-         *
-         *     ``project_id`` is workspace-scoped (cross-workspace ids return 404). The
-         *     ``REQ-N`` ``public_id`` is assigned by the ``before_insert`` listener via
-         *     ``generate_public_id`` (docs/DATA_MODEL §8) — never accepted from the caller.
-         */
-        RequirementCreate: {
-            /** Description */
-            description?: string | null;
-            /** Externalurl */
-            externalUrl?: string | null;
-            /** Projectid */
-            projectId: string;
-            /** Source */
-            source?: string | null;
-            /** Title */
-            title: string;
-        };
-        /**
-         * RequirementDetail
-         * @description Detail with the public ids of linked cases + linked defects.
-         */
-        RequirementDetail: {
-            /** Case Public Ids */
-            case_public_ids?: string[];
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Defect Public Ids */
-            defect_public_ids?: string[];
-            /** Description */
-            description?: string | null;
-            /** External Url */
-            external_url?: string | null;
-            /** Id */
-            id: string;
-            /** Project Id */
-            project_id: string;
-            /** Public Id */
-            public_id: string;
-            /** Source */
-            source?: string | null;
-            /** Title */
-            title: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * RequirementLinkCreate
-         * @description Body for ``POST /requirements/:id/links`` — ``{ "testCaseId": "..." }``.
-         *
-         *     Accepts both ``test_case_id`` (Pythonic) and ``testCaseId`` / ``caseId``
-         *     (docs/API.md §3.7 wire shape) for FE compatibility.
-         */
-        RequirementLinkCreate: {
-            /** Testcaseid */
-            testCaseId: string;
-        };
-        /**
-         * RequirementListItem
-         * @description List row with a computed ``link_count`` (number of linked cases).
-         */
-        RequirementListItem: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Description */
-            description?: string | null;
-            /** External Url */
-            external_url?: string | null;
-            /** Id */
-            id: string;
-            /** Link Count */
-            link_count: number;
-            /** Project Id */
-            project_id: string;
-            /** Public Id */
-            public_id: string;
-            /** Source */
-            source?: string | null;
-            /** Title */
-            title: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * RequirementUpdate
-         * @description Body for ``PATCH /requirements/:id`` — metadata patch.
-         *
-         *     All fields optional; only ``model_dump(exclude_unset=True)`` keys are
-         *     applied. Sending ``null`` explicitly clears the field (description / source
-         *     / external_url are nullable in the model).
-         */
-        RequirementUpdate: {
-            /** Description */
-            description?: string | null;
-            /** Externalurl */
-            externalUrl?: string | null;
-            /** Source */
-            source?: string | null;
-            /** Title */
-            title?: string | null;
-        };
-        /** ResetPasswordResponse */
-        ResetPasswordResponse: {
-            /** Temporarypassword */
-            temporaryPassword: string;
-        };
-        /**
-         * Role
-         * @enum {string}
-         */
-        Role: "OWNER" | "ADMIN" | "QA" | "VIEWER";
-        /**
-         * RoutingRule
-         * @description One effective ``target_kind`` -> provider routing row.
-         */
-        RoutingRule: {
-            /** Fallback */
-            fallback?: string | null;
-            /**
-             * Isoverride
-             * @default false
-             */
-            isOverride: boolean;
-            /** Primary */
-            primary: string;
-            /** Targetkind */
-            targetKind: string;
-        };
-        /**
-         * RoutingRuleInput
-         * @description One override rule in ``PUT /mcp/routing``.
-         */
-        RoutingRuleInput: {
-            /** Fallback */
-            fallback?: string | null;
-            /** Primary */
-            primary: string;
-        };
-        /**
-         * RunDetail
-         * @description Detail for ``GET /runs/:id`` — adds the computed summary.
-         */
-        RunDetail: {
-            /** Branch */
-            branch?: string | null;
-            /** Commit Sha */
-            commit_sha?: string | null;
-            /** Completed At */
-            completed_at?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Duration Ms */
-            duration_ms?: number | null;
-            /** Env */
-            env: string;
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Project Id */
-            project_id: string;
-            /** Public Id */
-            public_id: string;
-            /** Started At */
-            started_at?: string | null;
-            status: components["schemas"]["RunStatus"];
-            summary: components["schemas"]["RunSummary"];
-            tier_at_runtime: components["schemas"]["Tier"];
-            trigger: components["schemas"]["RunTrigger"];
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * RunListItem
-         * @description List row for ``GET /runs`` (docs/API.md §3.5).
-         */
-        RunListItem: {
-            /** Branch */
-            branch?: string | null;
-            /** Commit Sha */
-            commit_sha?: string | null;
-            /** Completed At */
-            completed_at?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Duration Ms */
-            duration_ms?: number | null;
-            /** Env */
-            env: string;
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Project Id */
-            project_id: string;
-            /** Public Id */
-            public_id: string;
-            /** Started At */
-            started_at?: string | null;
-            status: components["schemas"]["RunStatus"];
-            tier_at_runtime: components["schemas"]["Tier"];
-            trigger: components["schemas"]["RunTrigger"];
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * RunLogItem
-         * @description One persisted ``run_step_logs`` row in the page (M1c).
-         *
-         *     ``message`` is the JSON-encoded event payload the orchestrator published —
-         *     the FE deserialises it on receipt to match the live socket stream.
-         */
-        RunLogItem: {
-            /**
-             * Createdat
-             * Format: date-time
-             */
-            createdAt: string;
-            /** Level */
-            level: string;
-            /** Message */
-            message: string;
-            /** Seq */
-            seq: number;
-        };
-        /**
-         * RunLogPage
-         * @description A cursor-paginated slice of a run's persisted log stream (M1c).
-         */
-        RunLogPage: {
-            /** Hasmore */
-            hasMore: boolean;
-            /** Items */
-            items?: components["schemas"]["RunLogItem"][];
-            /** Nextcursor */
-            nextCursor: number;
-        };
-        /**
-         * RunNetworkResponse
-         * @description ``GET /runs/:id/network`` — bounded network event list (M1b stub).
-         */
-        RunNetworkResponse: {
-            /** Items */
-            items?: components["schemas"]["NetworkEvent"][];
-        };
-        /**
-         * RunPublic
-         * @description ``POST /runs`` + ``cancel`` + ``rerun`` response shape.
-         *
-         *     Sized for the runs list/detail FE rows so cancel/rerun results render in
-         *     place without a follow-up GET. Aliased to camelCase on serialization to
-         *     match the M1b client.
-         */
-        RunPublic: {
-            /** Branch */
-            branch: string | null;
-            /** Commitsha */
-            commitSha: string | null;
-            /** Completedat */
-            completedAt: string | null;
-            /**
-             * Createdat
-             * Format: date-time
-             */
-            createdAt: string;
-            /** Durationms */
-            durationMs: number | null;
-            /** Env */
-            env: string;
-            /** Failedsteps */
-            failedSteps: number;
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Passedsteps */
-            passedSteps: number;
-            /** Projectid */
-            projectId: string;
-            /** Publicid */
-            publicId: string;
-            /** Startedat */
-            startedAt: string | null;
-            status: components["schemas"]["RunStatus"];
-            tierAtRuntime: components["schemas"]["Tier"];
-            /** Totalsteps */
-            totalSteps: number;
-            trigger: components["schemas"]["RunTrigger"];
-        };
-        /**
-         * RunReplayResponse
-         * @description ``GET /runs/:id/replay`` — ordered steps + per-step state delta (M5-1).
-         */
-        RunReplayResponse: {
-            /** Runid */
-            runId: string;
-            /** Steps */
-            steps?: components["schemas"]["RunReplayStep"][];
-        };
-        /**
-         * RunReplayStep
-         * @description One step in the time-travel replay, with its state delta vs. the prior step.
-         */
-        RunReplayStep: {
-            /** Casepublicid */
-            casePublicId: string;
-            /** Delta */
-            delta?: components["schemas"]["StateChangePublic"][];
-            /** Durationms */
-            durationMs?: number | null;
-            /** Errormessage */
-            errorMessage?: string | null;
-            /** Id */
-            id: string;
-            outcome: components["schemas"]["StepOutcome"];
-            /** Startedat */
-            startedAt?: string | null;
-            /** Statesnapshot */
-            stateSnapshot?: {
-                [key: string]: unknown;
-            } | null;
-            /** Steporder */
-            stepOrder: number;
-        };
-        /**
-         * RunSelectionItem
-         * @description One ``{caseId, selectedStepIds?}`` entry in the create-run selection.
-         *
-         *     ``selected_step_ids`` is optional — when ``None`` the runner picks every
-         *     active step on the case. M1c keeps this opt-in flag in the request envelope
-         *     so a future "rerun only failed steps" UI can wire through unchanged.
-         */
-        RunSelectionItem: {
-            /** Caseid */
-            caseId: string;
-            /** Selectedstepids */
-            selectedStepIds?: string[] | null;
-        };
-        /**
-         * RunStatus
-         * @enum {string}
-         */
-        RunStatus: "QUEUED" | "RUNNING" | "PASS" | "FAIL" | "CANCELLED" | "ERROR";
-        /**
-         * RunStepPublic
-         * @description One run step with its outcome + linked case public id (docs/API.md §3.5).
-         */
-        RunStepPublic: {
-            /** Case Id */
-            case_id: string;
-            /** Case Public Id */
-            case_public_id: string;
-            /** Completed At */
-            completed_at?: string | null;
-            /** Duration Ms */
-            duration_ms?: number | null;
-            /** Error Message */
-            error_message?: string | null;
-            /** Id */
-            id: string;
-            outcome: components["schemas"]["StepOutcome"];
-            /** Run Id */
-            run_id: string;
-            /** Started At */
-            started_at?: string | null;
-            /** Step Order */
-            step_order: number;
-        };
-        /**
-         * RunSummary
-         * @description Aggregate step outcomes for a run.
-         */
-        RunSummary: {
-            /** Duration Ms */
-            duration_ms?: number | null;
-            /** Failed Steps */
-            failed_steps: number;
-            /** Passed Steps */
-            passed_steps: number;
-            /** Total Steps */
-            total_steps: number;
-        };
-        /**
-         * RunTrigger
-         * @enum {string}
-         */
-        RunTrigger: "MANUAL" | "SCHEDULED" | "CI_PUSH" | "CI_PR" | "WEBHOOK" | "AGENT";
-        /**
-         * RunsSummary
-         * @description ``GET /runs/summary`` — counters for the Runs dashboard summary bar.
-         *
-         *     Field aliases are camelCase to match the M1b frontend client.
-         *     ``failed`` folds ``FAIL`` + ``ERROR``; ``avg_duration_ms`` is a workspace-wide
-         *     weighted mean across non-null durations.
-         */
-        RunsSummary: {
-            /**
-             * Active
-             * @description Runs currently in RUNNING state
-             */
-            active: number;
-            /** Avgdurationms */
-            avgDurationMs: number;
-            /**
-             * Failed
-             * @description FAIL + ERROR
-             */
-            failed: number;
-            /** Passed */
-            passed: number;
-            /** Queued */
-            queued: number;
-            /**
-             * Today
-             * @description Runs created since 00:00 UTC
-             */
-            today: number;
-        };
-        /**
-         * SecretsHint
-         * @description Redacted secret marker + last-4 hint (no full secret ever).
-         */
-        SecretsHint: {
-            /** Hint */
-            hint?: string | null;
-            /**
-             * Redacted
-             * @default true
-             */
-            redacted: boolean;
-        };
-        /**
-         * Severity
-         * @enum {string}
-         */
-        Severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
-        /**
-         * StateChangePublic
-         * @description One key-level state change at a replay step (M5-1).
-         */
-        StateChangePublic: {
-            /** After */
-            after?: string | null;
-            /** Before */
-            before?: string | null;
-            /**
-             * Op
-             * @description added | removed | changed
-             */
-            op: string;
-            /** Path */
-            path: string;
-        };
-        /**
-         * StepAppend
-         * @description Body shape for ``POST /test-cases/:id/steps`` — ``order`` always ignored.
-         */
-        StepAppend: {
-            /** Action */
-            action: string;
-            /** Code */
-            code?: string | null;
-            /** Data */
-            data?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Expected
-             * @default
-             */
-            expected: string;
-            /** Mcpprovider */
-            mcpProvider: string;
-            /** Order */
-            order?: number | null;
-            /** @default FE_WEB */
-            targetKind: components["schemas"]["TargetKind"];
-        };
-        /**
-         * StepCreate
-         * @description One step inside a :class:`TestCaseCreate` / :class:`StepReplace` payload.
-         *
-         *     ``order`` is honoured if provided; otherwise the service assigns sequential
-         *     1-based positions in array order. ``code`` MAY be omitted in CLOUD / LOCAL
-         *     tiers (or when ``workspace.strict_zero_validation=false``); ZERO tier with
-         *     strict validation rejects via ``STEPS_REQUIRE_CODE_IN_ZERO_LLM``.
-         */
-        StepCreate: {
-            /** Action */
-            action: string;
-            /** Code */
-            code?: string | null;
-            /** Data */
-            data?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Expected
-             * @default
-             */
-            expected: string;
-            /** Mcpprovider */
-            mcpProvider: string;
-            /** Order */
-            order?: number | null;
-            /** @default FE_WEB */
-            targetKind: components["schemas"]["TargetKind"];
-        };
-        /**
-         * StepOutcome
-         * @enum {string}
-         */
-        StepOutcome: "PASS" | "FAIL" | "SKIP" | "ERROR" | "PENDING";
-        /**
-         * StepReorderRequest
-         * @description Body for ``PATCH /test-cases/:id/steps/reorder`` (docs/API.md §3.3).
-         */
-        StepReorderRequest: {
-            /** Stepidsinorder */
-            stepIdsInOrder?: string[];
-        };
-        /**
-         * StepReplace
-         * @description Body for ``PATCH /test-cases/:id/steps`` — atomic replace.
-         */
-        StepReplace: {
-            /** Steps */
-            steps?: components["schemas"]["StepCreate"][];
-        };
-        /** StrategyAlternative */
-        StrategyAlternative: {
-            /**
-             * Requires Tier
-             * @enum {string}
-             */
-            requires_tier: "ZERO" | "LOCAL" | "CLOUD";
-            strategy: components["schemas"]["RecommendedStrategy"];
-        };
-        /**
-         * SuiteCreate
-         * @description Body for ``POST /suites``.
-         *
-         *     ``order`` defaults to ``0``; callers usually leave it blank and let the
-         *     repository's ``order ASC, created_at DESC`` ordering position the suite.
-         */
-        SuiteCreate: {
-            /** Description */
-            description?: string | null;
-            /** Name */
-            name: string;
-            /**
-             * Order
-             * @default 0
-             */
-            order: number;
-            /** Projectid */
-            projectId: string;
-        };
-        /**
-         * SuitePublic
-         * @description A suite with its non-deleted ``case_count`` (set by the service).
-         */
-        SuitePublic: {
-            /** Case Count */
-            case_count: number;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Description */
-            description?: string | null;
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Order */
-            order: number;
-            /** Project Id */
-            project_id: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * SuiteUpdate
-         * @description Body for ``PATCH /suites/:id`` (docs/API.md §3.4).
-         *
-         *     All fields optional; only ``model_dump(exclude_unset=True)`` keys are
-         *     applied. ``case_order`` (when present) drives an atomic reorder of every
-         *     active case in the suite — the submitted id set must match the live set
-         *     exactly or a 400 with ``details.missing`` / ``details.unknown`` lands.
-         */
-        SuiteUpdate: {
-            /** Caseorder */
-            caseOrder?: string[] | null;
-            /** Description */
-            description?: string | null;
-            /** Name */
-            name?: string | null;
-            /** Order */
-            order?: number | null;
-        };
-        /**
-         * SyncConflict
-         * @description One entry in :class:`SyncResult.conflicts` — local state diverges from remote.
-         *
-         *     Surfaces the defect public id + the local / remote DefectStatus strings so
-         *     the FE renders a clear "external system says X but Suitest says Y" prompt.
-         */
-        SyncConflict: {
-            /** Defect Public Id */
-            defect_public_id: string;
-            /** External Id */
-            external_id: string;
-            /** Local Status */
-            local_status: string;
-            /** Remote Status */
-            remote_status: string;
-        };
-        /**
-         * SyncResult
-         * @description ``POST /integrations/:id/sync`` response.
-         *
-         *     ``synced`` counts defects whose ``status`` was updated to match the remote
-         *     system. ``conflicts`` lists defects whose remote state could not be applied
-         *     without overwriting a manual change (e.g. local CLOSED, remote OPEN → the
-         *     sync respects manual override). ``skipped`` counts defects ignored because
-         *     they were already in a terminal status.
-         */
-        SyncResult: {
-            /** Conflicts */
-            conflicts?: components["schemas"]["SyncConflict"][];
-            /**
-             * Skipped
-             * @default 0
-             */
-            skipped: number;
-            /**
-             * Synced
-             * @default 0
-             */
-            synced: number;
-        };
-        /**
-         * TargetKind
-         * @enum {string}
-         */
-        TargetKind: "BE_REST" | "BE_GRAPHQL" | "BE_GRPC" | "FE_WEB" | "FE_MOBILE" | "DATA" | "INFRA" | "CUSTOM";
-        /**
-         * TestCaseCreate
-         * @description Body for ``POST /test-cases`` (docs/API.md §3.3 — sample request).
-         */
-        TestCaseCreate: {
-            /** Description */
-            description?: string | null;
-            /** Name */
-            name: string;
-            /** Preconditions */
-            preconditions?: string | null;
-            /** @default P2 */
-            priority: components["schemas"]["Priority"];
-            /** @default MANUAL */
-            source: components["schemas"]["CaseSource"];
-            /** @default ACTIVE */
-            status: components["schemas"]["CaseStatus"];
-            /** Steps */
-            steps?: components["schemas"]["StepCreate"][];
-            /** Suiteid */
-            suiteId: string;
-            /** Tags */
-            tags?: string[];
-        };
-        /**
-         * TestCaseDetail
-         * @description Detail — adds steps (with ``executable``) + tags.
-         */
-        TestCaseDetail: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Description */
-            description?: string | null;
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Owner Id */
-            owner_id?: string | null;
-            /** Preconditions */
-            preconditions?: string | null;
-            priority: components["schemas"]["Priority"];
-            /** Public Id */
-            public_id: string;
-            source: components["schemas"]["CaseSource"];
-            status: components["schemas"]["CaseStatus"];
-            /** Steps */
-            steps?: components["schemas"]["TestStepPublic"][];
-            /** Suite Id */
-            suite_id: string;
-            /** Tags */
-            tags?: string[];
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * TestCaseListItem
-         * @description List row — metadata only, no steps (docs/API.md §3.3).
-         */
-        TestCaseListItem: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Description */
-            description?: string | null;
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Owner Id */
-            owner_id?: string | null;
-            priority: components["schemas"]["Priority"];
-            /** Public Id */
-            public_id: string;
-            source: components["schemas"]["CaseSource"];
-            status: components["schemas"]["CaseStatus"];
-            /** Suite Id */
-            suite_id: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * TestCaseSearchHit
-         * @description One semantic/lexical search result (M4-2).
-         */
-        TestCaseSearchHit: {
-            /** Caseid */
-            caseId: string;
-            /** Name */
-            name: string;
-            /** Score */
-            score: number;
-        };
-        /**
-         * TestCaseUpdate
-         * @description Body for ``PATCH /test-cases/:id`` — metadata + tag replace.
-         *
-         *     All fields optional; only ``model_dump(exclude_unset=True)`` keys are
-         *     applied. Tags, if provided, replace the existing set in full.
-         */
-        TestCaseUpdate: {
-            /** Description */
-            description?: string | null;
-            /** Name */
-            name?: string | null;
-            /** Preconditions */
-            preconditions?: string | null;
-            priority?: components["schemas"]["Priority"] | null;
-            status?: components["schemas"]["CaseStatus"] | null;
-            /** Tags */
-            tags?: string[] | null;
-        };
-        /** TestStepPublic */
-        TestStepPublic: {
-            /** Action */
-            action: string;
-            /** Case Id */
-            case_id: string;
-            /** Code */
-            code?: string | null;
-            /** Data */
-            data?: {
-                [key: string]: unknown;
-            } | null;
-            /** Executable */
-            executable: boolean;
-            /** Expected */
-            expected: string;
-            /** Id */
-            id: string;
-            /** Mcp Provider */
-            mcp_provider: string;
-            /** Order */
-            order: number;
-            target_kind: components["schemas"]["TargetKind"];
-        };
-        /**
-         * Tier
-         * @description Capability tier resolved from env.
-         * @enum {string}
-         */
-        Tier: "ZERO" | "LOCAL" | "CLOUD";
-        /**
-         * TraceabilityMatrix
-         * @description ``GET /traceability/matrix`` — grid view payload (docs/API.md §3.7).
-         */
-        TraceabilityMatrix: {
-            /** Cases */
-            cases?: components["schemas"]["MatrixCase"][];
-            /** Defects */
-            defects?: components["schemas"]["MatrixDefect"][];
-            /** Requirements */
-            requirements?: components["schemas"]["MatrixRequirement"][];
-        };
-        /**
-         * UrlSemanticGenerateRequest
-         * @description LLM-driven semantic URL generation (M3-7) — CLOUD/LOCAL only.
-         *
-         *     Decomposes a natural-language ``intent`` ("checkout flow") into FE_WEB
-         *     journey cases on ``url``. Steps are agentic browser actions driven by
-         *     ``playwright-mcp`` (code translated at execution time, M3-10).
-         */
-        UrlSemanticGenerateRequest: {
-            /** Intent */
-            intent: string;
-            /**
-             * Max Cases
-             * @default 20
-             */
-            max_cases: number;
-            /** Seed */
-            seed?: number | null;
-            /** Target Suite Id */
-            target_suite_id: string;
-            /** Url */
-            url: string;
-        };
-        /**
-         * UserRead
-         * @description Outbound user representation.
-         */
-        UserRead: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Is Active
-             * @default true
-             */
-            is_active: boolean;
-            /**
-             * Is Superuser
-             * @default false
-             */
-            is_superuser: boolean;
-            /**
-             * Is Verified
-             * @default false
-             */
-            is_verified: boolean;
-        };
-        /**
-         * UserUpdate
-         * @description Inbound payload for PATCH /users/me.
-         */
-        UserUpdate: {
-            /** Email */
-            email?: string | null;
-            /** Is Active */
-            is_active?: boolean | null;
-            /** Is Superuser */
-            is_superuser?: boolean | null;
-            /** Is Verified */
-            is_verified?: boolean | null;
-            /** Password */
-            password?: string | null;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
-        /**
-         * WebhookEnqueuedResponse
-         * @description 202 response when the webhook successfully enqueues a gating run.
-         */
-        WebhookEnqueuedResponse: {
-            /** Publicid */
-            publicId: string;
-            /** Runid */
-            runId: string;
-            /** Statusurl */
-            statusUrl: string;
-        };
-        /**
-         * WebhookIgnoredResponse
-         * @description 200 response when the receiver intentionally drops the event.
-         *
-         *     ``reason`` is a stable machine-readable string so dashboards and CI plugins
-         *     can branch on it without parsing free-form messages. Known reasons:
-         *
-         *     * ``duplicate`` — Redis SETNX dedup hit within the TTL window.
-         *     * ``no_gating_suite`` — neither ``gating_suite_id`` nor any ``smoke``-tagged
-         *       cases are configured for the project (Q4 default).
-         *     * ``unsupported_event`` — webhook event kind isn't one the receiver acts on.
-         *     * ``unsupported_action`` — Merge Request / PR action that does not enqueue a run.
-         *     * ``branch_deleted`` — GitHub push with ``deleted=true``.
-         *     * ``unknown_issue`` — no local defect carries the inbound issue key.
-         *     * ``unmappable_status`` — adapter's status map returned ``None`` for the
-         *       external status name.
-         *     * ``no_status_change`` — mapped status already matches the local defect's
-         *       status (idempotent replay).
-         */
-        WebhookIgnoredResponse: {
-            /**
-             * Ignored
-             * @default true
-             */
-            ignored: boolean;
-            /** Reason */
-            reason: string;
-        };
-        /**
-         * WebhookPingResponse
-         * @description 200 response to a GitHub ``ping`` event.
-         *
-         *     GitHub fires ``ping`` when a hook is first registered; returning
-         *     ``{pong: true}`` matches GitHub's documented expectation and unblocks the
-         *     hook-config UI's "Recent Deliveries" smoke check.
-         */
-        WebhookPingResponse: {
-            /**
-             * Pong
-             * @default true
-             */
-            pong: boolean;
-        };
-        /**
-         * WorkspaceDeleteAccepted
-         * @description ``DELETE /workspaces/:id`` 202 response — cleanup is asynchronous.
-         */
-        WorkspaceDeleteAccepted: {
-            /** Cleanup Job Id */
-            cleanup_job_id: string;
-            /**
-             * Status
-             * @default QUEUED
-             */
-            status: string;
-        };
-        /**
-         * WorkspaceDeleteConfirm
-         * @description ``DELETE /workspaces/:id`` body — slug-typed-confirm guard.
-         */
-        WorkspaceDeleteConfirm: {
-            /** Confirm Slug */
-            confirm_slug: string;
-        };
-        /**
-         * WorkspaceDetail
-         * @description ``GET /workspaces/:id`` — Settings General tab consumes the extra fields.
-         */
-        WorkspaceDetail: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Description */
-            description?: string | null;
-            /** Id */
-            id: string;
-            /** Mcp Routing Overrides */
-            mcp_routing_overrides?: {
-                [key: string]: unknown;
-            };
-            /** Name */
-            name: string;
-            /** Region */
-            region: string;
-            /** Slug */
-            slug: string;
-            /**
-             * Strict Zero Validation
-             * @default true
-             */
-            strict_zero_validation: boolean;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * WorkspaceExportAccepted
-         * @description ``POST /workspaces/:id/export`` 202 response — archive assembled async (M4-29).
-         */
-        WorkspaceExportAccepted: {
-            /** Export Job Id */
-            export_job_id: string;
-            /**
-             * Status
-             * @default QUEUED
-             */
-            status: string;
-        };
-        /**
-         * WorkspaceExportStatus
-         * @description ``GET /workspaces/:id/export/:job_id`` — poll result, surfaces the signed URL.
-         */
-        WorkspaceExportStatus: {
-            /** Download Url */
-            download_url?: string | null;
-            /** Error */
-            error?: string | null;
-            /** Size Bytes */
-            size_bytes?: number | null;
-            /** Status */
-            status: string;
-        };
-        /**
-         * WorkspaceMemberInvite
-         * @description ``POST /workspaces/:id/members`` body — invite by email + role.
-         */
-        WorkspaceMemberInvite: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
-            role: components["schemas"]["Role"];
-        };
-        /**
-         * WorkspaceMemberPublic
-         * @description One row of ``GET /workspaces/:id/members``.
-         */
-        WorkspaceMemberPublic: {
-            /** Email */
-            email: string;
-            /**
-             * Joined At
-             * Format: date-time
-             */
-            joined_at: string;
-            /** Name */
-            name: string;
-            role: components["schemas"]["Role"];
-            /**
-             * User Id
-             * Format: uuid
-             */
-            user_id: string;
-        };
-        /**
-         * WorkspaceMemberRoleUpdate
-         * @description ``PATCH /workspaces/:id/members/:user_id`` body.
-         */
-        WorkspaceMemberRoleUpdate: {
-            role: components["schemas"]["Role"];
-        };
-        /**
-         * WorkspacePublic
-         * @description Workspace summary used in lists + as the nested object in a membership.
-         */
-        WorkspacePublic: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Region */
-            region: string;
-            /** Slug */
-            slug: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * _BulkDeletePayload
-         * @description ``delete`` action — empty payload. Accept `{}` and absent keys both.
-         */
-        _BulkDeletePayload: Record<string, never>;
-        /**
-         * _BulkMoveToSuitePayload
-         * @description ``move_to_suite`` action — target suite id (must be same workspace).
-         */
-        _BulkMoveToSuitePayload: {
-            /** Suiteid */
-            suiteId: string;
-        };
-        /**
-         * _BulkSetPriorityPayload
-         * @description ``set_priority`` action — wire format uses the :class:`Priority` enum.
-         */
-        _BulkSetPriorityPayload: {
-            priority: components["schemas"]["Priority"];
-        };
-        /**
-         * _BulkTagsPayload
-         * @description ``add_tags`` / ``remove_tags`` shared payload — ``tags: list[str]``.
-         */
-        _BulkTagsPayload: {
-            /** Tags */
-            tags: string[];
-        };
-        /**
-         * McpProviderPublic
-         * @description Summary row — name + transport + health + tool names (no secrets).
-         */
-        suitest_api__routers__mcp_providers__McpProviderPublic: {
-            /**
-             * Enabled
-             * @default true
-             */
-            enabled: boolean;
-            /** Endpoint */
-            endpoint: string;
-            /**
-             * Healthstatus
-             * @default unknown
-             */
-            healthStatus: string;
-            /** Id */
-            id: string;
-            /**
-             * Isbundled
-             * @default false
-             */
-            isBundled: boolean;
-            /** Isdefaultfortarget */
-            isDefaultForTarget?: {
-                [key: string]: boolean;
-            };
-            /** Kind */
-            kind: string;
-            /** Lasthealthat */
-            lastHealthAt?: string | null;
-            /** Name */
-            name: string;
-            /** Tools */
-            tools?: components["schemas"]["McpProviderTool"][];
-            /** Transport */
-            transport: string;
-        };
-        /**
-         * McpProviderPublic
-         * @description Public MCP provider entry — same shape as ``GET /mcp/providers`` rows.
-         */
-        suitest_shared__schemas__capabilities__McpProviderPublic: {
-            /**
-             * Health
-             * @default unknown
-             */
-            health: string;
-            /** Id */
-            id: string;
-            /**
-             * Isdefault
-             * @default false
-             */
-            isDefault: boolean;
-            /** Kind */
-            kind: string;
-            /** Name */
-            name: string;
-        };
+  schemas: {
+    /** AcceptInviteRequest */
+    AcceptInviteRequest: {
+      /** Name */
+      name: string;
+      /** Password */
+      password: string;
+      /** Token */
+      token: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /** AcceptInviteResponse */
+    AcceptInviteResponse: {
+      /**
+       * Ok
+       * @default true
+       */
+      ok: boolean;
+    };
+    /**
+     * AdHocRunResponse
+     * @description Response shape for ``POST /test-cases/:id/run`` (docs/API.md §3.3).
+     *
+     *     A thin descriptor the FE uses to deep-link the newly queued run + open the
+     *     matching live-events room. ``statusUrl`` is path-relative to the API root so
+     *     the client can reuse its existing ``apiClient`` base URL; ``wsRoom`` follows
+     *     the canonical ``run:<id>`` channel name shared with the live-events gateway.
+     */
+    AdHocRunResponse: {
+      /** Publicid */
+      publicId: string;
+      /** Runid */
+      runId: string;
+      /** Statusurl */
+      statusUrl: string;
+      /** Wsroom */
+      wsRoom: string;
+    };
+    /**
+     * ArtifactKind
+     * @enum {string}
+     */
+    ArtifactKind:
+      | "SCREENSHOT"
+      | "HAR"
+      | "DOM_SNAPSHOT"
+      | "VIDEO"
+      | "CONSOLE_LOG"
+      | "TRACE"
+      | "CUSTOM";
+    /**
+     * ArtifactPublic
+     * @description One artifact in ``GET /runs/:id/artifacts`` (docs/API.md §3.5).
+     */
+    ArtifactPublic: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Id */
+      id: string;
+      kind: components["schemas"]["ArtifactKind"];
+      /** Mime Type */
+      mime_type: string;
+      /** Run Step Id */
+      run_step_id: string;
+      /** Size Bytes */
+      size_bytes: number;
+    };
+    /**
+     * ArtifactSignedUrl
+     * @description ``GET /runs/:id/artifacts/:artifactId`` — presigned download URL (M1c).
+     *
+     *     The M1a stub returned a placeholder URL alongside the artifact id + scheme;
+     *     M1c replaces it with a real S3 / MinIO presign + the artifact's MIME type
+     *     so the FE can decide how to render the response (inline image vs. download).
+     */
+    ArtifactSignedUrl: {
+      /** Expiresinseconds */
+      expiresInSeconds: number;
+      kind: components["schemas"]["ArtifactKind"];
+      /** Mimetype */
+      mimeType: string;
+      /** Url */
+      url: string;
+    };
+    /**
+     * AuditLogRead
+     * @description One audit row in the workspace audit trail (``GET /audit-logs`` item).
+     */
+    AuditLogRead: {
+      /** Action */
+      action: string;
+      /**
+       * Createdat
+       * Format: date-time
+       */
+      createdAt: string;
+      /** Details */
+      details?: {
+        [key: string]: unknown;
+      } | null;
+      /** Id */
+      id: string;
+      /** Resourceid */
+      resourceId?: string | null;
+      /** Resourcetype */
+      resourceType: string;
+      /** Useremail */
+      userEmail?: string | null;
+      /** Userid */
+      userId?: string | null;
+      /** Workspaceid */
+      workspaceId: string;
+    };
+    /**
+     * AuditLogsResponse
+     * @description Cursor-paginated envelope for ``GET /audit-logs``.
+     *
+     *     ``next_cursor`` is an opaque base64 token encoding ``(created_at, id)``; when
+     *     ``None`` the caller has reached the head of the workspace audit log. The
+     *     wire key stays snake_case to match the example envelope in ``docs/API.md``
+     *     (§179) — the per-row keys are camelCase by alias, only the envelope keys
+     *     follow the spec verbatim.
+     */
+    AuditLogsResponse: {
+      /** Items */
+      items?: components["schemas"]["AuditLogRead"][];
+      /** Next Cursor */
+      next_cursor?: string | null;
+    };
+    /**
+     * AuthSection
+     * @description Auth-related capability flags resolved from process settings (M1e).
+     *
+     *     ``google_oauth_enabled`` is ``True`` only when BOTH the Google OAuth client id
+     *     and client secret are configured; the login page renders the Google button
+     *     solely off this flag.
+     */
+    AuthSection: {
+      /**
+       * Google Oauth Enabled
+       * @default false
+       */
+      google_oauth_enabled: boolean;
+    };
+    /**
+     * AutonomyLevel
+     * @description Workspace autonomy dial. ZERO tier is locked to MANUAL.
+     * @enum {string}
+     */
+    AutonomyLevel: "manual" | "assist" | "semi_auto" | "auto";
+    /**
+     * AutonomyResponse
+     * @description ``GET`` / ``PUT`` response — the resolved autonomy state.
+     */
+    AutonomyResponse: {
+      /** Effective */
+      effective: {
+        [key: string]: boolean;
+      };
+      /** Knownoverridekeys */
+      knownOverrideKeys: string[];
+      level: components["schemas"]["AutonomyLevel"];
+      /** Overrides */
+      overrides: {
+        [key: string]: boolean;
+      };
+      tier: components["schemas"]["Tier"];
+      /** Updatedat */
+      updatedAt?: string | null;
+      /** Updatedby */
+      updatedBy?: string | null;
+    };
+    /**
+     * AutonomySection
+     * @description Autonomy levels available + the recommended default for the tier.
+     */
+    AutonomySection: {
+      /** Available */
+      available: components["schemas"]["AutonomyLevel"][];
+      default: components["schemas"]["AutonomyLevel"];
+    };
+    /**
+     * AutonomyUpdate
+     * @description ``PUT`` body — the new level + overrides (+ optional audit reason).
+     */
+    AutonomyUpdate: {
+      level: components["schemas"]["AutonomyLevel"];
+      /** Overrides */
+      overrides?: {
+        [key: string]: boolean;
+      };
+      /** Reason */
+      reason?: string | null;
+    };
+    /** Body_auth_cookie_jwt_login_auth_cookie_login_post */
+    Body_auth_cookie_jwt_login_auth_cookie_login_post: {
+      /** Client Id */
+      client_id?: string | null;
+      /**
+       * Client Secret
+       * Format: password
+       */
+      client_secret?: string | null;
+      /** Grant Type */
+      grant_type?: string | null;
+      /**
+       * Password
+       * Format: password
+       */
+      password: string;
+      /**
+       * Scope
+       * @default
+       */
+      scope: string;
+      /** Username */
+      username: string;
+    };
+    /** Body_import_workspace_api_v1_workspaces_import_post */
+    Body_import_workspace_api_v1_workspaces_import_post: {
+      /**
+       * File
+       * @description workspace-*.tar.gz export archive.
+       */
+      file: string;
+    };
+    /** Body_reset_forgot_password_auth_forgot_password_post */
+    Body_reset_forgot_password_auth_forgot_password_post: {
+      /**
+       * Email
+       * Format: email
+       */
+      email: string;
+    };
+    /** Body_reset_reset_password_auth_reset_password_post */
+    Body_reset_reset_password_auth_reset_password_post: {
+      /** Password */
+      password: string;
+      /** Token */
+      token: string;
+    };
+    /** BudgetOut */
+    BudgetOut: {
+      /** Alert */
+      alert?: string | null;
+      /** Dailycapusd */
+      dailyCapUsd: number;
+      /** Overbudget */
+      overBudget: boolean;
+      /** Todayspendusd */
+      todaySpendUsd: number;
+    };
+    /**
+     * BulkAddTagsRequest
+     * @description ``action = "add_tags"`` variant.
+     */
+    BulkAddTagsRequest: {
+      /**
+       * Action
+       * @constant
+       */
+      action: "add_tags";
+      /** Ids */
+      ids: string[];
+      payload: components["schemas"]["_BulkTagsPayload"];
+    };
+    /**
+     * BulkDeleteRequest
+     * @description ``action = "delete"`` variant.
+     */
+    BulkDeleteRequest: {
+      /**
+       * Action
+       * @constant
+       */
+      action: "delete";
+      /** Ids */
+      ids: string[];
+      payload?: components["schemas"]["_BulkDeletePayload"];
+    };
+    /**
+     * BulkMoveToSuiteRequest
+     * @description ``action = "move_to_suite"`` variant.
+     */
+    BulkMoveToSuiteRequest: {
+      /**
+       * Action
+       * @constant
+       */
+      action: "move_to_suite";
+      /** Ids */
+      ids: string[];
+      payload: components["schemas"]["_BulkMoveToSuitePayload"];
+    };
+    /**
+     * BulkRemoveTagsRequest
+     * @description ``action = "remove_tags"`` variant.
+     */
+    BulkRemoveTagsRequest: {
+      /**
+       * Action
+       * @constant
+       */
+      action: "remove_tags";
+      /** Ids */
+      ids: string[];
+      payload: components["schemas"]["_BulkTagsPayload"];
+    };
+    /**
+     * BulkSetPriorityRequest
+     * @description ``action = "set_priority"`` variant.
+     */
+    BulkSetPriorityRequest: {
+      /**
+       * Action
+       * @constant
+       */
+      action: "set_priority";
+      /** Ids */
+      ids: string[];
+      payload: components["schemas"]["_BulkSetPriorityPayload"];
+    };
+    /**
+     * BulkUpdateResponse
+     * @description ``POST /test-cases/bulk-update`` 200 body (docs/API.md §3.3).
+     */
+    BulkUpdateResponse: {
+      /** Auditids */
+      auditIds?: string[];
+      /** Updated */
+      updated: number;
+    };
+    /**
+     * Capabilities
+     * @description Full ``GET /capabilities`` response.
+     */
+    Capabilities: {
+      auth?: components["schemas"]["AuthSection"];
+      autonomy: components["schemas"]["AutonomySection"];
+      /** Build */
+      build?: string | null;
+      embeddings: components["schemas"]["EmbeddingsSection"];
+      features: components["schemas"]["FeaturesSection"];
+      llm: components["schemas"]["LLMSection"];
+      /** Mcpproviders */
+      mcpProviders?: components["schemas"]["suitest_shared__schemas__capabilities__McpProviderPublic"][];
+      tier: components["schemas"]["Tier"];
+      /** Version */
+      version: string;
+    };
+    /**
+     * CaseSource
+     * @enum {string}
+     */
+    CaseSource: "MANUAL" | "AI" | "MCP" | "IMPORT" | "RECORDER" | "HEURISTIC_CRAWL";
+    /**
+     * CaseStatus
+     * @enum {string}
+     */
+    CaseStatus: "DRAFT" | "ACTIVE" | "DEPRECATED" | "ARCHIVED";
+    /** ChangePasswordRequest */
+    ChangePasswordRequest: {
+      /** Current Password */
+      current_password: string;
+      /** New Password */
+      new_password: string;
+    };
+    /**
+     * ChatMessageInput
+     * @description One prior turn in the conversation history.
+     */
+    ChatMessageInput: {
+      /** Content */
+      content: string;
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: "user" | "assistant" | "system" | "tool";
+    };
+    /**
+     * ChatRequest
+     * @description ``POST /agent/chat`` body — the running history + optional session id.
+     */
+    ChatRequest: {
+      /** Messages */
+      messages: components["schemas"]["ChatMessageInput"][];
+      /** Seed */
+      seed?: number | null;
+      /** Session Id */
+      session_id?: string | null;
+    };
+    /** ClassificationResult */
+    ClassificationResult: {
+      /** Alternatives */
+      alternatives?: components["schemas"]["StrategyAlternative"][];
+      /** Confidence */
+      confidence: number;
+      /** Rationale */
+      rationale: string;
+      recommended_mcp: components["schemas"]["RecommendedMcp"];
+      recommended_strategy: components["schemas"]["RecommendedStrategy"];
+      target_kind: components["schemas"]["TargetKind"];
+    };
+    /**
+     * ConnectionTestResponse
+     * @description JSON response for ``/test`` + pre-save ``test-connection`` endpoints.
+     *
+     *     Mirrors :class:`suitest_api.integrations.base.ConnectionTestResult` 1:1 so
+     *     the FE can render the same UI for both pre-save and post-save flows. On
+     *     success ``ok=True`` and ``account_id``/``display_name`` describe who the
+     *     adapter authenticated as. On failure ``ok=False`` and ``error`` carries
+     *     the human-readable string the FE renders inline.
+     */
+    ConnectionTestResponse: {
+      /** Account Id */
+      account_id?: string | null;
+      /** Display Name */
+      display_name?: string | null;
+      /** Error */
+      error?: string | null;
+      /** Ok */
+      ok: boolean;
+    };
+    /** CostSummaryOut */
+    CostSummaryOut: {
+      budget: components["schemas"]["BudgetOut"];
+      /** Bykind */
+      byKind: components["schemas"]["KindCostOut"][];
+      /** Byprovider */
+      byProvider: components["schemas"]["ProviderCostOut"][];
+      /** Sessioncount */
+      sessionCount: number;
+      /** Totalcostusd */
+      totalCostUsd: number;
+      /** Totaltokensin */
+      totalTokensIn: number;
+      /** Totaltokensout */
+      totalTokensOut: number;
+      /** Windowdays */
+      windowDays: number;
+    };
+    /**
+     * CoverageOut
+     * @description ``GET /analytics/coverage`` → coverage by suite + by requirement.
+     */
+    CoverageOut: {
+      /** Byrequirement */
+      byRequirement?: components["schemas"]["CoverageRequirementRow"][];
+      /** Bysuite */
+      bySuite?: components["schemas"]["CoverageSuiteRow"][];
+    };
+    /** CoverageRequirementRow */
+    CoverageRequirementRow: {
+      /** Covered */
+      covered: number;
+      /** Requirementid */
+      requirementId: string;
+      /** Total */
+      total: number;
+    };
+    /** CoverageSuiteRow */
+    CoverageSuiteRow: {
+      /** Coverage */
+      coverage: number;
+      /** Covered */
+      covered: number;
+      /** Name */
+      name: string;
+      /** Suiteid */
+      suiteId: string;
+      /** Total */
+      total: number;
+    };
+    /**
+     * CrawlerAuthConfig
+     * @description Optional pre-crawl authentication. ``kind="none"`` (default) skips auth.
+     *
+     *     The crawler does not itself perform login today — the config is captured on
+     *     the :class:`~suitest_db.models.generator_run.GeneratorRun` for provenance and
+     *     threaded into generated cases so a later run can replay the auth context.
+     */
+    CrawlerAuthConfig: {
+      /** Cookie */
+      cookie?: string | null;
+      /** Credentials */
+      credentials?: {
+        [key: string]: string;
+      } | null;
+      /**
+       * Kind
+       * @default none
+       * @enum {string}
+       */
+      kind: "none" | "cookie" | "bearer" | "form";
+      /** Login Url */
+      login_url?: string | null;
+      /** Token */
+      token?: string | null;
+    };
+    /**
+     * CrawlerGenerateRequest
+     * @description Crawl request: a target suite + a start URL + bounds/auth.
+     */
+    CrawlerGenerateRequest: {
+      auth?: components["schemas"]["CrawlerAuthConfig"];
+      options?: components["schemas"]["CrawlerOptions"];
+      /** Start Url */
+      start_url: string;
+      /** Target Suite Id */
+      target_suite_id: string;
+    };
+    /**
+     * CrawlerOptions
+     * @description Per-request crawl bounds + emission toggles.
+     *
+     *     ``max_depth`` / ``max_pages`` cap the BFS so a large site cannot run away;
+     *     ``same_origin_only`` drops off-origin links from the frontier;
+     *     ``include_form_cases`` toggles the per-``<form>`` fill cases.
+     */
+    CrawlerOptions: {
+      /**
+       * Faker Locale
+       * @default en_US
+       */
+      faker_locale: string;
+      /**
+       * Include Form Cases
+       * @default true
+       */
+      include_form_cases: boolean;
+      /**
+       * Max Depth
+       * @default 2
+       */
+      max_depth: number;
+      /**
+       * Max Pages
+       * @default 20
+       */
+      max_pages: number;
+      /**
+       * Same Origin Only
+       * @default true
+       */
+      same_origin_only: boolean;
+      /** Tag Prefix */
+      tag_prefix?: string | null;
+    };
+    /**
+     * CreateRunBody
+     * @description ``POST /runs`` body. Mixed snake / camel aliases for FE convenience.
+     */
+    CreateRunBody: {
+      /** Branch */
+      branch?: string | null;
+      /** Commitsha */
+      commitSha?: string | null;
+      /**
+       * Env
+       * @default staging
+       */
+      env: string;
+      /** Mcproutingoverride */
+      mcpRoutingOverride?: {
+        [key: string]: string;
+      } | null;
+      /** Name */
+      name: string;
+      /** Projectid */
+      projectId: string;
+      /** Selection */
+      selection: components["schemas"]["RunSelectionItem"][];
+      /** @default MANUAL */
+      trigger: components["schemas"]["RunTrigger"];
+    };
+    /**
+     * DefectCreate
+     * @description Body for ``POST /defects`` — manual file (docs/API.md §3.6).
+     */
+    DefectCreate: {
+      /** Assigneeid */
+      assigneeId?: string | null;
+      /** Component */
+      component?: string | null;
+      /** Description */
+      description?: string | null;
+      /** Requirementid */
+      requirementId?: string | null;
+      /** Runid */
+      runId?: string | null;
+      severity: components["schemas"]["Severity"];
+      /** Testcaseid */
+      testCaseId?: string | null;
+      /** Title */
+      title: string;
+    };
+    /**
+     * DefectDetail
+     * @description Detail — adds linked resource public ids + external issues.
+     */
+    DefectDetail: {
+      agent_diagnosis_kind: components["schemas"]["DiagnosisKind"];
+      /** Assignee Id */
+      assignee_id?: string | null;
+      /** Component */
+      component?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Created By */
+      created_by: string;
+      /** Description */
+      description?: string | null;
+      /** External Issues */
+      external_issues?: components["schemas"]["ExternalIssuePublic"][];
+      /** Id */
+      id: string;
+      /** Public Id */
+      public_id: string;
+      /** Requirement Public Id */
+      requirement_public_id?: string | null;
+      /** Resolved At */
+      resolved_at?: string | null;
+      /** Run Public Id */
+      run_public_id?: string | null;
+      severity: components["schemas"]["Severity"];
+      status: components["schemas"]["DefectStatus"];
+      /** Test Case Public Id */
+      test_case_public_id?: string | null;
+      /** Title */
+      title: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Workspace Id */
+      workspace_id: string;
+    };
+    /**
+     * DefectListItem
+     * @description List row for ``GET /defects`` (docs/API.md §3.6).
+     */
+    DefectListItem: {
+      agent_diagnosis_kind: components["schemas"]["DiagnosisKind"];
+      /** Assignee Id */
+      assignee_id?: string | null;
+      /** Component */
+      component?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Created By */
+      created_by: string;
+      /** Id */
+      id: string;
+      /** Public Id */
+      public_id: string;
+      /** Resolved At */
+      resolved_at?: string | null;
+      severity: components["schemas"]["Severity"];
+      status: components["schemas"]["DefectStatus"];
+      /** Title */
+      title: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Workspace Id */
+      workspace_id: string;
+    };
+    /**
+     * DefectStatus
+     * @enum {string}
+     */
+    DefectStatus: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED" | "WONT_FIX";
+    /**
+     * DefectTimelineEntry
+     * @description One ordered event in a defect's history (creation + each audit row).
+     */
+    DefectTimelineEntry: {
+      /** Action */
+      action: string;
+      /** Actor Id */
+      actor_id?: string | null;
+      /**
+       * At
+       * Format: date-time
+       */
+      at: string;
+    };
+    /**
+     * DefectUpdate
+     * @description Body for ``PATCH /defects/:id`` — status / severity / assignee / description.
+     *
+     *     ``force`` (default ``False``) lets QA+ override the linear status flow for
+     *     workflow corrections (e.g. CLOSED → OPEN reopen after a real regression).
+     *     Without ``force`` a non-allowed transition returns 400
+     *     ``INVALID_STATUS_TRANSITION``.
+     */
+    DefectUpdate: {
+      /** Assigneeid */
+      assigneeId?: string | null;
+      /** Component */
+      component?: string | null;
+      /** Description */
+      description?: string | null;
+      /**
+       * Force
+       * @default false
+       */
+      force: boolean;
+      severity?: components["schemas"]["Severity"] | null;
+      status?: components["schemas"]["DefectStatus"] | null;
+      /** Title */
+      title?: string | null;
+    };
+    /**
+     * DiagnosisKind
+     * @enum {string}
+     */
+    DiagnosisKind: "REGRESSION" | "FLAKE" | "INFRA" | "SPEC_DRIFT" | "MANUAL_TRIAGE";
+    /**
+     * DocumentDetail
+     * @description Detail for ``GET /documents/:id`` — no chunk bodies in M1a.
+     */
+    DocumentDetail: {
+      /** Chunk Count */
+      chunk_count: number;
+      /** Content Hash */
+      content_hash: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Id */
+      id: string;
+      /** Indexed At */
+      indexed_at?: string | null;
+      kind: components["schemas"]["DocumentKind"];
+      /** Source */
+      source: string;
+      /** Title */
+      title: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Workspace Id */
+      workspace_id: string;
+    };
+    /**
+     * DocumentKind
+     * @enum {string}
+     */
+    DocumentKind: "PRD" | "OPENAPI" | "URL_CRAWL" | "LINEAR_ISSUE" | "NOTION_PAGE" | "CUSTOM";
+    /**
+     * DocumentListItem
+     * @description List row for ``GET /documents`` with a computed ``chunk_count``.
+     */
+    DocumentListItem: {
+      /** Chunk Count */
+      chunk_count: number;
+      /** Content Hash */
+      content_hash: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Id */
+      id: string;
+      /** Indexed At */
+      indexed_at?: string | null;
+      kind: components["schemas"]["DocumentKind"];
+      /** Source */
+      source: string;
+      /** Title */
+      title: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Workspace Id */
+      workspace_id: string;
+    };
+    /**
+     * EmbeddingsSection
+     * @description Embeddings backend info (independent of LLM tier).
+     */
+    EmbeddingsSection: {
+      /** Backend */
+      backend: string;
+      /** Dim */
+      dim?: number | null;
+      /** Enabled */
+      enabled: boolean;
+      /** Model */
+      model?: string | null;
+    };
+    /** ErrorModel */
+    ErrorModel: {
+      /** Detail */
+      detail:
+        | string
+        | {
+            [key: string]: string;
+          };
+    };
+    /**
+     * EvalFixtureResult
+     * @description Per-fixture pass/fail row in the report.
+     */
+    EvalFixtureResult: {
+      /** Detail */
+      detail: string;
+      /** Fixture */
+      fixture: string;
+      /** Passed */
+      passed: boolean;
+      /** Suite */
+      suite: string;
+    };
+    /**
+     * EvalFixturesEnvelope
+     * @description ``GET /eval/fixtures`` — the bundled golden datasets the CI run scores.
+     */
+    EvalFixturesEnvelope: {
+      /** Items */
+      items?: components["schemas"]["EvalSuiteInfo"][];
+    };
+    /**
+     * EvalRunListEnvelope
+     * @description ``GET /eval/runs`` — newest-first eval run history.
+     */
+    EvalRunListEnvelope: {
+      /** Items */
+      items?: components["schemas"]["EvalRunListItem"][];
+    };
+    /**
+     * EvalRunListItem
+     * @description One row in the score-regression dashboard (M5-2).
+     */
+    EvalRunListItem: {
+      /** Failed */
+      failed: number;
+      /** Fixturescount */
+      fixturesCount: number;
+      /** Id */
+      id: string;
+      /** Modelid */
+      modelId: string;
+      /** Passed */
+      passed: number;
+      /**
+       * Runat
+       * Format: date-time
+       */
+      runAt: string;
+      /** Scorepct */
+      scorePct: number;
+      /** Suitename */
+      suiteName: string;
+    };
+    /**
+     * EvalRunPublic
+     * @description ``GET /eval/runs/:id`` + ``POST /eval/runs`` response.
+     */
+    EvalRunPublic: {
+      /** Failed */
+      failed: number;
+      /** Fixturescount */
+      fixturesCount: number;
+      /** Id */
+      id: string;
+      /** Modelid */
+      modelId: string;
+      /** Passed */
+      passed: number;
+      /** Results */
+      results?: components["schemas"]["EvalFixtureResult"][];
+      /**
+       * Runat
+       * Format: date-time
+       */
+      runAt: string;
+      /** Suitename */
+      suiteName: string;
+    };
+    /**
+     * EvalRunRequest
+     * @description ``POST /eval/runs`` body.
+     */
+    EvalRunRequest: {
+      /**
+       * Suite Name
+       * @default default
+       */
+      suite_name: string;
+    };
+    /**
+     * EvalSuiteInfo
+     * @description One golden dataset suite + its fixture count (M5-2).
+     */
+    EvalSuiteInfo: {
+      /** Fixtures */
+      fixtures: number;
+      /** Suite */
+      suite: string;
+    };
+    /**
+     * ExperimentOutcomeBody
+     * @description ``POST /prompt-experiments/:id/outcome`` body.
+     */
+    ExperimentOutcomeBody: {
+      /**
+       * Success
+       * @default true
+       */
+      success: boolean;
+      /** Variant */
+      variant: string;
+    };
+    /**
+     * ExperimentVariantStats
+     * @description Per-variant impression / success counters + conversion (M5-4).
+     */
+    ExperimentVariantStats: {
+      /** Conversionpct */
+      conversionPct: number;
+      /** Impressions */
+      impressions: number;
+      /** Overrideid */
+      overrideId?: string | null;
+      /** Successes */
+      successes: number;
+      /** Variant */
+      variant: string;
+    };
+    /**
+     * ExternalIssuePublic
+     * @description One linked external tracker issue (Jira/Linear/etc).
+     */
+    ExternalIssuePublic: {
+      /** External Id */
+      external_id: string;
+      /** External Url */
+      external_url: string;
+      /** Provider */
+      provider: string;
+      /**
+       * Synced At
+       * Format: date-time
+       */
+      synced_at: string;
+    };
+    /**
+     * FeaturesSection
+     * @description The 13 capability feature flags resolved from (tier, embeddings).
+     */
+    FeaturesSection: {
+      /** Ai Conversation */
+      ai_conversation: boolean;
+      /** Ai Diagnose */
+      ai_diagnose: boolean;
+      /** Ai Execution Agentic */
+      ai_execution_agentic: boolean;
+      /** Ai Generation */
+      ai_generation: boolean;
+      /** Auto Defect Filing Ai */
+      auto_defect_filing_ai: boolean;
+      /** Auto Defect Filing Rule */
+      auto_defect_filing_rule: boolean;
+      /** Deterministic Generator Crawler */
+      deterministic_generator_crawler: boolean;
+      /** Deterministic Generator Openapi */
+      deterministic_generator_openapi: boolean;
+      /** Deterministic Generator Recorder */
+      deterministic_generator_recorder: boolean;
+      /** Deterministic Runner */
+      deterministic_runner: boolean;
+      /** Fts Search */
+      fts_search: boolean;
+      /** Manual Tcm */
+      manual_tcm: boolean;
+      /** Semantic Search */
+      semantic_search: boolean;
+    };
+    /** FlakyCaseOut */
+    FlakyCaseOut: {
+      /** Caseid */
+      caseId: string;
+      /** Flakerate */
+      flakeRate: number;
+      /** Publicid */
+      publicId: string;
+      /** Samplesize */
+      sampleSize: number;
+    };
+    /** GenerationInput */
+    GenerationInput: {
+      /** Content Type Hint */
+      content_type_hint?: string | null;
+      /** Filename */
+      filename?: string | null;
+      kind: components["schemas"]["GenerationInputKind"];
+      /** Value */
+      value: string;
+    };
+    /**
+     * GenerationInputKind
+     * @enum {string}
+     */
+    GenerationInputKind: "url" | "file_content" | "raw_text";
+    /**
+     * GitHubTestConnectionRequest
+     * @description Pre-save credential payload for ``POST /integrations/github/test-connection``.
+     *
+     *     No row is persisted. ``private_key_pem`` is never logged and never stored
+     *     by this endpoint (per ``docs/API.md §3.9``). The router spawns an ephemeral
+     *     ``github-mcp-server`` process, derives an installation token, calls a
+     *     cheap whoami / list-repos tool, and discards.
+     */
+    GitHubTestConnectionRequest: {
+      /** App Installation Id */
+      app_installation_id: string;
+      /** Private Key Pem */
+      private_key_pem: string;
+    };
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components["schemas"]["ValidationError"][];
+    };
+    /**
+     * HeatmapCell
+     * @description One run-count cell in the day x hour grid.
+     */
+    HeatmapCell: {
+      /** Count */
+      count: number;
+      /**
+       * Day
+       * Format: date-time
+       */
+      day: string;
+      /** Hour */
+      hour: number;
+    };
+    /**
+     * InboxItem
+     * @description One notification card in the Inbox feed.
+     */
+    InboxItem: {
+      /** Body */
+      body: string;
+      /** Createdat */
+      createdAt: string;
+      /** Id */
+      id: string;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind:
+        | "DEPLOY_GATE_FAIL"
+        | "MANUAL_RUN_FAIL"
+        | "MCP_HEALTH"
+        | "FLAKY_PROMOTION"
+        | "AGENT_GENERATION"
+        | "AGENT_DIAGNOSIS";
+      /**
+       * Status
+       * @default unread
+       * @enum {string}
+       */
+      status: "unread" | "read" | "dismissed";
+      /** Title */
+      title: string;
+    };
+    /**
+     * InboxResponse
+     * @description ``GET /inbox`` envelope — items list + unread badge counter.
+     */
+    InboxResponse: {
+      /** Items */
+      items?: components["schemas"]["InboxItem"][];
+      /**
+       * Unreadcount
+       * @default 0
+       */
+      unreadCount: number;
+    };
+    /**
+     * IntegrationCreate
+     * @description ``POST /integrations`` request body.
+     *
+     *     ``secrets`` is an arbitrary JSON-object the kind-specific adapter consumes
+     *     (e.g. Slack: ``{"webhook_url": "..."}``, Jira: ``{"jira_token": "..."}``).
+     *     The service AES-GCM-encrypts it via ``packages/core/crypto`` before INSERT.
+     *     ``status`` defaults to ``active`` and is set by the service — accepting it
+     *     from the wire would let an admin force-set bypassed states.
+     */
+    IntegrationCreate: {
+      /** Config */
+      config?: {
+        [key: string]: unknown;
+      };
+      kind: components["schemas"]["IntegrationKind"];
+      /** Name */
+      name: string;
+      /**
+       * Secrets
+       * @description Adapter-specific secret material (e.g. Slack webhook_url, Jira token). Encrypted at rest via AES-GCM; never echoed back.
+       */
+      secrets?: {
+        [key: string]: unknown;
+      } | null;
+    };
+    /**
+     * IntegrationDetail
+     * @description Detail — adds visible ``config`` and the redacted ``secrets`` block.
+     */
+    IntegrationDetail: {
+      /** Config */
+      config: {
+        [key: string]: unknown;
+      };
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Has Secrets */
+      has_secrets: boolean;
+      /** Id */
+      id: string;
+      kind: components["schemas"]["IntegrationKind"];
+      /** Last Synced At */
+      last_synced_at?: string | null;
+      /** Name */
+      name: string;
+      secrets?: components["schemas"]["SecretsHint"] | null;
+      /** Status */
+      status: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Workspace Id */
+      workspace_id: string;
+    };
+    /**
+     * IntegrationKind
+     * @enum {string}
+     */
+    IntegrationKind:
+      | "GITHUB"
+      | "GITLAB"
+      | "JENKINS"
+      | "JIRA"
+      | "LINEAR"
+      | "SLACK"
+      | "MCP_BROWSER_USE"
+      | "MCP_PLAYWRIGHT"
+      | "MCP_CUSTOM"
+      | "OPENAPI"
+      | "MCP_API"
+      | "MCP_POSTGRES"
+      | "MCP_KUBERNETES"
+      | "MCP_GRAPHQL"
+      | "MCP_GRPC"
+      | "MCP_APPIUM"
+      | "MCP_MONGO"
+      | "MCP_MYSQL";
+    /**
+     * IntegrationListItem
+     * @description List row for ``GET /integrations`` (config visible, no secret material).
+     */
+    IntegrationListItem: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Has Secrets */
+      has_secrets: boolean;
+      /** Id */
+      id: string;
+      kind: components["schemas"]["IntegrationKind"];
+      /** Last Synced At */
+      last_synced_at?: string | null;
+      /** Name */
+      name: string;
+      /** Status */
+      status: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Workspace Id */
+      workspace_id: string;
+    };
+    /**
+     * IntegrationRead
+     * @description Write-path response: ``config`` is visible but secrets stay opaque.
+     *
+     *     Deliberately ``model_config`` does NOT add a ``secrets`` field — the only
+     *     cue the FE gets that secrets exist is ``has_secrets: bool``. The ``config``
+     *     field is allowed because integration config (``Jira url``, ``Slack channel
+     *     name``) is non-sensitive metadata; the AES-GCM blob lives only in the
+     *     database column. See ``docs/API.md §3.9``.
+     */
+    IntegrationRead: {
+      /** Config */
+      config: {
+        [key: string]: unknown;
+      };
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Has Secrets */
+      has_secrets: boolean;
+      /** Id */
+      id: string;
+      kind: components["schemas"]["IntegrationKind"];
+      /** Last Synced At */
+      last_synced_at?: string | null;
+      /** Name */
+      name: string;
+      /** Status */
+      status: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Workspace Id */
+      workspace_id: string;
+    };
+    /**
+     * IntegrationUpdate
+     * @description ``PATCH /integrations/:id`` request body — partial update.
+     *
+     *     ``secrets`` semantics:
+     *
+     *     * absent from body → existing encrypted blob preserved verbatim.
+     *     * present but empty dict → existing blob CLEARED (the integration becomes
+     *       secret-less; ``has_secrets`` flips to False).
+     *     * present with keys → MERGED with the existing decrypted dict before
+     *       re-encrypting (FE doesn't have to know every secret key). Submitted keys
+     *       overwrite; unsubmitted keys retain prior values.
+     */
+    IntegrationUpdate: {
+      /** Config */
+      config?: {
+        [key: string]: unknown;
+      } | null;
+      /** Name */
+      name?: string | null;
+      /** Secrets */
+      secrets?: {
+        [key: string]: unknown;
+      } | null;
+      /** Status */
+      status?: string | null;
+    };
+    /** InvitationCreateRequest */
+    InvitationCreateRequest: {
+      /**
+       * Email
+       * Format: email
+       */
+      email: string;
+      role: components["schemas"]["Role"];
+    };
+    /** InvitationListEnvelope */
+    InvitationListEnvelope: {
+      /** Items */
+      items: components["schemas"]["InvitationOut"][];
+    };
+    /** InvitationOut */
+    InvitationOut: {
+      /** Accepted At */
+      accepted_at: string | null;
+      /** Email */
+      email: string;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /** Id */
+      id: string;
+      /** Link */
+      link?: string | null;
+      /** Revoked At */
+      revoked_at: string | null;
+      role: components["schemas"]["Role"];
+    };
+    /** InvitationValidateResponse */
+    InvitationValidateResponse: {
+      /** Email */
+      email: string;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      role: components["schemas"]["Role"];
+      /** Workspace Name */
+      workspace_name: string;
+    };
+    /**
+     * JiraSyncedResponse
+     * @description 202 response when the Jira webhook successfully syncs a defect status.
+     */
+    JiraSyncedResponse: {
+      /** Defectid */
+      defectId: string;
+      /** Fromstatus */
+      fromStatus: string;
+      /** Tostatus */
+      toStatus: string;
+    };
+    /**
+     * JiraTestConnectionRequest
+     * @description Pre-save credential payload for ``POST /integrations/jira/test-connection``.
+     *
+     *     No row is persisted; the router spawns an ephemeral ``jirac-mcp`` adapter
+     *     with these creds, calls ``test_connection`` (``GET /rest/api/3/myself``),
+     *     and discards the process. ``jira_auth_type`` selects between cloud OAuth
+     *     token (``cloud_token``) and PAT (``pat``). M1d ships PAT-only — OAuth flow
+     *     deferred to v1.x.
+     */
+    JiraTestConnectionRequest: {
+      /**
+       * Jira Auth Type
+       * @default cloud_token
+       * @enum {string}
+       */
+      jira_auth_type: "cloud_token" | "pat";
+      /** Jira Email */
+      jira_email: string;
+      /** Jira Token */
+      jira_token: string;
+      /** Jira Url */
+      jira_url: string;
+    };
+    /** KindCostOut */
+    KindCostOut: {
+      /** Costusd */
+      costUsd: number;
+      /** Kind */
+      kind: string;
+      /** Sessions */
+      sessions: number;
+    };
+    /**
+     * KpisOut
+     * @description ``GET /analytics/kpis`` → pass rate, run count, avg duration, open defects.
+     */
+    KpisOut: {
+      /** Avgdurationms */
+      avgDurationMs: number;
+      /** Defectsopen */
+      defectsOpen: number;
+      /** Passrate */
+      passRate: number;
+      /** Runcount */
+      runCount: number;
+    };
+    /**
+     * LLMConfigPublic
+     * @description Active config, key redacted to a hint.
+     */
+    LLMConfigPublic: {
+      /** Apikeyhint */
+      apiKeyHint?: string | null;
+      /** Config */
+      config?: {
+        [key: string]: unknown;
+      };
+      /** Id */
+      id: string;
+      /** Isactive */
+      isActive: boolean;
+      /** Lastvalidatedat */
+      lastValidatedAt?: string | null;
+      /** Model */
+      model: string;
+      /** Provider */
+      provider: string;
+      /** Tier */
+      tier: string;
+    };
+    /**
+     * LLMConfigWriteBody
+     * @description Set/rotate provider + key. ``apiKey`` is write-only.
+     */
+    LLMConfigWriteBody: {
+      /** Apikey */
+      apiKey?: string | null;
+      /** Config */
+      config?: {
+        [key: string]: unknown;
+      };
+      /** Model */
+      model: string;
+      /** Provider */
+      provider: string;
+    };
+    /** LLMModelsResponse */
+    LLMModelsResponse: {
+      /** Models */
+      models?: {
+        [key: string]: unknown;
+      }[];
+      /** Provider */
+      provider: string;
+    };
+    /**
+     * LLMSection
+     * @description LLM provider info. ``provider`` is ``"none"`` in ZERO tier.
+     */
+    LLMSection: {
+      /** Base Url */
+      base_url?: string | null;
+      /**
+       * Is Test Provider
+       * @default false
+       */
+      is_test_provider: boolean;
+      /** Model */
+      model?: string | null;
+      /** Provider */
+      provider: string;
+    };
+    /** LLMTestError */
+    LLMTestError: {
+      /** Code */
+      code: string;
+      /** Message */
+      message: string;
+    };
+    /** LLMTestResult */
+    LLMTestResult: {
+      error?: components["schemas"]["LLMTestError"] | null;
+      /**
+       * Latencyms
+       * @default 0
+       */
+      latencyMs: number;
+      /** Modelecho */
+      modelEcho?: string | null;
+      /** Ok */
+      ok: boolean;
+    };
+    /** MatrixCase */
+    MatrixCase: {
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      source: components["schemas"]["CaseSource"];
+      status: components["schemas"]["CaseStatus"];
+    };
+    /** MatrixDefect */
+    MatrixDefect: {
+      /** Id */
+      id: string;
+      severity: components["schemas"]["Severity"];
+      status: components["schemas"]["DefectStatus"];
+      /** Title */
+      title: string;
+    };
+    /**
+     * MatrixRequirement
+     * @description One requirement row: its public id, title, and linked test/defect public ids.
+     */
+    MatrixRequirement: {
+      /** Defects */
+      defects?: string[];
+      /** Id */
+      id: string;
+      /** Tests */
+      tests?: string[];
+      /** Title */
+      title: string;
+    };
+    /**
+     * McpDiscoveryGenerateRequest
+     * @description LLM-driven MCP tool-discovery generation (M3-9) — CLOUD/LOCAL only.
+     *
+     *     Targets a registered MCP provider by id; the agent explores its persisted
+     *     tool catalog and proposes contract cases (happy + negative per tool). Steps
+     *     are agentic (code translated at execution time, M3-10).
+     */
+    McpDiscoveryGenerateRequest: {
+      /**
+       * Max Cases
+       * @default 20
+       */
+      max_cases: number;
+      /** Mcp Provider Id */
+      mcp_provider_id: string;
+      /** Seed */
+      seed?: number | null;
+      /** Target Suite Id */
+      target_suite_id: string;
+    };
+    /**
+     * McpInvokeBody
+     * @description ``POST /mcp/providers/:id/invoke`` body — dev-aid ad-hoc tool call.
+     */
+    McpInvokeBody: {
+      /** Arguments */
+      arguments?: {
+        [key: string]: unknown;
+      };
+      /** Tool */
+      tool: string;
+    };
+    /**
+     * McpInvokeResult
+     * @description Normalized result of an ad-hoc tool invocation (tool browser).
+     */
+    McpInvokeResult: {
+      /**
+       * Durationms
+       * @default 0
+       */
+      durationMs: number;
+      /** Error */
+      error?: string | null;
+      /** Ok */
+      ok: boolean;
+      /** Output */
+      output?: {
+        [key: string]: unknown;
+      };
+      /**
+       * Stderr
+       * @default
+       */
+      stderr: string;
+      /**
+       * Stdout
+       * @default
+       */
+      stdout: string;
+    };
+    /**
+     * McpProviderCreateBody
+     * @description ``POST /mcp/providers`` body — register a custom MCP server.
+     */
+    McpProviderCreateBody: {
+      /** Configjson */
+      configJson?: {
+        [key: string]: unknown;
+      } | null;
+      /** Endpoint */
+      endpoint: string;
+      /** Isdefaultfortarget */
+      isDefaultForTarget?: {
+        [key: string]: boolean;
+      } | null;
+      /** Kind */
+      kind: string;
+      /** Name */
+      name: string;
+      /** Secretsjson */
+      secretsJson?:
+        | {
+            [key: string]: unknown;
+          }
+        | string
+        | null;
+      transport: components["schemas"]["McpTransport"];
+      /**
+       * Validate
+       * @default true
+       */
+      validate: boolean;
+    };
+    /**
+     * McpProviderDetail
+     * @description Detail row — summary + config preview (secrets redacted) + version pins.
+     */
+    McpProviderDetail: {
+      /** Commandpin */
+      commandPin?: string | null;
+      /** Configjson */
+      configJson?: {
+        [key: string]: unknown;
+      };
+      /**
+       * Enabled
+       * @default true
+       */
+      enabled: boolean;
+      /** Endpoint */
+      endpoint: string;
+      /** Gitref */
+      gitRef?: string | null;
+      /**
+       * Hassecrets
+       * @default false
+       */
+      hasSecrets: boolean;
+      /**
+       * Healthstatus
+       * @default unknown
+       */
+      healthStatus: string;
+      /** Id */
+      id: string;
+      /** Imagepin */
+      imagePin?: string | null;
+      /**
+       * Isbundled
+       * @default false
+       */
+      isBundled: boolean;
+      /** Isdefaultfortarget */
+      isDefaultForTarget?: {
+        [key: string]: boolean;
+      };
+      /** Kind */
+      kind: string;
+      /** Lasthealthat */
+      lastHealthAt?: string | null;
+      /** Name */
+      name: string;
+      /** Tools */
+      tools?: components["schemas"]["McpProviderTool"][];
+      /** Transport */
+      transport: string;
+      /** Versionpin */
+      versionPin?: string | null;
+    };
+    /**
+     * McpProviderProbeResult
+     * @description ``POST /mcp/providers/test-connection`` response — dry-run discovery.
+     */
+    McpProviderProbeResult: {
+      /** Ok */
+      ok: boolean;
+      /** Serverversion */
+      serverVersion?: string | null;
+      /** Tools */
+      tools?: components["schemas"]["McpProviderTool"][];
+    };
+    /**
+     * McpProviderTool
+     * @description One tool entry (name + description + flattened arg schema preview).
+     */
+    McpProviderTool: {
+      /** Argschema */
+      argSchema?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Description
+       * @default
+       */
+      description: string;
+      /** Name */
+      name: string;
+    };
+    /**
+     * McpProviderUpdateBody
+     * @description ``PATCH /mcp/providers/:id`` body — partial update of a custom row.
+     */
+    McpProviderUpdateBody: {
+      /** Configjson */
+      configJson?: {
+        [key: string]: unknown;
+      } | null;
+      /** Enabled */
+      enabled?: boolean | null;
+      /** Endpoint */
+      endpoint?: string | null;
+      /** Isdefaultfortarget */
+      isDefaultForTarget?: {
+        [key: string]: boolean;
+      } | null;
+      /** Kind */
+      kind?: string | null;
+      /** Name */
+      name?: string | null;
+      /** Secretsjson */
+      secretsJson?:
+        | {
+            [key: string]: unknown;
+          }
+        | string
+        | null;
+      transport?: components["schemas"]["McpTransport"] | null;
+    };
+    /**
+     * McpProvidersResponse
+     * @description ``GET /mcp/providers`` envelope (bundled builtins + custom rows).
+     */
+    McpProvidersResponse: {
+      /** Items */
+      items?: components["schemas"]["suitest_api__routers__mcp_providers__McpProviderPublic"][];
+    };
+    /**
+     * McpRoutingResponse
+     * @description ``GET /mcp/routing`` — default table overlaid with workspace overrides.
+     */
+    McpRoutingResponse: {
+      /** Items */
+      items?: components["schemas"]["RoutingRule"][];
+    };
+    /**
+     * McpRoutingUpdateBody
+     * @description ``PUT /mcp/routing`` body — replace the workspace override map.
+     */
+    McpRoutingUpdateBody: {
+      /** Overrides */
+      overrides?: {
+        [key: string]: components["schemas"]["RoutingRuleInput"];
+      };
+    };
+    /**
+     * McpTransport
+     * @enum {string}
+     */
+    McpTransport: "stdio" | "sse" | "ws";
+    /**
+     * MeResponse
+     * @description ``GET /auth/me`` — the current user plus every workspace they belong to.
+     */
+    MeResponse: {
+      /** Avatar Url */
+      avatar_url?: string | null;
+      /** Email */
+      email: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Is Superuser
+       * @default false
+       */
+      is_superuser: boolean;
+      /** Memberships */
+      memberships: components["schemas"]["MembershipPublic"][];
+      /**
+       * Must Change Password
+       * @default false
+       */
+      must_change_password: boolean;
+      /** Name */
+      name: string;
+    };
+    /**
+     * MembershipPublic
+     * @description A user's membership in a workspace, with the workspace embedded.
+     */
+    MembershipPublic: {
+      role: components["schemas"]["Role"];
+      workspace: components["schemas"]["WorkspacePublic"];
+      /** Workspace Id */
+      workspace_id: string;
+    };
+    /**
+     * NetworkEvent
+     * @description One network event captured during a run (HAR-derived, M1c).
+     */
+    NetworkEvent: {
+      /** Durationms */
+      durationMs: number;
+      /** Method */
+      method: string;
+      /** Path */
+      path: string;
+      /**
+       * Startedat
+       * Format: date-time
+       */
+      startedAt: string;
+      /** Status */
+      status: number;
+    };
+    /** OAuth2AuthorizeResponse */
+    OAuth2AuthorizeResponse: {
+      /** Authorization Url */
+      authorization_url: string;
+    };
+    /**
+     * OpenApiGenerateRequest
+     * @description Generation request: exactly one of ``spec_url`` / ``spec_content``.
+     */
+    OpenApiGenerateRequest: {
+      options?: components["schemas"]["OpenApiGeneratorOptions"];
+      /** Spec Content */
+      spec_content?: string | null;
+      /** Spec Url */
+      spec_url?: string | null;
+      /** Target Suite Id */
+      target_suite_id: string;
+    };
+    /**
+     * OpenApiGeneratorOptions
+     * @description Per-request toggles for which case kinds the generator emits.
+     *
+     *     Defaults emit the full deterministic suite; callers disable categories to
+     *     keep a generated suite focused (e.g. contract-only). ``tags_filter`` limits
+     *     generation to operations carrying at least one of the listed OpenAPI tags.
+     */
+    OpenApiGeneratorOptions: {
+      /** Auth Profile Id */
+      auth_profile_id?: string | null;
+      /** Base Url Override */
+      base_url_override?: string | null;
+      /**
+       * Include Boundary Tests
+       * @default true
+       */
+      include_boundary_tests: boolean;
+      /**
+       * Include Llm Edge Cases
+       * @default false
+       */
+      include_llm_edge_cases: boolean;
+      /**
+       * Include Negative Auth
+       * @default true
+       */
+      include_negative_auth: boolean;
+      /**
+       * Include Rate Limit Tests
+       * @default true
+       */
+      include_rate_limit_tests: boolean;
+      /**
+       * Include Required Field Tests
+       * @default true
+       */
+      include_required_field_tests: boolean;
+      /**
+       * Include Schema Validation
+       * @default true
+       */
+      include_schema_validation: boolean;
+      /**
+       * Max Cases Per Operation
+       * @default 20
+       */
+      max_cases_per_operation: number;
+      /** Tag Prefix */
+      tag_prefix?: string | null;
+      /** Tags Filter */
+      tags_filter?: string[];
+    };
+    /**
+     * PageMeta
+     * @description Pagination metadata: the next cursor (``null`` when exhausted) + page size.
+     */
+    PageMeta: {
+      /** Limit */
+      limit: number;
+      /** Nextcursor */
+      nextCursor?: string | null;
+    };
+    /** Page[DefectListItem] */
+    Page_DefectListItem_: {
+      /** Items */
+      items: components["schemas"]["DefectListItem"][];
+      meta: components["schemas"]["PageMeta"];
+    };
+    /** Page[DocumentListItem] */
+    Page_DocumentListItem_: {
+      /** Items */
+      items: components["schemas"]["DocumentListItem"][];
+      meta: components["schemas"]["PageMeta"];
+    };
+    /** Page[ProjectPublic] */
+    Page_ProjectPublic_: {
+      /** Items */
+      items: components["schemas"]["ProjectPublic"][];
+      meta: components["schemas"]["PageMeta"];
+    };
+    /** Page[RequirementListItem] */
+    Page_RequirementListItem_: {
+      /** Items */
+      items: components["schemas"]["RequirementListItem"][];
+      meta: components["schemas"]["PageMeta"];
+    };
+    /** Page[RunListItem] */
+    Page_RunListItem_: {
+      /** Items */
+      items: components["schemas"]["RunListItem"][];
+      meta: components["schemas"]["PageMeta"];
+    };
+    /** Page[TestCaseListItem] */
+    Page_TestCaseListItem_: {
+      /** Items */
+      items: components["schemas"]["TestCaseListItem"][];
+      meta: components["schemas"]["PageMeta"];
+    };
+    /** PassRatePoint */
+    PassRatePoint: {
+      /** Date */
+      date: string;
+      /** Passrate */
+      passRate: number;
+    };
+    /**
+     * PassRateSeriesOut
+     * @description ``GET /analytics/pass-rate`` → ascending time series + total sample size.
+     */
+    PassRateSeriesOut: {
+      /** Series */
+      series?: components["schemas"]["PassRatePoint"][];
+      /** Total */
+      total: number;
+    };
+    /** PasswordResetRequestOut */
+    PasswordResetRequestOut: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Email */
+      email: string;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /** Id */
+      id: string;
+      /** Resetlink */
+      resetLink: string | null;
+      /** Used At */
+      used_at: string | null;
+    };
+    /** PasswordResetRequestsEnvelope */
+    PasswordResetRequestsEnvelope: {
+      /** Items */
+      items: components["schemas"]["PasswordResetRequestOut"][];
+    };
+    /**
+     * PrdGenerateRequest
+     * @description LLM-driven PRD generation (M3-6) — CLOUD/LOCAL only.
+     *
+     *     ``prd_text`` is the requirement / user story / free text. The agent extracts
+     *     stories and drafts happy-path + edge cases. ``default_target_kind`` decides
+     *     the steps' default ``mcp_provider`` (steps are agentic — code is translated at
+     *     execution time, M3-10). ``seed`` is threaded for reproducibility (M3-5).
+     */
+    PrdGenerateRequest: {
+      /** @default CUSTOM */
+      default_target_kind: components["schemas"]["TargetKind"];
+      /**
+       * Max Cases
+       * @default 20
+       */
+      max_cases: number;
+      /** Prd Text */
+      prd_text: string;
+      /** Seed */
+      seed?: number | null;
+      /** Target Suite Id */
+      target_suite_id: string;
+    };
+    /**
+     * Priority
+     * @enum {string}
+     */
+    Priority: "P0" | "P1" | "P2" | "P3";
+    /**
+     * ProjectCreate
+     * @description Body for ``POST /projects`` (docs/API.md §3.2).
+     *
+     *     ``slug`` is optional — when omitted the service derives it from ``name``
+     *     via :func:`suitest_api.utils.slug.slugify` and retries with a ``-2``
+     *     suffix once on collision before bubbling 409.
+     */
+    ProjectCreate: {
+      /** Description */
+      description?: string | null;
+      /** Name */
+      name: string;
+      /** Slug */
+      slug?: string | null;
+    };
+    /**
+     * ProjectPublic
+     * @description A project, workspace-scoped (docs/API.md §3.2).
+     */
+    ProjectPublic: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Default Mcp Routing */
+      default_mcp_routing?: {
+        [key: string]: unknown;
+      };
+      /** Description */
+      description?: string | null;
+      /** Gating Suite Id */
+      gating_suite_id?: string | null;
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Slug */
+      slug: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Workspace Id */
+      workspace_id: string;
+    };
+    /**
+     * ProjectUpdate
+     * @description Body for ``PATCH /projects/:id`` (docs/API.md §3.2).
+     *
+     *     Slug is **immutable** post-create — attempting to PATCH it raises a 400
+     *     ``IMMUTABLE_SLUG``. ``gating_suite_id`` must reference a suite that lives
+     *     in this project (cross-project assignments raise 400
+     *     ``INVALID_GATING_SUITE``). All fields optional; only
+     *     ``model_dump(exclude_unset=True)`` keys are applied.
+     */
+    ProjectUpdate: {
+      /** Defaultmcprouting */
+      defaultMcpRouting?: {
+        [key: string]: unknown;
+      } | null;
+      /** Description */
+      description?: string | null;
+      /** Gatingsuiteid */
+      gatingSuiteId?: string | null;
+      /** Name */
+      name?: string | null;
+      /** Slug */
+      slug?: string | null;
+    };
+    /**
+     * PromptDefaultPublic
+     * @description A file-based default prompt + whether the workspace forks it.
+     */
+    PromptDefaultPublic: {
+      /** Activeforkversion */
+      activeForkVersion?: number | null;
+      /** Baseversion */
+      baseVersion: string;
+      /** Hasactivefork */
+      hasActiveFork: boolean;
+      /** Name */
+      name: string;
+    };
+    /**
+     * PromptDetailPublic
+     * @description ``GET /prompts/:name`` — default content + the workspace's fork history.
+     */
+    PromptDetailPublic: {
+      /** Baseversion */
+      baseVersion: string;
+      /** Defaultcontent */
+      defaultContent: string;
+      /** Forks */
+      forks?: components["schemas"]["PromptForkPublic"][];
+      /** Name */
+      name: string;
+    };
+    /**
+     * PromptExperimentCreateBody
+     * @description ``POST /prompt-experiments`` body.
+     */
+    PromptExperimentCreateBody: {
+      /** Prompt Name */
+      prompt_name: string;
+      /**
+       * Split Pct
+       * @default 50
+       */
+      split_pct: number;
+      /** Variant A Override Id */
+      variant_a_override_id?: string | null;
+      /** Variant B Override Id */
+      variant_b_override_id?: string | null;
+    };
+    /** PromptExperimentListEnvelope */
+    PromptExperimentListEnvelope: {
+      /** Items */
+      items?: components["schemas"]["PromptExperimentPublic"][];
+    };
+    /**
+     * PromptExperimentPublic
+     * @description One prompt A/B experiment + live stats.
+     */
+    PromptExperimentPublic: {
+      /**
+       * Createdat
+       * Format: date-time
+       */
+      createdAt: string;
+      /** Id */
+      id: string;
+      /** Promptname */
+      promptName: string;
+      /** Splitpct */
+      splitPct: number;
+      /** Status */
+      status: string;
+      variantA: components["schemas"]["ExperimentVariantStats"];
+      variantB: components["schemas"]["ExperimentVariantStats"];
+      /** Winner */
+      winner?: string | null;
+    };
+    /**
+     * PromptForkCreate
+     * @description ``POST /prompts/:name/forks`` body.
+     */
+    PromptForkCreate: {
+      /**
+       * Activate
+       * @default true
+       */
+      activate: boolean;
+      /**
+       * Base Version
+       * @default v1
+       */
+      base_version: string;
+      /** Content */
+      content: string;
+      /** Label */
+      label?: string | null;
+    };
+    /**
+     * PromptForkPublic
+     * @description One versioned fork of a prompt for a workspace.
+     */
+    PromptForkPublic: {
+      /** Baseversion */
+      baseVersion: string;
+      /** Content */
+      content?: string | null;
+      /**
+       * Createdat
+       * Format: date-time
+       */
+      createdAt: string;
+      /** Forkversion */
+      forkVersion: number;
+      /** Hash */
+      hash: string;
+      /** Id */
+      id: string;
+      /** Isactive */
+      isActive: boolean;
+      /** Label */
+      label?: string | null;
+      /** Promptname */
+      promptName: string;
+    };
+    /**
+     * PromptListEnvelope
+     * @description ``GET /prompts`` — every overridable default + its fork status.
+     */
+    PromptListEnvelope: {
+      /** Items */
+      items?: components["schemas"]["PromptDefaultPublic"][];
+    };
+    /** ProviderCostOut */
+    ProviderCostOut: {
+      /** Costusd */
+      costUsd: number;
+      /** Provider */
+      provider: string;
+      /** Sessions */
+      sessions: number;
+      /** Tokensin */
+      tokensIn: number;
+      /** Tokensout */
+      tokensOut: number;
+    };
+    /** ReadinessBlocker */
+    ReadinessBlocker: {
+      /** Message */
+      message: string;
+      /** Ref */
+      ref?: string | null;
+      /** Type */
+      type: string;
+    };
+    /**
+     * ReadinessOut
+     * @description ``GET /analytics/readiness`` → deterministic release-readiness score.
+     */
+    ReadinessOut: {
+      /** Blockers */
+      blockers?: components["schemas"]["ReadinessBlocker"][];
+      /** Score */
+      score: number;
+    };
+    /** RecommendedMcp */
+    RecommendedMcp: {
+      /** Id */
+      id?: string | null;
+      /** Name */
+      name: string;
+    };
+    /**
+     * RecommendedStrategy
+     * @enum {string}
+     */
+    RecommendedStrategy:
+      | "openapi-generator"
+      | "url-crawler"
+      | "recorder"
+      | "url-semantic"
+      | "mcp-discovery"
+      | "prd-parsing";
+    /**
+     * RecorderFinalizeRequest
+     * @description Body for ``POST .../finalize`` — where + how to persist the new case.
+     */
+    RecorderFinalizeRequest: {
+      /** Description */
+      description?: string | null;
+      /** Name */
+      name: string;
+      /**
+       * Priority
+       * @default P2
+       * @enum {string}
+       */
+      priority: "P0" | "P1" | "P2" | "P3";
+      /** Target Suite Id */
+      target_suite_id: string;
+    };
+    /**
+     * RecorderSessionStartRequest
+     * @description Body for ``POST /generators/recorder/sessions``.
+     */
+    RecorderSessionStartRequest: {
+      /**
+       * Mcp Provider
+       * @default playwright-mcp
+       */
+      mcp_provider: string;
+      /** Project Id */
+      project_id: string;
+      /** Start Url */
+      start_url: string;
+    };
+    /**
+     * RecorderSessionStartResponse
+     * @description 200 body — the session id + the WS room to subscribe for live events.
+     */
+    RecorderSessionStartResponse: {
+      /** Browser Url */
+      browser_url?: string | null;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /** Session Id */
+      session_id: string;
+      /** Ws Room */
+      ws_room: string;
+    };
+    /**
+     * RequirementCreate
+     * @description Body for ``POST /requirements`` (docs/API.md §3.7).
+     *
+     *     ``project_id`` is workspace-scoped (cross-workspace ids return 404). The
+     *     ``REQ-N`` ``public_id`` is assigned by the ``before_insert`` listener via
+     *     ``generate_public_id`` (docs/DATA_MODEL §8) — never accepted from the caller.
+     */
+    RequirementCreate: {
+      /** Description */
+      description?: string | null;
+      /** Externalurl */
+      externalUrl?: string | null;
+      /** Projectid */
+      projectId: string;
+      /** Source */
+      source?: string | null;
+      /** Title */
+      title: string;
+    };
+    /**
+     * RequirementDetail
+     * @description Detail with the public ids of linked cases + linked defects.
+     */
+    RequirementDetail: {
+      /** Case Public Ids */
+      case_public_ids?: string[];
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Defect Public Ids */
+      defect_public_ids?: string[];
+      /** Description */
+      description?: string | null;
+      /** External Url */
+      external_url?: string | null;
+      /** Id */
+      id: string;
+      /** Project Id */
+      project_id: string;
+      /** Public Id */
+      public_id: string;
+      /** Source */
+      source?: string | null;
+      /** Title */
+      title: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
+     * RequirementLinkCreate
+     * @description Body for ``POST /requirements/:id/links`` — ``{ "testCaseId": "..." }``.
+     *
+     *     Accepts both ``test_case_id`` (Pythonic) and ``testCaseId`` / ``caseId``
+     *     (docs/API.md §3.7 wire shape) for FE compatibility.
+     */
+    RequirementLinkCreate: {
+      /** Testcaseid */
+      testCaseId: string;
+    };
+    /**
+     * RequirementListItem
+     * @description List row with a computed ``link_count`` (number of linked cases).
+     */
+    RequirementListItem: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Description */
+      description?: string | null;
+      /** External Url */
+      external_url?: string | null;
+      /** Id */
+      id: string;
+      /** Link Count */
+      link_count: number;
+      /** Project Id */
+      project_id: string;
+      /** Public Id */
+      public_id: string;
+      /** Source */
+      source?: string | null;
+      /** Title */
+      title: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
+     * RequirementUpdate
+     * @description Body for ``PATCH /requirements/:id`` — metadata patch.
+     *
+     *     All fields optional; only ``model_dump(exclude_unset=True)`` keys are
+     *     applied. Sending ``null`` explicitly clears the field (description / source
+     *     / external_url are nullable in the model).
+     */
+    RequirementUpdate: {
+      /** Description */
+      description?: string | null;
+      /** Externalurl */
+      externalUrl?: string | null;
+      /** Source */
+      source?: string | null;
+      /** Title */
+      title?: string | null;
+    };
+    /** ResetPasswordResponse */
+    ResetPasswordResponse: {
+      /** Temporarypassword */
+      temporaryPassword: string;
+    };
+    /**
+     * Role
+     * @enum {string}
+     */
+    Role: "OWNER" | "ADMIN" | "QA" | "VIEWER";
+    /**
+     * RoutingRule
+     * @description One effective ``target_kind`` -> provider routing row.
+     */
+    RoutingRule: {
+      /** Fallback */
+      fallback?: string | null;
+      /**
+       * Isoverride
+       * @default false
+       */
+      isOverride: boolean;
+      /** Primary */
+      primary: string;
+      /** Targetkind */
+      targetKind: string;
+    };
+    /**
+     * RoutingRuleInput
+     * @description One override rule in ``PUT /mcp/routing``.
+     */
+    RoutingRuleInput: {
+      /** Fallback */
+      fallback?: string | null;
+      /** Primary */
+      primary: string;
+    };
+    /**
+     * RunDetail
+     * @description Detail for ``GET /runs/:id`` — adds the computed summary.
+     */
+    RunDetail: {
+      /** Branch */
+      branch?: string | null;
+      /** Commit Sha */
+      commit_sha?: string | null;
+      /** Completed At */
+      completed_at?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Duration Ms */
+      duration_ms?: number | null;
+      /** Env */
+      env: string;
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Project Id */
+      project_id: string;
+      /** Public Id */
+      public_id: string;
+      /** Started At */
+      started_at?: string | null;
+      status: components["schemas"]["RunStatus"];
+      summary: components["schemas"]["RunSummary"];
+      tier_at_runtime: components["schemas"]["Tier"];
+      trigger: components["schemas"]["RunTrigger"];
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
+     * RunListItem
+     * @description List row for ``GET /runs`` (docs/API.md §3.5).
+     */
+    RunListItem: {
+      /** Branch */
+      branch?: string | null;
+      /** Commit Sha */
+      commit_sha?: string | null;
+      /** Completed At */
+      completed_at?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Duration Ms */
+      duration_ms?: number | null;
+      /** Env */
+      env: string;
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Project Id */
+      project_id: string;
+      /** Public Id */
+      public_id: string;
+      /** Started At */
+      started_at?: string | null;
+      status: components["schemas"]["RunStatus"];
+      tier_at_runtime: components["schemas"]["Tier"];
+      trigger: components["schemas"]["RunTrigger"];
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
+     * RunLogItem
+     * @description One persisted ``run_step_logs`` row in the page (M1c).
+     *
+     *     ``message`` is the JSON-encoded event payload the orchestrator published —
+     *     the FE deserialises it on receipt to match the live socket stream.
+     */
+    RunLogItem: {
+      /**
+       * Createdat
+       * Format: date-time
+       */
+      createdAt: string;
+      /** Level */
+      level: string;
+      /** Message */
+      message: string;
+      /** Seq */
+      seq: number;
+    };
+    /**
+     * RunLogPage
+     * @description A cursor-paginated slice of a run's persisted log stream (M1c).
+     */
+    RunLogPage: {
+      /** Hasmore */
+      hasMore: boolean;
+      /** Items */
+      items?: components["schemas"]["RunLogItem"][];
+      /** Nextcursor */
+      nextCursor: number;
+    };
+    /**
+     * RunNetworkResponse
+     * @description ``GET /runs/:id/network`` — bounded network event list (M1b stub).
+     */
+    RunNetworkResponse: {
+      /** Items */
+      items?: components["schemas"]["NetworkEvent"][];
+    };
+    /**
+     * RunPublic
+     * @description ``POST /runs`` + ``cancel`` + ``rerun`` response shape.
+     *
+     *     Sized for the runs list/detail FE rows so cancel/rerun results render in
+     *     place without a follow-up GET. Aliased to camelCase on serialization to
+     *     match the M1b client.
+     */
+    RunPublic: {
+      /** Branch */
+      branch: string | null;
+      /** Commitsha */
+      commitSha: string | null;
+      /** Completedat */
+      completedAt: string | null;
+      /**
+       * Createdat
+       * Format: date-time
+       */
+      createdAt: string;
+      /** Durationms */
+      durationMs: number | null;
+      /** Env */
+      env: string;
+      /** Failedsteps */
+      failedSteps: number;
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Passedsteps */
+      passedSteps: number;
+      /** Projectid */
+      projectId: string;
+      /** Publicid */
+      publicId: string;
+      /** Startedat */
+      startedAt: string | null;
+      status: components["schemas"]["RunStatus"];
+      tierAtRuntime: components["schemas"]["Tier"];
+      /** Totalsteps */
+      totalSteps: number;
+      trigger: components["schemas"]["RunTrigger"];
+    };
+    /**
+     * RunReplayResponse
+     * @description ``GET /runs/:id/replay`` — ordered steps + per-step state delta (M5-1).
+     */
+    RunReplayResponse: {
+      /** Runid */
+      runId: string;
+      /** Steps */
+      steps?: components["schemas"]["RunReplayStep"][];
+    };
+    /**
+     * RunReplayStep
+     * @description One step in the time-travel replay, with its state delta vs. the prior step.
+     */
+    RunReplayStep: {
+      /** Casepublicid */
+      casePublicId: string;
+      /** Delta */
+      delta?: components["schemas"]["StateChangePublic"][];
+      /** Durationms */
+      durationMs?: number | null;
+      /** Errormessage */
+      errorMessage?: string | null;
+      /** Id */
+      id: string;
+      outcome: components["schemas"]["StepOutcome"];
+      /** Startedat */
+      startedAt?: string | null;
+      /** Statesnapshot */
+      stateSnapshot?: {
+        [key: string]: unknown;
+      } | null;
+      /** Steporder */
+      stepOrder: number;
+    };
+    /**
+     * RunSelectionItem
+     * @description One ``{caseId, selectedStepIds?}`` entry in the create-run selection.
+     *
+     *     ``selected_step_ids`` is optional — when ``None`` the runner picks every
+     *     active step on the case. M1c keeps this opt-in flag in the request envelope
+     *     so a future "rerun only failed steps" UI can wire through unchanged.
+     */
+    RunSelectionItem: {
+      /** Caseid */
+      caseId: string;
+      /** Selectedstepids */
+      selectedStepIds?: string[] | null;
+    };
+    /**
+     * RunStatus
+     * @enum {string}
+     */
+    RunStatus: "QUEUED" | "RUNNING" | "PASS" | "FAIL" | "CANCELLED" | "ERROR";
+    /**
+     * RunStepPublic
+     * @description One run step with its outcome + linked case public id (docs/API.md §3.5).
+     */
+    RunStepPublic: {
+      /** Case Id */
+      case_id: string;
+      /** Case Public Id */
+      case_public_id: string;
+      /** Case Name — the test case's title */
+      case_name?: string;
+      /** Title — human-readable step instruction */
+      title?: string;
+      /** Type — action | assertion | navigation | wait | api */
+      type?: string;
+      /** Completed At */
+      completed_at?: string | null;
+      /** Duration Ms */
+      duration_ms?: number | null;
+      /** Error Message */
+      error_message?: string | null;
+      /** Id */
+      id: string;
+      outcome: components["schemas"]["StepOutcome"];
+      /** Run Id */
+      run_id: string;
+      /** Started At */
+      started_at?: string | null;
+      /** Step Order */
+      step_order: number;
+    };
+    /**
+     * RunSummary
+     * @description Aggregate step outcomes for a run.
+     */
+    RunSummary: {
+      /** Duration Ms */
+      duration_ms?: number | null;
+      /** Failed Steps */
+      failed_steps: number;
+      /** Passed Steps */
+      passed_steps: number;
+      /** Total Steps */
+      total_steps: number;
+    };
+    /**
+     * RunTrigger
+     * @enum {string}
+     */
+    RunTrigger: "MANUAL" | "SCHEDULED" | "CI_PUSH" | "CI_PR" | "WEBHOOK" | "AGENT";
+    /**
+     * RunsSummary
+     * @description ``GET /runs/summary`` — counters for the Runs dashboard summary bar.
+     *
+     *     Field aliases are camelCase to match the M1b frontend client.
+     *     ``failed`` folds ``FAIL`` + ``ERROR``; ``avg_duration_ms`` is a workspace-wide
+     *     weighted mean across non-null durations.
+     */
+    RunsSummary: {
+      /**
+       * Active
+       * @description Runs currently in RUNNING state
+       */
+      active: number;
+      /** Avgdurationms */
+      avgDurationMs: number;
+      /**
+       * Failed
+       * @description FAIL + ERROR
+       */
+      failed: number;
+      /** Passed */
+      passed: number;
+      /** Queued */
+      queued: number;
+      /**
+       * Today
+       * @description Runs created since 00:00 UTC
+       */
+      today: number;
+    };
+    /**
+     * SecretsHint
+     * @description Redacted secret marker + last-4 hint (no full secret ever).
+     */
+    SecretsHint: {
+      /** Hint */
+      hint?: string | null;
+      /**
+       * Redacted
+       * @default true
+       */
+      redacted: boolean;
+    };
+    /**
+     * Severity
+     * @enum {string}
+     */
+    Severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+    /**
+     * StateChangePublic
+     * @description One key-level state change at a replay step (M5-1).
+     */
+    StateChangePublic: {
+      /** After */
+      after?: string | null;
+      /** Before */
+      before?: string | null;
+      /**
+       * Op
+       * @description added | removed | changed
+       */
+      op: string;
+      /** Path */
+      path: string;
+    };
+    /**
+     * StepAppend
+     * @description Body shape for ``POST /test-cases/:id/steps`` — ``order`` always ignored.
+     */
+    StepAppend: {
+      /** Action */
+      action: string;
+      /** Code */
+      code?: string | null;
+      /** Data */
+      data?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Expected
+       * @default
+       */
+      expected: string;
+      /** Mcpprovider */
+      mcpProvider: string;
+      /** Order */
+      order?: number | null;
+      /** @default FE_WEB */
+      targetKind: components["schemas"]["TargetKind"];
+    };
+    /**
+     * StepCreate
+     * @description One step inside a :class:`TestCaseCreate` / :class:`StepReplace` payload.
+     *
+     *     ``order`` is honoured if provided; otherwise the service assigns sequential
+     *     1-based positions in array order. ``code`` MAY be omitted in CLOUD / LOCAL
+     *     tiers (or when ``workspace.strict_zero_validation=false``); ZERO tier with
+     *     strict validation rejects via ``STEPS_REQUIRE_CODE_IN_ZERO_LLM``.
+     */
+    StepCreate: {
+      /** Action */
+      action: string;
+      /** Code */
+      code?: string | null;
+      /** Data */
+      data?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Expected
+       * @default
+       */
+      expected: string;
+      /** Mcpprovider */
+      mcpProvider: string;
+      /** Order */
+      order?: number | null;
+      /** @default FE_WEB */
+      targetKind: components["schemas"]["TargetKind"];
+    };
+    /**
+     * StepOutcome
+     * @enum {string}
+     */
+    StepOutcome: "PASS" | "FAIL" | "SKIP" | "ERROR" | "PENDING";
+    /**
+     * StepReorderRequest
+     * @description Body for ``PATCH /test-cases/:id/steps/reorder`` (docs/API.md §3.3).
+     */
+    StepReorderRequest: {
+      /** Stepidsinorder */
+      stepIdsInOrder?: string[];
+    };
+    /**
+     * StepReplace
+     * @description Body for ``PATCH /test-cases/:id/steps`` — atomic replace.
+     */
+    StepReplace: {
+      /** Steps */
+      steps?: components["schemas"]["StepCreate"][];
+    };
+    /** StrategyAlternative */
+    StrategyAlternative: {
+      /**
+       * Requires Tier
+       * @enum {string}
+       */
+      requires_tier: "ZERO" | "LOCAL" | "CLOUD";
+      strategy: components["schemas"]["RecommendedStrategy"];
+    };
+    /**
+     * SuiteCreate
+     * @description Body for ``POST /suites``.
+     *
+     *     ``order`` defaults to ``0``; callers usually leave it blank and let the
+     *     repository's ``order ASC, created_at DESC`` ordering position the suite.
+     */
+    SuiteCreate: {
+      /** Description */
+      description?: string | null;
+      /** Name */
+      name: string;
+      /**
+       * Order
+       * @default 0
+       */
+      order: number;
+      /** Projectid */
+      projectId: string;
+    };
+    /**
+     * SuitePublic
+     * @description A suite with its non-deleted ``case_count`` (set by the service).
+     */
+    SuitePublic: {
+      /** Case Count */
+      case_count: number;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Description */
+      description?: string | null;
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Order */
+      order: number;
+      /** Project Id */
+      project_id: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
+     * SuiteUpdate
+     * @description Body for ``PATCH /suites/:id`` (docs/API.md §3.4).
+     *
+     *     All fields optional; only ``model_dump(exclude_unset=True)`` keys are
+     *     applied. ``case_order`` (when present) drives an atomic reorder of every
+     *     active case in the suite — the submitted id set must match the live set
+     *     exactly or a 400 with ``details.missing`` / ``details.unknown`` lands.
+     */
+    SuiteUpdate: {
+      /** Caseorder */
+      caseOrder?: string[] | null;
+      /** Description */
+      description?: string | null;
+      /** Name */
+      name?: string | null;
+      /** Order */
+      order?: number | null;
+    };
+    /**
+     * SyncConflict
+     * @description One entry in :class:`SyncResult.conflicts` — local state diverges from remote.
+     *
+     *     Surfaces the defect public id + the local / remote DefectStatus strings so
+     *     the FE renders a clear "external system says X but Suitest says Y" prompt.
+     */
+    SyncConflict: {
+      /** Defect Public Id */
+      defect_public_id: string;
+      /** External Id */
+      external_id: string;
+      /** Local Status */
+      local_status: string;
+      /** Remote Status */
+      remote_status: string;
+    };
+    /**
+     * SyncResult
+     * @description ``POST /integrations/:id/sync`` response.
+     *
+     *     ``synced`` counts defects whose ``status`` was updated to match the remote
+     *     system. ``conflicts`` lists defects whose remote state could not be applied
+     *     without overwriting a manual change (e.g. local CLOSED, remote OPEN → the
+     *     sync respects manual override). ``skipped`` counts defects ignored because
+     *     they were already in a terminal status.
+     */
+    SyncResult: {
+      /** Conflicts */
+      conflicts?: components["schemas"]["SyncConflict"][];
+      /**
+       * Skipped
+       * @default 0
+       */
+      skipped: number;
+      /**
+       * Synced
+       * @default 0
+       */
+      synced: number;
+    };
+    /**
+     * TargetKind
+     * @enum {string}
+     */
+    TargetKind:
+      | "BE_REST"
+      | "BE_GRAPHQL"
+      | "BE_GRPC"
+      | "FE_WEB"
+      | "FE_MOBILE"
+      | "DATA"
+      | "INFRA"
+      | "CUSTOM";
+    /**
+     * TestCaseCreate
+     * @description Body for ``POST /test-cases`` (docs/API.md §3.3 — sample request).
+     */
+    TestCaseCreate: {
+      /** Description */
+      description?: string | null;
+      /** Name */
+      name: string;
+      /** Preconditions */
+      preconditions?: string | null;
+      /** @default P2 */
+      priority: components["schemas"]["Priority"];
+      /** @default MANUAL */
+      source: components["schemas"]["CaseSource"];
+      /** @default ACTIVE */
+      status: components["schemas"]["CaseStatus"];
+      /** Steps */
+      steps?: components["schemas"]["StepCreate"][];
+      /** Suiteid */
+      suiteId: string;
+      /** Tags */
+      tags?: string[];
+    };
+    /**
+     * TestCaseDetail
+     * @description Detail — adds steps (with ``executable``) + tags.
+     */
+    TestCaseDetail: {
+      /** Automation Code */
+      automation_code?: string | null;
+      /** Automation File Path */
+      automation_file_path?: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Description */
+      description?: string | null;
+      /** Id */
+      id: string;
+      /** Last Duration Ms */
+      last_duration_ms?: number | null;
+      /**
+       * Last Run At
+       * Format: date-time
+       */
+      last_run_at?: string | null;
+      /** Last Run Id */
+      last_run_id?: string | null;
+      /** Last Run Result */
+      last_run_result?: string | null;
+      /** Name */
+      name: string;
+      /** Owner Id */
+      owner_id?: string | null;
+      /** Preconditions */
+      preconditions?: string | null;
+      priority: components["schemas"]["Priority"];
+      /** Public Id */
+      public_id: string;
+      source: components["schemas"]["CaseSource"];
+      status: components["schemas"]["CaseStatus"];
+      /** Steps */
+      steps?: components["schemas"]["TestStepPublic"][];
+      /** Suite Id */
+      suite_id: string;
+      /** Tags */
+      tags?: string[];
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
+     * TestCaseListItem
+     * @description List row — metadata only, no steps (docs/API.md §3.3).
+     */
+    TestCaseListItem: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Description */
+      description?: string | null;
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Owner Id */
+      owner_id?: string | null;
+      priority: components["schemas"]["Priority"];
+      /** Public Id */
+      public_id: string;
+      source: components["schemas"]["CaseSource"];
+      status: components["schemas"]["CaseStatus"];
+      /** Suite Id */
+      suite_id: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
+     * TestCaseSearchHit
+     * @description One semantic/lexical search result (M4-2).
+     */
+    TestCaseSearchHit: {
+      /** Caseid */
+      caseId: string;
+      /** Name */
+      name: string;
+      /** Score */
+      score: number;
+    };
+    /**
+     * TestCaseUpdate
+     * @description Body for ``PATCH /test-cases/:id`` — metadata + tag replace.
+     *
+     *     All fields optional; only ``model_dump(exclude_unset=True)`` keys are
+     *     applied. Tags, if provided, replace the existing set in full.
+     */
+    TestCaseUpdate: {
+      /** Description */
+      description?: string | null;
+      /** Name */
+      name?: string | null;
+      /** Preconditions */
+      preconditions?: string | null;
+      priority?: components["schemas"]["Priority"] | null;
+      status?: components["schemas"]["CaseStatus"] | null;
+      /** Tags */
+      tags?: string[] | null;
+    };
+    /** TestStepPublic */
+    TestStepPublic: {
+      /** Action */
+      action: string;
+      /** Case Id */
+      case_id: string;
+      /** Code */
+      code?: string | null;
+      /** Data */
+      data?: {
+        [key: string]: unknown;
+      } | null;
+      /** Executable */
+      executable: boolean;
+      /** Expected */
+      expected: string;
+      /** Id */
+      id: string;
+      /** Mcp Provider */
+      mcp_provider: string;
+      /** Order */
+      order: number;
+      target_kind: components["schemas"]["TargetKind"];
+    };
+    /**
+     * Tier
+     * @description Capability tier resolved from env.
+     * @enum {string}
+     */
+    Tier: "ZERO" | "LOCAL" | "CLOUD";
+    /**
+     * TraceabilityMatrix
+     * @description ``GET /traceability/matrix`` — grid view payload (docs/API.md §3.7).
+     */
+    TraceabilityMatrix: {
+      /** Cases */
+      cases?: components["schemas"]["MatrixCase"][];
+      /** Defects */
+      defects?: components["schemas"]["MatrixDefect"][];
+      /** Requirements */
+      requirements?: components["schemas"]["MatrixRequirement"][];
+    };
+    /**
+     * UrlSemanticGenerateRequest
+     * @description LLM-driven semantic URL generation (M3-7) — CLOUD/LOCAL only.
+     *
+     *     Decomposes a natural-language ``intent`` ("checkout flow") into FE_WEB
+     *     journey cases on ``url``. Steps are agentic browser actions driven by
+     *     ``playwright-mcp`` (code translated at execution time, M3-10).
+     */
+    UrlSemanticGenerateRequest: {
+      /** Intent */
+      intent: string;
+      /**
+       * Max Cases
+       * @default 20
+       */
+      max_cases: number;
+      /** Seed */
+      seed?: number | null;
+      /** Target Suite Id */
+      target_suite_id: string;
+      /** Url */
+      url: string;
+    };
+    /**
+     * UserRead
+     * @description Outbound user representation.
+     */
+    UserRead: {
+      /**
+       * Email
+       * Format: email
+       */
+      email: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Is Active
+       * @default true
+       */
+      is_active: boolean;
+      /**
+       * Is Superuser
+       * @default false
+       */
+      is_superuser: boolean;
+      /**
+       * Is Verified
+       * @default false
+       */
+      is_verified: boolean;
+    };
+    /**
+     * UserUpdate
+     * @description Inbound payload for PATCH /users/me.
+     */
+    UserUpdate: {
+      /** Email */
+      email?: string | null;
+      /** Is Active */
+      is_active?: boolean | null;
+      /** Is Superuser */
+      is_superuser?: boolean | null;
+      /** Is Verified */
+      is_verified?: boolean | null;
+      /** Password */
+      password?: string | null;
+    };
+    /** ValidationError */
+    ValidationError: {
+      /** Context */
+      ctx?: Record<string, never>;
+      /** Input */
+      input?: unknown;
+      /** Location */
+      loc: (string | number)[];
+      /** Message */
+      msg: string;
+      /** Error Type */
+      type: string;
+    };
+    /**
+     * WebhookEnqueuedResponse
+     * @description 202 response when the webhook successfully enqueues a gating run.
+     */
+    WebhookEnqueuedResponse: {
+      /** Publicid */
+      publicId: string;
+      /** Runid */
+      runId: string;
+      /** Statusurl */
+      statusUrl: string;
+    };
+    /**
+     * WebhookIgnoredResponse
+     * @description 200 response when the receiver intentionally drops the event.
+     *
+     *     ``reason`` is a stable machine-readable string so dashboards and CI plugins
+     *     can branch on it without parsing free-form messages. Known reasons:
+     *
+     *     * ``duplicate`` — Redis SETNX dedup hit within the TTL window.
+     *     * ``no_gating_suite`` — neither ``gating_suite_id`` nor any ``smoke``-tagged
+     *       cases are configured for the project (Q4 default).
+     *     * ``unsupported_event`` — webhook event kind isn't one the receiver acts on.
+     *     * ``unsupported_action`` — Merge Request / PR action that does not enqueue a run.
+     *     * ``branch_deleted`` — GitHub push with ``deleted=true``.
+     *     * ``unknown_issue`` — no local defect carries the inbound issue key.
+     *     * ``unmappable_status`` — adapter's status map returned ``None`` for the
+     *       external status name.
+     *     * ``no_status_change`` — mapped status already matches the local defect's
+     *       status (idempotent replay).
+     */
+    WebhookIgnoredResponse: {
+      /**
+       * Ignored
+       * @default true
+       */
+      ignored: boolean;
+      /** Reason */
+      reason: string;
+    };
+    /**
+     * WebhookPingResponse
+     * @description 200 response to a GitHub ``ping`` event.
+     *
+     *     GitHub fires ``ping`` when a hook is first registered; returning
+     *     ``{pong: true}`` matches GitHub's documented expectation and unblocks the
+     *     hook-config UI's "Recent Deliveries" smoke check.
+     */
+    WebhookPingResponse: {
+      /**
+       * Pong
+       * @default true
+       */
+      pong: boolean;
+    };
+    /**
+     * WorkspaceDeleteAccepted
+     * @description ``DELETE /workspaces/:id`` 202 response — cleanup is asynchronous.
+     */
+    WorkspaceDeleteAccepted: {
+      /** Cleanup Job Id */
+      cleanup_job_id: string;
+      /**
+       * Status
+       * @default QUEUED
+       */
+      status: string;
+    };
+    /**
+     * WorkspaceDeleteConfirm
+     * @description ``DELETE /workspaces/:id`` body — slug-typed-confirm guard.
+     */
+    WorkspaceDeleteConfirm: {
+      /** Confirm Slug */
+      confirm_slug: string;
+    };
+    /**
+     * WorkspaceDetail
+     * @description ``GET /workspaces/:id`` — Settings General tab consumes the extra fields.
+     */
+    WorkspaceDetail: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Description */
+      description?: string | null;
+      /** Id */
+      id: string;
+      /** Mcp Routing Overrides */
+      mcp_routing_overrides?: {
+        [key: string]: unknown;
+      };
+      /** Name */
+      name: string;
+      /** Region */
+      region: string;
+      /** Slug */
+      slug: string;
+      /**
+       * Strict Zero Validation
+       * @default true
+       */
+      strict_zero_validation: boolean;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
+     * WorkspaceExportAccepted
+     * @description ``POST /workspaces/:id/export`` 202 response — archive assembled async (M4-29).
+     */
+    WorkspaceExportAccepted: {
+      /** Export Job Id */
+      export_job_id: string;
+      /**
+       * Status
+       * @default QUEUED
+       */
+      status: string;
+    };
+    /**
+     * WorkspaceExportStatus
+     * @description ``GET /workspaces/:id/export/:job_id`` — poll result, surfaces the signed URL.
+     */
+    WorkspaceExportStatus: {
+      /** Download Url */
+      download_url?: string | null;
+      /** Error */
+      error?: string | null;
+      /** Size Bytes */
+      size_bytes?: number | null;
+      /** Status */
+      status: string;
+    };
+    /**
+     * WorkspaceMemberInvite
+     * @description ``POST /workspaces/:id/members`` body — invite by email + role.
+     */
+    WorkspaceMemberInvite: {
+      /**
+       * Email
+       * Format: email
+       */
+      email: string;
+      role: components["schemas"]["Role"];
+    };
+    /**
+     * WorkspaceMemberPublic
+     * @description One row of ``GET /workspaces/:id/members``.
+     */
+    WorkspaceMemberPublic: {
+      /** Email */
+      email: string;
+      /**
+       * Joined At
+       * Format: date-time
+       */
+      joined_at: string;
+      /** Name */
+      name: string;
+      role: components["schemas"]["Role"];
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
+    };
+    /**
+     * WorkspaceMemberRoleUpdate
+     * @description ``PATCH /workspaces/:id/members/:user_id`` body.
+     */
+    WorkspaceMemberRoleUpdate: {
+      role: components["schemas"]["Role"];
+    };
+    /**
+     * WorkspacePublic
+     * @description Workspace summary used in lists + as the nested object in a membership.
+     */
+    WorkspacePublic: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Region */
+      region: string;
+      /** Slug */
+      slug: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
+     * _BulkDeletePayload
+     * @description ``delete`` action — empty payload. Accept `{}` and absent keys both.
+     */
+    _BulkDeletePayload: Record<string, never>;
+    /**
+     * _BulkMoveToSuitePayload
+     * @description ``move_to_suite`` action — target suite id (must be same workspace).
+     */
+    _BulkMoveToSuitePayload: {
+      /** Suiteid */
+      suiteId: string;
+    };
+    /**
+     * _BulkSetPriorityPayload
+     * @description ``set_priority`` action — wire format uses the :class:`Priority` enum.
+     */
+    _BulkSetPriorityPayload: {
+      priority: components["schemas"]["Priority"];
+    };
+    /**
+     * _BulkTagsPayload
+     * @description ``add_tags`` / ``remove_tags`` shared payload — ``tags: list[str]``.
+     */
+    _BulkTagsPayload: {
+      /** Tags */
+      tags: string[];
+    };
+    /**
+     * McpProviderPublic
+     * @description Summary row — name + transport + health + tool names (no secrets).
+     */
+    suitest_api__routers__mcp_providers__McpProviderPublic: {
+      /**
+       * Enabled
+       * @default true
+       */
+      enabled: boolean;
+      /** Endpoint */
+      endpoint: string;
+      /**
+       * Healthstatus
+       * @default unknown
+       */
+      healthStatus: string;
+      /** Id */
+      id: string;
+      /**
+       * Isbundled
+       * @default false
+       */
+      isBundled: boolean;
+      /** Isdefaultfortarget */
+      isDefaultForTarget?: {
+        [key: string]: boolean;
+      };
+      /** Kind */
+      kind: string;
+      /** Lasthealthat */
+      lastHealthAt?: string | null;
+      /** Name */
+      name: string;
+      /** Tools */
+      tools?: components["schemas"]["McpProviderTool"][];
+      /** Transport */
+      transport: string;
+    };
+    /**
+     * McpProviderPublic
+     * @description Public MCP provider entry — same shape as ``GET /mcp/providers`` rows.
+     */
+    suitest_shared__schemas__capabilities__McpProviderPublic: {
+      /**
+       * Health
+       * @default unknown
+       */
+      health: string;
+      /** Id */
+      id: string;
+      /**
+       * Isdefault
+       * @default false
+       */
+      isDefault: boolean;
+      /** Kind */
+      kind: string;
+      /** Name */
+      name: string;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_password_reset_requests_api_v1_admin_password_reset_requests_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PasswordResetRequestsEnvelope"];
-                };
-            };
-        };
-    };
-    reset_user_password_api_v1_admin_users__user_id__reset_password_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ResetPasswordResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    agent_chat_api_v1_agent_chat_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChatRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    analytics_coverage_api_v1_analytics_coverage_get: {
-        parameters: {
-            query: {
-                projectId: string;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CoverageOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    analytics_flaky_api_v1_analytics_flaky_get: {
-        parameters: {
-            query: {
-                projectId: string;
-                minRate?: number;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FlakyCaseOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    analytics_heatmap_api_v1_analytics_heatmap_get: {
-        parameters: {
-            query: {
-                projectId: string;
-                period?: string;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HeatmapCell"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    analytics_kpis_api_v1_analytics_kpis_get: {
-        parameters: {
-            query: {
-                projectId: string;
-                period?: string;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KpisOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    analytics_pass_rate_api_v1_analytics_pass_rate_get: {
-        parameters: {
-            query: {
-                projectId: string;
-                period?: string;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PassRateSeriesOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    analytics_readiness_api_v1_analytics_readiness_get: {
-        parameters: {
-            query: {
-                projectId: string;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReadinessOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_audit_logs_api_v1_audit_logs_get: {
-        parameters: {
-            query?: {
-                /** @description Opaque cursor from a prior page. */
-                cursor?: string | null;
-                /** @description Glob filter (e.g. 'integration.*'). */
-                action?: string | null;
-                /** @description Exact resource_type filter. */
-                resource_type?: string | null;
-                /** @description Exact UUID actor filter. */
-                user_id?: string | null;
-                /** @description ISO-8601 lower bound (inclusive). */
-                from?: string | null;
-                /** @description ISO-8601 upper bound (inclusive). */
-                to?: string | null;
-                /** @description Page size; 1..200, default 50. */
-                limit?: number;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuditLogsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    restore_audit_month_api_v1_audit_restore_post: {
-        parameters: {
-            query: {
-                /** @description Archived month to restore, 'YYYY-MM'. */
-                from: string;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    accept_invitation_api_v1_auth_accept_invite_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AcceptInviteRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AcceptInviteResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_me_api_v1_auth_me_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MeResponse"];
-                };
-            };
-        };
-    };
-    list_defects_api_v1_defects_get: {
-        parameters: {
-            query?: {
-                status?: components["schemas"]["DefectStatus"] | null;
-                severity?: components["schemas"]["Severity"] | null;
-                assigneeId?: string | null;
-                component?: string | null;
-                cursor?: string | null;
-                limit?: number;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_DefectListItem_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_defect_api_v1_defects_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DefectCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DefectDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_defect_api_v1_defects__defect_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                defect_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DefectDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_defect_api_v1_defects__defect_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                defect_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DefectUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DefectDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    sync_defect_external_api_v1_defects__defect_id__sync_external_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                defect_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DefectDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_defect_timeline_api_v1_defects__defect_id__timeline_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                defect_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DefectTimelineEntry"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_documents_api_v1_documents_get: {
-        parameters: {
-            query?: {
-                kind?: components["schemas"]["DocumentKind"] | null;
-                cursor?: string | null;
-                limit?: number;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_DocumentListItem_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_document_api_v1_documents__document_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                document_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DocumentDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_eval_fixtures_api_v1_eval_fixtures_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EvalFixturesEnvelope"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_eval_runs_api_v1_eval_runs_get: {
-        parameters: {
-            query?: {
-                suite?: string | null;
-                limit?: number;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EvalRunListEnvelope"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_eval_run_api_v1_eval_runs_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EvalRunRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EvalRunPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_eval_run_api_v1_eval_runs__eval_run_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                eval_run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EvalRunPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    classify_input_api_v1_generators_classify_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GenerationInput"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClassificationResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    generate_crawler_api_v1_generators_crawler_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CrawlerGenerateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    generate_mcp_discovery_api_v1_generators_mcp_discovery_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["McpDiscoveryGenerateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    generate_openapi_api_v1_generators_openapi_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OpenApiGenerateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    generate_prd_api_v1_generators_prd_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PrdGenerateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    start_recorder_session_api_v1_generators_recorder_sessions_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RecorderSessionStartRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecorderSessionStartResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    cancel_recorder_session_api_v1_generators_recorder_sessions__session_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    finalize_recorder_session_api_v1_generators_recorder_sessions__session_id__finalize_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RecorderFinalizeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TestCaseDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    generate_url_semantic_api_v1_generators_url_semantic_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UrlSemanticGenerateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_inbox_api_v1_inbox_get: {
-        parameters: {
-            query?: {
-                status?: string;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboxResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_integrations_api_v1_integrations_get: {
-        parameters: {
-            query?: {
-                kind?: components["schemas"]["IntegrationKind"] | null;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IntegrationListItem"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_integration_api_v1_integrations_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["IntegrationCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IntegrationRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    test_github_pre_save_api_v1_integrations_github_test_connection_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GitHubTestConnectionRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionTestResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    test_jira_pre_save_api_v1_integrations_jira_test_connection_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JiraTestConnectionRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionTestResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_integration_api_v1_integrations__integration_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                integration_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IntegrationDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_integration_api_v1_integrations__integration_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                integration_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_integration_api_v1_integrations__integration_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                integration_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["IntegrationUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IntegrationRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    sync_integration_api_v1_integrations__integration_id__sync_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                integration_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SyncResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    test_integration_api_v1_integrations__integration_id__test_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                integration_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConnectionTestResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    validate_invitation_api_v1_invitations_validate_get: {
-        parameters: {
-            query: {
-                token: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InvitationValidateResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resend_invitation_api_v1_invitations__invitation_id__resend_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                invitation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InvitationOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    revoke_invitation_api_v1_invitations__invitation_id__revoke_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                invitation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_mcp_providers_api_v1_mcp_providers_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["McpProvidersResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_mcp_provider_api_v1_mcp_providers_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["McpProviderCreateBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["McpProviderDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    test_mcp_connection_api_v1_mcp_providers_test_connection_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["McpProviderCreateBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["McpProviderProbeResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_mcp_provider_api_v1_mcp_providers__provider_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                provider_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["McpProviderDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_mcp_provider_api_v1_mcp_providers__provider_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                provider_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_mcp_provider_api_v1_mcp_providers__provider_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                provider_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["McpProviderUpdateBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["McpProviderDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    discover_mcp_provider_api_v1_mcp_providers__provider_id__discover_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                provider_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["McpProviderDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    invoke_mcp_provider_api_v1_mcp_providers__provider_id__invoke_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                provider_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["McpInvokeBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["McpInvokeResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_mcp_routing_api_v1_mcp_routing_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["McpRoutingResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    put_mcp_routing_api_v1_mcp_routing_put: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["McpRoutingUpdateBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["McpRoutingResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_projects_api_v1_projects_get: {
-        parameters: {
-            query?: {
-                cursor?: string | null;
-                limit?: number;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_ProjectPublic_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_project_api_v1_projects_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProjectCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_project_api_v1_projects__project_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_project_api_v1_projects__project_id__delete: {
-        parameters: {
-            query?: {
-                confirmCascade?: boolean;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_project_api_v1_projects__project_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProjectUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    restore_project_api_v1_projects__project_id__restore_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                project_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_prompt_experiments_api_v1_prompt_experiments_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptExperimentListEnvelope"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_prompt_experiment_api_v1_prompt_experiments_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PromptExperimentCreateBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptExperimentPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    record_experiment_outcome_api_v1_prompt_experiments__experiment_id__outcome_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                experiment_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExperimentOutcomeBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptExperimentPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    stop_prompt_experiment_api_v1_prompt_experiments__experiment_id__stop_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                experiment_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptExperimentPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_default_prompts_api_v1_prompts_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptListEnvelope"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_prompt_fork_api_v1_prompts_forks__override_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                override_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    activate_prompt_fork_api_v1_prompts_forks__override_id__activate_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                override_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptForkPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_prompt_detail_api_v1_prompts__prompt_name__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                prompt_name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptDetailPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_prompt_fork_api_v1_prompts__prompt_name__forks_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                prompt_name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PromptForkCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PromptForkPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_requirements_api_v1_requirements_get: {
-        parameters: {
-            query: {
-                projectId: string;
-                cursor?: string | null;
-                limit?: number;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_RequirementListItem_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_requirement_api_v1_requirements_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RequirementCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RequirementDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_requirement_api_v1_requirements__requirement_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                requirement_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RequirementDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_requirement_api_v1_requirements__requirement_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                requirement_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_requirement_api_v1_requirements__requirement_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                requirement_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RequirementUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RequirementDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_requirement_link_api_v1_requirements__requirement_id__links_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                requirement_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RequirementLinkCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_requirement_link_api_v1_requirements__requirement_id__links__case_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                requirement_id: string;
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    restore_requirement_api_v1_requirements__requirement_id__restore_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                requirement_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_runs_api_v1_runs_get: {
-        parameters: {
-            query: {
-                projectId: string;
-                status?: components["schemas"]["RunStatus"] | null;
-                branch?: string | null;
-                env?: string | null;
-                cursor?: string | null;
-                limit?: number;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_RunListItem_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_run_api_v1_runs_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateRunBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_runs_summary_api_v1_runs_summary_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunsSummary"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_run_api_v1_runs__run_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_run_artifacts_api_v1_runs__run_id__artifacts_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ArtifactPublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_artifact_signed_url_api_v1_runs__run_id__artifacts__artifact_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                run_id: string;
-                artifact_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ArtifactSignedUrl"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    cancel_run_api_v1_runs__run_id__cancel_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_run_logs_api_v1_runs__run_id__logs_get: {
-        parameters: {
-            query?: {
-                cursor?: number;
-                limit?: number;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunLogPage"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_run_network_api_v1_runs__run_id__network_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunNetworkResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_run_replay_api_v1_runs__run_id__replay_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunReplayResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    rerun_run_api_v1_runs__run_id__rerun_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_run_steps_api_v1_runs__run_id__steps_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunStepPublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_suites_api_v1_suites_get: {
-        parameters: {
-            query: {
-                projectId: string;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuitePublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_suite_api_v1_suites_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SuiteCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuitePublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_suite_api_v1_suites__suite_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                suite_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuitePublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_suite_api_v1_suites__suite_id__delete: {
-        parameters: {
-            query?: {
-                confirmCascade?: boolean;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                suite_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_suite_api_v1_suites__suite_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                suite_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SuiteUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SuitePublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    restore_suite_api_v1_suites__suite_id__restore_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                suite_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_test_cases_api_v1_test_cases_get: {
-        parameters: {
-            query?: {
-                suiteId?: string | null;
-                projectId?: string | null;
-                status?: components["schemas"]["CaseStatus"] | null;
-                source?: components["schemas"]["CaseSource"] | null;
-                priority?: components["schemas"]["Priority"] | null;
-                tag?: string | null;
-                q?: string | null;
-                cursor?: string | null;
-                limit?: number;
-                includeDeleted?: boolean;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_TestCaseListItem_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_test_case_api_v1_test_cases_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TestCaseCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TestCaseDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    bulk_update_test_cases_api_v1_test_cases_bulk_update_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BulkDeleteRequest"] | components["schemas"]["BulkMoveToSuiteRequest"] | components["schemas"]["BulkSetPriorityRequest"] | components["schemas"]["BulkAddTagsRequest"] | components["schemas"]["BulkRemoveTagsRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BulkUpdateResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    search_test_cases_api_v1_test_cases_search_get: {
-        parameters: {
-            query: {
-                /** @description Natural-language query. */
-                q: string;
-                limit?: number;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TestCaseSearchHit"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_test_case_api_v1_test_cases__case_id__get: {
-        parameters: {
-            query?: {
-                includeDeleted?: boolean;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TestCaseDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_test_case_api_v1_test_cases__case_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_test_case_api_v1_test_cases__case_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "If-Unmodified-Since"?: string | null;
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TestCaseUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TestCaseDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    duplicate_test_case_api_v1_test_cases__case_id__duplicate_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TestCaseDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    restore_test_case_api_v1_test_cases__case_id__restore_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    run_test_case_now_api_v1_test_cases__case_id__run_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdHocRunResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_test_case_steps_api_v1_test_cases__case_id__steps_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TestStepPublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    append_test_case_step_api_v1_test_cases__case_id__steps_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StepAppend"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TestCaseDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    replace_test_case_steps_api_v1_test_cases__case_id__steps_patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "If-Unmodified-Since"?: string | null;
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StepReplace"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TestCaseDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reorder_test_case_steps_api_v1_test_cases__case_id__steps_reorder_patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "If-Unmodified-Since"?: string | null;
-                "X-Workspace-Id"?: string | null;
-            };
-            path: {
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StepReorderRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TestCaseDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    traceability_matrix_api_v1_traceability_matrix_get: {
-        parameters: {
-            query: {
-                projectId: string;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TraceabilityMatrix"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    change_own_password_api_v1_users_me_password_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChangePasswordRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    receive_github_api_v1_webhooks_github_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Hub-Signature-256"?: string | null;
-                "X-GitHub-Event"?: string | null;
-                "X-GitHub-Delivery"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Event accepted — either ``ping`` (`{pong: true}`) or an event the receiver intentionally drops (``{ignored: true, reason: ...}``). */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WebhookEnqueuedResponse"] | components["schemas"]["WebhookIgnoredResponse"] | components["schemas"]["WebhookPingResponse"];
-                };
-            };
-            /** @description Gating run enqueued */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WebhookEnqueuedResponse"];
-                };
-            };
-            /** @description Signature missing or HMAC mismatch */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No matching project for the integration */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    receive_gitlab_api_v1_webhooks_gitlab_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Gitlab-Token"?: string | null;
-                "X-Gitlab-Event"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Event accepted but no run enqueued */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WebhookIgnoredResponse"];
-                };
-            };
-            /** @description Gating run enqueued */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WebhookEnqueuedResponse"];
-                };
-            };
-            /** @description Token missing or mismatch */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No matching project for the integration */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    receive_jira_api_v1_webhooks_jira_post: {
-        parameters: {
-            query?: {
-                /** @description URL-embedded webhook secret */
-                secret?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Event accepted but no update applied */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WebhookIgnoredResponse"];
-                };
-            };
-            /** @description Defect status synced from Jira */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JiraSyncedResponse"];
-                };
-            };
-            /** @description Payload failed schema validation */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Secret missing or mismatch */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_workspaces_api_v1_workspaces_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspacePublic"][];
-                };
-            };
-        };
-    };
-    import_workspace_api_v1_workspaces_import_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_import_workspace_api_v1_workspaces_import_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_autonomy_api_v1_workspaces__workspaceId__autonomy_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AutonomyResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    put_autonomy_api_v1_workspaces__workspaceId__autonomy_put: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AutonomyUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AutonomyResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_workspace_cost_api_v1_workspaces__workspaceId__cost_get: {
-        parameters: {
-            query?: {
-                windowDays?: number;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CostSummaryOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_llm_config_api_v1_workspaces__workspaceId__llm_config_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LLMConfigPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    put_llm_config_api_v1_workspaces__workspaceId__llm_config_put: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LLMConfigWriteBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LLMConfigPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_llm_config_api_v1_workspaces__workspaceId__llm_config_delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_llm_models_api_v1_workspaces__workspaceId__llm_config_models_get: {
-        parameters: {
-            query: {
-                provider: string;
-            };
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LLMModelsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    test_llm_config_api_v1_workspaces__workspaceId__llm_config_test_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LLMConfigWriteBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LLMTestResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_workspace_api_v1_workspaces__workspace_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_workspace_api_v1_workspaces__workspace_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkspaceDeleteConfirm"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceDeleteAccepted"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_workspace_api_v1_workspaces__workspace_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    export_workspace_api_v1_workspaces__workspace_id__export_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceExportAccepted"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_workspace_export_api_v1_workspaces__workspace_id__export__job_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceExportStatus"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_invitations_api_v1_workspaces__workspace_id__invitations_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InvitationListEnvelope"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_invitation_api_v1_workspaces__workspace_id__invitations_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InvitationCreateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InvitationOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_workspace_members_api_v1_workspaces__workspace_id__members_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceMemberPublic"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    invite_workspace_member_api_v1_workspaces__workspace_id__members_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkspaceMemberInvite"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceMemberPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    remove_workspace_member_api_v1_workspaces__workspace_id__members__user_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    change_workspace_member_role_api_v1_workspaces__workspace_id__members__user_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspace_id: string;
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkspaceMemberRoleUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceMemberPublic"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    auth_cookie_jwt_login_auth_cookie_login_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_auth_cookie_jwt_login_auth_cookie_login_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    auth_cookie_jwt_logout_auth_cookie_logout_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Missing token or inactive user. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    reset_forgot_password_auth_forgot_password_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Body_reset_forgot_password_auth_forgot_password_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    oauth_google_cookie_jwt_authorize_auth_google_authorize_get: {
-        parameters: {
-            query?: {
-                scopes?: string[];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OAuth2AuthorizeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    oauth_google_cookie_jwt_callback_auth_google_callback_get: {
-        parameters: {
-            query?: {
-                code?: string | null;
-                code_verifier?: string | null;
-                state?: string | null;
-                error?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reset_reset_password_auth_reset_password_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Body_reset_reset_password_auth_reset_password_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_capabilities_capabilities_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Workspace-Id"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Capabilities"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_capabilities_health_capabilities_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-        };
-    };
-    health_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-        };
-    };
-    users_current_user_users_me_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserRead"];
-                };
-            };
-            /** @description Missing token or inactive user. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    users_patch_current_user_users_me_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserRead"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Missing token or inactive user. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    users_user_users__id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserRead"];
-                };
-            };
-            /** @description Missing token or inactive user. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not a superuser. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The user does not exist. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    users_delete_user_users__id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Missing token or inactive user. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not a superuser. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The user does not exist. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    users_patch_user_users__id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserRead"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Missing token or inactive user. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not a superuser. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The user does not exist. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
+  list_password_reset_requests_api_v1_admin_password_reset_requests_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PasswordResetRequestsEnvelope"];
+        };
+      };
+    };
+  };
+  reset_user_password_api_v1_admin_users__user_id__reset_password_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ResetPasswordResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  agent_chat_api_v1_agent_chat_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChatRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  analytics_coverage_api_v1_analytics_coverage_get: {
+    parameters: {
+      query: {
+        projectId: string;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CoverageOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  analytics_flaky_api_v1_analytics_flaky_get: {
+    parameters: {
+      query: {
+        projectId: string;
+        minRate?: number;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FlakyCaseOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  analytics_heatmap_api_v1_analytics_heatmap_get: {
+    parameters: {
+      query: {
+        projectId: string;
+        period?: string;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HeatmapCell"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  analytics_kpis_api_v1_analytics_kpis_get: {
+    parameters: {
+      query: {
+        projectId: string;
+        period?: string;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["KpisOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  analytics_pass_rate_api_v1_analytics_pass_rate_get: {
+    parameters: {
+      query: {
+        projectId: string;
+        period?: string;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PassRateSeriesOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  analytics_readiness_api_v1_analytics_readiness_get: {
+    parameters: {
+      query: {
+        projectId: string;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReadinessOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_audit_logs_api_v1_audit_logs_get: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a prior page. */
+        cursor?: string | null;
+        /** @description Glob filter (e.g. 'integration.*'). */
+        action?: string | null;
+        /** @description Exact resource_type filter. */
+        resource_type?: string | null;
+        /** @description Exact UUID actor filter. */
+        user_id?: string | null;
+        /** @description ISO-8601 lower bound (inclusive). */
+        from?: string | null;
+        /** @description ISO-8601 upper bound (inclusive). */
+        to?: string | null;
+        /** @description Page size; 1..200, default 50. */
+        limit?: number;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuditLogsResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  restore_audit_month_api_v1_audit_restore_post: {
+    parameters: {
+      query: {
+        /** @description Archived month to restore, 'YYYY-MM'. */
+        from: string;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  accept_invitation_api_v1_auth_accept_invite_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AcceptInviteRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AcceptInviteResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_me_api_v1_auth_me_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeResponse"];
+        };
+      };
+    };
+  };
+  list_defects_api_v1_defects_get: {
+    parameters: {
+      query?: {
+        status?: components["schemas"]["DefectStatus"] | null;
+        severity?: components["schemas"]["Severity"] | null;
+        assigneeId?: string | null;
+        component?: string | null;
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_DefectListItem_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_defect_api_v1_defects_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DefectCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DefectDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_defect_api_v1_defects__defect_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        defect_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DefectDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_defect_api_v1_defects__defect_id__patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        defect_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DefectUpdate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DefectDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  sync_defect_external_api_v1_defects__defect_id__sync_external_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        defect_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DefectDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_defect_timeline_api_v1_defects__defect_id__timeline_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        defect_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DefectTimelineEntry"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_documents_api_v1_documents_get: {
+    parameters: {
+      query?: {
+        kind?: components["schemas"]["DocumentKind"] | null;
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_DocumentListItem_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_document_api_v1_documents__document_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        document_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DocumentDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_eval_fixtures_api_v1_eval_fixtures_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EvalFixturesEnvelope"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_eval_runs_api_v1_eval_runs_get: {
+    parameters: {
+      query?: {
+        suite?: string | null;
+        limit?: number;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EvalRunListEnvelope"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_eval_run_api_v1_eval_runs_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["EvalRunRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EvalRunPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_eval_run_api_v1_eval_runs__eval_run_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        eval_run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EvalRunPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  classify_input_api_v1_generators_classify_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GenerationInput"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClassificationResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  generate_crawler_api_v1_generators_crawler_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CrawlerGenerateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  generate_mcp_discovery_api_v1_generators_mcp_discovery_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["McpDiscoveryGenerateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  generate_openapi_api_v1_generators_openapi_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OpenApiGenerateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  generate_prd_api_v1_generators_prd_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PrdGenerateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  start_recorder_session_api_v1_generators_recorder_sessions_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RecorderSessionStartRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RecorderSessionStartResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  cancel_recorder_session_api_v1_generators_recorder_sessions__session_id__delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        session_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  finalize_recorder_session_api_v1_generators_recorder_sessions__session_id__finalize_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        session_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RecorderFinalizeRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TestCaseDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  generate_url_semantic_api_v1_generators_url_semantic_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UrlSemanticGenerateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_inbox_api_v1_inbox_get: {
+    parameters: {
+      query?: {
+        status?: string;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InboxResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_integrations_api_v1_integrations_get: {
+    parameters: {
+      query?: {
+        kind?: components["schemas"]["IntegrationKind"] | null;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IntegrationListItem"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_integration_api_v1_integrations_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IntegrationCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IntegrationRead"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  test_github_pre_save_api_v1_integrations_github_test_connection_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GitHubTestConnectionRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ConnectionTestResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  test_jira_pre_save_api_v1_integrations_jira_test_connection_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["JiraTestConnectionRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ConnectionTestResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_integration_api_v1_integrations__integration_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        integration_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IntegrationDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_integration_api_v1_integrations__integration_id__delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        integration_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_integration_api_v1_integrations__integration_id__patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        integration_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IntegrationUpdate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["IntegrationRead"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  sync_integration_api_v1_integrations__integration_id__sync_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        integration_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SyncResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  test_integration_api_v1_integrations__integration_id__test_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        integration_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ConnectionTestResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  validate_invitation_api_v1_invitations_validate_get: {
+    parameters: {
+      query: {
+        token: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvitationValidateResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  resend_invitation_api_v1_invitations__invitation_id__resend_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        invitation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvitationOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  revoke_invitation_api_v1_invitations__invitation_id__revoke_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        invitation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_mcp_providers_api_v1_mcp_providers_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["McpProvidersResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_mcp_provider_api_v1_mcp_providers_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["McpProviderCreateBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["McpProviderDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  test_mcp_connection_api_v1_mcp_providers_test_connection_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["McpProviderCreateBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["McpProviderProbeResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_mcp_provider_api_v1_mcp_providers__provider_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        provider_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["McpProviderDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_mcp_provider_api_v1_mcp_providers__provider_id__delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        provider_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_mcp_provider_api_v1_mcp_providers__provider_id__patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        provider_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["McpProviderUpdateBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["McpProviderDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  discover_mcp_provider_api_v1_mcp_providers__provider_id__discover_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        provider_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["McpProviderDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  invoke_mcp_provider_api_v1_mcp_providers__provider_id__invoke_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        provider_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["McpInvokeBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["McpInvokeResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_mcp_routing_api_v1_mcp_routing_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["McpRoutingResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  put_mcp_routing_api_v1_mcp_routing_put: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["McpRoutingUpdateBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["McpRoutingResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_projects_api_v1_projects_get: {
+    parameters: {
+      query?: {
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_ProjectPublic_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_project_api_v1_projects_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProjectCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_project_api_v1_projects__project_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_project_api_v1_projects__project_id__delete: {
+    parameters: {
+      query?: {
+        confirmCascade?: boolean;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_project_api_v1_projects__project_id__patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProjectUpdate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  restore_project_api_v1_projects__project_id__restore_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_prompt_experiments_api_v1_prompt_experiments_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromptExperimentListEnvelope"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_prompt_experiment_api_v1_prompt_experiments_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PromptExperimentCreateBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromptExperimentPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  record_experiment_outcome_api_v1_prompt_experiments__experiment_id__outcome_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        experiment_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ExperimentOutcomeBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromptExperimentPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  stop_prompt_experiment_api_v1_prompt_experiments__experiment_id__stop_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        experiment_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromptExperimentPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_default_prompts_api_v1_prompts_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromptListEnvelope"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_prompt_fork_api_v1_prompts_forks__override_id__delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        override_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  activate_prompt_fork_api_v1_prompts_forks__override_id__activate_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        override_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromptForkPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_prompt_detail_api_v1_prompts__prompt_name__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        prompt_name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromptDetailPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_prompt_fork_api_v1_prompts__prompt_name__forks_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        prompt_name: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PromptForkCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromptForkPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_requirements_api_v1_requirements_get: {
+    parameters: {
+      query: {
+        projectId: string;
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_RequirementListItem_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_requirement_api_v1_requirements_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RequirementCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RequirementDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_requirement_api_v1_requirements__requirement_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        requirement_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RequirementDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_requirement_api_v1_requirements__requirement_id__delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        requirement_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_requirement_api_v1_requirements__requirement_id__patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        requirement_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RequirementUpdate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RequirementDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_requirement_link_api_v1_requirements__requirement_id__links_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        requirement_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RequirementLinkCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_requirement_link_api_v1_requirements__requirement_id__links__case_id__delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        requirement_id: string;
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  restore_requirement_api_v1_requirements__requirement_id__restore_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        requirement_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_runs_api_v1_runs_get: {
+    parameters: {
+      query: {
+        projectId: string;
+        status?: components["schemas"]["RunStatus"] | null;
+        branch?: string | null;
+        env?: string | null;
+        cursor?: string | null;
+        limit?: number;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_RunListItem_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_run_api_v1_runs_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateRunBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_runs_summary_api_v1_runs_summary_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunsSummary"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_run_api_v1_runs__run_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_run_artifacts_api_v1_runs__run_id__artifacts_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ArtifactPublic"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_artifact_signed_url_api_v1_runs__run_id__artifacts__artifact_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        run_id: string;
+        artifact_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ArtifactSignedUrl"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  cancel_run_api_v1_runs__run_id__cancel_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_run_logs_api_v1_runs__run_id__logs_get: {
+    parameters: {
+      query?: {
+        cursor?: number;
+        limit?: number;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunLogPage"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_run_network_api_v1_runs__run_id__network_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunNetworkResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_run_replay_api_v1_runs__run_id__replay_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunReplayResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  rerun_run_api_v1_runs__run_id__rerun_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_run_steps_api_v1_runs__run_id__steps_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunStepPublic"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_suites_api_v1_suites_get: {
+    parameters: {
+      query: {
+        projectId: string;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuitePublic"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_suite_api_v1_suites_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SuiteCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuitePublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_suite_api_v1_suites__suite_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        suite_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuitePublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_suite_api_v1_suites__suite_id__delete: {
+    parameters: {
+      query?: {
+        confirmCascade?: boolean;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        suite_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_suite_api_v1_suites__suite_id__patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        suite_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SuiteUpdate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuitePublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  restore_suite_api_v1_suites__suite_id__restore_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        suite_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_test_cases_api_v1_test_cases_get: {
+    parameters: {
+      query?: {
+        suiteId?: string | null;
+        projectId?: string | null;
+        status?: components["schemas"]["CaseStatus"] | null;
+        source?: components["schemas"]["CaseSource"] | null;
+        priority?: components["schemas"]["Priority"] | null;
+        tag?: string | null;
+        q?: string | null;
+        cursor?: string | null;
+        limit?: number;
+        includeDeleted?: boolean;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_TestCaseListItem_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_test_case_api_v1_test_cases_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TestCaseCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TestCaseDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  bulk_update_test_cases_api_v1_test_cases_bulk_update_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json":
+          | components["schemas"]["BulkDeleteRequest"]
+          | components["schemas"]["BulkMoveToSuiteRequest"]
+          | components["schemas"]["BulkSetPriorityRequest"]
+          | components["schemas"]["BulkAddTagsRequest"]
+          | components["schemas"]["BulkRemoveTagsRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BulkUpdateResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  search_test_cases_api_v1_test_cases_search_get: {
+    parameters: {
+      query: {
+        /** @description Natural-language query. */
+        q: string;
+        limit?: number;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TestCaseSearchHit"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_test_case_api_v1_test_cases__case_id__get: {
+    parameters: {
+      query?: {
+        includeDeleted?: boolean;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TestCaseDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_test_case_api_v1_test_cases__case_id__delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_test_case_api_v1_test_cases__case_id__patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "If-Unmodified-Since"?: string | null;
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TestCaseUpdate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TestCaseDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  duplicate_test_case_api_v1_test_cases__case_id__duplicate_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TestCaseDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  restore_test_case_api_v1_test_cases__case_id__restore_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  run_test_case_now_api_v1_test_cases__case_id__run_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdHocRunResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_test_case_steps_api_v1_test_cases__case_id__steps_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TestStepPublic"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  append_test_case_step_api_v1_test_cases__case_id__steps_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StepAppend"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TestCaseDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  replace_test_case_steps_api_v1_test_cases__case_id__steps_patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "If-Unmodified-Since"?: string | null;
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StepReplace"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TestCaseDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reorder_test_case_steps_api_v1_test_cases__case_id__steps_reorder_patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        "If-Unmodified-Since"?: string | null;
+        "X-Workspace-Id"?: string | null;
+      };
+      path: {
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StepReorderRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TestCaseDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  traceability_matrix_api_v1_traceability_matrix_get: {
+    parameters: {
+      query: {
+        projectId: string;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TraceabilityMatrix"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  change_own_password_api_v1_users_me_password_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChangePasswordRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  receive_github_api_v1_webhooks_github_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Hub-Signature-256"?: string | null;
+        "X-GitHub-Event"?: string | null;
+        "X-GitHub-Delivery"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Event accepted — either ``ping`` (`{pong: true}`) or an event the receiver intentionally drops (``{ignored: true, reason: ...}``). */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json":
+            | components["schemas"]["WebhookEnqueuedResponse"]
+            | components["schemas"]["WebhookIgnoredResponse"]
+            | components["schemas"]["WebhookPingResponse"];
+        };
+      };
+      /** @description Gating run enqueued */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WebhookEnqueuedResponse"];
+        };
+      };
+      /** @description Signature missing or HMAC mismatch */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No matching project for the integration */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  receive_gitlab_api_v1_webhooks_gitlab_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Gitlab-Token"?: string | null;
+        "X-Gitlab-Event"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Event accepted but no run enqueued */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WebhookIgnoredResponse"];
+        };
+      };
+      /** @description Gating run enqueued */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WebhookEnqueuedResponse"];
+        };
+      };
+      /** @description Token missing or mismatch */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No matching project for the integration */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  receive_jira_api_v1_webhooks_jira_post: {
+    parameters: {
+      query?: {
+        /** @description URL-embedded webhook secret */
+        secret?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Event accepted but no update applied */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WebhookIgnoredResponse"];
+        };
+      };
+      /** @description Defect status synced from Jira */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["JiraSyncedResponse"];
+        };
+      };
+      /** @description Payload failed schema validation */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Secret missing or mismatch */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_workspaces_api_v1_workspaces_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkspacePublic"][];
+        };
+      };
+    };
+  };
+  import_workspace_api_v1_workspaces_import_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_import_workspace_api_v1_workspaces_import_post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkspaceDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_autonomy_api_v1_workspaces__workspaceId__autonomy_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AutonomyResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  put_autonomy_api_v1_workspaces__workspaceId__autonomy_put: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AutonomyUpdate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AutonomyResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_workspace_cost_api_v1_workspaces__workspaceId__cost_get: {
+    parameters: {
+      query?: {
+        windowDays?: number;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CostSummaryOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_llm_config_api_v1_workspaces__workspaceId__llm_config_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LLMConfigPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  put_llm_config_api_v1_workspaces__workspaceId__llm_config_put: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LLMConfigWriteBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LLMConfigPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_llm_config_api_v1_workspaces__workspaceId__llm_config_delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_llm_models_api_v1_workspaces__workspaceId__llm_config_models_get: {
+    parameters: {
+      query: {
+        provider: string;
+      };
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LLMModelsResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  test_llm_config_api_v1_workspaces__workspaceId__llm_config_test_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LLMConfigWriteBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LLMTestResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_workspace_api_v1_workspaces__workspace_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        workspace_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkspaceDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_workspace_api_v1_workspaces__workspace_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        workspace_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WorkspaceDeleteConfirm"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkspaceDeleteAccepted"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_workspace_api_v1_workspaces__workspace_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        workspace_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": {
+          [key: string]: unknown;
+        };
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkspaceDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  export_workspace_api_v1_workspaces__workspace_id__export_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        workspace_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkspaceExportAccepted"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_workspace_export_api_v1_workspaces__workspace_id__export__job_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        workspace_id: string;
+        job_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkspaceExportStatus"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_invitations_api_v1_workspaces__workspace_id__invitations_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        workspace_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvitationListEnvelope"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_invitation_api_v1_workspaces__workspace_id__invitations_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        workspace_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InvitationCreateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvitationOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_workspace_members_api_v1_workspaces__workspace_id__members_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        workspace_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkspaceMemberPublic"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  invite_workspace_member_api_v1_workspaces__workspace_id__members_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        workspace_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WorkspaceMemberInvite"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkspaceMemberPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  remove_workspace_member_api_v1_workspaces__workspace_id__members__user_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        workspace_id: string;
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  change_workspace_member_role_api_v1_workspaces__workspace_id__members__user_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        workspace_id: string;
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WorkspaceMemberRoleUpdate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkspaceMemberPublic"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  auth_cookie_jwt_login_auth_cookie_login_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/x-www-form-urlencoded": components["schemas"]["Body_auth_cookie_jwt_login_auth_cookie_login_post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description No Content */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorModel"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  auth_cookie_jwt_logout_auth_cookie_logout_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description No Content */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Missing token or inactive user. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  reset_forgot_password_auth_forgot_password_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["Body_reset_forgot_password_auth_forgot_password_post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  oauth_google_cookie_jwt_authorize_auth_google_authorize_get: {
+    parameters: {
+      query?: {
+        scopes?: string[];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OAuth2AuthorizeResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  oauth_google_cookie_jwt_callback_auth_google_callback_get: {
+    parameters: {
+      query?: {
+        code?: string | null;
+        code_verifier?: string | null;
+        state?: string | null;
+        error?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorModel"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reset_reset_password_auth_reset_password_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["Body_reset_reset_password_auth_reset_password_post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorModel"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_capabilities_capabilities_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Workspace-Id"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Capabilities"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_capabilities_health_capabilities_health_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  health_health_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+    };
+  };
+  users_current_user_users_me_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserRead"];
+        };
+      };
+      /** @description Missing token or inactive user. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  users_patch_current_user_users_me_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UserUpdate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserRead"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorModel"];
+        };
+      };
+      /** @description Missing token or inactive user. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  users_user_users__id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserRead"];
+        };
+      };
+      /** @description Missing token or inactive user. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not a superuser. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The user does not exist. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  users_delete_user_users__id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Missing token or inactive user. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not a superuser. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The user does not exist. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  users_patch_user_users__id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UserUpdate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserRead"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorModel"];
+        };
+      };
+      /** @description Missing token or inactive user. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not a superuser. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The user does not exist. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
 }

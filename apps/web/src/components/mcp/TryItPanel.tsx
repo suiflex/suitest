@@ -90,7 +90,7 @@ export function TryItPanel({ providerId, tools }: TryItPanelProps): React.ReactE
             {result.ok ? `OK · ${result.durationMs.toString()}ms` : `Error: ${result.error ?? ""}`}
           </span>
           {result.stdout ? (
-            <pre className="max-h-40 overflow-auto rounded-md bg-[#060606] p-2 font-mono text-[11px] text-fg-3">
+            <pre className="max-h-40 overflow-auto rounded-md bg-bg-code p-2 font-mono text-[11px] text-fg-3">
               {result.stdout}
             </pre>
           ) : null}

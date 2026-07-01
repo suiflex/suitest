@@ -63,6 +63,16 @@ class TestCase(Base, TimestampMixin):
     # the web app is remote from the lifecycle host. See docs DATA_MODEL §3.4.
     automation_file_path: Mapped[str | None] = mapped_column(String(512))
     automation_code: Mapped[str | None] = mapped_column(Text)
+    # Phase 2b (deterministic translate + review gate): review state of the
+    # generated ``automation_code``. NULL = no automation yet; ``draft`` =
+    # translated/generated but not human-reviewed; ``approved`` = a human
+    # reviewed & pinned the code so the deterministic runner may execute it.
+    # The runner MUST refuse to run non-``approved`` automation. See DATA_MODEL §3.4.
+    automation_status: Mapped[str | None] = mapped_column(String(16))
+    automation_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    automation_reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id")
+    )
     # Denormalized "last run" pointers — updated by the run-ingest service so the
     # TCM and case list can show status/duration without joining the runs table.
     last_run_id: Mapped[str | None] = mapped_column(String(32))

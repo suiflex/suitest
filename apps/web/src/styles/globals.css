@@ -1,40 +1,113 @@
 @import "tailwindcss";
 
+/* ============================================================================
+   Suitest design tokens — polished dark developer-tool theme.
+
+   Two token families live here and BOTH must stay coherent:
+   1. Suitest custom tokens (`bg-base`, `bg-elev-*`, `fg-*`, `accent`, status
+      colors) — used directly across the app (~50 files each).
+   2. shadcn/ui semantic tokens (`background`, `card`, `primary`, `muted`,
+      `border`, `ring`, `destructive`, …) — consumed by the ui/* primitives.
+      These were previously UNDEFINED, which left default Buttons/Cards
+      rendering transparent. They are now mapped onto the same palette.
+
+   Palette = refined near-black with a subtle cool tint (not pure #000),
+   one brand accent (emerald green = primary action + "passed"), calm status
+   hues. Keep saturation restrained; do not introduce a second accent.
+   ========================================================================== */
+
 @theme {
-  --color-bg-base: #0a0a0a;
-  --color-bg-elev-1: #111111;
-  --color-bg-elev-2: #161616;
-  --color-bg-elev-3: #1c1c1c;
-  --color-bg-hover: #1f1f1f;
+  /* --- Surfaces (cool-tinted near-black, not OLED pure black) --- */
+  --color-bg-base: #0b0c0e;
+  --color-bg-elev-1: #131417;
+  --color-bg-elev-2: #191b1f;
+  --color-bg-elev-3: #1f2226;
+  --color-bg-hover: #232529;
 
-  --color-border-subtle: #1c1c1c;
-  --color-border: #262626;
-  --color-border-strong: #333333;
+  /* Deepest surface — terminal / code / log panes (was hardcoded #060606). */
+  --color-bg-code: #08090b;
 
-  --color-fg-1: #fafafa;
-  --color-fg-3: #a3a3a3;
-  --color-fg-4: #737373;
-  --color-fg-5: #525252;
+  --color-border-subtle: #1c1e22;
+  --color-border: #292c31;
+  --color-border-strong: #3a3e44;
 
-  --color-accent: #4ade80;
-  --color-accent-fg: #052e16;
+  /* --- Foreground ramp --- */
+  --color-fg-1: #f3f4f6;
+  --color-fg-2: #d4d7dc;
+  --color-fg-3: #a6abb3;
+  --color-fg-4: #71757c;
+  --color-fg-5: #4d5158;
 
-  --color-red: #f87171;
-  --color-amber: #fbbf24;
-  --color-blue: #60a5fa;
-  --color-violet: #a78bfa;
+  /* --- Brand accent (primary action + passed) --- */
+  --color-accent: #45d685;
+  --color-accent-hover: #5ce098;
+  --color-accent-fg: #04220f;
 
-  --radius: 6px;
-  --radius-lg: 8px;
+  /* --- Status hues (restrained saturation) --- */
+  --color-red: #f3766a;
+  --color-amber: #f1b840;
+  --color-blue: #5fa8f5;
+  --color-violet: #a48bf2;
 
-  --font-sans: "Geist Sans", system-ui, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, monospace;
+  /* --- Radii --- */
+  --radius-sm: 5px;
+  --radius: 7px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+
+  /* --- Typography --- */
+  --font-sans: "Geist Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+
+  /* ==========================================================================
+     shadcn/ui semantic aliases → mapped onto the palette above.
+     Defining these is what makes ui/* primitives render correctly.
+     NOTE: shadcn's `accent` means a *neutral hover surface*, which collides
+     with our brand `accent` (green). We keep `--color-accent` green and the
+     ui/* primitives use `secondary`/`muted` for neutral hovers instead.
+     ========================================================================== */
+  --color-background: var(--color-bg-base);
+  --color-foreground: var(--color-fg-1);
+
+  --color-card: var(--color-bg-elev-1);
+  --color-card-foreground: var(--color-fg-1);
+
+  --color-popover: var(--color-bg-elev-2);
+  --color-popover-foreground: var(--color-fg-1);
+
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: var(--color-accent-fg);
+
+  --color-secondary: var(--color-bg-elev-2);
+  --color-secondary-foreground: var(--color-fg-1);
+
+  --color-muted: var(--color-bg-elev-2);
+  --color-muted-foreground: var(--color-fg-3);
+
+  --color-accent-foreground: var(--color-accent-fg);
+
+  --color-destructive: var(--color-red);
+  --color-destructive-foreground: #2a0b08;
+
+  --color-input: var(--color-border);
+  --color-ring: var(--color-accent);
 }
 
 :root {
   color-scheme: dark;
   background-color: var(--color-bg-base);
   color: var(--color-fg-1);
+
+  /* Tinted ambient depth behind the app frame — breaks pure-flat black. */
+  background-image:
+    radial-gradient(1200px 600px at 78% -8%, rgba(69, 214, 133, 0.05), transparent 60%),
+    radial-gradient(900px 500px at -5% 0%, rgba(95, 168, 245, 0.035), transparent 55%);
+  background-attachment: fixed;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 html,
@@ -46,6 +119,47 @@ body,
 body {
   font-family: var(--font-sans);
   font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Tabular figures everywhere numbers matter (tables, metrics, IDs). */
+.font-mono,
+[class*="tabular"],
+code,
+kbd,
+pre {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Selection picks up the brand accent. */
+::selection {
+  background-color: rgba(69, 214, 133, 0.28);
+  color: var(--color-fg-1);
+}
+
+/* Refined scrollbars (WebKit) — thin, neutral, hover-revealed. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-border-strong);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Slow pulse used by live indicators (e.g. Sidebar "Test Runs" dot). */
@@ -63,7 +177,17 @@ body {
   animation: suitest-pulse 2s ease-in-out infinite;
 }
 
+/* Skeleton shimmer — neutral, never brand-green. */
+@keyframes suitest-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   *,
   *::before,
   *::after {

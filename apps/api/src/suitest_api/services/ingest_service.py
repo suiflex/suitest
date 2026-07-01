@@ -219,6 +219,17 @@ async def ingest_run(
                     error_message=r.error or None if s.outcome in ("FAILED", "ERROR") else None,
                     state_snapshot={"type": s.type, "description": s.description},
                 )
+                # Per-step screenshot → SCREENSHOT artifact on THIS run_step, so
+                # the web can show "Preview: Step N" when the step row is clicked.
+                if s.screenshot:
+                    await artifact_repo.create_artifact(
+                        run_step_id=rs.id,
+                        kind="SCREENSHOT",
+                        url=s.screenshot,
+                        size_bytes=0,
+                        mime_type="image/png",
+                        metadata=None,
+                    )
                 if first_run_step_id is None:
                     first_run_step_id = rs.id
         else:

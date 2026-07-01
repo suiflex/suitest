@@ -12,7 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.audit import write_audit
 
 from suitest_api.auth.db import get_async_session
-from suitest_api.deps.scope import TenantContext, require_workspace_membership
+from suitest_api.deps.api_key import tenant_via_api_key_or_session
+from suitest_api.deps.scope import TenantContext
 from suitest_api.schemas.ingest import (
     BulkImportBody,
     BulkImportResult,
@@ -31,7 +32,7 @@ router = APIRouter(prefix="/api/v1", tags=["ingest"])
 )
 async def bulk_import(
     body: BulkImportBody,
-    ctx: TenantContext = Depends(require_workspace_membership),
+    ctx: TenantContext = Depends(tenant_via_api_key_or_session),
     session: AsyncSession = Depends(get_async_session),
 ) -> BulkImportResult:
     """Upsert a suite's cases + steps from a lifecycle payload (idempotent by sourceRef)."""
@@ -56,7 +57,7 @@ async def bulk_import(
 )
 async def ingest_completed_run(
     body: RunIngestBody,
-    ctx: TenantContext = Depends(require_workspace_membership),
+    ctx: TenantContext = Depends(tenant_via_api_key_or_session),
     session: AsyncSession = Depends(get_async_session),
 ) -> RunIngestResult:
     """Record an already-completed run (run + run_steps + artifacts). No ARQ enqueue."""

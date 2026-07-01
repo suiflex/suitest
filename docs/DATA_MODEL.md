@@ -610,6 +610,14 @@ class TestCase(Base, TimestampMixin):
     # Phase 2 (lifecycle ingest) — migration 0040_tcm_automation_lastrun
     automation_file_path: Mapped[str | None] = mapped_column(String(512))
     automation_code: Mapped[str | None] = mapped_column(Text)
+    # Phase 2b (deterministic translate + review gate) — migration 0041_tcm_automation_review.
+    # automation_status: NULL = none | "draft" (awaiting review) | "approved" (runner may pin & run).
+    # State machine + runner guard = suitest_shared.domain.automation_review.
+    automation_status: Mapped[str | None] = mapped_column(String(16))
+    automation_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    automation_reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id")
+    )
     last_run_id: Mapped[str | None] = mapped_column(String(32))
     last_run_result: Mapped[str | None] = mapped_column(String(16))
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

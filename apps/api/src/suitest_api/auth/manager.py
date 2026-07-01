@@ -110,3 +110,8 @@ fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend, b
 
 # Convenience dependency: yields the current authenticated + active User, or 401.
 current_active_user = fastapi_users.current_user(active=True)
+
+# Optional variant: yields the User when a valid session/bearer is present, else
+# ``None`` (no 401). Used by dependencies that accept EITHER a session OR an API
+# key, so the absence of a cookie must not short-circuit before the key check.
+current_active_user_optional = fastapi_users.current_user(active=True, optional=True)

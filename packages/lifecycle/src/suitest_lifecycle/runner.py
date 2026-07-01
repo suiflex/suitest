@@ -34,6 +34,7 @@ def _collect_steps(
                 type=str(s.get("type", "action")),
                 description=str(s.get("description", "")),
                 status=_as_outcome(str(s.get("status", "PASSED"))),
+                screenshot_path=str(s.get("screenshot") or ""),
             )
             for i, s in enumerate(data.get("steps", []) or [])
             if isinstance(s, dict)

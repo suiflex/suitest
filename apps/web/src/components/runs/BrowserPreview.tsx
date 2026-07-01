@@ -1,4 +1,4 @@
-import { Camera } from "lucide-react";
+import { Camera, X } from "lucide-react";
 import { useState } from "react";
 
 interface BrowserPreviewProps {
@@ -7,6 +7,12 @@ interface BrowserPreviewProps {
   videoUrl?: string | null;
   /** Generated test source for the Code tab (Phase 2 lifecycle ingest). */
   code?: string | null;
+  /** Presigned screenshot URL for the step the user clicked (per-step preview). */
+  stepScreenshotUrl?: string | null;
+  /** Label of the selected step, e.g. "Step 3". */
+  stepLabel?: string | null;
+  /** Clear the selected step and return to the run video. */
+  onClearStep?: () => void;
 }
 
 type Tab = "preview" | "code";
@@ -17,9 +23,17 @@ type Tab = "preview" | "code";
  *  - **Code**: the persisted generated test source (read-only).
  * The parent route resolves the presigned URLs + code and feeds them in.
  */
-export function BrowserPreview({ url, videoUrl, code }: BrowserPreviewProps): React.ReactElement {
+export function BrowserPreview({
+  url,
+  videoUrl,
+  code,
+  stepScreenshotUrl,
+  stepLabel,
+  onClearStep,
+}: BrowserPreviewProps): React.ReactElement {
   const [tab, setTab] = useState<Tab>("preview");
   const hasCode = Boolean(code);
+  const showStep = Boolean(stepScreenshotUrl);
 
   return (
     <div
@@ -48,14 +62,38 @@ export function BrowserPreview({ url, videoUrl, code }: BrowserPreviewProps): Re
         >
           Code
         </button>
-        <span className="ml-auto flex-1 truncate text-right font-mono text-[11px] text-fg-4">
-          {tab === "preview" ? (videoUrl ? "video" : "screenshot") : "test source"}
+        <span className="ml-auto flex items-center gap-1.5 truncate text-right font-mono text-[11px] text-fg-4">
+          {tab === "preview"
+            ? showStep
+              ? `Preview: ${stepLabel ?? "step"}`
+              : videoUrl
+                ? "video"
+                : "screenshot"
+            : "test source"}
+          {tab === "preview" && showStep && onClearStep ? (
+            <button
+              type="button"
+              onClick={onClearStep}
+              aria-label="Back to run video"
+              data-testid="preview-clear-step"
+              className="rounded p-0.5 text-fg-4 hover:bg-bg-elev-2 hover:text-fg-1"
+            >
+              <X className="h-3 w-3" aria-hidden="true" />
+            </button>
+          ) : null}
         </span>
       </div>
 
       {tab === "preview" ? (
-        <div className="mt-3 flex h-[280px] items-center justify-center overflow-hidden rounded-md bg-[#060606] text-[12px] text-fg-5">
-          {videoUrl ? (
+        <div className="mt-3 flex h-[280px] items-center justify-center overflow-hidden rounded-md bg-bg-code text-[12px] text-fg-5">
+          {showStep && stepScreenshotUrl ? (
+            <img
+              src={stepScreenshotUrl}
+              alt={stepLabel ? `${stepLabel} screenshot` : "Step screenshot"}
+              data-testid="browser-preview-step-image"
+              className="max-h-full max-w-full object-contain"
+            />
+          ) : videoUrl ? (
             <video
               src={videoUrl}
               controls
@@ -78,7 +116,7 @@ export function BrowserPreview({ url, videoUrl, code }: BrowserPreviewProps): Re
         </div>
       ) : (
         <pre
-          className="mt-3 h-[280px] overflow-auto rounded-md bg-[#060606] p-3 font-mono text-[11.5px] leading-relaxed text-fg-3"
+          className="mt-3 h-[280px] overflow-auto rounded-md bg-bg-code p-3 font-mono text-[11.5px] leading-relaxed text-fg-3"
           data-testid="browser-preview-code"
         >
           {code ?? "No generated source."}

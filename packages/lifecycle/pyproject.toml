@@ -13,6 +13,11 @@ dependencies = []
 # Install with: pip install "suitest-lifecycle[frontend]"
 [project.optional-dependencies]
 frontend = ["playwright>=1.40"]
+# NOTE: publishing run results back to a Suitest instance needs `suitest-sdk`.
+# It is a LOCAL path package (not on PyPI), so it is NOT listed here as a version
+# dep — that would break `uv` workspace resolution. Install it into the same env
+# with:  uv pip install --python .venv/bin/python -e sdk/python
+# Without it, publish degrades to a no-op ("suitest-sdk not installed").
 
 [build-system]
 requires = ["hatchling"]

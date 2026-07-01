@@ -111,11 +111,9 @@ def _result_payloads(summary: RunSummary, cases: list[PlanCase]) -> list[dict[st
     name_by_id = {c.id: c.title for c in cases}
     out: list[dict[str, object]] = []
     for r in summary.results:
-        artifacts = [
-            a
-            for a in (_artifact(r.video_path, "VIDEO"), _artifact(r.screenshot_path, "SCREENSHOT"))
-            if a is not None
-        ]
+        # Case level carries only the VIDEO now; screenshots are per-step (each
+        # run_step gets its own SCREENSHOT), so the "final" one would be redundant.
+        artifacts = [a for a in (_artifact(r.video_path, "VIDEO"),) if a is not None]
         out.append(
             {
                 "name": name_by_id.get(r.test_id, r.title),
@@ -129,6 +127,12 @@ def _result_payloads(summary: RunSummary, cases: list[PlanCase]) -> list[dict[st
                         "type": s.type,
                         "description": s.description,
                         "outcome": s.status.value,
+                        # Per-step screenshot, uploaded so the web can sign + show it.
+                        "screenshot": (
+                            _resolve_url(s.screenshot_path, "image/png")
+                            if s.screenshot_path and os.path.isfile(s.screenshot_path)
+                            else ""
+                        ),
                     }
                     for s in r.steps
                 ],
@@ -151,9 +155,14 @@ def publish_results(
         return {"published": False, "reason": "suitest-sdk not installed"}
 
     suite = _suite_name(config)
+    # Secrets (the API key) and the endpoint can come from the environment so
+    # they stay out of a committed suitest.config.json — the MCP client injects
+    # SUITEST_API_KEY / SUITEST_API_URL. Config values win when both are set.
+    api_url = config.publish.api_url or os.environ.get("SUITEST_API_URL", "")
+    token = config.publish.token or os.environ.get("SUITEST_API_KEY") or None
     client = SuitestClient(
-        config.publish.api_url,
-        token=config.publish.token or None,
+        api_url,
+        token=token,
         workspace_id=config.publish.workspace_id or None,
     )
     try:

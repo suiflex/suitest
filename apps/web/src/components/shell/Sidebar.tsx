@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { ProjectPicker } from "@/components/shell/ProjectPicker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -228,6 +229,9 @@ export function Sidebar({
           </PopoverContent>
         </Popover>
       </div>
+
+      {/* Section 2b — Project picker (Test Cases / Runs are project-scoped) */}
+      <ProjectPicker />
 
       {/* Section 3 — Nav */}
       <ScrollArea className="flex-1">

@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 
+import { ApiKeysSettingsPanel } from "@/components/settings/ApiKeysSettingsPanel";
 import { AutomationPanel } from "@/components/settings/AutomationPanel";
 import { CostPanel } from "@/components/settings/CostPanel";
 import { ExperimentsPanel } from "@/components/settings/ExperimentsPanel";
@@ -59,6 +60,7 @@ function SettingsScreen(): React.ReactElement {
           {showMembers ? <TabsTrigger value="members">Members</TabsTrigger> : null}
           {workspaceId ? <TabsTrigger value="llm">LLM</TabsTrigger> : null}
           {workspaceId ? <TabsTrigger value="automation">Automation</TabsTrigger> : null}
+          {workspaceId ? <TabsTrigger value="api-keys">API Keys</TabsTrigger> : null}
         </TabsList>
 
         <TabsContent value="account" className="pt-4">
@@ -83,6 +85,12 @@ function SettingsScreen(): React.ReactElement {
         {workspaceId ? (
           <TabsContent value="automation" className="pt-4">
             <AutomationPanel workspaceId={workspaceId} canWrite={showMembers} />
+          </TabsContent>
+        ) : null}
+
+        {workspaceId ? (
+          <TabsContent value="api-keys" className="pt-4">
+            <ApiKeysSettingsPanel canWrite={showMembers} />
           </TabsContent>
         ) : null}
       </Tabs>

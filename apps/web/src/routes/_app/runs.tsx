@@ -1,22 +1,11 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import {
-  AlertTriangle,
-  Bot,
-  Camera,
-  Download,
-  FileText,
-  Globe,
-  ListChecks,
-  Maximize2,
-  PlayCircle,
-  Square,
-} from "lucide-react";
-import { Suspense, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AlertTriangle, ListChecks, Maximize2, PlayCircle, Square } from "lucide-react";
+import { Suspense } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Gated } from "@/components/gating/Gated";
+import { RunCaseExplorer } from "@/components/runs/RunCaseExplorer";
 import { RunsSkeleton } from "@/components/runs/skeleton";
-import { AgentInsightCallout } from "@/components/shared/AgentInsightCallout";
 import { CostChip } from "@/components/shared/CostChip";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
@@ -24,22 +13,10 @@ import { ProgressBar } from "@/components/shared/ProgressBar";
 import { SourceDot } from "@/components/shared/SourceDot";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  useCancelRun,
-  useRerunRun,
-  useRun,
-  useRunArtifacts,
-  useRunLogs,
-  useRunNetwork,
-  useRunSteps,
-  useRunsList,
-  useRunsSummary,
-} from "@/hooks/use-runs";
+import { useCancelRun, useRerunRun, useRun, useRunsList, useRunsSummary } from "@/hooks/use-runs";
 import { ApiError } from "@/lib/api-client";
 import type { components } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
-import { useCapabilities } from "@/stores/use-capabilities";
 
 type RunListItem = components["schemas"]["RunListItem"];
 
@@ -47,12 +24,9 @@ interface SearchSchema {
   run?: string;
 }
 
-function statusToBadge(status: RunListItem["status"]):
-  | "pass"
-  | "fail"
-  | "warn"
-  | "running"
-  | "neutral" {
+function statusToBadge(
+  status: RunListItem["status"],
+): "pass" | "fail" | "warn" | "running" | "neutral" {
   switch (status) {
     case "PASS":
       return "pass";
@@ -141,7 +115,9 @@ function RunsList({
   return (
     <ul className="flex flex-col gap-1" data-testid="runs-list">
       {runs.map((r) => {
-        const passed = (r as RunListItem & { summary?: { passed_steps: number; total_steps: number } }).summary;
+        const passed = (
+          r as RunListItem & { summary?: { passed_steps: number; total_steps: number } }
+        ).summary;
         const pct = passed?.total_steps ? (passed.passed_steps / passed.total_steps) * 100 : 0;
         return (
           <li key={r.id}>
@@ -178,193 +154,6 @@ function RunsList({
   );
 }
 
-function DiagnosisCard({ runStatus }: { runStatus: RunListItem["status"] }): React.ReactElement | null {
-  const tier = useCapabilities((s) => s.capabilities?.tier);
-  if (runStatus !== "FAIL" && runStatus !== "ERROR") return null;
-
-  if (tier !== "ZERO") {
-    return (
-      <Gated feature="ai_diagnose" fallback={null}>
-        <AgentInsightCallout
-          title="Agent diagnosis"
-          confidence="High"
-          body="Step 2 failed because the upstream payments service returned 500. Likely REGRESSION introduced in deploy 4b91a."
-        />
-      </Gated>
-    );
-  }
-
-  return (
-    <div
-      className="flex items-start gap-3 rounded-md border border-border bg-bg-elev-2 p-3 text-fg-3"
-      data-testid="manual-triage-card"
-    >
-      <Bot className="mt-0.5 h-4 w-4 text-fg-4" aria-hidden="true" />
-      <div className="flex flex-col gap-1">
-        <div className="text-[12.5px] font-semibold text-fg-1">Manual triage needed</div>
-        <div className="text-[12px]">
-          Pattern matched AssertionError on Step 2. ZERO tier — agent diagnosis unavailable.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LogsPanel({ runId }: { runId: string }): React.ReactElement {
-  const { data, isLoading, isError } = useRunLogs(runId);
-  if (isLoading) return <div className="text-[12px] text-fg-4">Loading…</div>;
-  if (isError || !data) return <div className="text-[12px] text-red">Failed to load logs</div>;
-  const items = data.items ?? [];
-  if (items.length === 0) {
-    return <div className="text-[12px] text-fg-4">No log lines yet.</div>;
-  }
-  return (
-    <pre
-      data-testid="run-logs"
-      className="max-h-[480px] overflow-auto rounded-md bg-[#060606] p-[14px] font-mono text-[11.5px] leading-relaxed text-fg-1"
-    >
-      {items.map((item) => (
-        <div key={item.seq}>{item.message}</div>
-      ))}
-    </pre>
-  );
-}
-
-function StepsPanel({ runId, runStatus }: { runId: string; runStatus: RunListItem["status"] }): React.ReactElement {
-  const { data, isLoading, isError } = useRunSteps(runId);
-  if (isLoading) return <div className="text-[12px] text-fg-4">Loading…</div>;
-  if (isError || !data) return <div className="text-[12px] text-red">Failed to load steps</div>;
-  const items = data.items;
-  return (
-    <div className="flex flex-col gap-2" data-testid="run-steps">
-      <DiagnosisCard runStatus={runStatus} />
-      {items.length === 0 ? (
-        <div className="text-[12px] text-fg-4">No steps recorded.</div>
-      ) : (
-        <ol className="flex flex-col gap-2">
-          {items.map((s) => (
-            <li
-              key={s.id}
-              className="rounded-md border border-border bg-bg-elev-1 p-3"
-              data-testid="run-step"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-bg-elev-2 font-mono text-[10.5px] text-fg-4">
-                    {s.step_order}
-                  </span>
-                  <span className="font-mono text-[11px] text-fg-4">{s.case_public_id}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge
-                    status={
-                      s.outcome === "PASS"
-                        ? "pass"
-                        : s.outcome === "FAIL" || s.outcome === "ERROR"
-                          ? "fail"
-                          : "neutral"
-                    }
-                  />
-                  <span className="font-mono text-[10.5px] text-fg-5">
-                    {formatDuration(s.duration_ms)}
-                  </span>
-                </div>
-              </div>
-              {s.error_message ? (
-                <pre className="mt-2 overflow-x-auto rounded-md bg-[#060606] p-2 font-mono text-[11px] text-red">
-                  {s.error_message}
-                </pre>
-              ) : null}
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
-}
-
-function ArtifactsPanel({ runId }: { runId: string }): React.ReactElement {
-  const { data } = useRunArtifacts(runId);
-  const items = data?.items ?? [];
-  if (items.length === 0) {
-    return <div className="text-[12px] text-fg-4">No artifacts captured.</div>;
-  }
-  return (
-    <ul className="flex flex-col gap-1.5" data-testid="run-artifacts">
-      {items.map((a) => (
-        <li
-          key={a.id}
-          className="flex items-center justify-between rounded-md border border-border bg-bg-elev-1 p-2.5"
-        >
-          <div className="flex items-center gap-2 text-[12.5px]">
-            <FileText className="h-3.5 w-3.5 text-fg-4" aria-hidden="true" />
-            <span className="font-mono text-[11px] text-fg-3">{a.kind}</span>
-            <span className="text-fg-1">{a.mime_type}</span>
-            <span className="font-mono text-[10.5px] text-fg-5">{a.size_bytes}b</span>
-          </div>
-          <Button type="button" size="sm" variant="outline" disabled>
-            <Download className="h-3.5 w-3.5" aria-hidden="true" />
-            Download
-          </Button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function BrowserPanel(): React.ReactElement {
-  return (
-    <div className="rounded-md border border-border bg-bg-elev-1 p-3" data-testid="run-browser">
-      <div className="flex items-center gap-2 border-b border-border pb-2">
-        <span className="inline-block h-2 w-2 rounded-full bg-red" />
-        <span className="inline-block h-2 w-2 rounded-full bg-amber" />
-        <span className="inline-block h-2 w-2 rounded-full bg-accent" />
-        <span className="ml-3 flex-1 rounded-md bg-bg-elev-2 px-2 py-0.5 font-mono text-[11px] text-fg-4">
-          https://staging.example/checkout
-        </span>
-      </div>
-      <div className="mt-3 flex h-[280px] items-center justify-center rounded-md bg-[#060606] text-[12px] text-fg-5">
-        <Camera className="mr-2 h-4 w-4" aria-hidden="true" />
-        Screenshot preview
-      </div>
-    </div>
-  );
-}
-
-function NetworkPanel({ runId }: { runId: string }): React.ReactElement {
-  const { data } = useRunNetwork(runId);
-  const items = data?.items ?? [];
-  if (items.length === 0) {
-    return (
-      <div className="text-[12px] text-fg-4" data-testid="run-network-empty">
-        No network events recorded.
-      </div>
-    );
-  }
-  return (
-    <table className="w-full text-[12px]" data-testid="run-network">
-      <thead className="text-fg-5">
-        <tr>
-          <th className="px-2 py-1 text-left">Method</th>
-          <th className="px-2 py-1 text-left">Path</th>
-          <th className="px-2 py-1 text-left">Status</th>
-          <th className="px-2 py-1 text-right">Duration</th>
-        </tr>
-      </thead>
-      <tbody className="font-mono text-fg-3">
-        {items.map((e, i) => (
-          <tr key={i} className="border-t border-border">
-            <td className="px-2 py-1">{e.method}</td>
-            <td className="px-2 py-1">{e.path}</td>
-            <td className="px-2 py-1">{e.status}</td>
-            <td className="px-2 py-1 text-right">{e.durationMs}ms</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
 function RunDetailPanel({
   runId,
   onNavigateToRun,
@@ -372,7 +161,6 @@ function RunDetailPanel({
   runId: string | null;
   onNavigateToRun: (publicId: string) => void;
 }): React.ReactElement {
-  const [tab, setTab] = useState("logs");
   const { data: run, isLoading, isError } = useRun(runId ?? undefined);
   const cancelMutation = useCancelRun();
   const rerunMutation = useRerunRun();
@@ -388,12 +176,7 @@ function RunDetailPanel({
   }
   if (isLoading || !run) return <RunsSkeleton />;
   if (isError) {
-    return (
-      <EmptyState
-        icon={AlertTriangle}
-        title="Couldn't load run"
-      />
-    );
+    return <EmptyState icon={AlertTriangle} title="Couldn't load run" />;
   }
 
   const isLive = run.status === "RUNNING" || run.status === "QUEUED";
@@ -447,9 +230,16 @@ function RunDetailPanel({
           >
             {rerunMutation.isPending ? "Queuing…" : "Re-run"}
           </Button>
-          <Button type="button" size="sm" variant="ghost" disabled aria-label="Fullscreen">
+          <Link
+            to="/runs/$runId"
+            params={{ runId: run.public_id }}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-bg-elev-1 px-2.5 text-[12.5px] font-medium text-fg-2 hover:bg-bg-elev-2 hover:text-fg-1"
+            aria-label="Open full detail view"
+            data-testid="run-open-full"
+          >
             <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
-          </Button>
+            Full view
+          </Link>
         </div>
       </div>
 
@@ -478,36 +268,9 @@ function RunDetailPanel({
         </div>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab} data-testid="run-tabs">
-        <TabsList variant="line">
-          <TabsTrigger value="logs">
-            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-            Logs
-          </TabsTrigger>
-          <TabsTrigger value="steps">Steps</TabsTrigger>
-          <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
-          <TabsTrigger value="browser">Browser</TabsTrigger>
-          <TabsTrigger value="network">
-            <Globe className="h-3.5 w-3.5" aria-hidden="true" />
-            Network
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="logs">
-          <LogsPanel runId={run.id} />
-        </TabsContent>
-        <TabsContent value="steps">
-          <StepsPanel runId={run.id} runStatus={run.status} />
-        </TabsContent>
-        <TabsContent value="artifacts">
-          <ArtifactsPanel runId={run.id} />
-        </TabsContent>
-        <TabsContent value="browser">
-          <BrowserPanel />
-        </TabsContent>
-        <TabsContent value="network">
-          <NetworkPanel runId={run.id} />
-        </TabsContent>
-      </Tabs>
+      {/* Case-first evidence view (test cases → steps + Preview/Code/Logs/
+          Artifacts), shared with the full-page run route. */}
+      <RunCaseExplorer runId={run.id} />
 
       <footer className="flex justify-end" data-testid="run-cost-footer">
         <Gated

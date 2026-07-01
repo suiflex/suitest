@@ -43,27 +43,38 @@ def _begin(step_type, description):
     _cur.update(index=_N[0], type=step_type, description=description)
 
 
-def _ok():
-    STEPS.append(dict(_cur, status="PASSED"))
+async def _shot(page):
+    # Per-step screenshot — powers the web "Preview: Step N" (TestSprite parity).
+    path = os.path.join(_TMP, TC_ID + "_step" + str(_cur["index"]) + ".png")
+    try:
+        os.makedirs(_TMP, exist_ok=True)
+        await page.screenshot(path=path)
+        return path
+    except Exception:
+        return ""
+
+
+async def _ok(page):
+    STEPS.append(dict(_cur, status="PASSED", screenshot=await _shot(page)))
 
 
 async def _login(page):
     # Authenticate through the real login form.
     _begin("action", "Navigate to /login")
     await page.goto(f"{{BASE_URL}}/login")
-    _ok()
+    await _ok(page)
     _begin("action", f"Fill '{{USERNAME}}' into the email field")
     await page.get_by_test_id("login-email-input").fill(USERNAME)
-    _ok()
+    await _ok(page)
     _begin("action", "Fill the password field")
     await page.get_by_test_id("login-password-input").fill(PASSWORD)
-    _ok()
+    await _ok(page)
     _begin("action", "Click 'Sign in'")
     await page.get_by_test_id("login-submit-button").click()
-    _ok()
+    await _ok(page)
     _begin("assertion", "Dashboard is visible")
     await expect(page.get_by_test_id("dashboard-page")).to_be_visible(timeout=TIMEOUT)
-    _ok()
+    await _ok(page)
 '''
 
 _RUNNER = '''
@@ -97,12 +108,18 @@ async def run_test():
     except Exception as exc:  # record the failing step + capture a screenshot
         status = "FAILED"
         error = str(exc)
-        STEPS.append(dict(_cur, status="FAILED"))
+        _fail_shot = ""
         if page is not None:
+            try:
+                _fail_shot = os.path.join(_TMP, TC_ID + "_step" + str(_cur["index"]) + ".png")
+                await page.screenshot(path=_fail_shot)
+            except Exception:
+                _fail_shot = ""
             try:
                 await page.screenshot(path=screenshot)
             except Exception:
                 pass
+        STEPS.append(dict(_cur, status="FAILED", screenshot=_fail_shot))
     finally:
         if context is not None:
             try:
@@ -152,35 +169,35 @@ async def _body(page):
     await _login(page)
     _begin("assertion", "Dashboard summary is visible")
     await expect(page.get_by_test_id("dashboard-page")).to_be_visible(timeout=TIMEOUT)
-    _ok()
+    await _ok(page)
 '''
     if arch == "invalid_login":
         return '''
 async def _body(page):
     _begin("action", "Navigate to /login")
     await page.goto(f"{BASE_URL}/login")
-    _ok()
+    await _ok(page)
     _begin("action", "Fill an invalid password")
     await page.get_by_test_id("login-email-input").fill(USERNAME)
     await page.get_by_test_id("login-password-input").fill("wrong-password-xyz")
-    _ok()
+    await _ok(page)
     _begin("action", "Click 'Sign in'")
     await page.get_by_test_id("login-submit-button").click()
-    _ok()
+    await _ok(page)
     _begin("assertion", "An error message is shown and the URL stays /login")
     await expect(page.get_by_test_id("login-error-message")).to_be_visible(timeout=TIMEOUT)
     assert "/login" in page.url
-    _ok()
+    await _ok(page)
 '''
     if arch == "protected_redirect":
         return f'''
 async def _body(page):
     _begin("action", "Navigate directly to {route} with no session")
     await page.goto(f"{{BASE_URL}}{route}")
-    _ok()
+    await _ok(page)
     _begin("assertion", "Login page is shown")
     await expect(page.get_by_test_id("login-page")).to_be_visible(timeout=TIMEOUT)
-    _ok()
+    await _ok(page)
 '''
     if arch == "dashboard_loads":
         return '''
@@ -188,7 +205,7 @@ async def _body(page):
     await _login(page)
     _begin("assertion", "Dashboard summary is visible")
     await expect(page.get_by_test_id("dashboard-page")).to_be_visible(timeout=TIMEOUT)
-    _ok()
+    await _ok(page)
 '''
     if arch == "products_list":
         return '''
@@ -196,10 +213,10 @@ async def _body(page):
     await _login(page)
     _begin("action", "Open /products")
     await page.goto(f"{BASE_URL}/products")
-    _ok()
+    await _ok(page)
     _begin("assertion", "Products page is visible")
     await expect(page.get_by_test_id("products-page")).to_be_visible(timeout=TIMEOUT)
-    _ok()
+    await _ok(page)
 '''
     if arch == "search_empty":
         return '''
@@ -208,14 +225,14 @@ async def _body(page):
     _begin("action", "Open /products")
     await page.goto(f"{BASE_URL}/products")
     await expect(page.get_by_test_id("products-page")).to_be_visible(timeout=TIMEOUT)
-    _ok()
+    await _ok(page)
     _begin("action", "Type an unlikely search query")
     await page.get_by_test_id("product-search-input").fill("zzz-no-such-" + uuid.uuid4().hex[:6])
     await page.wait_for_timeout(600)
-    _ok()
+    await _ok(page)
     _begin("assertion", "No matching rows are shown")
     assert await page.get_by_test_id("product-row").count() == 0
-    _ok()
+    await _ok(page)
 '''
     if arch == "create_product":
         return '''
@@ -224,20 +241,20 @@ async def _body(page):
     _begin("action", "Open the product create form")
     await page.goto(f"{BASE_URL}/products/new")
     await expect(page.get_by_test_id("product-form-page")).to_be_visible(timeout=TIMEOUT)
-    _ok()
+    await _ok(page)
     token = uuid.uuid4().hex[:8]
     _begin("action", "Fill the required product fields")
     await page.get_by_test_id("product-name-input").fill(f"Sutest Product {token}")
     await page.get_by_test_id("product-sku-input").fill(f"SKU-{token}")
     await page.get_by_test_id("product-price-input").fill("19.99")
     await page.get_by_test_id("product-stock-input").fill("5")
-    _ok()
+    await _ok(page)
     _begin("action", "Submit the form")
     await page.get_by_test_id("product-submit-button").click()
-    _ok()
+    await _ok(page)
     _begin("assertion", "Returns to the products list")
     await expect(page.get_by_test_id("products-page")).to_be_visible(timeout=TIMEOUT)
-    _ok()
+    await _ok(page)
 '''
     return f'''
 async def _body(page):

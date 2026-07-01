@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid  # runtime import: Pydantic v2 evaluates field annotations
 from datetime import datetime  # runtime import: Pydantic v2 evaluates field annotations
 from typing import TYPE_CHECKING
 
@@ -55,6 +56,10 @@ class TestCaseUpdate(BaseModel):
     last_run_at: datetime | None = None
     last_failure_reason: str | None = None
     last_duration_ms: int | None = None
+    # Phase 2b review-status gate: draft/approved + audit pointers.
+    automation_status: str | None = None
+    automation_reviewed_at: datetime | None = None
+    automation_reviewed_by: uuid.UUID | None = None
 
 
 class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):

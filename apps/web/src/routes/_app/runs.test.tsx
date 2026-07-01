@@ -1,9 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  RouterProvider,
-  createMemoryHistory,
-  createRouter,
-} from "@tanstack/react-router";
+import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -11,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { server } from "@/mocks/server";
 import { routeTree } from "@/routeTree.gen";
-import { CLOUD_CAPS, ZERO_CAPS, resetCaps, setCaps } from "@/test/capabilities";
+import { ZERO_CAPS, resetCaps, setCaps } from "@/test/capabilities";
 
 function renderRuns(path = "/runs") {
   const queryClient = new QueryClient({
@@ -35,7 +31,18 @@ describe("Test Runs screen", () => {
     setCaps(ZERO_CAPS);
     server.use(
       http.get("*/api/v1/auth/me", () =>
-        HttpResponse.json({ id: "u_demo", email: "demo@suitest.dev", name: "Maya", memberships: [] }),
+        HttpResponse.json({
+          id: "u_demo",
+          email: "demo@suitest.dev",
+          name: "Maya",
+          memberships: [
+            {
+              workspace_id: "ws_1",
+              role: "OWNER",
+              workspace: { id: "ws_1", slug: "demo", name: "Demo" },
+            },
+          ],
+        }),
       ),
     );
     vi.stubGlobal("location", {
@@ -53,7 +60,14 @@ describe("Test Runs screen", () => {
     server.use(
       http.get("*/api/v1/runs/summary", async () => {
         await new Promise((r) => setTimeout(r, 50));
-        return HttpResponse.json({ activeNow: 0, today: 0, passed: 0, failed: 0, avgDurationMs: 0, queue: 0 });
+        return HttpResponse.json({
+          activeNow: 0,
+          today: 0,
+          passed: 0,
+          failed: 0,
+          avgDurationMs: 0,
+          queue: 0,
+        });
       }),
     );
     renderRuns();
@@ -91,40 +105,19 @@ describe("Test Runs screen", () => {
     ).toBeInTheDocument();
   });
 
-  it("ZERO tier: diagnosis card renders gray 'Manual triage' on FAIL run", async () => {
+  it("run detail panel shows the case-first evidence view", async () => {
     const user = userEvent.setup();
     renderRuns();
     const rows = await screen.findAllByTestId("runs-row", undefined, { timeout: 3000 });
-    // RUN-1002 in fixture is FAIL.
-    const failingRow = rows.find((r) => r.getAttribute("data-public-id") === "RUN-1002");
-    expect(failingRow).toBeTruthy();
-    await user.click(failingRow as HTMLElement);
+    await user.click(rows[0] as HTMLElement);
     await screen.findByTestId("run-detail", undefined, { timeout: 3000 });
-    // Switch to Steps tab so the diagnosis card mounts.
-    await user.click(screen.getByRole("tab", { name: /Steps/i }));
+    // The panel now renders the shared case master-detail (not raw step tabs).
     expect(
-      await screen.findByTestId("manual-triage-card", undefined, { timeout: 3000 }),
+      await screen.findByTestId("run-case-master", undefined, { timeout: 3000 }),
     ).toBeInTheDocument();
-    expect(screen.queryByTestId("agent-insight")).toBeNull();
-  });
-
-  it("CLOUD tier: diagnosis card renders violet AgentInsightCallout on FAIL run", async () => {
-    setCaps(CLOUD_CAPS);
-    server.use(
-      http.get("*/capabilities", () => HttpResponse.json(CLOUD_CAPS)),
-      http.get("*/api/v1/capabilities", () => HttpResponse.json(CLOUD_CAPS)),
-    );
-    const user = userEvent.setup();
-    renderRuns();
-    const rows = await screen.findAllByTestId("runs-row", undefined, { timeout: 3000 });
-    const failingRow = rows.find((r) => r.getAttribute("data-public-id") === "RUN-1002");
-    await user.click(failingRow as HTMLElement);
-    await screen.findByTestId("run-detail", undefined, { timeout: 3000 });
-    await user.click(screen.getByRole("tab", { name: /Steps/i }));
     expect(
-      await screen.findByTestId("agent-insight", undefined, { timeout: 3000 }),
+      await screen.findByTestId("case-list", undefined, { timeout: 3000 }),
     ).toBeInTheDocument();
-    expect(screen.queryByTestId("manual-triage-card")).toBeNull();
   });
 
   it("renders the cost footer with '$0 · deterministic' in ZERO", async () => {

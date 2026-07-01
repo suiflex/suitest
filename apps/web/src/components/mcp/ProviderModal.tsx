@@ -177,7 +177,7 @@ function ToolList({ tools }: { tools: McpProviderTool[] }): React.ReactElement {
           {t.description ? <p className="mt-1 text-[12px] text-fg-3">{t.description}</p> : null}
           {t.argSchema && Object.keys(t.argSchema).length > 0 ? (
             <pre
-              className="mt-2 overflow-x-auto rounded-md bg-[#060606] p-2 font-mono text-[11px] text-fg-3"
+              className="mt-2 overflow-x-auto rounded-md bg-bg-code p-2 font-mono text-[11px] text-fg-3"
               data-testid="provider-tool-schema"
             >
               {Object.keys(t.argSchema).join(", ")}

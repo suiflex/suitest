@@ -134,6 +134,20 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
         )
         return run, summary
 
+    async def resolve_id(self, run_id: str, workspace_id: str) -> str | None:
+        """Resolve a run reference to its INTERNAL id.
+
+        The web routes on the per-workspace ``public_id`` (e.g. ``R-1004``), but
+        every ``run_steps``/artifact query keys on the internal id. Accept either:
+        try the internal id first, then fall back to ``(workspace_id, public_id)``.
+        Returns ``None`` when neither matches.
+        """
+        if await self.get_by_id(run_id) is not None:
+            return run_id
+        return await self.session.scalar(
+            select(Run.id).where(Run.workspace_id == workspace_id, Run.public_id == run_id)
+        )
+
     async def list_since(self, project_id: str, since: datetime) -> Sequence[Run]:
         """All runs for a project created at/after ``since`` (analytics windows)."""
         stmt = (
@@ -166,15 +180,20 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
         stmt = select(RunStep).where(RunStep.run_id == run_id).order_by(RunStep.step_order.asc())
         return (await self.session.scalars(stmt)).all()
 
-    async def get_steps_with_case_public_id(self, run_id: str) -> Sequence[tuple[RunStep, str]]:
-        """Run steps in ``step_order`` paired with each step's case ``public_id``."""
+    async def get_steps_with_case_public_id(
+        self, run_id: str
+    ) -> Sequence[tuple[RunStep, str, str]]:
+        """Run steps in ``step_order`` with each step's case ``(public_id, name)``."""
         stmt = (
-            select(RunStep, TestCase.public_id)
+            select(RunStep, TestCase.public_id, TestCase.name)
             .join(TestCase, TestCase.id == RunStep.case_id)
             .where(RunStep.run_id == run_id)
             .order_by(RunStep.step_order.asc())
         )
-        return [(step, public_id) for step, public_id in (await self.session.execute(stmt)).all()]
+        return [
+            (step, public_id, name)
+            for step, public_id, name in (await self.session.execute(stmt)).all()
+        ]
 
     async def get_artifacts(self, run_id: str) -> Sequence[Artifact]:
         stmt = (

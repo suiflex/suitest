@@ -5,6 +5,7 @@ import { Suspense, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { IntegrationsSkeleton } from "@/components/integrations/skeleton";
+import { ConnectIdeDialog } from "@/components/mcp/ConnectIdeDialog";
 import { McpServersPanel } from "@/components/mcp/McpServersPanel";
 import { DisabledTooltip } from "@/components/shared/DisabledTooltip";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -12,11 +13,7 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { McpProviderPill } from "@/components/shared/McpProviderPill";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
-import {
-  useIntegrations,
-  useMcpProviders,
-  type McpProvider,
-} from "@/hooks/use-integrations";
+import { useIntegrations, useMcpProviders, type McpProvider } from "@/hooks/use-integrations";
 import type { components } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
 
@@ -45,11 +42,7 @@ const CATEGORY_OF: Record<Integration["kind"], Tab> = {
   MCP_MYSQL: "mcp",
 };
 
-function statusToBadge(status: string):
-  | "pass"
-  | "fail"
-  | "warn"
-  | "neutral" {
+function statusToBadge(status: string): "pass" | "fail" | "warn" | "neutral" {
   const s = status.toLowerCase();
   if (s === "connected") return "pass";
   if (s === "disconnected") return "neutral";
@@ -230,7 +223,10 @@ function IntegrationsBody(): React.ReactElement {
 
   return (
     <>
-      <nav className="flex items-center gap-1 border-b border-border pb-2" data-testid="integrations-tabs">
+      <nav
+        className="flex items-center gap-1 border-b border-border pb-2"
+        data-testid="integrations-tabs"
+      >
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -276,11 +272,14 @@ function IntegrationsBody(): React.ReactElement {
             <section className="flex flex-col gap-3" data-testid="mcp-section">
               <header className="flex items-center justify-between">
                 <h3 className="text-[13px] font-semibold text-fg-1">MCP Servers</h3>
-                <DisabledTooltip reason="Available in M2">
-                  <Button type="button" size="sm" variant="outline" disabled>
-                    Add Custom MCP
-                  </Button>
-                </DisabledTooltip>
+                <div className="flex items-center gap-2">
+                  <ConnectIdeDialog />
+                  <DisabledTooltip reason="Available in M2">
+                    <Button type="button" size="sm" variant="outline" disabled>
+                      Add Custom MCP
+                    </Button>
+                  </DisabledTooltip>
+                </div>
               </header>
               <div className="grid grid-cols-3 gap-3" data-testid="mcp-grid">
                 {mcp.items.map((p) => (
@@ -291,6 +290,16 @@ function IntegrationsBody(): React.ReactElement {
           )}
           {showMcpPanel && (
             <section className="flex flex-col gap-3" data-testid="mcp-section">
+              <header className="flex items-center justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <h3 className="text-[13px] font-semibold text-fg-1">Connect your AI IDE</h3>
+                  <p className="text-[12px] text-fg-3">
+                    Let Cursor, Claude Code, or any MCP agent generate &amp; run tests via Suitest.
+                    Manage keys in <span className="text-fg-2">Settings → API Keys</span>.
+                  </p>
+                </div>
+                <ConnectIdeDialog />
+              </header>
               <McpServersPanel />
             </section>
           )}
@@ -315,7 +324,9 @@ function Integrations(): React.ReactElement {
   return (
     <section className="flex flex-col gap-4" data-testid="integrations-screen">
       <header>
-        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">{t("integrations.title")}</h2>
+        <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">
+          {t("integrations.title")}
+        </h2>
       </header>
       <ErrorBoundary fallback={({ reset }) => <IntegrationsError reset={reset} />}>
         <Suspense fallback={<IntegrationsSkeleton />}>
