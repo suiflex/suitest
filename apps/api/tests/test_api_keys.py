@@ -78,9 +78,7 @@ async def test_revoke_removes_from_active_list(api_db: ApiDb) -> None:
         )
         key_id = created.json()["id"]
 
-        revoked = await c.delete(
-            f"/api/v1/workspaces/{ws.id}/api-keys/{key_id}", headers=_h(ws.id)
-        )
+        revoked = await c.delete(f"/api/v1/workspaces/{ws.id}/api-keys/{key_id}", headers=_h(ws.id))
         assert revoked.status_code == 204
 
         listed = await c.get(f"/api/v1/workspaces/{ws.id}/api-keys", headers=_h(ws.id))
@@ -125,9 +123,7 @@ async def _mint_key(api_db: ApiDb, *, email: str, slug: str) -> tuple[str, str]:
 async def test_whoami_with_bearer_key_resolves_workspace(api_db: ApiDb) -> None:
     token, ws_id = await _mint_key(api_db, email="ak-who1@example.com", slug="ak-who1")
     async with api_db.client(None) as c:
-        resp = await c.get(
-            "/api/v1/api-keys/whoami", headers={"Authorization": f"Bearer {token}"}
-        )
+        resp = await c.get("/api/v1/api-keys/whoami", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200, resp.text
         assert resp.json()["workspace_id"] == ws_id
 

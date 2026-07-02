@@ -10,10 +10,10 @@ from __future__ import annotations
 import datetime
 import json
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from suitest_lifecycle.analyzers.express import analyze_express
 from suitest_lifecycle.analyzers.react import analyze_react
-from suitest_lifecycle.config import Config, DependencyConfig
 from suitest_lifecycle.enrich import enrich_plan, resolve_client
 from suitest_lifecycle.exporters.backend import export_backend_tests
 from suitest_lifecycle.exporters.frontend import export_frontend_tests
@@ -36,6 +36,9 @@ from suitest_lifecycle.serialize import (
 )
 from suitest_lifecycle.tcm import sync_tcm
 
+if TYPE_CHECKING:
+    from suitest_lifecycle.config import Config, DependencyConfig
+
 
 @dataclass
 class LifecycleResult:
@@ -49,7 +52,9 @@ class LifecycleResult:
 
 def _publish_step(pub: dict[str, object]) -> str:
     if pub.get("published"):
-        return f"published to Suitest: run {pub.get('runId')} ({pub.get('imported')} cases imported)"
+        return (
+            f"published to Suitest: run {pub.get('runId')} ({pub.get('imported')} cases imported)"
+        )
     return f"publish skipped — {pub.get('reason')}"
 
 
@@ -301,7 +306,9 @@ def run_lifecycle(config: Config) -> LifecycleResult:
             dpm = ProcessManager()
             dmanaged = dpm.start(dep.start_command, dep.cwd, dep.env)
             dep_managers.append((dep, dpm))
-            steps.append(f"started dependency '{dep.name}': {dep.start_command} (pid {dmanaged.popen.pid})")
+            steps.append(
+                f"started dependency '{dep.name}': {dep.start_command} (pid {dmanaged.popen.pid})"
+            )
             dverdict = wait_until_ready(
                 dep.ready_url,
                 "localhost",
@@ -335,7 +342,9 @@ def run_lifecycle(config: Config) -> LifecycleResult:
             startup_tail = managed.tail(40)
             steps.append(f"readiness: {ready_detail}")
         else:
-            verdict = wait_until_ready(ready_url, host, config.port, config.server.ready_timeout_sec)
+            verdict = wait_until_ready(
+                ready_url, host, config.port, config.server.ready_timeout_sec
+            )
             is_ready = verdict.ready
             ready_detail = f"{verdict.strategy}: {verdict.detail} ({verdict.waited_ms} ms)"
             steps.append(f"readiness (no autostart): {ready_detail}")

@@ -43,7 +43,9 @@ _ROUTER_USE_AUTH_RE = re.compile(r"""\brouter\s*\.\s*use\(\s*(?P<mw>\w+)\s*\)"""
 
 
 def _ts_files(src: Path) -> list[Path]:
-    return sorted(p for p in src.rglob("*.ts") if ".d.ts" not in p.name and "node_modules" not in p.parts)
+    return sorted(
+        p for p in src.rglob("*.ts") if ".d.ts" not in p.name and "node_modules" not in p.parts
+    )
 
 
 def _join(prefix: str, sub: str) -> str:
@@ -72,7 +74,11 @@ def _auth_markers(text: str) -> tuple[bool, set[str]]:
     router_level = bool(auth_ids)
     # also collect any identifier that looks like auth middleware referenced inline
     for ident in re.findall(r"\b(\w*[Aa]uth\w*)\b", text):
-        if "middleware" in ident.lower() or ident.lower() in {"authmiddleware", "requireauth", "protect"}:
+        if "middleware" in ident.lower() or ident.lower() in {
+            "authmiddleware",
+            "requireauth",
+            "protect",
+        }:
             auth_ids.add(ident)
     return router_level, auth_ids
 
@@ -122,7 +128,9 @@ def _tech_stack(project_path: Path) -> tuple[list[str], str]:
             if dep in deps and label not in stack:
                 stack.append(label)
         if "jsonwebtoken" in deps:
-            auth_flow = "JWT bearer: POST login returns a token used as 'Authorization: Bearer <token>'."
+            auth_flow = (
+                "JWT bearer: POST login returns a token used as 'Authorization: Bearer <token>'."
+            )
     return stack, auth_flow
 
 

@@ -4,6 +4,28 @@ All notable Suitest milestone tags are listed here. Format: keepachangelog +
 milestone groupings; the project follows semver-flavoured tags
 ``vMAJOR.MINOR.PATCH-<milestone>`` until 1.0.
 
+## Unreleased — open-source launch prep (2026-07-03)
+
+Public-launch readiness pass:
+
+- **`@suitest/mcp` on npm** — run the MCP server with `npx -y @suitest/mcp`
+  (Node launcher bundling the stdlib-only Python server); `suitest-mcp`
+  console script for the `uvx --from suitest-lifecycle suitest-mcp` route.
+- **Blackbox DOM engine** — test any web app from a URL + credentials (no
+  repo, no LLM key): heuristic login detection, safe crawling, page-pattern
+  classification, interaction graph, deterministic Playwright generation,
+  evidence + mandatory publish. Browser setup wizard (`bootstrap_project`).
+- **PRD-driven planning** — upload a markdown PRD; the workspace LLM plans
+  semantic cases against the discovered DOM (`/llm/complete` server proxy —
+  provider keys never leave the server).
+- **Branding** — `assets/brand/logo.svg` (+ light/dark lockups, mark) wired
+  into README, web favicon, and the docs site.
+- **CI** — `mcp-package` job (npm smoke + pack dry-run + uvx wheel boot
+  smoke); `release-mcp` workflow (npm + PyPI on `mcp-v*` tags).
+- **Docs** — all of `docs/` in English; new `TROUBLESHOOTING.md`,
+  `BLACKBOX_UI_TESTING.md`, `infra/README.md`; README rewritten around the
+  npx/uvx quick start.
+
 ## v0.5.0-m1d — M1d — ZERO-mode closeout: manual TCM writes + integrations (2026-05-31)
 
 Closes the ZERO tier. Full manual Test Case Management write surface,

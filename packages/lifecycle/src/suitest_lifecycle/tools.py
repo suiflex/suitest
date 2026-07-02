@@ -11,6 +11,7 @@ target not ready) — those become ``success=false`` envelopes with ``errors``.
 
 from __future__ import annotations
 
+from suitest_lifecycle.blackbox.mcp import BLACKBOX_TOOLS
 from suitest_lifecycle.config import ConfigError, load_config
 from suitest_lifecycle.models import Mode
 from suitest_lifecycle.orchestrator import generate_only, run_lifecycle
@@ -63,7 +64,9 @@ def analyze_project(config_path: str) -> dict[str, object]:
         if summary.mode is Mode.BACKEND
         else f"{len(summary.pages)} pages"
     )
-    return _envelope(True, f"analyzed {summary.mode.value}: {label}", data=code_summary_to_json(summary))
+    return _envelope(
+        True, f"analyzed {summary.mode.value}: {label}", data=code_summary_to_json(summary)
+    )
 
 
 def generate_test_cases(config_path: str) -> dict[str, object]:
@@ -71,7 +74,7 @@ def generate_test_cases(config_path: str) -> dict[str, object]:
     cfg, err = _safe_load(config_path)
     if err is not None:
         return err
-    summary, cases, paths = generate_only(cfg)  # type: ignore[arg-type]
+    _summary, cases, paths = generate_only(cfg)  # type: ignore[arg-type]
     artifacts = [str(paths.prd_json), str(paths.test_plan_json), str(paths.code_summary_json)]
     artifacts += [str(paths.test_file(c.automation_file)) for c in cases if c.automation_file]
     return _envelope(
@@ -177,8 +180,14 @@ def sync_tcm(config_path: str) -> dict[str, object]:
     if err is not None:
         return err
     paths = build_paths(cfg.output_dir, cfg.mode)  # type: ignore[union-attr]
-    cases = json.loads(paths.tcm_cases_json.read_text("utf-8")) if paths.tcm_cases_json.is_file() else []
-    runs = json.loads(paths.tcm_runs_json.read_text("utf-8")) if paths.tcm_runs_json.is_file() else []
+    cases = (
+        json.loads(paths.tcm_cases_json.read_text("utf-8"))
+        if paths.tcm_cases_json.is_file()
+        else []
+    )
+    runs = (
+        json.loads(paths.tcm_runs_json.read_text("utf-8")) if paths.tcm_runs_json.is_file() else []
+    )
     return _envelope(
         True,
         f"TCM mirror: {len(cases)} case(s), {len(runs)} run(s)",
@@ -188,8 +197,6 @@ def sync_tcm(config_path: str) -> dict[str, object]:
 
 
 # Tool registry (name -> callable) used by the MCP server.
-from suitest_lifecycle.blackbox.mcp import BLACKBOX_TOOLS
-
 TOOLS = {
     "analyze_project": analyze_project,
     "generate_test_cases": generate_test_cases,

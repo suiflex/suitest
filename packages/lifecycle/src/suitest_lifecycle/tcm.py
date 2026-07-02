@@ -14,10 +14,13 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from suitest_lifecycle.models import Mode, PlanCase, RunSummary, TestResult
-from suitest_lifecycle.paths import Paths
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from suitest_lifecycle.models import Mode, PlanCase, RunSummary, TestResult
+    from suitest_lifecycle.paths import Paths
 
 
 @dataclass(frozen=True)
@@ -76,7 +79,7 @@ def upsert_cases(
             rec["last_run_result"] = res.status.value
             rec["last_run_at"] = run_at
             rec["duration_ms"] = res.duration_ms
-            rec["failure_reason"] = (res.error.splitlines()[-1] if res.error else None)
+            rec["failure_reason"] = res.error.splitlines()[-1] if res.error else None
         elif prior is not None:
             for k in ("last_run_result", "last_run_at", "duration_ms", "failure_reason"):
                 rec[k] = prior.get(k)

@@ -357,4 +357,9 @@ def resolve_remote(config: Config) -> RemoteLlmClient | None:
     return RemoteLlmClient(api_url, token, config.publish.workspace_id or None)
 
 
-__all__ = ["RemoteLlmClient", "build_dom_context", "build_dom_context_from_discovery", "resolve_remote"]
+__all__ = [
+    "RemoteLlmClient",
+    "build_dom_context",
+    "build_dom_context_from_discovery",
+    "resolve_remote",
+]

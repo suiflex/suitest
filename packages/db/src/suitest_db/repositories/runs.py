@@ -144,9 +144,10 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
         """
         if await self.get_by_id(run_id) is not None:
             return run_id
-        return await self.session.scalar(
+        resolved: str | None = await self.session.scalar(
             select(Run.id).where(Run.workspace_id == workspace_id, Run.public_id == run_id)
         )
+        return resolved
 
     async def list_since(self, project_id: str, since: datetime) -> Sequence[Run]:
         """All runs for a project created at/after ``since`` (analytics windows)."""

@@ -46,9 +46,7 @@ async def create_api_key(
     """Create a key; returns the row plus the plaintext token (shown once)."""
     token, prefix, key_hash = generate_token()
     expires_at = (
-        datetime.now(UTC) + timedelta(days=expires_in_days)
-        if expires_in_days is not None
-        else None
+        datetime.now(UTC) + timedelta(days=expires_in_days) if expires_in_days is not None else None
     )
     created_by = uuid.UUID(user_id)
     row = await ApiKeyRepo(session).create(

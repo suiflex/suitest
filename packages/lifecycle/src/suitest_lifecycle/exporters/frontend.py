@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from suitest_lifecycle.models import CodeSummary, PlanCase
     from suitest_lifecycle.paths import Paths
 
-_HEADER = '''import asyncio
+_HEADER = """import asyncio
 import glob
 import json
 import os
@@ -96,9 +96,9 @@ async def _login(page):
     _begin("assertion", "Dashboard is visible")
     await expect(page.get_by_test_id("dashboard-page")).to_be_visible(timeout=TIMEOUT)
     await _ok(page)
-'''
+"""
 
-_RUNNER = '''
+_RUNNER = """
 
 async def run_test():
     pw = browser = context = page = None
@@ -187,7 +187,7 @@ async def run_test():
 if __name__ == "__main__":
     asyncio.run(run_test())
     print("PASS " + TC_ID)
-'''
+"""
 
 
 def _body(case: PlanCase) -> str:
@@ -195,15 +195,15 @@ def _body(case: PlanCase) -> str:
     route = case.source_ref.split(" ", 1)[1] if " " in case.source_ref else "/"
 
     if arch == "login_success":
-        return '''
+        return """
 async def _body(page):
     await _login(page)
     _begin("assertion", "Dashboard summary is visible")
     await expect(page.get_by_test_id("dashboard-page")).to_be_visible(timeout=TIMEOUT)
     await _ok(page)
-'''
+"""
     if arch == "invalid_login":
-        return '''
+        return """
 async def _body(page):
     _begin("action", "Navigate to /login")
     await page.goto(f"{BASE_URL}/login")
@@ -219,9 +219,9 @@ async def _body(page):
     await expect(page.get_by_test_id("login-error-message")).to_be_visible(timeout=TIMEOUT)
     assert "/login" in page.url
     await _ok(page)
-'''
+"""
     if arch == "protected_redirect":
-        return f'''
+        return f"""
 async def _body(page):
     _begin("action", "Navigate directly to {route} with no session")
     await page.goto(f"{{BASE_URL}}{route}")
@@ -229,17 +229,17 @@ async def _body(page):
     _begin("assertion", "Login page is shown")
     await expect(page.get_by_test_id("login-page")).to_be_visible(timeout=TIMEOUT)
     await _ok(page)
-'''
+"""
     if arch == "dashboard_loads":
-        return '''
+        return """
 async def _body(page):
     await _login(page)
     _begin("assertion", "Dashboard summary is visible")
     await expect(page.get_by_test_id("dashboard-page")).to_be_visible(timeout=TIMEOUT)
     await _ok(page)
-'''
+"""
     if arch == "products_list":
-        return '''
+        return """
 async def _body(page):
     await _login(page)
     _begin("action", "Open /products")
@@ -248,9 +248,9 @@ async def _body(page):
     _begin("assertion", "Products page is visible")
     await expect(page.get_by_test_id("products-page")).to_be_visible(timeout=TIMEOUT)
     await _ok(page)
-'''
+"""
     if arch == "search_empty":
-        return '''
+        return """
 async def _body(page):
     await _login(page)
     _begin("action", "Open /products")
@@ -264,9 +264,9 @@ async def _body(page):
     _begin("assertion", "No matching rows are shown")
     assert await page.get_by_test_id("product-row").count() == 0
     await _ok(page)
-'''
+"""
     if arch == "create_product":
-        return '''
+        return """
 async def _body(page):
     await _login(page)
     _begin("action", "Open the product create form")
@@ -286,9 +286,9 @@ async def _body(page):
     _begin("assertion", "Returns to the products list")
     await expect(page.get_by_test_id("products-page")).to_be_visible(timeout=TIMEOUT)
     await _ok(page)
-'''
+"""
     if arch == "empty_login":
-        return '''
+        return """
 async def _body(page):
     _begin("action", "Navigate to /login")
     await page.goto(f"{BASE_URL}/login")
@@ -300,9 +300,9 @@ async def _body(page):
     await expect(page.get_by_test_id("login-error-message")).to_be_visible(timeout=TIMEOUT)
     assert "/login" in page.url
     await _ok(page)
-'''
+"""
     if arch == "logout":
-        return '''
+        return """
 async def _body(page):
     await _login(page)
     _begin("action", "Click the logout button")
@@ -317,9 +317,9 @@ async def _body(page):
     _begin("assertion", "Still on the login page (session cleared)")
     await expect(page.get_by_test_id("login-page")).to_be_visible(timeout=TIMEOUT)
     await _ok(page)
-'''
+"""
     if arch == "search_match":
-        return '''
+        return """
 async def _body(page):
     await _login(page)
     token = uuid.uuid4().hex[:8]
@@ -343,9 +343,9 @@ async def _body(page):
     assert await rows.count() == 1, f"expected 1 matching row, got {await rows.count()}"
     await expect(rows.first).to_contain_text(name)
     await _ok(page)
-'''
+"""
     if arch == "delete_product":
-        return '''
+        return """
 async def _body(page):
     await _login(page)
     token = uuid.uuid4().hex[:8]
@@ -372,9 +372,9 @@ async def _body(page):
     await page.wait_for_timeout(600)
     assert await page.get_by_test_id("product-row").count() == 0, "deleted product still listed"
     await _ok(page)
-'''
+"""
     if arch == "create_invalid":
-        return '''
+        return """
 async def _body(page):
     await _login(page)
     _begin("action", "Open the product create form")
@@ -390,11 +390,11 @@ async def _body(page):
     await expect(page.get_by_test_id("product-form-page")).to_be_visible(timeout=TIMEOUT)
     assert "/products/new" in page.url, f"unexpected navigation to {page.url}"
     await _ok(page)
-'''
-    return f'''
+"""
+    return f"""
 async def _body(page):
     raise AssertionError("unsupported frontend archetype: {arch}")
-'''
+"""
 
 
 _UNSUPPORTED_MARKER = "unsupported frontend archetype"

@@ -8,8 +8,12 @@ exporter can render the right script, and is traceable to a real page route.
 
 from __future__ import annotations
 
-from suitest_lifecycle.config import Config
+from typing import TYPE_CHECKING
+
 from suitest_lifecycle.models import CodeSummary, PlanCase, PlanStep, Priority
+
+if TYPE_CHECKING:
+    from suitest_lifecycle.config import Config
 
 
 def _routes(summary: CodeSummary) -> dict[str, bool]:
@@ -17,7 +21,13 @@ def _routes(summary: CodeSummary) -> dict[str, bool]:
 
 
 def _case(
-    cid: str, title: str, desc: str, category: str, prio: Priority, ref: str, steps: list[tuple[str, str]]
+    cid: str,
+    title: str,
+    desc: str,
+    category: str,
+    prio: Priority,
+    ref: str,
+    steps: list[tuple[str, str]],
 ) -> PlanCase:
     return PlanCase(
         id=cid,
@@ -195,7 +205,10 @@ def generate_frontend_plan(summary: CodeSummary, config: Config) -> list[PlanCas
                     "fe:delete_product /products",
                     [
                         ("action", "Log in and create a uniquely-named product"),
-                        ("action", "Search for it and click its delete button, accepting the confirm"),
+                        (
+                            "action",
+                            "Search for it and click its delete button, accepting the confirm",
+                        ),
                         ("assertion", "The product row disappears from the list"),
                     ],
                 )

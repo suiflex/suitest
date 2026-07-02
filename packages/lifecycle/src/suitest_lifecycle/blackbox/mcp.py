@@ -228,9 +228,10 @@ def blackbox_generate_playwright_tests(**kwargs: Any) -> dict[str, Any]:
     llm = None
     prd_context = ""
     if prd_file:
+        import os as _os
+
         from suitest_lifecycle.blackbox.prd_ingest import load_prd
         from suitest_lifecycle.llm_bridge import RemoteLlmClient
-        import os as _os
 
         prd_doc = load_prd(prd_file)
         (paths.tmp_dir / "prd_ingest.json").write_text(
@@ -243,9 +244,7 @@ def blackbox_generate_playwright_tests(**kwargs: Any) -> dict[str, Any]:
             llm = RemoteLlmClient(api_url, token)
     cases = export_blackbox_tests(discovery, ui, paths, llm=llm, prd_context=prd_context)
     paths.test_plan_json.write_text(json.dumps(plan_to_json(cases), indent=2), encoding="utf-8")
-    manifest = [
-        {"id": c.id, "title": c.title, "file": c.automation_file} for c in cases
-    ]
+    manifest = [{"id": c.id, "title": c.title, "file": c.automation_file} for c in cases]
     (paths.tmp_dir / "blackbox_cases.json").write_text(
         json.dumps(manifest, indent=2), encoding="utf-8"
     )
@@ -266,9 +265,7 @@ def blackbox_run_playwright_tests(**kwargs: Any) -> dict[str, Any]:
     _, paths = _resolve(**kwargs)
     manifest_path = paths.tmp_dir / "blackbox_cases.json"
     if not manifest_path.is_file():
-        return _envelope(
-            False, "no generated tests — run blackbox_generate_playwright_tests first"
-        )
+        return _envelope(False, "no generated tests — run blackbox_generate_playwright_tests first")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     cases = [
         PlanCase(
@@ -344,15 +341,12 @@ def blackbox_summarize_findings(**kwargs: Any) -> dict[str, Any]:
     if discovery is None:
         return _envelope(False, "no discovery.json — run blackbox_discover_app first")
     results_path = paths.tmp_dir / "blackbox_results.json"
-    results = (
-        json.loads(results_path.read_text(encoding="utf-8")) if results_path.is_file() else []
-    )
+    results = json.loads(results_path.read_text(encoding="utf-8")) if results_path.is_file() else []
     report = summarize(discovery, graph=build_graph(discovery), test_results=results)
     report_path = write_report(report, paths.reports_dir)
     return _envelope(
         True,
-        f"{report['routesDiscovered']} route(s), "
-        f"{len(report['bugCandidates'])} bug candidate(s)",
+        f"{report['routesDiscovered']} route(s), {len(report['bugCandidates'])} bug candidate(s)",
         data=report,
         artifacts=[report_path],
     )
@@ -375,8 +369,7 @@ def bootstrap_project(**kwargs: Any) -> dict[str, Any]:
         )
     return _envelope(
         True,
-        f"config saved: {result['configPath']}"
-        + (" (with PRD)" if result.get("prdFile") else ""),
+        f"config saved: {result['configPath']}" + (" (with PRD)" if result.get("prdFile") else ""),
         data=result,
         artifacts=[result["configPath"]],
     )
@@ -393,7 +386,6 @@ def blackbox_publish_results(**kwargs: Any) -> dict[str, Any]:
     ``SUITEST_API_URL``/``SUITEST_API_KEY`` env the MCP server already carries.
     """
     import os as _os
-
     import re as _re
 
     project_id = str(kwargs.pop("project_id", "") or "")
@@ -432,6 +424,7 @@ def blackbox_publish_results(**kwargs: Any) -> dict[str, Any]:
 
     try:
         with SuitestClient(api_url, token=token, timeout=180.0) as client:
+
             def _up(path: str, mime: str) -> str:
                 try:
                     return client.upload_file(path, content_type=mime)

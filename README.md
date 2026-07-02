@@ -1,6 +1,19 @@
-# Suitest
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo-dark.svg">
+    <img src="assets/brand/logo-light.svg" alt="Suitest" width="320">
+  </picture>
+</p>
 
-> **MCP-native testing platform. Manual test management, deterministic runs, optional autonomous AI. Your stack, your LLM, your data.**
+<p align="center"><strong>MCP-native testing platform. Manual test management, deterministic runs, optional autonomous AI. Your stack, your LLM, your data.</strong></p>
+
+<p align="center">
+  <a href="https://github.com/suiflex/suitest/actions/workflows/ci.yml"><img src="https://github.com/suiflex/suitest/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-4ade80" alt="License"></a>
+  <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-native-4ade80" alt="MCP"></a>
+</p>
+
+# Suitest
 
 Self-hostable open-source test platform. Works fully **without any LLM** (ZERO tier) — manual test case management + a deterministic run engine that drives any target through [MCP](https://modelcontextprotocol.io) (Playwright, HTTP APIs, Postgres, and more). Plug in your own LLM key — cloud or local Ollama — to unlock AI generation, diagnosis, and conversational testing. No vendor lock-in, no forced API keys.
 
@@ -10,24 +23,59 @@ Backend: Python 3.12 + FastAPI · Frontend: Vite + React 19 · DB: Postgres 16 +
 
 ## ⚠️ Project status
 
-**Pre-v1.0, under active development.** What works **today** (milestones M0–M1e, tags `v0.1.0` → `v0.6.0`):
+**Pre-v1.0, under active development.** What works **today**:
 
 - ✅ Manual TCM — create/edit test cases, steps, suites, projects (read + write)
 - ✅ Deterministic runner via MCP — `playwright`, `api-http`, `postgres` providers
-- ✅ Live run logs (WebSocket), screenshots, MinIO artifacts, cancel/rerun
+- ✅ Live run logs (WebSocket), screenshots + per-test video, MinIO artifacts, cancel/rerun
 - ✅ Rule-based defects, traceability matrix, analytics, integrations + CI webhooks (GitHub/GitLab/Jira/Slack)
+- ✅ Deterministic generators — OpenAPI, browser recorder, crawler
+- ✅ **MCP server for IDE agents** (`npx -y @suitest/mcp`) — analyze → generate → run → publish from Claude Code / Cursor / Codex, incl. a **blackbox DOM engine** that tests any web app from just a URL + credentials (no repo, no LLM key)
+- ✅ BYO LLM per workspace (Settings → LLM: Anthropic/OpenAI/Gemini/…, local Ollama/vLLM, or any OpenAI-compatible URL) — unlocks agent chat, PRD-driven test generation, LLM codegen
 - ✅ Local auth: super-admin bootstrap + invite-only onboarding (no OAuth required)
 
-**Roadmap (not built yet):** deterministic generators (M2, on branch `feat/m2-generators-mcp`), expanded MCP bundle + code export (M2), all AI/LLM features (M3+), SDK/CLI + public launch (M4). See [docs/ROADMAP.md](./docs/ROADMAP.md) — the single source of truth for build status.
+See [docs/ROADMAP.md](./docs/ROADMAP.md) — the single source of truth for build status.
 
 > Every spec doc in `docs/` carries a build-status banner at the top (built vs. spec). Trust the banner before the prose.
 
 ---
 
-## Quick start (Docker Compose)
+## Quick start — MCP server (no install)
+
+Turn your IDE agent into a QA engineer in one line. Node route:
 
 ```bash
-git clone https://github.com/<org>/suitest && cd suitest
+npx -y @suitest/mcp
+```
+
+Python route (same server, via [uv](https://docs.astral.sh/uv/)):
+
+```bash
+uvx --from suitest-lifecycle suitest-mcp
+```
+
+Wire it into Claude Code / Cursor (`.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "suitest": {
+      "command": "npx",
+      "args": ["-y", "@suitest/mcp"],
+      "env": { "SUITEST_API_URL": "http://localhost:4000", "SUITEST_API_KEY": "sk_suitest_…" }
+    }
+  }
+}
+```
+
+The agent gets 21 tools: repo-based lifecycle (analyze → generate → run → report), a **blackbox engine** for apps you have no repo for (browser setup wizard, login detection, safe crawling, deterministic Playwright generation, evidence), and PRD-driven planning. `SUITEST_API_URL`/`KEY` are optional — with them, cases/runs/evidence publish into the web TCM below; without them results stay local. Details: [docs/MCP_PLUGINS.md](./docs/MCP_PLUGINS.md) · [docs/BLACKBOX_UI_TESTING.md](./docs/BLACKBOX_UI_TESTING.md).
+
+---
+
+## Quick start — full platform (Docker Compose)
+
+```bash
+git clone https://github.com/suiflex/suitest && cd suitest
 cp .env.example .env
 ```
 
@@ -86,25 +134,12 @@ Other useful targets (`make help` for the full list):
 
 ## Enable AI (optional)
 
-AI features are **roadmap (M3+)** and not active yet, but the tier switch is wired. Switch tiers any time via env var — no migration needed.
+LLM providers are configured **per workspace from the web UI** — `Settings → LLM` — not via env vars. Keys are AES-GCM encrypted at rest and never shown again. Setting a provider upgrades the workspace tier (ZERO → CLOUD/LOCAL) and unlocks agent chat, PRD-driven generation, and LLM codegen.
 
-**CLOUD** (bring your own key — 100+ providers via [LiteLLM](https://docs.litellm.ai)):
+- **CLOUD** — bring your own key: Anthropic, OpenAI, Gemini, Groq, OpenRouter, DeepSeek, … (100+ providers via [LiteLLM](https://docs.litellm.ai)), or **`custom`** — any OpenAI-compatible base URL (gateways, routers, proxies).
+- **LOCAL** — privacy-first / air-gapped: Ollama, llama.cpp, vLLM, LM Studio (`docker compose --profile local up -d` ships an Ollama service).
 
-```bash
-SUITEST_LLM_PROVIDER=anthropic        # or openai, gemini, groq, openrouter, bedrock, ...
-SUITEST_LLM_API_KEY=sk-ant-...
-SUITEST_LLM_MODEL=claude-sonnet-4-5
-docker compose restart api runner
-```
-
-**LOCAL** (privacy-first / air-gapped, all inference on your hardware):
-
-```bash
-SUITEST_LLM_PROVIDER=ollama
-SUITEST_LLM_BASE_URL=http://ollama:11434
-SUITEST_LLM_MODEL=llama3.1:8b
-docker compose --profile local up -d   # includes an Ollama service
-```
+The default is always **ZERO**: no LLM call is ever made until a workspace explicitly configures one.
 
 ---
 
@@ -112,9 +147,9 @@ docker compose --profile local up -d   # includes an Ollama service
 
 | Tier | Trigger | What you get |
 |------|---------|--------------|
-| **ZERO** | `SUITEST_LLM_PROVIDER` empty (default) | Full manual TCM, deterministic runner via MCP, rule-based defects, traceability, analytics, integrations + CI webhooks. No LLM call ever. |
-| **LOCAL** | `ollama` / `llamacpp` / `vllm` / `lmstudio` | Everything ZERO has + AI features *(roadmap M3)*, all inference on your hardware. |
-| **CLOUD** | `anthropic` / `openai` / `gemini` / ... | Same as LOCAL using a cloud LLM, with cost tracking + budget guard *(roadmap M3)*. |
+| **ZERO** | no workspace LLM configured (default) | Full manual TCM, deterministic runner via MCP, deterministic generators, blackbox engine, rule-based defects, traceability, analytics, integrations + CI webhooks. No LLM call ever. |
+| **LOCAL** | workspace LLM = `ollama` / `llamacpp` / `vllm` / `lmstudio` | Everything ZERO has + AI features, all inference on your hardware. |
+| **CLOUD** | workspace LLM = `anthropic` / `openai` / `gemini` / `custom` / … | Same as LOCAL using a cloud LLM, with cost tracking + budget guard. |
 
 Detail: [docs/CAPABILITY_TIERS.md](./docs/CAPABILITY_TIERS.md).
 
@@ -135,11 +170,19 @@ suitest/
 │   └── runner/              ← ARQ worker (per-step MCP dispatch)
 │
 ├── packages/
-│   ├── agent/               ← LiteLLM + LangGraph agent (stub — targets M3)
+│   ├── agent/               ← LiteLLM router + agent graphs
 │   ├── db/                  ← SQLAlchemy 2 async + Alembic + seed
 │   ├── mcp/                 ← MCP client + registry + pool + bundled providers
+│   ├── lifecycle/           ← the MCP server: analyze→generate→run→publish + blackbox engine
+│   ├── mcp-npx/             ← @suitest/mcp — npx launcher for the MCP server
 │   ├── shared/              ← cross-package Pydantic schemas
 │   └── core/                ← capability resolver, autonomy, AES-GCM crypto
+│
+├── sdk/
+│   ├── python/              ← suitest-sdk (REST client used by the lifecycle)
+│   └── typescript/          ← @suitest/sdk
+│
+├── assets/brand/            ← logo.svg + light/dark lockups + mark
 │
 ├── infra/
 │   ├── docker/              ← Dockerfile per service
@@ -167,6 +210,7 @@ suitest/
 | [GENERATORS.md](./docs/GENERATORS.md) | Generator design (deterministic + LLM) |
 | [AUTONOMY.md](./docs/AUTONOMY.md) | Per-workspace autonomy dial |
 | [AI_AGENT.md](./docs/AI_AGENT.md) | Prompts + LangGraph + tool registry (spec, M3) |
+| [BLACKBOX_UI_TESTING.md](./docs/BLACKBOX_UI_TESTING.md) | Blackbox DOM engine — test any web app from a URL (Zero + MCP) |
 | [DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Compose / Helm / air-gapped |
 | [Design memo](./docs/superpowers/specs/2026-05-26-suitest-oss-pivot-design.md) | OSS pivot decisions (source of truth) |
 
@@ -179,7 +223,7 @@ suitest/
 | First-class manual TCM | ✓ | ✗ | partial | ✓ | ✓ |
 | Deterministic runner | ✗ | ✓ | ✓ | ✓ | ✓ |
 | Universal MCP plugin layer | ✗ | ✗ | partial | ✓ | ✓ |
-| AI generation / diagnosis | ✗ | ✗ | ✓ | ✗ | ✓ *(roadmap)* |
+| AI generation / diagnosis | ✗ | ✗ | ✓ | ✗ | ✓ |
 | Self-host | ✓ | ✓ | ✗ | ✓ | ✓ |
 | BYO LLM (100+ providers) | n/a | n/a | ✗ locked | n/a | ✓ |
 | Air-gapped | ✓ | ✓ | ✗ | ✓ | ✓ (Ollama) |
@@ -194,7 +238,7 @@ suitest/
 3. **Branch:** `feat/<scope>-<short-desc>`. **Commits:** conventional commits (`feat(api): ...`).
 4. **Before pushing:** `make ci` must pass (ruff + mypy strict, tsc strict + ESLint, pytest async + vitest).
 
-`CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and `SECURITY.md` land in M4 launch prep.
+See also [CONTRIBUTING.md](./CONTRIBUTING.md), [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md), and [SECURITY.md](./SECURITY.md).
 
 ---
 

@@ -9,11 +9,14 @@ Each file is fully runnable on its own — no Suitest import needed.
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from suitest_lifecycle.analyzers.zod_schema import ZodField, find_create_schema, sample_value
-from suitest_lifecycle.config import Config
-from suitest_lifecycle.models import CodeSummary, PlanCase
-from suitest_lifecycle.paths import Paths
+
+if TYPE_CHECKING:
+    from suitest_lifecycle.config import Config
+    from suitest_lifecycle.models import CodeSummary, PlanCase
+    from suitest_lifecycle.paths import Paths
 
 
 def _archetype(title: str) -> str:
@@ -110,7 +113,7 @@ def _payload_literal(fields: list[ZodField]) -> str:
         if isinstance(val, str):
             rendered = '"' + val.replace('"', '\\"') + '"'
             if "{token}" in val:
-                rendered = 'f' + rendered
+                rendered = "f" + rendered
         elif isinstance(val, bool):
             rendered = "True" if val else "False"
         else:
@@ -119,7 +122,7 @@ def _payload_literal(fields: list[ZodField]) -> str:
     return "{\n" + "\n".join(items) + "\n    }"
 
 
-_HEADER = '''import requests
+_HEADER = """import requests
 import uuid
 
 BASE_URL = "{api_url}"
@@ -151,7 +154,7 @@ def _extract_id(body):
         if "id" in body:
             return body["id"]
     return None
-'''
+"""
 
 
 def _render(case: PlanCase, config: Config, summary: CodeSummary) -> str:
@@ -172,12 +175,12 @@ def _render(case: PlanCase, config: Config, summary: CodeSummary) -> str:
 
     body = ""
     if arch == "health":
-        body = f'''
+        body = f"""
 def {fn}():
     resp = requests.get(f"{{BASE_URL}}{rel}", timeout=TIMEOUT)
     assert resp.status_code == 200, f"expected 200, got {{resp.status_code}}"
     assert isinstance(resp.json(), dict)
-'''
+"""
     elif arch == "login_valid":
         body = f'''
 def {fn}():
@@ -201,32 +204,34 @@ def {fn}():
 '''
     elif arch == "requires_auth":
         verb = method.lower()
-        body = f'''
+        body = f"""
 def {fn}():
     resp = requests.{verb}(f"{{BASE_URL}}{rel}", timeout=TIMEOUT)
     assert resp.status_code == 401, f"expected 401, got {{resp.status_code}}"
-'''
+"""
     elif arch == "me":
-        body = f'''
+        body = f"""
 def {fn}():
     resp = requests.get(f"{{BASE_URL}}{rel}", headers=_auth_headers(), timeout=TIMEOUT)
     assert resp.status_code == 200, f"expected 200, got {{resp.status_code}}"
     assert isinstance(resp.json(), dict)
-'''
+"""
     elif arch == "list":
-        body = f'''
+        body = f"""
 def {fn}():
     resp = requests.get(f"{{BASE_URL}}{rel}", headers=_auth_headers(), timeout=TIMEOUT)
     assert resp.status_code == 200, f"expected 200, got {{resp.status_code}}"
-'''
+"""
     elif arch in {"get_by_id", "update", "delete"}:
-        resource = [p for p in path.strip("/").split("/") if p and not p.startswith(":") and p != "api"]
+        resource = [
+            p for p in path.strip("/").split("/") if p and not p.startswith(":") and p != "api"
+        ]
         res_name = resource[-1] if resource else "resource"
         coll = _collection_for(res_name, summary, config)
         payload = _resolve_payload(res_name, summary, config)
         coll_rel = coll[0] if coll else rel.rsplit("/", 1)[0] or "/"
         item_rel = rel.replace(":id", "{rid}").replace("{id}", "{rid}")
-        seed = f'''
+        seed = f"""
     headers = _auth_headers()
     token = uuid.uuid4().hex[:8]
     payload = {payload}
@@ -234,68 +239,72 @@ def {fn}():
     assert created.status_code in (200, 201), f"seed failed: {{created.status_code}} {{created.text}}"
     rid = _extract_id(created.json())
     assert rid is not None, "could not extract id from created resource"
-'''
+"""
         if arch == "get_by_id":
-            action = f'''    resp = requests.get(f"{{BASE_URL}}{item_rel}", headers=headers, timeout=TIMEOUT)
+            action = f"""    resp = requests.get(f"{{BASE_URL}}{item_rel}", headers=headers, timeout=TIMEOUT)
     assert resp.status_code == 200, f"expected 200, got {{resp.status_code}}"
-'''
+"""
         elif arch == "update":
-            action = f'''    resp = requests.{method.lower()}(f"{{BASE_URL}}{item_rel}", json={{"name": "Suitest Updated"}}, headers=headers, timeout=TIMEOUT)
+            action = f"""    resp = requests.{method.lower()}(f"{{BASE_URL}}{item_rel}", json={{"name": "Suitest Updated"}}, headers=headers, timeout=TIMEOUT)
     assert resp.status_code == 200, f"expected 200, got {{resp.status_code}}"
-'''
+"""
         else:  # delete
-            action = f'''    resp = requests.delete(f"{{BASE_URL}}{item_rel}", headers=headers, timeout=TIMEOUT)
+            action = f"""    resp = requests.delete(f"{{BASE_URL}}{item_rel}", headers=headers, timeout=TIMEOUT)
     assert resp.status_code == 200, f"expected 200, got {{resp.status_code}}"
-'''
+"""
         body = f"\ndef {fn}():{seed}{action}"
     elif arch == "create":
-        resource = [p for p in path.strip("/").split("/") if p and not p.startswith(":") and p != "api"]
+        resource = [
+            p for p in path.strip("/").split("/") if p and not p.startswith(":") and p != "api"
+        ]
         res_name = resource[-1] if resource else "resource"
         payload = _resolve_payload(res_name, summary, config)
-        body = f'''
+        body = f"""
 def {fn}():
     headers = _auth_headers()
     token = uuid.uuid4().hex[:8]
     payload = {payload}
     resp = requests.post(f"{{BASE_URL}}{rel}", json=payload, headers=headers, timeout=TIMEOUT)
     assert resp.status_code in (200, 201), f"expected 2xx, got {{resp.status_code}} {{resp.text}}"
-'''
+"""
     elif arch == "validation":
-        body = f'''
+        body = f"""
 def {fn}():
     headers = _auth_headers()
     resp = requests.post(f"{{BASE_URL}}{rel}", json={{}}, headers=headers, timeout=TIMEOUT)
     assert resp.status_code in (400, 422), f"expected validation 4xx, got {{resp.status_code}} {{resp.text}}"
-'''
+"""
     elif arch == "login_missing":
-        body = f'''
+        body = f"""
 def {fn}():
     resp = requests.post(f"{{BASE_URL}}{rel}", json={{}}, timeout=TIMEOUT)
     assert resp.status_code in (400, 422), f"expected validation 4xx, got {{resp.status_code}} {{resp.text}}"
-'''
+"""
     elif arch == "invalid_token":
         verb = method.lower()
-        body = f'''
+        body = f"""
 def {fn}():
     headers = {{"Authorization": "Bearer invalid-token-xyz"}}
     resp = requests.{verb}(f"{{BASE_URL}}{rel}", headers=headers, timeout=TIMEOUT)
     assert resp.status_code == 401, f"expected 401, got {{resp.status_code}}"
-'''
+"""
     elif arch == "not_found":
         verb = method.lower()
         missing_rel = rel.replace(":id", "999999").replace("{id}", "999999")
         extra = ', json={"name": "Suitest Updated"}' if verb in ("put", "patch") else ""
-        body = f'''
+        body = f"""
 def {fn}():
     headers = _auth_headers()
     resp = requests.{verb}(f"{{BASE_URL}}{missing_rel}", headers=headers{extra}, timeout=TIMEOUT)
     assert resp.status_code == 404, f"expected 404, got {{resp.status_code}} {{resp.text}}"
-'''
+"""
     elif arch == "duplicate":
-        resource = [p for p in path.strip("/").split("/") if p and not p.startswith(":") and p != "api"]
+        resource = [
+            p for p in path.strip("/").split("/") if p and not p.startswith(":") and p != "api"
+        ]
         res_name = resource[-1] if resource else "resource"
         payload = _resolve_payload(res_name, summary, config)
-        body = f'''
+        body = f"""
 def {fn}():
     headers = _auth_headers()
     token = uuid.uuid4().hex[:8]
@@ -304,19 +313,19 @@ def {fn}():
     assert first.status_code in (200, 201), f"seed failed: {{first.status_code}} {{first.text}}"
     resp = requests.post(f"{{BASE_URL}}{rel}", json=payload, headers=headers, timeout=TIMEOUT)
     assert resp.status_code in (400, 409), f"expected conflict, got {{resp.status_code}} {{resp.text}}"
-'''
+"""
     else:
-        body = f'''
+        body = f"""
 def {fn}():
     raise AssertionError("unsupported archetype for {case.id}")
-'''
+"""
 
-    footer = f'''
+    footer = f"""
 
 if __name__ == "__main__":
     {fn}()
     print("PASS {case.id}")
-'''
+"""
     return header + body + footer
 
 

@@ -1,0 +1,77 @@
+name: release-mcp
+
+# Publish the MCP server packages on a `mcp-v*` tag:
+#   - @suitest/mcp        → npm  (npx -y @suitest/mcp)
+#   - suitest-lifecycle   → PyPI (uvx --from suitest-lifecycle suitest-mcp)
+#
+# Requires an NPM_TOKEN secret (npm automation token) and a PYPI_TOKEN secret
+# (PyPI API token). On PRs touching the packages, the build + smoke + dry-run
+# steps run to validate; publish only fires on the tag.
+
+on:
+  push:
+    tags: ["mcp-v*"]
+  pull_request:
+    paths:
+      - "packages/mcp-npx/**"
+      - "packages/lifecycle/**"
+      - ".github/workflows/release-mcp.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  npm:
+    name: "@suitest/mcp → npm"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/mcp-npx
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Smoke test (bundle sync + MCP boot)
+        run: npm test
+
+      - name: Validate package contents (publish dry-run)
+        run: |
+          npm pack --dry-run
+          npm publish --dry-run --access public
+
+      - name: Publish
+        if: startsWith(github.ref, 'refs/tags/mcp-v')
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  pypi:
+    name: "suitest-lifecycle → PyPI"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist + wheel
+        run: uv build --project packages/lifecycle -o dist
+
+      - name: Boot smoke via console script
+        run: |
+          printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n' \
+            | uvx --from "$(ls dist/*.whl)" suitest-mcp \
+            | python3 -c 'import sys, json; m = json.loads(sys.stdin.readline()); assert "suitest" in m["result"]["serverInfo"]["name"]; print("boot OK")'
+
+      - name: Publish
+        if: startsWith(github.ref, 'refs/tags/mcp-v')
+        run: uv publish dist/*
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}

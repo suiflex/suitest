@@ -62,7 +62,7 @@ def build_locator(el: ElementInfo, *, ignore_testids: bool = False) -> str:
     if el.testid and not ignore_testids:
         if el.testid_attr in ("", "data-testid"):
             return f'page.get_by_test_id("{_q(el.testid)}")'
-        return f'page.locator(\'[{el.testid_attr}="{_q(el.testid)}"]\')'
+        return f"page.locator('[{el.testid_attr}=\"{_q(el.testid)}\"]')"
     # 2 — role + accessible name
     role = _role_of(el)
     name = _accessible_name(el)

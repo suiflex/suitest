@@ -202,7 +202,9 @@ async def _discover(cfg: BlackboxUiConfig, evidence_dir: Path) -> DiscoveryResul
         page.on("pageerror", lambda e: console_errors.append(str(e)[:300]))
         page.on(
             "response",
-            lambda r: network_errors.append(f"{r.status} {r.url[:200]}") if r.status >= 500 else None,
+            lambda r: (
+                network_errors.append(f"{r.status} {r.url[:200]}") if r.status >= 500 else None
+            ),
         )
         page.on(
             "requestfailed",

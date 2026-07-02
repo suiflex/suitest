@@ -176,12 +176,15 @@ def load_config(path: str | Path) -> Config:
     # HARD RULE: a backend without the repo MUST bring an API contract —
     # OpenAPI or a Postman collection. Black-box-from-URL-only is not enough to
     # generate reliable backend tests.
-    if mode is Mode.BACKEND and analysis_source != "repo":
-        if not (openapi_url or openapi_file or postman_file):
-            raise ConfigError(
-                "no-repo backend requires an API contract: set one of "
-                "'openapiUrl', 'openapiFile', or 'postmanFile'"
-            )
+    if (
+        mode is Mode.BACKEND
+        and analysis_source != "repo"
+        and not (openapi_url or openapi_file or postman_file)
+    ):
+        raise ConfigError(
+            "no-repo backend requires an API contract: set one of "
+            "'openapiUrl', 'openapiFile', or 'postmanFile'"
+        )
 
     if "baseUrl" not in raw and ui_cfg is not None and ui_cfg.target_url:
         raw = {**raw, "baseUrl": ui_cfg.target_url}

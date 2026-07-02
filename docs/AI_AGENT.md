@@ -1,6 +1,6 @@
 # docs/AI_AGENT.md
 
-> Arsitektur, prompts, dan tools untuk Suitest Agent. Setelah pivot OSS (memo 2026-05-26), stack agen pindah dari Anthropic-only TypeScript SDK ke **Python 3.12 + LiteLLM (multi-provider) + LangGraph (state machine)**. Semua LLM call lewat `packages/agent/` — **tidak boleh** call provider SDK langsung dari `apps/api` atau `apps/web`.
+> Architecture, prompts, and tools for the Suitest Agent. After the OSS pivot (memo 2026-05-26), the agent stack moved from the Anthropic-only TypeScript SDK to **Python 3.12 + LiteLLM (multi-provider) + LangGraph (state machine)**. All LLM calls go through `packages/agent/` — calling a provider SDK directly from `apps/api` or `apps/web` is **not allowed**.
 
 > ⚠️ **PARTIAL — M3 foundation built (M3-1..M3-5).** `packages/agent` now has the LiteLLM provider layer (`providers/`, lazy-imported + deterministic `mock`), LangGraph state machines for the 4 modes (`graphs/`), and versioned prompts + drift guard (`prompts/`). Still SPEC: LLM-driven generators (M3-6..M3-9), runtime translation (M3-10), diagnosis-to-defect wiring (M3-11), chat/streaming (M3-12/13), cost+autonomy (M3-14..16), `/agent/sessions` + replay endpoints. Track in [ROADMAP.md](./ROADMAP.md) M3.
 >
@@ -10,16 +10,16 @@
 
 ## 1. Goal & 4 agent modes
 
-Suitest Agent adalah layer Python yg meng-orchestrate LLM untuk 4 mode operasi (mapping ke enum `AgentSessionKind`). Setiap mode tier-aware: di ZERO tier semua mode return error `LLM_DISABLED` (HTTP 503) dengan hint ke deterministic alternative.
+Suitest Agent is the Python layer that orchestrates the LLM for 4 operation modes (mapped to the `AgentSessionKind` enum). Each mode is tier-aware: at ZERO tier all modes return an `LLM_DISABLED` error (HTTP 503) with a hint pointing to the deterministic alternative.
 
-| Mode | Tujuan | Default model class | ZERO tier behavior |
+| Mode | Purpose | Default model class | ZERO tier behavior |
 |------|--------|---------------------|--------------------|
-| **GENERATION** | Generate test cases dari PRD / URL semantic / MCP discovery / OpenAPI-enrich | reasoning (Sonnet-class / GPT-4o-class / Llama 3.1 70B local) | 503 → hint: pakai `/generators/openapi`, `/generators/recorder`, `/generators/crawler` |
-| **EXECUTION** | Translate `step.action` (English) ke MCP calls runtime; drive agentic flow | reasoning | 503 → hint: semua step harus punya `step.code` di ZERO; bisa di-relax via `workspace.strict_zero=false` (step di-skip dgn warning) |
-| **DIAGNOSIS** | Analisis root cause defect post-run | reasoning | 503 → fallback rule-based categorizer (assertion regex → `MANUAL_TRIAGE`) |
-| **CONVERSATION** | Chat di AI panel UI, query state, jawab pertanyaan | small/fast (Haiku-class / GPT-4o-mini / Llama 3.1 8B) | 503 → AI panel hidden di UI |
+| **GENERATION** | Generate test cases from PRD / URL semantic / MCP discovery / OpenAPI-enrich | reasoning (Sonnet-class / GPT-4o-class / Llama 3.1 70B local) | 503 → hint: use `/generators/openapi`, `/generators/recorder`, `/generators/crawler` |
+| **EXECUTION** | Translate `step.action` (English) into MCP calls at runtime; drive agentic flow | reasoning | 503 → hint: every step must have `step.code` at ZERO; can be relaxed via `workspace.strict_zero=false` (step is skipped with a warning) |
+| **DIAGNOSIS** | Analyze root cause of defects post-run | reasoning | 503 → fallback rule-based categorizer (assertion regex → `MANUAL_TRIAGE`) |
+| **CONVERSATION** | Chat in the AI panel UI, query state, answer questions | small/fast (Haiku-class / GPT-4o-mini / Llama 3.1 8B) | 503 → AI panel hidden in the UI |
 
-Tier-aware response example saat tier=ZERO:
+Tier-aware response example when tier=ZERO:
 
 ```json
 HTTP 503
@@ -31,7 +31,7 @@ HTTP 503
 }
 ```
 
-Model selection per session: agen pilih model dari `LLMConfig.preferred_models` (per-task mapping) → LiteLLM router. Conversation mode auto-downgrade ke smallest model. Override per request via `model_hint` di `POST /agent/*`.
+Model selection per session: the agent picks a model from `LLMConfig.preferred_models` (per-task mapping) → LiteLLM router. Conversation mode auto-downgrades to the smallest model. Override per request via `model_hint` in `POST /agent/*`.
 
 ---
 
@@ -127,7 +127,7 @@ dev = ["pytest>=8", "pytest-asyncio>=0.23", "respx>=0.21"]
 
 ## 3. LiteLLM integration
 
-`providers/litellm_router.py` adalah satu-satunya tempat yg memanggil LiteLLM. Semua mode dispatch lewat fungsi `complete()` / `stream_complete()`.
+`providers/litellm_router.py` is the only place that calls LiteLLM. All modes dispatch through the `complete()` / `stream_complete()` functions.
 
 ```python
 from __future__ import annotations
@@ -193,7 +193,7 @@ Resolution: `LLMConfig.provider` (string) + `LLMConfig.api_key` (AES-GCM) + opti
 
 ## 4. LangGraph state machines
 
-Setiap mode dijalankan sebagai LangGraph `StateGraph`. State dipersist via `langgraph-checkpoint-postgres` → resumable session (penting untuk long-running generation & runs).
+Each mode runs as a LangGraph `StateGraph`. State is persisted via `langgraph-checkpoint-postgres` → resumable session (important for long-running generation & runs).
 
 ### 4.1 GENERATION (from PRD)
 

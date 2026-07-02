@@ -10,14 +10,19 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _SCHEMA_RE = re.compile(r"""export\s+const\s+(?P<name>\w+)\s*=\s*z\.object\(\{""")
 # A field starts as `<name>: z` — the base type may be on the next line
 # (`stock: z\n  .number()`), so we only anchor on `z` here and read the type
 # from the field's segment.
 _FIELD_START_RE = re.compile(r"""(?P<name>\b\w+)\s*:\s*z\b""")
-_BASE_TYPE_RE = re.compile(r"""\.\s*(?P<type>string|number|boolean|date|array|enum|object|coerce)\b""")
+_BASE_TYPE_RE = re.compile(
+    r"""\.\s*(?P<type>string|number|boolean|date|array|enum|object|coerce)\b"""
+)
 
 
 @dataclass(frozen=True)
@@ -69,7 +74,9 @@ def _parse_fields(body: str) -> list[ZodField]:
         if mm:
             min_value = float(mm.group(1))
         fields.append(
-            ZodField(name=name, base_type=base, required=required, is_int=is_int, min_value=min_value)
+            ZodField(
+                name=name, base_type=base, required=required, is_int=is_int, min_value=min_value
+            )
         )
     return fields
 

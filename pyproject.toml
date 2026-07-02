@@ -59,7 +59,8 @@ suitest-lifecycle = { workspace = true }
 line-length = 100
 target-version = "py312"
 src = ["apps", "packages"]
-extend-exclude = ["alembic/versions"]
+# packages/mcp-npx/python is a generated copy of packages/lifecycle (prepack bundle)
+extend-exclude = ["alembic/versions", "packages/mcp-npx/python"]
 
 [tool.ruff.lint]
 select = [

@@ -1,35 +1,35 @@
 # docs/CAPABILITY_TIERS.md
 
-> Spec lengkap capability tiering Suitest: **ZERO / LOCAL / CLOUD**. Dipakai sebagai kontrak antara `packages/core/capabilities.py` (resolver), `apps/api` (endpoint gating), `apps/runner` (step execution), dan `apps/web` (UI gating). Untuk arsitektur baca [ARCHITECTURE.md](./ARCHITECTURE.md). Untuk deployment baca [DEPLOYMENT.md](./DEPLOYMENT.md). Design rationale: [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
+> Complete spec of Suitest capability tiering: **ZERO / LOCAL / CLOUD**. Used as the contract between `packages/core/capabilities.py` (resolver), `apps/api` (endpoint gating), `apps/runner` (step execution), and `apps/web` (UI gating). For architecture read [ARCHITECTURE.md](./ARCHITECTURE.md). For deployment read [DEPLOYMENT.md](./DEPLOYMENT.md). Design rationale: [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
 
 > ⚠️ **PARTIAL.** ZERO-tier resolver built (`packages/core/capabilities.py`). M3-2/M3-3 built: workspace `LLMConfig` write path recomputes `WorkspaceCapability` and `/capabilities` overlays the active config (per-workspace tier flip ZERO↔CLOUD/LOCAL); the `mock` provider works end-to-end. Still NOT built: per-feature 503 `LLM_DISABLED` enforcement in `require_tier` (decorator still records-only). See [ROADMAP.md](./ROADMAP.md) M3.
 
 ---
 
-## 1. Konsep
+## 1. Concept
 
-Suitest harus jalan di tiga "modus operandi":
+Suitest must work in three "operating modes":
 
-1. **Self-host air-gapped, no LLM.** Tim QA enterprise / regulated industries yang ngga boleh egress ke cloud. Suitest masih harus 100% berguna sebagai TCM + deterministic runner.
-2. **Self-host with local LLM.** Tim yang punya GPU di-prem (Ollama / vLLM / llama.cpp). Privacy preserved, AI features aktif.
-3. **Self-host + cloud LLM (BYO).** Tim yang punya budget API SaaS — bawa key sendiri (Anthropic / OpenAI / Gemini / dst). Fitur full.
+1. **Self-host air-gapped, no LLM.** Enterprise / regulated-industry QA teams that are not allowed to egress to the cloud. Suitest must still be 100% useful as a TCM + deterministic runner.
+2. **Self-host with local LLM.** Teams with on-prem GPUs (Ollama / vLLM / llama.cpp). Privacy preserved, AI features active.
+3. **Self-host + cloud LLM (BYO).** Teams with a SaaS API budget — bring your own key (Anthropic / OpenAI / Gemini / etc.). Full features.
 
-Karenanya tier **bukan** pricing tier, melainkan **capability matrix** yang ditentukan oleh konfigurasi LLM per-workspace (web UI). Sama binary, beda surface area.
+Hence the tiers are **not** pricing tiers, but a **capability matrix** determined by the per-workspace LLM configuration (web UI). Same binary, different surface area.
 
-Prinsip:
+Principles:
 
-- **Default = ZERO.** Boot pertama jalan tanpa konfigurasi apa pun — base deployment selalu ZERO.
-- **Upgrade = set provider di web UI.** Switching tier = pilih provider di Settings → LLM (di-test-connect, disimpan AES-encrypted di DB) — langsung berlaku per-workspace, **tanpa restart**, no rebuild, no env.
-- **No silent degradation.** Kalau fitur tidak available di tier ini, endpoint return `503 LLM_DISABLED` dengan reason — UI gate dengan tooltip.
-- **Embeddings independent dari LLM.** Embedder runtime (`packages/core/embeddings.py`) di-resolve terpisah; base capability embeddings = disabled sampai ada workspace embeddings config.
+- **Default = ZERO.** First boot works without any configuration — the base deployment is always ZERO.
+- **Upgrade = set a provider in the web UI.** Switching tier = pick a provider in Settings → LLM (test-connected, stored AES-encrypted in the DB) — takes effect immediately per-workspace, **without restart**, no rebuild, no env.
+- **No silent degradation.** If a feature is not available in the current tier, the endpoint returns `503 LLM_DISABLED` with a reason — the UI gates it with a tooltip.
+- **Embeddings independent from the LLM.** The embedder runtime (`packages/core/embeddings.py`) is resolved separately; base capability embeddings = disabled until there is a workspace embeddings config.
 
 ---
 
 ## 2. Tier definition
 
-| Aspek | ZERO | LOCAL | CLOUD |
+| Aspect | ZERO | LOCAL | CLOUD |
 |-------|------|-------|-------|
-| Trigger (workspace LLM provider, web UI) | `none` / belum di-set | `ollama` / `llamacpp` / `vllm` / `lmstudio` | `anthropic` / `openai` / `gemini` / `groq` / `openrouter` / `azure` / `bedrock` / `vertex` / `deepseek` / `mock` (test/dev only — see §3) |
+| Trigger (workspace LLM provider, web UI) | `none` / not set | `ollama` / `llamacpp` / `vllm` / `lmstudio` | `anthropic` / `openai` / `gemini` / `groq` / `openrouter` / `azure` / `bedrock` / `vertex` / `deepseek` / `mock` (test/dev only — see §3) |
 | Manual TCM (CRUD case/suite) | ✓ | ✓ | ✓ |
 | Deterministic runner (`step.code`) | ✓ | ✓ | ✓ |
 | MCP plugins | ✓ | ✓ | ✓ |
@@ -45,19 +45,19 @@ Prinsip:
 | FTS fallback search | ✓ (always) | ✓ | ✓ |
 | Autonomy level available | `manual` only | `manual` / `assist` / `semi_auto` / `auto` | `manual` / `assist` / `semi_auto` / `auto` |
 | Egress required | NO | NO | YES (to LLM provider) |
-| Air-gapped friendly | ✓ | ✓ | ✗ (kecuali Bedrock/Vertex in-VPC) |
+| Air-gapped friendly | ✓ | ✓ | ✗ (except Bedrock/Vertex in-VPC) |
 | Recommended autonomy default | `manual` | `assist` | `assist` |
 
 ---
 
 ## 3. Tier resolution
 
-> **Tier di-resolve dari konfigurasi LLM per-workspace (web UI), BUKAN dari env.** Tidak ada lagi `SUITEST_LLM_PROVIDER` / `SUITEST_LLM_API_KEY` / `SUITEST_LLM_MODEL` / `SUITEST_LLM_BASE_URL` / `SUITEST_EMBEDDINGS_BACKEND`. Provider di-set di Settings → LLM provider, disimpan AES-encrypted di DB (`LLMConfig`), dan di-test-connect sebelum save.
+> **The tier is resolved from the per-workspace LLM configuration (web UI), NOT from env.** There is no more `SUITEST_LLM_PROVIDER` / `SUITEST_LLM_API_KEY` / `SUITEST_LLM_MODEL` / `SUITEST_LLM_BASE_URL` / `SUITEST_EMBEDDINGS_BACKEND`. The provider is set in Settings → LLM provider, stored AES-encrypted in the DB (`LLMConfig`), and test-connected before save.
 
-Dua lapis:
+Two layers:
 
-1. **Base (deployment-wide).** `packages/core/capabilities.py` **selalu ZERO** dan tidak baca env: `resolve_tier() → Tier.ZERO`, `resolve_embeddings() → disabled`. Dipanggil sekali saat startup (`api` + `runner`), expose via `GET /capabilities` sebagai base.
-2. **Overlay (per-workspace).** `apps/api/.../capabilities.build_workspace_overlay` + `CapabilityService.resolve` membaca `LLMConfig` aktif workspace tiap request dan menaikkan tier efektif via `_provider_to_tier`:
+1. **Base (deployment-wide).** `packages/core/capabilities.py` is **always ZERO** and does not read env: `resolve_tier() → Tier.ZERO`, `resolve_embeddings() → disabled`. Called once at startup (`api` + `runner`), exposed via `GET /capabilities` as the base.
+2. **Overlay (per-workspace).** `apps/api/.../capabilities.build_workspace_overlay` + `CapabilityService.resolve` read the workspace's active `LLMConfig` on every request and raise the effective tier via `_provider_to_tier`:
 
 ```python
 LOCAL_PROVIDERS = {"ollama", "llamacpp", "vllm", "lmstudio"}
@@ -71,60 +71,60 @@ def _provider_to_tier(provider: str) -> Tier:
     return Tier.CLOUD        # anthropic/openai/gemini/groq/openrouter/azure/bedrock/vertex/deepseek/mock
 ```
 
-Validasi (key wajib untuk CLOUD non-IAM, `base_url` wajib untuk LOCAL) terjadi saat **save** di `apps/api/.../services/llm_config_service.py` (`LLMConfigError`), bukan saat resolve — config DB dianggap trusted. Saat config disimpan, `_refresh_capability` me-materialisasi `WorkspaceCapability`. Flag tier efektif dihitung primitive murni `compute_features(tier, embeddings)` + `compute_autonomy(tier)` (tetap di `packages/core/capabilities.py`). Karena overlay membaca DB tiap request, switch provider langsung berlaku — **tanpa restart**.
+Validation (key required for non-IAM CLOUD, `base_url` required for LOCAL) happens at **save** time in `apps/api/.../services/llm_config_service.py` (`LLMConfigError`), not at resolve time — DB config is considered trusted. When a config is saved, `_refresh_capability` materializes `WorkspaceCapability`. Effective-tier flags are computed by the pure primitives `compute_features(tier, embeddings)` + `compute_autonomy(tier)` (still in `packages/core/capabilities.py`). Because the overlay reads the DB on every request, switching provider takes effect immediately — **without restart**.
 
-> **`mock` provider** returns canned deterministic responses from `packages/agent/providers/mock.py`; dipilih dari web UI untuk CI/dev tanpa real API spend. Diklasifikasi **CLOUD tier** oleh `_provider_to_tier` (full feature surface) tapi di-flag `is_test_provider: true` di `/capabilities` response supaya UI render banner "Test provider — not for production".
+> **The `mock` provider** returns canned deterministic responses from `packages/agent/providers/mock.py`; selected from the web UI for CI/dev without real API spend. It is classified as **CLOUD tier** by `_provider_to_tier` (full feature surface) but flagged `is_test_provider: true` in the `/capabilities` response so the UI renders a "Test provider — not for production" banner.
 
 ---
 
 ## 4. Per-feature gating policy
 
-Setiap fitur memetakan ke `(required_tier, required_autonomy)`. Decorator `@require_capability(...)` dipakai di setiap entrypoint.
+Every feature maps to `(required_tier, required_autonomy)`. The decorator `@require_capability(...)` is used at every entrypoint.
 
-| Feature | Min tier | Min autonomy | Endpoint | Behavior di bawah min |
+| Feature | Min tier | Min autonomy | Endpoint | Behavior below min |
 |---------|----------|--------------|----------|-----------------------|
 | Manual TCM CRUD | ZERO | manual | `/api/v1/cases/*` | always on |
 | Run with `step.code` | ZERO | manual | `POST /api/v1/runs` (code-only steps) | always on |
 | Deterministic generator (OpenAPI) | ZERO | manual | `POST /api/v1/generate/openapi` | always on |
 | Deterministic generator (Recorder) | ZERO | manual | `POST /api/v1/generate/recorder` | always on |
 | Deterministic generator (Crawler) | ZERO | manual | `POST /api/v1/generate/crawl` | always on |
-| AI generation from PRD | LOCAL | assist | `POST /api/v1/agent/generate/cases` | `503 LLM_DISABLED` di ZERO |
-| AI generation URL semantic | LOCAL | assist | `POST /api/v1/agent/generate/url-semantic` | `503 LLM_DISABLED` di ZERO |
-| MCP tool discovery (LLM-assisted) | LOCAL | assist | `POST /api/v1/agent/generate/mcp-discover` | `503 LLM_DISABLED` di ZERO |
-| Action→Code runtime translate | LOCAL | assist | (internal, runner) | step skipped dgn reason `NO_LLM_FOR_AGENTIC_STEP` di ZERO |
-| AI diagnose run (`ai_diagnosis`) | LOCAL | assist | `POST /api/v1/runs/{id}/diagnose` | `503 LLM_DISABLED` di ZERO |
-| AI auto-defect file (`auto_defect_filing_ai`) | LOCAL | assist | (auto, post-run) | rule-based fallback (`auto_defect_filing_rule`) di ZERO (lihat §9) |
-| AI conversation panel (`ai_chat` / `ai_panel`) | LOCAL | assist | `POST /api/v1/chat` | `503 LLM_DISABLED` di ZERO; UI hide panel (`ai_panel=false`) |
-| Semantic search (`embeddings_semantic`) | ZERO* | manual | `GET /api/v1/search?semantic=1` | `409 EMBEDDINGS_DISABLED` kalau embeddings backend = `none` |
+| AI generation from PRD | LOCAL | assist | `POST /api/v1/agent/generate/cases` | `503 LLM_DISABLED` in ZERO |
+| AI generation URL semantic | LOCAL | assist | `POST /api/v1/agent/generate/url-semantic` | `503 LLM_DISABLED` in ZERO |
+| MCP tool discovery (LLM-assisted) | LOCAL | assist | `POST /api/v1/agent/generate/mcp-discover` | `503 LLM_DISABLED` in ZERO |
+| Action→Code runtime translate | LOCAL | assist | (internal, runner) | step skipped with reason `NO_LLM_FOR_AGENTIC_STEP` in ZERO |
+| AI diagnose run (`ai_diagnosis`) | LOCAL | assist | `POST /api/v1/runs/{id}/diagnose` | `503 LLM_DISABLED` in ZERO |
+| AI auto-defect file (`auto_defect_filing_ai`) | LOCAL | assist | (auto, post-run) | rule-based fallback (`auto_defect_filing_rule`) in ZERO (see §9) |
+| AI conversation panel (`ai_chat` / `ai_panel`) | LOCAL | assist | `POST /api/v1/chat` | `503 LLM_DISABLED` in ZERO; UI hides the panel (`ai_panel=false`) |
+| Semantic search (`embeddings_semantic`) | ZERO* | manual | `GET /api/v1/search?semantic=1` | `409 EMBEDDINGS_DISABLED` if embeddings backend = `none` |
 | FTS search | ZERO | manual | `GET /api/v1/search` | always on |
 | Defect file (manual) | ZERO | manual | `POST /api/v1/defects` | always on |
-| Defect file (auto, AI-reasoned) | LOCAL | assist | (auto) | rule-based fallback di ZERO |
+| Defect file (auto, AI-reasoned) | LOCAL | assist | (auto) | rule-based fallback in ZERO |
 | Semi-auto run gating | LOCAL | semi_auto | (autonomy) | requires both |
 | Full-auto self-heal | LOCAL | auto | (autonomy, v1.x) | requires both |
 
-\* Semantic search butuh `embeddings.enabled = true`, independen dari LLM tier.
+\* Semantic search requires `embeddings.enabled = true`, independent of the LLM tier.
 
 ---
 
 ## 5. Embeddings tier (independent dial)
 
-> **Status:** capability base embeddings = **disabled** (`resolve_embeddings()` ZERO-always; env `SUITEST_EMBEDDINGS_BACKEND` sudah dicabut). `semantic_search` feature flag mengikuti base ini. Embedder **runtime** (`packages/core/embeddings.py::get_embedder`) masih ada + terpisah (ZERO-tier feature). Matrix di bawah = target design saat embeddings di-expose sebagai workspace dial (belum); sampai itu, semua baris efektif OFF.
+> **Status:** capability base embeddings = **disabled** (`resolve_embeddings()` ZERO-always; the `SUITEST_EMBEDDINGS_BACKEND` env has been removed). The `semantic_search` feature flag follows this base. The embedder **runtime** (`packages/core/embeddings.py::get_embedder`) still exists + separately (ZERO-tier feature). The matrix below = target design for when embeddings are exposed as a workspace dial (not yet); until then, all rows are effectively OFF.
 
-Embeddings adalah dial terpisah dari LLM tier. Matrix (target):
+Embeddings are a dial separate from the LLM tier. Matrix (target):
 
-| LLM tier | Embeddings backend | Semantic search | RAG ke LLM | Tipikal use case |
+| LLM tier | Embeddings backend | Semantic search | RAG to LLM | Typical use case |
 |----------|--------------------|-----------------|------------|------------------|
-| ZERO | `none` | OFF (FTS only) | n/a | Air-gap pure, ngga butuh AI |
-| ZERO | `fastembed` | ON | n/a | Air-gap, butuh smart search tapi no LLM |
-| LOCAL | `none` | OFF | OFF | Local LLM tanpa retrieval (small workspace) |
-| LOCAL | `fastembed` | ON | ON (local-only) | **Recommended** air-gap dgn AI penuh |
-| LOCAL | `openai`/`cohere` | ON | ON (mixed) | LLM local + embeddings SaaS (kompromi) |
+| ZERO | `none` | OFF (FTS only) | n/a | Pure air-gap, no AI needed |
+| ZERO | `fastembed` | ON | n/a | Air-gap, needs smart search but no LLM |
+| LOCAL | `none` | OFF | OFF | Local LLM without retrieval (small workspace) |
+| LOCAL | `fastembed` | ON | ON (local-only) | **Recommended** air-gap with full AI |
+| LOCAL | `openai`/`cohere` | ON | ON (mixed) | Local LLM + SaaS embeddings (compromise) |
 | CLOUD | `none` | OFF | OFF | Cost-saving, no retrieval |
 | CLOUD | `fastembed` | ON | ON | Privacy embeddings + paid LLM |
 | CLOUD | `openai` | ON | ON | Default SaaS posture |
 | CLOUD | `cohere` | ON | ON | Multilingual emphasis |
 
-**Vector dimension** ditentukan saat Alembic migration jalan pertama kali — kolom `document_chunk.embedding` pakai `Vector(dim)` sesuai backend. Ganti backend post-deploy → re-embed required (admin tool `python -m packages.db.reembed --backend=...`).
+**Vector dimension** is determined when the Alembic migration first runs — the `document_chunk.embedding` column uses `Vector(dim)` matching the backend. Changing the backend post-deploy → re-embed required (admin tool `python -m packages.db.reembed --backend=...`).
 
 ---
 
@@ -142,7 +142,7 @@ Embeddings adalah dial terpisah dari LLM tier. Matrix (target):
 }
 ```
 
-Endpoints yang return ini di ZERO:
+Endpoints that return this in ZERO:
 
 - `POST /api/v1/agent/generate/cases`
 - `POST /api/v1/agent/generate/url-semantic`
@@ -155,7 +155,7 @@ Endpoints yang return ini di ZERO:
 
 - `GET/POST/PATCH/DELETE /api/v1/cases/*`
 - `GET/POST /api/v1/suites/*`
-- `POST /api/v1/runs` — selama semua step punya `step.code`
+- `POST /api/v1/runs` — as long as every step has `step.code`
 - `GET /api/v1/runs/{id}` + WS / SSE log stream
 - `POST /api/v1/generate/openapi|recorder|crawl`
 - `POST /api/v1/defects` (manual file)
@@ -167,7 +167,7 @@ Endpoints yang return ini di ZERO:
 
 ### 6.3 Returns `400 STEPS_REQUIRE_CODE_IN_ZERO_LLM`
 
-Bila workspace setting `strict_zero_validation = true` (default) dan user POST test case dgn step yang `code` kosong:
+When the workspace setting `strict_zero_validation = true` (default) and the user POSTs a test case with a step whose `code` is empty:
 
 ```json
 {
@@ -190,7 +190,7 @@ Bila workspace setting `strict_zero_validation = true` (default) dan user POST t
 | Can run test case with non-executable step | n/a | ✗ pre-flight 400 | ✓ |
 | `Step.executable` computed | `code IS NOT NULL` | `code IS NOT NULL` | `code IS NOT NULL OR action IS NOT NULL` |
 
-Setting `strict_zero_validation` di-set per workspace (default `true`). Use case `false`: tim baru migrate dari TestRail, mau import 1000 case action-only dulu, plan to convert / upgrade tier later.
+The `strict_zero_validation` setting is set per workspace (default `true`). Use case for `false`: a team freshly migrating from TestRail wants to import 1000 action-only cases first, planning to convert / upgrade tier later.
 
 ---
 
@@ -212,7 +212,7 @@ Per step:
 │       │                  run outcome: partial_skip
 │       │
 │       └─ tier in {LOCAL, CLOUD} → check autonomy
-│           ├─ autonomy == manual → SKIP (kecuali user explicit "run agentic")
+│           ├─ autonomy == manual → SKIP (unless user explicitly "run agentic")
 │           │                       reason: AGENTIC_REQUIRES_ASSIST_OR_ABOVE
 │           │
 │           └─ autonomy >= assist → invoke LangGraph translate node
@@ -224,37 +224,37 @@ Per step:
 │                                     reason: TRANSLATE_FAILED
 ```
 
-Outcome run aggregate:
+Aggregate run outcome:
 
 - All steps pass → `pass`
 - Any step fail → `fail`
 - Any step error → `error`
 - Any step skipped + no fail/error → `partial_skip`
 
-`partial_skip` di ZERO tier dianggap **expected** kalau case punya action-only step — UI tampil banner "Upgrade tier untuk jalankan step ini" instead of red.
+`partial_skip` in the ZERO tier is considered **expected** when a case has action-only steps — the UI shows an "Upgrade tier to run this step" banner instead of red.
 
 ---
 
-## 9. Diagnosis fallback di ZERO
+## 9. Diagnosis fallback in ZERO
 
-Saat run gagal dan tier=ZERO, tidak ada AI narration. Sebagai gantinya:
+When a run fails and tier=ZERO, there is no AI narration. Instead:
 
 **Rule-based defect filing:**
 
 1. Capture failed step + artifact + assertion delta (expected vs actual).
 2. Compute defect title via template: `[{tag}] {case.title} — step {idx} {assertion_kind} failed`.
-3. Severity inferred dari case tag/priority (P0 → blocker, P1 → critical, dst.).
+3. Severity inferred from the case tag/priority (P0 → blocker, P1 → critical, etc.).
 4. Body: structured (step desc, expected, actual, artifact link, run id). **No prose root-cause.**
-5. Tag `[manual-triage]` ditambah → flag untuk human review.
-6. File ke tracker integration sesuai workspace setting.
+5. Tag `[manual-triage]` added → flag for human review.
+6. File to the tracker integration per the workspace setting.
 
-Saat tier upgrade ke LOCAL/CLOUD, run lama tetap punya defect rule-based; user bisa hit `POST /api/v1/runs/{id}/diagnose` untuk regenerate dgn AI narration.
+When the tier is upgraded to LOCAL/CLOUD, old runs keep their rule-based defects; users can hit `POST /api/v1/runs/{id}/diagnose` to regenerate with AI narration.
 
 ---
 
 ## 10. Capability endpoint contract
 
-`GET /capabilities` — public, no auth required (UI fetch sebelum login screen).
+`GET /capabilities` — public, no auth required (the UI fetches it before the login screen).
 
 Response example (CLOUD tier + openai embeddings):
 
@@ -347,19 +347,19 @@ ZERO tier response:
 
 > `mcpProviders[]` items shape: `{id, name, kind, health, isDefault}` — same as the field returned by `GET /mcp/providers`. `isDefault` is true when this provider is the default for at least one `target_kind` per `/mcp/routing`. Cross-ref: [API.md § 3.0](./API.md#30-capabilities-public).
 
-Frontend pakai response ini untuk render `<Gated feature="ai_generation">…</Gated>` dan tier badge di topbar.
+The frontend uses this response to render `<Gated feature="ai_generation">…</Gated>` and the tier badge in the topbar.
 
 ---
 
 ## 11. Upgrading tier at runtime
 
-Satu jalan: **Settings → LLM page (per-workspace, DB-stored)**. Tidak ada lagi jalur env.
+One path: **Settings → LLM page (per-workspace, DB-stored)**. There is no env path anymore.
 
-1. Admin user buka Settings → LLM (`apps/web/.../components/settings/LlmSettingsPanel.tsx`).
-2. Pilih provider, masukin model + API key (write-only field) / base_url (untuk LOCAL).
-3. Click "Test connection" → `POST /workspaces/{id}/llm-config/test` (LiteLLM check-connect) sebelum boleh save.
-4. Save → `PUT /workspaces/{id}/llm-config` → `LLMConfig` row (api_key di-AES-GCM-encrypt dgn `SUITEST_ENCRYPTION_KEY`); `llm_config_service._refresh_capability` me-materialisasi `WorkspaceCapability`.
-5. Tier efektif langsung berlaku: `GET /capabilities` (overlay baca DB tiap request) reflect tier baru **tanpa restart**; existing test case action-only jadi `executable=true`.
+1. An admin user opens Settings → LLM (`apps/web/.../components/settings/LlmSettingsPanel.tsx`).
+2. Picks a provider, enters model + API key (write-only field) / base_url (for LOCAL).
+3. Clicks "Test connection" → `POST /workspaces/{id}/llm-config/test` (LiteLLM check-connect) before save is allowed.
+4. Save → `PUT /workspaces/{id}/llm-config` → `LLMConfig` row (api_key AES-GCM-encrypted with `SUITEST_ENCRYPTION_KEY`); `llm_config_service._refresh_capability` materializes `WorkspaceCapability`.
+5. The effective tier takes effect immediately: `GET /capabilities` (the overlay reads the DB on every request) reflects the new tier **without restart**; existing action-only test cases become `executable=true`.
 
 Precedence: workspace `LLMConfig` > `WorkspaceCapability` > ZERO base. Audit log entry recorded.
 
@@ -371,31 +371,31 @@ Precedence: workspace `LLMConfig` > `WorkspaceCapability` > ZERO base. Audit log
 |------|---------|-------------------|----------|
 | ZERO | n/a | — | — |
 | LOCAL | GPU contention / OOM | concurrent agent sessions per worker = 2 | `SUITEST_LOCAL_MAX_CONCURRENT` |
-| CLOUD | $$$ cost | per-workspace daily cap (default $50) → block new AI request dgn `429 BUDGET_EXCEEDED` | `LLMConfig.daily_cap_usd` |
-| CLOUD | rate-limit upstream | LiteLLM retry w/ exponential backoff, fallback model (jika diset) | `LLMConfig.fallback_model` |
+| CLOUD | $$$ cost | per-workspace daily cap (default $50) → block new AI requests with `429 BUDGET_EXCEEDED` | `LLMConfig.daily_cap_usd` |
+| CLOUD | rate-limit upstream | LiteLLM retry w/ exponential backoff, fallback model (if set) | `LLMConfig.fallback_model` |
 
-Cost dihitung via `litellm.completion_cost()` → diakumulasi ke `AgentSession.cost_usd` dan dashboard `Insights → Cost`. Budget guard penuh: v1.x.
+Cost is computed via `litellm.completion_cost()` → accumulated into `AgentSession.cost_usd` and the `Insights → Cost` dashboard. Full budget guard: v1.x.
 
 ---
 
 ## 13. Decision matrix — "Which tier do I need?"
 
-| Saya ingin... | Minimum tier | Catatan |
+| I want to... | Minimum tier | Notes |
 |---------------|-------------|---------|
 | Replace TestRail (manual TCM only) | ZERO | + deterministic runner bonus |
 | Replace Playwright (deterministic runner) | ZERO | step.code mode, MCP playwright |
 | Import OpenAPI spec → generate contract tests | ZERO | deterministic generator |
 | Record manual session → generate Playwright test | ZERO | browser recorder |
 | Crawl URL, generate skeleton smoke suite | ZERO | heuristic crawler |
-| Search test cases by meaning ("checkout flow") | ZERO + `fastembed` | embeddings ngga butuh LLM |
-| Generate test cases dari PRD natural language | LOCAL or CLOUD | butuh LLM |
-| Agen jalanin test cuma punya action ("klik tombol login") | LOCAL or CLOUD | runtime translate |
-| AI narasikan kenapa test gagal | LOCAL or CLOUD | diagnose endpoint |
+| Search test cases by meaning ("checkout flow") | ZERO + `fastembed` | embeddings do not need an LLM |
+| Generate test cases from a natural-language PRD | LOCAL or CLOUD | needs an LLM |
+| Agent runs tests that only have actions ("click the login button") | LOCAL or CLOUD | runtime translate |
+| AI narrates why a test failed | LOCAL or CLOUD | diagnose endpoint |
 | Auto-categorize failure (FLAKE / REGRESSION / DEFECT) + auto-rerun | LOCAL or CLOUD + autonomy ≥ `semi_auto` | combined gate |
-| Auto-file defect dgn root-cause prose | LOCAL or CLOUD + autonomy ≥ `assist` | rule-based di ZERO tetap jalan |
-| Air-gapped, no egress, full AI | LOCAL + `fastembed` | rekomendasi enterprise privacy |
+| Auto-file defect with root-cause prose | LOCAL or CLOUD + autonomy ≥ `assist` | rule-based still works in ZERO |
+| Air-gapped, no egress, full AI | LOCAL + `fastembed` | enterprise privacy recommendation |
 | Air-gapped, no egress, no AI | ZERO | "TestRail+Playwright in 1 product" mode |
-| Coba Suitest 5 menit | ZERO | docker compose up |
+| Try Suitest in 5 minutes | ZERO | docker compose up |
 | Production multi-tenant SaaS posture | CLOUD | Helm + budget guard |
 
 ---
@@ -411,9 +411,9 @@ Cost dihitung via `litellm.completion_cost()` → diakumulasi ke `AgentSession.c
 
 ---
 
-## 15. Referensi silang
+## 15. Cross-references
 
-- Arsitektur services → [ARCHITECTURE.md](./ARCHITECTURE.md)
+- Services architecture → [ARCHITECTURE.md](./ARCHITECTURE.md)
 - Deployment per tier → [DEPLOYMENT.md](./DEPLOYMENT.md)
 - Autonomy levels → [AUTONOMY.md](./AUTONOMY.md)
 - MCP plugins → [MCP_PLUGINS.md](./MCP_PLUGINS.md)

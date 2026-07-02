@@ -277,3 +277,53 @@ jobs:
           tags: suitest-${{ matrix.image.name }}:ci-${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.image.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
+
+  # ------------------------------------------------------------------------
+  # @suitest/mcp (npx wrapper) — prove the artifact users actually install:
+  # bundle sync, JSON-RPC boot smoke via the real bin, and a tarball dry-run.
+  # Also validates the uvx path: build the suitest-lifecycle wheel and boot
+  # the same MCP handshake through its `suitest-mcp` console script.
+  # ------------------------------------------------------------------------
+  mcp-package:
+    name: MCP package (npx + uvx smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: npm smoke test (sync bundle + MCP boot via bin)
+        working-directory: packages/mcp-npx
+        run: npm test
+
+      - name: npm pack dry-run (tarball contents gate)
+        working-directory: packages/mcp-npx
+        run: npm pack --dry-run
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Build suitest-lifecycle wheel
+        run: uv build --project packages/lifecycle -o dist-lifecycle
+
+      - name: uvx boot smoke (console script from the wheel)
+        run: |
+          printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n' \
+            | uvx --from "$(ls dist-lifecycle/*.whl)" suitest-mcp \
+            | python3 -c '
+          import sys, json
+          lines = [json.loads(l) for l in sys.stdin if l.strip()]
+          assert "suitest" in lines[0]["result"]["serverInfo"]["name"], lines[0]
+          tools = [t["name"] for t in lines[1]["result"]["tools"]]
+          assert "run_tests" in tools and "blackbox_discover_app" in tools, tools
+          print(f"uvx boot OK: {len(tools)} tools")
+          '

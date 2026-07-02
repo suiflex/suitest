@@ -1,6 +1,6 @@
 # docs/UI_SPEC.md
 
-> Spesifikasi komponen frontend sesuai mockup di `Suitest.html`. Pakai dokumen ini sebagai checklist saat implementing screen baru. **Setiap claim visual di sini di-back oleh mockup** — kalau ragu, buka mockup.
+> Frontend component specification matching the mockup in `Suitest.html`. Use this document as a checklist when implementing a new screen. **Every visual claim here is backed by the mockup** — when in doubt, open the mockup.
 
 > ℹ️ **Built today:** all M1b read-only screens + M1d write flows. `GenerateModal` (M2-5) not yet a complete component. AI panel hidden via `<Gated>` in ZERO. See [ROADMAP.md](./ROADMAP.md).
 
@@ -9,21 +9,21 @@
 ## 1. Foundation
 
 ### 1.1 Tech setup
-- **Vite 6 + React 19 + TS + TanStack Router** (SPA, self-host friendly — bukan Next.js lagi)
-- **TanStack Query** untuk server state, **Zustand** untuk global UI state (sidebar, AI panel, capabilities, tier)
-- **`@ai-sdk/react` + `assistant-ui`** untuk AI streaming chat (thread, tool render, provider-agnostic)
-- **Monaco Editor** untuk editing `step.code` (TS/Python), **dnd-kit** untuk step reordering
-- **Recharts** untuk charts, optional **Tremor** primitives untuk dashboard widgets
-- Tailwind 4 dengan custom config (tokens di section 1.3)
-- shadcn/ui untuk primitives
-- Lucide React untuk icons
+- **Vite 6 + React 19 + TS + TanStack Router** (SPA, self-host friendly — no longer Next.js)
+- **TanStack Query** for server state, **Zustand** for global UI state (sidebar, AI panel, capabilities, tier)
+- **`@ai-sdk/react` + `assistant-ui`** for AI streaming chat (thread, tool render, provider-agnostic)
+- **Monaco Editor** for editing `step.code` (TS/Python), **dnd-kit** for step reordering
+- **Recharts** for charts, optional **Tremor** primitives for dashboard widgets
+- Tailwind 4 with custom config (tokens in section 1.3)
+- shadcn/ui for primitives
+- Lucide React for icons
 - Geist + Geist Mono (self-hosted via `@fontsource/geist` — no Google Fonts CDN dependency)
-- Build output: `dist/` static, served by nginx di Docker / Helm; backend FastAPI via reverse proxy `/api/*` + `/ws`
+- Build output: `dist/` static, served by nginx in Docker / Helm; backend FastAPI via reverse proxy `/api/*` + `/ws`
 
-Lihat juga: [DEPLOYMENT.md](../DEPLOYMENT.md), [ARCHITECTURE.md](../ARCHITECTURE.md).
+See also: [DEPLOYMENT.md](../DEPLOYMENT.md), [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ### 1.2 App layout
-Persistent shell pada semua authenticated routes:
+Persistent shell on all authenticated routes:
 
 ```
 ┌──────────┬─────────────────────────────────────┬──────────────┐
@@ -36,13 +36,13 @@ Persistent shell pada semua authenticated routes:
        1440px design width, 900px design height
 ```
 
-Layout grid: `grid-template-columns: 224px 1fr 380px` di root `.app`.
+Layout grid: `grid-template-columns: 224px 1fr 380px` on the root `.app`.
 
-Responsive: di bawah 1280px lebar, AI panel jadi collapsible overlay (state via Zustand store `useAiPanel`). Sidebar tetap fixed.
+Responsive: below 1280px width, the AI panel becomes a collapsible overlay (state via Zustand store `useAiPanel`). The Sidebar stays fixed.
 
 ### 1.3 Design tokens
 
-Defined di `apps/web/src/styles/globals.css`:
+Defined in `apps/web/src/styles/globals.css`:
 
 ```css
 :root {
@@ -75,25 +75,25 @@ Defined di `apps/web/src/styles/globals.css`:
 }
 ```
 
-Tailwind classes equivalent (kalau pakai shadcn): `bg-background`, `text-foreground`, `border-border`, `text-muted-foreground`, dst — map via `tailwind.config.ts`.
+Equivalent Tailwind classes (if using shadcn): `bg-background`, `text-foreground`, `border-border`, `text-muted-foreground`, etc. — map via `tailwind.config.ts`.
 
 ### 1.4 Typography scale
 
 | Use case | Class | Detail |
 |----------|-------|--------|
 | Page title | `text-[18px] font-semibold tracking-[-.01em]` | "Dashboard", "Test Cases" |
-| Card title | `text-[13px] font-semibold` | Header dalam Card |
-| Body | `text-[13px]` | Default — perhatikan: **bukan** 14px |
+| Card title | `text-[13px] font-semibold` | Header inside a Card |
+| Body | `text-[13px]` | Default — note: **not** 14px |
 | Small | `text-[12.5px]` | Metadata, table cells |
 | Tiny | `text-[11px] text-muted-foreground` | Timestamps, eyebrows |
 | Eyebrow | `text-[11px] uppercase tracking-[0.07em] text-[var(--fg-5)] font-medium` | Section labels |
-| Code/ID | `font-mono text-[11.5px]` | Mono untuk all IDs, code, paths |
+| Code/ID | `font-mono text-[11.5px]` | Mono for all IDs, code, paths |
 
 ---
 
 ### 1.5 Capability-gated rendering
 
-Suitest jalan di 3 tier (ZERO / LOCAL / CLOUD — lihat [CAPABILITY_TIERS.md](../CAPABILITY_TIERS.md)). UI **tidak boleh** asumsi AI tersedia. Semua afford­ance AI lewat capability gate.
+Suitest runs in 3 tiers (ZERO / LOCAL / CLOUD — see [CAPABILITY_TIERS.md](../CAPABILITY_TIERS.md)). The UI **must not** assume AI is available. Every AI afford­ance goes through a capability gate.
 
 **App boot:**
 ```ts
@@ -102,25 +102,25 @@ const res = await fetch('/api/v1/capabilities'); // no auth required
 useCapabilities.setState({ tier, provider, model, features, autonomy });
 ```
 
-**Wrapper komponen:**
+**Wrapper component:**
 ```tsx
 <Gated feature="ai_generation">
   <GenerateButton />
 </Gated>
 
-// dengan fallback placeholder:
+// with a fallback placeholder:
 <Gated feature="ai_generation" fallback={<DisabledPlaceholder reason="LLM not configured" />}>
   <GenerateButton />
 </Gated>
 ```
 
-**Hook untuk inline conditional:**
+**Hook for inline conditionals:**
 ```tsx
 const canDiagnose = useFeatureEnabled('ai_diagnosis');
 return canDiagnose ? <AgentDiagnosisCard /> : <ManualTriageCard />;
 ```
 
-**Capability change:** subscribe WS event `capability.changed` (broadcast saat admin update LLM config) → refetch `/capabilities` → trigger re-render of all `<Gated>` consumers (Zustand subscription).
+**Capability change:** subscribe WS event `capability.changed` (broadcast when an admin updates the LLM config) → refetch `/capabilities` → trigger re-render of all `<Gated>` consumers (Zustand subscription).
 
 **Features keys (canonical — match `/capabilities` response in [CAPABILITY_TIERS.md § 10](../CAPABILITY_TIERS.md#10-capability-endpoint-contract)):**
 
@@ -128,46 +128,46 @@ return canDiagnose ? <AgentDiagnosisCard /> : <ManualTriageCard />;
 - `ai_diagnosis` — root-cause narration on failed runs
 - `ai_translation` — action→code at runtime + per-step "Translate to code"
 - `ai_chat` — agent chat composer (text streaming, tool calls)
-- `ai_panel` — whether the AiPanel surface renders at all (false in ZERO → shell reflows to 2-column grid; lihat § 2.3)
+- `ai_panel` — whether the AiPanel surface renders at all (false in ZERO → shell reflows to 2-column grid; see § 2.3)
 - `embeddings_semantic` — semantic search via embeddings (independent dial; can be true in ZERO if `fastembed` opt-in)
 - `fts_search` — FTS fallback search (always true)
 - `autonomy_assist`, `autonomy_semi_auto`, `autonomy_auto` — autonomy levels surfaced in Settings → Automation
 - `auto_defect_filing_ai` — AI-reasoned auto-file (CLOUD/LOCAL only)
 - `auto_defect_filing_rule` — rule-based auto-file (always true; works in ZERO)
 
-Deterministic stuff (manual TCM, OpenAPI generator, Recorder, Crawler, MCP runner) **tidak** di-gate — selalu enabled.
+Deterministic stuff (manual TCM, OpenAPI generator, Recorder, Crawler, MCP runner) is **not** gated — always enabled.
 
 ### 1.6 Tier badge (topbar)
 
-Chip kecil di top-right Topbar, tepat sebelum search palette trigger:
+Small chip at the top-right of the Topbar, right before the search palette trigger:
 
-| Tier | Tampilan | Color token |
+| Tier | Appearance | Color token |
 |------|----------|-------------|
 | ZERO | `ZERO` | gray `bg-elev-2 text-fg-3` |
 | LOCAL | `LOCAL · ollama:llama3.1` | blue `bg-blue/10 text-blue border-blue/20` |
 | CLOUD | `CLOUD · anthropic:claude-sonnet-4-5` | violet `bg-violet/10 text-violet border-violet/20` |
 
-Klik → Popover (shadcn) berisi:
+Click → Popover (shadcn) containing:
 - Tier name + provider + model
 - Latency (last `/llm-config/test` result, mono)
-- Token spend last 24h (kalau ada cost tracking)
+- Token spend last 24h (if cost tracking is available)
 - "Configure" link → `/settings/llm`
 - "Switch autonomy" link → `/settings/automation`
 
-Component: `<TierBadge />` (lihat section 4.10).
+Component: `<TierBadge />` (see section 4.10).
 
 ### 1.7 Banners (system-level messages)
 
-Banner area di bawah Topbar, di atas Main content. Maks 1 banner kelihatan sekaligus; lainnya antri.
+Banner area below the Topbar, above the Main content. Max 1 banner visible at a time; the rest queue.
 
-| Banner | Kondisi | Tone | Behavior |
+| Banner | Condition | Tone | Behavior |
 |--------|---------|------|----------|
-| ZERO manual mode | tier=ZERO, never dismissed (per-user persisted in localStorage) | info gray | "Running in manual mode. AI features off. [Enable AI →]" — link ke `/settings/llm`. Dismissible. |
-| Autonomy upgrade prompt | tier baru upgrade dari ZERO → LOCAL/CLOUD, first session | violet modal | "AI now available. Choose starting mode: [Assist (recommended)] [Semi-auto]". Modal, dismiss = stays in `manual`. |
+| ZERO manual mode | tier=ZERO, never dismissed (per-user persisted in localStorage) | info gray | "Running in manual mode. AI features off. [Enable AI →]" — links to `/settings/llm`. Dismissible. |
+| Autonomy upgrade prompt | tier just upgraded from ZERO → LOCAL/CLOUD, first session | violet modal | "AI now available. Choose starting mode: [Assist (recommended)] [Semi-auto]". Modal, dismiss = stays in `manual`. |
 | LLM provider unreachable | last 3 calls fail | red persistent | "LLM provider unreachable. Last successful call N min ago. [Open Settings]" — non-dismissible until resolved. |
-| MCP provider down | per-provider health check fail | amber | Tidak global — muncul di Integrations page sebagai per-card warning + topbar health dot indicator. |
+| MCP provider down | per-provider health check fail | amber | Not global — appears on the Integrations page as a per-card warning + topbar health dot indicator. |
 
-Banner state managed di Zustand store `useBanners` — sources: capability change events, `/health` polling, WS events.
+Banner state managed in Zustand store `useBanners` — sources: capability change events, `/health` polling, WS events.
 
 ---
 
@@ -179,7 +179,7 @@ Width 224px, full height, dark background, no scroll except `nav` body section.
 
 **Sections (top → bottom):**
 1. **Brand**: `suitest` logo (mono, bold "test" portion accent green) + notif bell button
-2. **Workspace picker**: avatar + name + chevron, klik buka WorkspaceSwitcher popover
+2. **Workspace picker**: avatar + name + chevron, click opens the WorkspaceSwitcher popover
 3. **Nav** (scrollable): grouped — Workspace / Testing / Insights / Config
 4. **User footer**: avatar + name + role + settings icon
 
@@ -187,7 +187,7 @@ Width 224px, full height, dark background, no scroll except `nav` body section.
 
 State: `route` derived from `usePathname()`. Active item: bg `var(--bg-elev-2)`, icon tinted accent.
 
-**Live dot** untuk "Test Runs": animated `pulse 2s infinite` saat ada active run. Subscribe via WS `workspace:<id>` topic, listen `run.started` / `run.completed`.
+**Live dot** for "Test Runs": animated `pulse 2s infinite` while there is an active run. Subscribe via WS `workspace:<id>` topic, listen `run.started` / `run.completed`.
 
 ### 2.2 Topbar (`components/shell/Topbar.tsx`)
 
@@ -197,39 +197,39 @@ Height 47px, bottom border `var(--border-subtle)`.
 
 **Right:** search palette trigger (220px wide, ⌘K hint), help/notif icons, "+ New" button.
 
-Search palette = shadcn Command Dialog yang mencakup quick actions: navigate, run test, ask agent.
+Search palette = shadcn Command Dialog covering quick actions: navigate, run test, ask agent.
 
 ### 2.3 AiPanel (`components/shell/AiPanel.tsx`)
 
 Width 380px, left border `var(--border-subtle)`, background `var(--bg-elev-1)`.
 
 **Capability gating:**
-- **ZERO tier**: AiPanel **hidden entirely**. Root grid jadi `224px 1fr` (sidebar + main full-bleed). Main content dapat ekstra `~220px` width (Tailwind responsive class swap, atau `useCapabilities()` di root layout component). Tidak ada placeholder, tidak ada empty AI section.
-- **LOCAL/CLOUD + autonomy=manual**: panel **read-only history** — composer hidden / disabled with tooltip ("Switch to assist mode to enable AI composer"). Thread tetap kelihatan supaya user bisa baca audit log past sessions (kalau ada).
-- **LOCAL/CLOUD + autonomy=assist**: composer enabled. Setiap agentic tool call yg butuh side-effect (MCP call, file defect, write code) muncul sebagai **approval card inline** di thread: "Agent wants to call `mcp.api.request POST /orders` — [Approve] [Reject] [Edit args]". Streaming pause sampai user pilih.
-- **LOCAL/CLOUD + autonomy=semi_auto / auto**: approval card hanya untuk P0/P1 high-risk; lain auto-execute dengan trace card (no buttons, just status).
+- **ZERO tier**: AiPanel **hidden entirely**. Root grid becomes `224px 1fr` (sidebar + main full-bleed). Main content gains an extra `~220px` of width (Tailwind responsive class swap, or `useCapabilities()` in the root layout component). No placeholder, no empty AI section.
+- **LOCAL/CLOUD + autonomy=manual**: panel is **read-only history** — composer hidden / disabled with tooltip ("Switch to assist mode to enable AI composer"). The thread stays visible so the user can read the audit log of past sessions (if any).
+- **LOCAL/CLOUD + autonomy=assist**: composer enabled. Every agentic tool call that needs a side effect (MCP call, file defect, write code) appears as an **inline approval card** in the thread: "Agent wants to call `mcp.api.request POST /orders` — [Approve] [Reject] [Edit args]". Streaming pauses until the user chooses.
+- **LOCAL/CLOUD + autonomy=semi_auto / auto**: approval card only for P0/P1 high-risk; the rest auto-execute with a trace card (no buttons, just status).
 
 **Sections:**
 1. **Header** (47px): agent avatar with green status dot, name "Suitest Agent", subtitle shows `{provider}:{model} · {autonomy_level} · N sessions`, history + more icons. Includes `<AutonomyIndicator />` chip.
-2. **Thread** (scrollable): chronological messages — built on `assistant-ui` `<Thread>` component, customized untuk dark theme tokens via CSS variable override (`--aui-bg`, `--aui-fg-1`, dll → map ke design tokens kita)
-3. **Composer** (sticky bottom): mode selector + textarea + attach buttons + send (atau cancel saat streaming)
+2. **Thread** (scrollable): chronological messages — built on `assistant-ui` `<Thread>` component, customized for dark theme tokens via CSS variable override (`--aui-bg`, `--aui-fg-1`, etc. → mapped to our design tokens)
+3. **Composer** (sticky bottom): mode selector + textarea + attach buttons + send (or cancel while streaming)
 
 **Message types:**
-- Text message dengan role pill (USER / AGENT) — streaming via SSE
+- Text message with role pill (USER / AGENT) — streaming via SSE
 - Inline tool call card (terminal-style, mono, with status + duration + provider name `via playwright-mcp`)
 - Inline **approval card** (assist mode only): tool name + args JSON preview + Approve/Reject/Edit
 - Suggestion chips (clickable, prefix icon)
 
-**Mode tabs:** Agent (default action), Generate (test cases), Ask (RAG-only Q&A — fallback FTS kalau embeddings backend=`none`).
+**Mode tabs:** Agent (default action), Generate (test cases), Ask (RAG-only Q&A — falls back to FTS if embeddings backend=`none`).
 
 **Streaming transport:**
-- **SSE preferred untuk token streaming** (simpler, no WS reconnect logic, native browser `EventSource`). Endpoint: `POST /agent/sessions/:id/messages` → SSE stream of `text-delta` events.
-- **WS untuk tool call events** + multi-client sync (mis. session running di tab lain): subscribe room `agent-session:<id>` via FastAPI WebSocket. Events: `tool.requested`, `tool.executed`, `tool.failed`, `approval.required`.
-- **Cancel button** saat streaming — `POST /agent/sessions/:id/cancel` → server abort LangGraph node + close SSE.
+- **SSE preferred for token streaming** (simpler, no WS reconnect logic, native browser `EventSource`). Endpoint: `POST /agent/sessions/:id/messages` → SSE stream of `text-delta` events.
+- **WS for tool call events** + multi-client sync (e.g. session running in another tab): subscribe to room `agent-session:<id>` via FastAPI WebSocket. Events: `tool.requested`, `tool.executed`, `tool.failed`, `approval.required`.
+- **Cancel button** while streaming — `POST /agent/sessions/:id/cancel` → server aborts the LangGraph node + closes the SSE.
 
-**Persistence:** thread per route — saat user nav, panel switch ke session berbeda (mostly read-only memory of prior conversations).
+**Persistence:** thread per route — when the user navigates, the panel switches to a different session (mostly read-only memory of prior conversations).
 
-Lihat juga: [AI_AGENT.md](../AI_AGENT.md), [AUTONOMY.md](../AUTONOMY.md).
+See also: [AI_AGENT.md](../AI_AGENT.md), [AUTONOMY.md](../AUTONOMY.md).
 
 ---
 
@@ -301,21 +301,21 @@ Path: `/dashboard`. Component: `app/(app)/dashboard/page.tsx`.
 
 Path: `/cases`. Component: `src/routes/(app)/cases.tsx` (TanStack Router).
 
-**Top tabs:** All · Manual · AI-generated · MCP · Failing — with counts. **AI-generated tab hidden di ZERO** (no AI-source cases will exist). Filter button + **split-button** "Generate" primary CTA.
+**Top tabs:** All · Manual · AI-generated · MCP · Failing — with counts. **AI-generated tab hidden in ZERO** (no AI-source cases will exist). Filter button + **split-button** "Generate" primary CTA.
 
 **Split-button "Generate" (replaces lone "Generate with AI"):**
 
 Main click → opens GenerateModal (defaults to deterministic strategy).
 
 Dropdown chevron → menu items:
-- `✨ Generate (AI)` — opens GenerateModal step 4 strategy=`ai_only`. **Disabled di ZERO** dengan `<DisabledTooltip reason="LLM not configured. Settings → LLM" />`.
+- `✨ Generate (AI)` — opens GenerateModal step 4 strategy=`ai_only`. **Disabled in ZERO** with `<DisabledTooltip reason="LLM not configured. Settings → LLM" />`.
 - `{ } Generate from OpenAPI` — opens GenerateModal step 2 source=`openapi`, strategy locked to `deterministic`. **Always available** (also in ZERO).
 - `● Record from browser` — opens Browser Recorder flow (deterministic). **Always available**.
 - `🔗 Crawl URL` — opens heuristic URL crawler. **Always available**.
 
-Di ZERO: split-button **tetap kelihatan dan usable** untuk 3 deterministic generators; hanya item "Generate (AI)" yang disabled. Jangan sembunyikan seluruh CTA — itu bikin user kira fitur generate hilang.
+In ZERO: the split-button **stays visible and usable** for the 3 deterministic generators; only the "Generate (AI)" item is disabled. Don't hide the entire CTA — that makes users think the generate feature is gone.
 
-Lihat juga: [GENERATORS.md](../GENERATORS.md).
+See also: [GENERATORS.md](../GENERATORS.md).
 
 **Layout:** split-pane.
 - Left 280px: filter input + tree (suite headers + case items)
@@ -330,7 +330,7 @@ Lihat juga: [GENERATORS.md](../GENERATORS.md).
 **Detail panel sections:**
 1. Toolbar: ID badge, status badge, priority badge, last-run metadata, actions (Compare, Edit with AI, Run now)
 2. Header: suite eyebrow, large title (22px), description
-3. Metadata card: 5 fields (Owner, Suite, Generated by, Source, Avg duration) di card layout
+3. Metadata card: 5 fields (Owner, Suite, Generated by, Source, Avg duration) in a card layout
 4. Steps section: heading + "Add step" + "AI: suggest edge cases" buttons, then numbered step cards
 5. **Agent insight callout**: violet-tinted card with sparkle icon + diagnosis text
 
@@ -411,31 +411,31 @@ Appears (`data-testid="bulk-action-bar"`) when ≥1 row is checked. Rendered ins
 
 #### 3.2.1 GenerateModal (Dialog) — legacy 4-step flow
 
-> Catatan: flow ini di-superseded oleh **3.2.1.5** (target-first 5-step). Section ini disimpan sebagai referensi historis dari mockup `Suitest.html`; **implementasi v1.0 pakai 3.2.1.5**.
+> Note: this flow is superseded by **3.2.1.5** (target-first 5-step). This section is kept as a historical reference from the `Suitest.html` mockup; **the v1.0 implementation uses 3.2.1.5**.
 
-shadcn Dialog, max-w 880px, max-h 88vh. (Sections 1-5 dan generation flow lama — lihat git history kalau perlu.)
+shadcn Dialog, max-w 880px, max-h 88vh. (Sections 1-5 and the old generation flow — see git history if needed.)
 
 #### 3.2.1.5 GenerateModal — target-first 5-step flow (v1.0)
 
-shadcn Dialog, max-w 920px, max-h 90vh. Stepper indicator di header.
+shadcn Dialog, max-w 920px, max-h 90vh. Stepper indicator in the header.
 
 **Step 1: What are you testing?** — 6 cards grid (3×2):
 
 | Card | Target kind | Default MCP |
 |------|-------------|-------------|
-| 🧩 Backend API | `BE_REST` / `BE_GRAPHQL` / `BE_GRPC` (auto-detect dari source) | `api-mcp` |
+| 🧩 Backend API | `BE_REST` / `BE_GRAPHQL` / `BE_GRPC` (auto-detected from source) | `api-mcp` |
 | 🌐 Frontend Web | `FE_WEB` | `playwright-mcp` |
 | 📱 Mobile | `FE_MOBILE` | `appium-mcp` |
 | 🗄️ Database | `DATA` | `postgres-mcp` |
 | ☁️ Infrastructure | `INFRA` | `kubernetes-mcp` |
-| ✨ Mixed PRD-driven | multi-target dari PRD parsing | dynamic per step |
+| ✨ Mixed PRD-driven | multi-target from PRD parsing | dynamic per step |
 | 🔌 Custom MCP | `CUSTOM` | user-picked |
 
-**ZERO behavior:** "Mixed PRD-driven" dan AI-driven cards **grayed out** dengan `<DisabledTooltip reason="Requires LLM. Settings → LLM" />`. Backend/Frontend/DB/Infra/Custom MCP tetap available untuk deterministic generators.
+**ZERO behavior:** "Mixed PRD-driven" and AI-driven cards are **grayed out** with `<DisabledTooltip reason="Requires LLM. Settings → LLM" />`. Backend/Frontend/DB/Infra/Custom MCP remain available for deterministic generators.
 
 Active card = green-tinted with accent border.
 
-**Step 2: Source input** — content depends on target chosen di step 1:
+**Step 2: Source input** — content depends on the target chosen in step 1:
 - Backend API → OpenAPI URL / spec paste / GraphQL schema URL
 - Frontend Web → URL + depth + auth method (none / cookie / bearer / OAuth)
 - Mobile → APK upload / iOS bundle / Appium capabilities
@@ -444,16 +444,16 @@ Active card = green-tinted with accent border.
 - Mixed PRD → markdown/text textarea (paste PRD/user story)
 - Custom MCP → MCP server URL + tool discovery preview
 
-**Step 3: MCP provider** — auto-selected dari routing table (Settings → MCP Routing). "Change" button → picker showing registered providers **compatible with target_kind** (filtered, sorted by health + recency). User can also add custom inline (link to Integrations → MCP Servers → Add Custom).
+**Step 3: MCP provider** — auto-selected from the routing table (Settings → MCP Routing). "Change" button → picker showing registered providers **compatible with target_kind** (filtered, sorted by health + recency). User can also add custom inline (link to Integrations → MCP Servers → Add Custom).
 
 Display: `<McpProviderPill>` per provider with health dot + transport (stdio/SSE/WS) + version.
 
 **Step 4: Generation strategy** — radio:
-- ⚙️ **Deterministic** (default in ZERO; always available) — uses generator yg cocok dengan target (OpenAPI/Recorder/Crawler). No LLM call.
+- ⚙️ **Deterministic** (default in ZERO; always available) — uses the generator matching the target (OpenAPI/Recorder/Crawler). No LLM call.
 - ✨ **AI-enrich** (requires LLM) — deterministic baseline + LLM additions (edge cases, negative paths, fuzz hints).
 - 🤖 **AI-only** (requires LLM) — full LLM-driven (PRD parsing, semantic crawl, MCP tool exploration).
 
-Strategy radio non-`Deterministic` di-disable dengan tooltip di ZERO. Default selection adapts to tier: ZERO=`deterministic`, CLOUD/LOCAL=`ai_enrich`.
+Non-`Deterministic` strategy radios are disabled with a tooltip in ZERO. Default selection adapts to tier: ZERO=`deterministic`, CLOUD/LOCAL=`ai_enrich`.
 
 **Step 5: Review & approve** — streaming preview list of generated cases. Each row:
 - Checkbox (default checked)
@@ -462,48 +462,48 @@ Strategy radio non-`Deterministic` di-disable dengan tooltip di ZERO. Default se
 - Step count + estimated runtime
 - "Expand" → see full steps in side drawer
 
-User dapat uncheck unwanted, edit titles inline. Hitting "Add N to suite" → POST `/test-cases` batch.
+The user can uncheck unwanted rows and edit titles inline. Hitting "Add N to suite" → POST `/test-cases` batch.
 
 **Footer:**
-- Left: **cost estimate chip** untuk `ai_only` / `ai_enrich` — calculated from LiteLLM model pricing × estimated tokens. Format: `~$0.04 · ~4.2k tokens` (`<CostChip>` component). ZERO + Deterministic → hide.
-- Right: Cancel + Generate (primary) / "Add N to suite" (saat step 5 ada hasil)
+- Left: **cost estimate chip** for `ai_only` / `ai_enrich` — calculated from LiteLLM model pricing × estimated tokens. Format: `~$0.04 · ~4.2k tokens` (`<CostChip>` component). ZERO + Deterministic → hide.
+- Right: Cancel + Generate (primary) / "Add N to suite" (when step 5 has results)
 
 **Generation flow:**
 1. Click Generate → POST `/agent/generate/cases` body includes `{ targetKind, source, mcpProvider, strategy }` (SSE)
 2. Each `case` SSE event prepends to step 5 list with slide-in animation
 3. After `complete` event, replace Generate button with "Add N to suite"
-4. User unchecks unwanted, clicks Add → POST `/test-cases` batch endpoint with `agentSessionId` (untuk reproducibility trace)
+4. User unchecks unwanted, clicks Add → POST `/test-cases` batch endpoint with `agentSessionId` (for the reproducibility trace)
 
-Capability check upfront: kalau strategy ∈ {`ai_only`, `ai_enrich`} tapi tier=ZERO, button "Generate" di-disable + show banner inline "AI strategy requires LLM config — switch to Deterministic or [Configure LLM]".
+Capability check upfront: if strategy ∈ {`ai_only`, `ai_enrich`} but tier=ZERO, the "Generate" button is disabled + an inline banner shows "AI strategy requires LLM config — switch to Deterministic or [Configure LLM]".
 
 #### 3.2.2 Step editor
 
-Component: `src/components/cases/StepEditor.tsx`. Renders per-step card di Detail panel section 4 (steps section), replaces simple "step card" dari layout lama.
+Component: `src/components/cases/StepEditor.tsx`. Renders a per-step card in Detail panel section 4 (steps section), replacing the simple "step card" from the old layout.
 
 **Per-step fields:**
-- `action` — text (single-line input, natural language: "Login dengan user X")
+- `action` — text (single-line input, natural language: "Log in as user X")
 - `expected` — text (multi-line, monospaced)
 - `code` — **Monaco editor** (TS/Python), 6-line min height, syntax highlight by `mcpProvider.language` hint, autoformat on blur
 - `mcpProvider` — dropdown of registered providers compatible with `targetKind`
 - `targetKind` — ENUM dropdown, **auto-populated** from chosen `mcpProvider` but **override allowed** (advanced flag)
-- `executable` — computed badge (lihat indicator below)
+- `executable` — computed badge (see indicator below)
 
 **Visual indicators:**
-- 🔴 **Red badge "Needs code"** kalau `step.executable = false` (= `code IS NULL AND (tier=ZERO OR action IS NULL)`)
-- 🟢 Green check kalau executable
-- 🟣 Violet `<SourcePill source="AI">` kalau di-generate AI
+- 🔴 **Red badge "Needs code"** if `step.executable = false` (= `code IS NULL AND (tier=ZERO OR action IS NULL)`)
+- 🟢 Green check if executable
+- 🟣 Violet `<SourcePill source="AI">` if generated by AI
 
 **Drag handle:** left side of card, 6-dot grip icon, dnd-kit `useSortable` hook. Reorder updates `step.order` field, persists via PATCH `/test-cases/:id/steps/reorder` (batch).
 
-**Per-step actions (toolbar di top-right step card):**
+**Per-step actions (toolbar at the top-right of the step card):**
 - **"Translate to code"** button (AI-driven, requires LLM) — converts `action` natural language → `code` via LLM with MCP tool schema as context. `<Gated feature="ai_translation">`. POST `/agent/translate/step`. Result fills Monaco editor in-place; user reviews + saves.
-- **"Test step now"** — invokes MCP tool **once** with current `code`, shows tool output (logs + return value + screenshot kalau ada) di inline drawer di bawah step. **Does not** create a Run record (ephemeral try). Endpoint: `POST /steps/test-once`. Available di semua tier.
+- **"Test step now"** — invokes MCP tool **once** with current `code`, shows tool output (logs + return value + screenshot if any) in an inline drawer below the step. **Does not** create a Run record (ephemeral try). Endpoint: `POST /steps/test-once`. Available in all tiers.
 - "Delete step" (trash icon, confirms)
 - "Duplicate step"
 
-**Mixed-MCP indicator:** kalau test case punya step dengan ≥2 distinct `mcpProvider`, header detail panel menampilkan chip `Mixed MCP: api-mcp + playwright-mcp + postgres-mcp` (mono, blue tint).
+**Mixed-MCP indicator:** if a test case has steps with ≥2 distinct `mcpProvider` values, the detail panel header shows a chip `Mixed MCP: api-mcp + playwright-mcp + postgres-mcp` (mono, blue tint).
 
-Lihat juga: [MCP_PLUGINS.md](../MCP_PLUGINS.md), [GENERATORS.md](../GENERATORS.md).
+See also: [MCP_PLUGINS.md](../MCP_PLUGINS.md), [GENERATORS.md](../GENERATORS.md).
 
 ### 3.3 Test Runs
 
@@ -623,7 +623,7 @@ MCP servers get green-tinted logo bg (highlight). "MCP Server" section has "Agen
 
 #### 3.7.1 Integration card actions (Connect / Configure / Disconnect)
 
-Per integration card, footer button morphs by state — one workspace can hold at most one config per integration kind (lihat § 3.7.4 default-tracker toggle for multi-tracker behavior).
+Per integration card, footer button morphs by state — one workspace can hold at most one config per integration kind (see § 3.7.4 default-tracker toggle for multi-tracker behavior).
 
 | State | Button | Click action |
 |-------|--------|--------------|
@@ -631,7 +631,7 @@ Per integration card, footer button morphs by state — one workspace can hold a
 | Connected, healthy | "Configure" (secondary) + tiny ⋯ overflow → "Disconnect" | Configure → opens dialog pre-filled (masked secrets). Disconnect → confirm popover, then `DELETE /api/v1/integrations/:kind`. |
 | Connected, unhealthy | "Configure" + red status dot | Hover dot → tooltip showing last error from `test-connection`. |
 
-Status badge mirrors the green/amber/red dot pattern used elsewhere (lihat § 4.13 McpProviderPill semantics).
+Status badge mirrors the green/amber/red dot pattern used elsewhere (see § 4.13 McpProviderPill semantics).
 
 #### 3.7.2 Per-kind config dialogs
 
@@ -694,12 +694,12 @@ Layout: centered card 480px wide, dark background, logo at top. No sidebar/topba
 
 #### 3.7.6 Settings → LLM
 
-Path: `/settings/llm` (sub-route di Settings layout — Settings sidebar pakai shadcn `<Tabs>` vertical atau second-level nav).
+Path: `/settings/llm` (sub-route in the Settings layout — the Settings sidebar uses shadcn `<Tabs>` vertical or a second-level nav).
 
-**Capability:** halaman ini **always available** di semua tier (justru ini cara user upgrade dari ZERO ke LOCAL/CLOUD).
+**Capability:** this page is **always available** in all tiers (it is precisely how a user upgrades from ZERO to LOCAL/CLOUD).
 
 **Form layout:**
-1. **Provider dropdown** — LiteLLM supported list dengan grouping:
+1. **Provider dropdown** — LiteLLM supported list with grouping:
    - *Cloud* — Anthropic / OpenAI / Google Gemini / Groq / OpenRouter / Bedrock / Vertex / DeepSeek / xAI / Mistral / Cohere / ...
    - *Local* — Ollama / llama.cpp / vLLM / LM Studio / Text Generation Inference
    - `none` (= ZERO tier)
@@ -716,15 +716,15 @@ Path: `/settings/llm` (sub-route di Settings layout — Settings sidebar pakai s
 - **"Save"** → persists encrypted (AES-GCM); triggers tier resolution server-side; flash success toast "AI features enabled" + offer modal "Upgrade autonomy from manual → assist? [Yes, recommended] [Stay manual]"
 - **"Reset to ZERO"** — red destructive button at bottom (`<Button variant="destructive">`), confirm dialog "This will disable all AI features. Existing AI-generated test cases stay. Continue?" → POST `/workspaces/:id/llm-config` with `{provider: 'none'}`.
 
-Lihat juga: [CAPABILITY_TIERS.md](../CAPABILITY_TIERS.md).
+See also: [CAPABILITY_TIERS.md](../CAPABILITY_TIERS.md).
 
 #### 3.7.7 Settings → Automation
 
 Path: `/settings/automation`.
 
-**Capability:** hidden di ZERO tier (autonomy locked to `manual` — no choice). In LOCAL/CLOUD: full UI.
+**Capability:** hidden in ZERO tier (autonomy locked to `manual` — no choice). In LOCAL/CLOUD: full UI.
 
-**Radio group:** 4 autonomy levels (lihat [AUTONOMY.md](../AUTONOMY.md)):
+**Radio group:** 4 autonomy levels (see [AUTONOMY.md](../AUTONOMY.md)):
 
 | Level | Header | Bullet copy |
 |-------|--------|-------------|
@@ -829,14 +829,14 @@ Path: `/integrations?tab=mcp` (deep-link of 3.7 tab). Component: `src/components
 - Last health check time (relative, mono)
 - "Test connection" button → `POST /mcp/providers/:id/test` → result drawer
 - Tools sub-tab — toggle "Show discovered tools" — lists each MCP tool with name + description + JSON schema preview. **Dev-mode only, role-gated** (`role=admin`).
-  - Each tool has "Try it" form (auto-built from JSON schema) → invokes tool dengan ephemeral context, shows return value. Useful for debugging custom MCP integrations.
+  - Each tool has "Try it" form (auto-built from JSON schema) → invokes the tool with an ephemeral context, shows the return value. Useful for debugging custom MCP integrations.
 - Configure button → opens edit modal (for custom; for bundled = view-only)
 - "Set as default for {target_kind}" link (multiple kinds possible)
 
 **"Add Custom MCP" modal:**
 - Field 1: `name` (slug) + display name
 - Field 2: `kind` — multi-select of target kinds this MCP can serve (BE_REST / FE_WEB / DATA / INFRA / CUSTOM)
-- Field 3: `endpoint` URL atau executable path
+- Field 3: `endpoint` URL or executable path
 - Field 4: `transport` radio — stdio / SSE / WebSocket
 - Field 5: `config` JSON editor (Monaco, JSON syntax, schema-validated)
 - Field 6: `secrets` — list of `key=value` (write-only, AES-GCM encrypted; passed as env vars at runtime)
@@ -848,11 +848,11 @@ Path: `/integrations?tab=mcp` (deep-link of 3.7 tab). Component: `src/components
 - First provider in list = default selected in GenerateModal step 3
 - Persist via PUT `/mcp/routing`
 
-Lihat juga: [MCP_PLUGINS.md](../MCP_PLUGINS.md).
+See also: [MCP_PLUGINS.md](../MCP_PLUGINS.md).
 
 ### 3.9 Run detail — diagnosis behavior
 
-Extends section 3.3 Test Runs detail with capability-aware diagnosis card di tab "Steps" (atau dedicated section di bawah failed step).
+Extends section 3.3 Test Runs detail with a capability-aware diagnosis card in the "Steps" tab (or a dedicated section below the failed step).
 
 **In CLOUD / LOCAL (with `ai_diagnosis` feature):**
 - **"Agent Diagnosis"** card — violet-tinted with sparkle icon
@@ -862,7 +862,7 @@ Extends section 3.3 Test Runs detail with capability-aware diagnosis card di tab
   - Evidence bullets — links to specific log lines, stack frames, network events
   - "Suggested fix" snippet (optional, if applicable)
   - "File defect" + "Mark flaky" + "Dispute diagnosis" actions
-- Streaming generation kalau autonomy ≥ assist; otherwise lazy on demand (button "Diagnose with AI")
+- Streaming generation if autonomy ≥ assist; otherwise lazy on demand (button "Diagnose with AI")
 
 **In ZERO (no `ai_diagnosis`):**
 - **"Manual triage needed"** card — gray-tinted, neutral
@@ -882,12 +882,12 @@ Visual difference makes tier explicit — don't hide the gray card pretending di
 ### 3.10 Cost transparency
 
 **v1.0 (lite):**
-- **Per-run footer chip** di Run detail head: `Used 4.2k tokens · $0.034 · 3 tool calls` (`<CostChip>`). Only visible kalau `tier != ZERO` AND run includes AI calls.
+- **Per-run footer chip** in the Run detail head: `Used 4.2k tokens · $0.034 · 3 tool calls` (`<CostChip>`). Only visible if `tier != ZERO` AND the run includes AI calls.
 - Click chip → side drawer with breakdown:
   - Per-message token count + cost
   - Per-tool-call latency + tokens
   - Total cost vs. budget remaining (if budget set)
-- ZERO tier: chip hidden (no LLM cost). Show "$0 · deterministic" tiny label di footer (subtle).
+- ZERO tier: chip hidden (no LLM cost). Show a "$0 · deterministic" tiny label in the footer (subtle).
 
 **v1.x (full) — preview, not in v1.0:**
 - Workspace billing page (`/settings/billing`): 7d / 30d spend per provider per kind (generation/diagnosis/translation/chat). Stacked bar chart + table.
@@ -896,7 +896,7 @@ Visual difference makes tier explicit — don't hide the gray card pretending di
   - 100% → red banner + auto-throttle (autonomy → assist forced, no auto-execute)
 - Per-user spend caps (admin-set).
 
-Lihat juga: [API.md](../API.md) untuk cost endpoints, [AI_AGENT.md](../AI_AGENT.md) untuk LiteLLM cost tracking.
+See also: [API.md](../API.md) for cost endpoints, [AI_AGENT.md](../AI_AGENT.md) for LiteLLM cost tracking.
 
 ### 3.11 Docs & specs
 
@@ -904,7 +904,7 @@ Path: `/docs`. Component: `src/routes/(app)/docs.tsx`.
 
 **Body:** 2-column grid of source cards. Each card: icon + name + type + meta (e.g., "Notion · 142 pages · indexed 2h ago") + footer with "N test cases generated" + "Re-sync" button.
 
-Note: in ZERO tier, "indexed" status only shows FTS index status (`fastembed` semantic indexing hidden / replaced with FTS counter). "N test cases generated" tetap relevan kalau cases di-generate via deterministic OpenAPI generator dari spec yang tersimpan di Docs.
+Note: in ZERO tier, "indexed" status only shows FTS index status (`fastembed` semantic indexing hidden / replaced with FTS counter). "N test cases generated" stays relevant if cases were generated via the deterministic OpenAPI generator from a spec stored in Docs.
 
 ### 3.12 Inbox
 
@@ -1170,7 +1170,7 @@ No tier gating.
 | Element | Behavior |
 |---------|----------|
 | Live indicator dot | `animation: pulse 2s infinite` |
-| Running progress | Indeterminate stripe atau `running` color amber-ish |
+| Running progress | Indeterminate stripe or `running` color amber-ish |
 | Streaming log | New line fades in (200ms opacity 0→1) + auto-scroll to bottom unless user scrolled up |
 | Generated case row | `slideIn 0.3s ease-out` (translateY -4 → 0, opacity 0 → 1) |
 | Modal open | shadcn default (fade + scale) |
@@ -1189,7 +1189,7 @@ Honor `prefers-reduced-motion` — disable pulse + slide-in.
 | Screen | Empty message | CTA |
 |--------|---------------|-----|
 | Test Cases (no suites, ZERO tier) | "No cases yet. Generate from OpenAPI, record a browser session, or write manually." | [Generate from OpenAPI] [Record] [Write manually] (3 buttons) |
-| Test Cases (no suites, LOCAL/CLOUD) | "No test cases yet. Mau generate dari PRD?" | "Generate with AI" |
+| Test Cases (no suites, LOCAL/CLOUD) | "No test cases yet. Want to generate from a PRD?" | "Generate with AI" |
 | Test Cases (AI tab in ZERO) | tab hidden — not applicable |
 | Test Runs | "No runs in the last 30 days. Trigger one from a test case or your CI." | "View test cases" |
 | Defects | "No open defects. Suite kamu lagi clean." | "View resolved (12)" |
@@ -1203,19 +1203,19 @@ Honor `prefers-reduced-motion` — disable pulse + slide-in.
 
 ---
 
-## 7. Aturan saat implement screen baru
+## 7. Rules when implementing a new screen
 
-0. **Wrap any AI-touching component in `<Gated>` upfront** — sebelum kasih affordance, pastikan capability gate. Otherwise screen pecah di ZERO tier.
-1. **Buka mockup dulu** (`Suitest.html`) — screenshot screen yang sedang dikerjakan. **Catatan:** mockup menggambarkan CLOUD tier sebagai ideal — ZERO tier is a **subset** of what's shown. Gunakan mockup sebagai upper bound visual + adapt untuk capability gating.
-2. **Match spacing** — perhatikan padding 18px page header, 24px content side, 14px card padding
-3. **Match copy** — gunakan exact wording dari mockup kecuali user-content
-4. **Cek typography sizes** — JANGAN naik ke 14px atau 16px kecuali ada di mockup
-5. **Use design tokens** — `bg-elev-1`, `border-subtle`, dst. Jangan invent hex baru.
-6. **Add empty state** — screen tanpa data harus tetap usable (lihat section 6 untuk ZERO-specific copy)
-7. **Add loading state** — skeleton row untuk lists, shimmer for KPIs
-8. **Wire up WebSocket / SSE** kalau data berubah real-time (runs, agent thread, capability events, MCP health)
-9. **Test the screen in BOTH tiers manually before declaring done** — toggle env `SUITEST_LLM_PROVIDER=none` vs `SUITEST_LLM_PROVIDER=anthropic` dan re-verify. ZERO tier sering ke-skip, hasilnya broken UI saat user beneran di ZERO.
-10. **Smoke test manually** dulu, then write Vitest unit test untuk hooks/utils, Playwright E2E untuk happy path (E2E per tier ideally)
+0. **Wrap any AI-touching component in `<Gated>` upfront** — before exposing the affordance, make sure the capability gate is in place. Otherwise the screen breaks in ZERO tier.
+1. **Open the mockup first** (`Suitest.html`) — screenshot the screen being worked on. **Note:** the mockup depicts the CLOUD tier as the ideal — ZERO tier is a **subset** of what's shown. Use the mockup as the visual upper bound + adapt for capability gating.
+2. **Match spacing** — mind the 18px page header padding, 24px content sides, 14px card padding
+3. **Match copy** — use the exact wording from the mockup except for user content
+4. **Check typography sizes** — do NOT go up to 14px or 16px unless it's in the mockup
+5. **Use design tokens** — `bg-elev-1`, `border-subtle`, etc. Don't invent new hex values.
+6. **Add empty state** — a screen without data must stay usable (see section 6 for ZERO-specific copy)
+7. **Add loading state** — skeleton rows for lists, shimmer for KPIs
+8. **Wire up WebSocket / SSE** if the data changes in real time (runs, agent thread, capability events, MCP health)
+9. **Test the screen in BOTH tiers manually before declaring done** — toggle env `SUITEST_LLM_PROVIDER=none` vs `SUITEST_LLM_PROVIDER=anthropic` and re-verify. ZERO tier often gets skipped, resulting in broken UI when a user is actually in ZERO.
+10. **Smoke test manually** first, then write Vitest unit tests for hooks/utils, Playwright E2E for the happy path (E2E per tier ideally)
 
 ---
 

@@ -1,0 +1,47 @@
+{
+  "name": "@suitest/mcp",
+  "version": "0.1.0",
+  "description": "Suitest MCP server for IDE agents (Claude Code, Cursor, Codex) — generate, run, and publish QA tests from your editor. Includes blackbox DOM testing for any web app: no repo access required, just a URL and test credentials.",
+  "license": "Apache-2.0",
+  "author": "Suitest contributors",
+  "homepage": "https://github.com/suiflex/suitest#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/suiflex/suitest.git",
+    "directory": "packages/mcp-npx"
+  },
+  "bugs": {
+    "url": "https://github.com/suiflex/suitest/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "testing",
+    "qa",
+    "test-automation",
+    "playwright",
+    "e2e",
+    "blackbox-testing",
+    "claude",
+    "cursor",
+    "ai-agents",
+    "suitest"
+  ],
+  "bin": {
+    "suitest-mcp": "bin/suitest-mcp.js"
+  },
+  "files": [
+    "bin/",
+    "python/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "sync-python": "node scripts/sync-python.js",
+    "prepack": "node scripts/sync-python.js",
+    "test": "node scripts/sync-python.js && node test/smoke.test.js"
+  }
+}

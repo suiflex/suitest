@@ -1,6 +1,6 @@
 # docs/ARCHITECTURE.md
 
-> Tech stack, services, dan deployment topology Suitest **OSS pivot** (Python/FastAPI, MCP-native, BYO LLM). Diff terhadap doc ini wajib kalau menambah/mengganti komponen. Single source of truth keputusan: [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
+> Tech stack, services, and deployment topology for the Suitest **OSS pivot** (Python/FastAPI, MCP-native, BYO LLM). A diff against this doc is mandatory when adding/replacing components. Single source of truth for decisions: [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
 
 > ℹ️ **Built today:** `apps/api`, `apps/runner`, `apps/web`, `packages/db|mcp|core|shared`. `packages/agent` LLM foundation is built (M3-1..M3-5): LiteLLM provider layer (lazy-imported, ZERO-safe) + deterministic mock, LangGraph state machines for the 4 modes, versioned prompts + drift guard, `LLMConfig` API/UI + tier refresh. LLM-driven generators (M3-6..M3-9), runtime translation (M3-10), diagnosis wiring (M3-11), chat/streaming (M3-12/13), cost+autonomy (M3-14..16), and the eval CI job are not built yet. See [ROADMAP.md](./ROADMAP.md).
 
@@ -45,7 +45,7 @@
         └──────────────────────────┘
 ```
 
-Provider LLM bersifat **BYO** (Bring-Your-Own) — di-route via LiteLLM. Tier `ZERO` jalan tanpa container LLM sama sekali (resolver mematikan modul AI). Lihat [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md).
+The LLM provider is **BYO** (Bring-Your-Own) — routed via LiteLLM. The `ZERO` tier runs without any LLM container at all (the resolver disables the AI modules). See [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md).
 
 ---
 
@@ -65,18 +65,18 @@ suitest/
 │   └── shared/       ← Pydantic v2 schemas, enums, error codes
 ├── infra/
 │   ├── docker/       ← Dockerfile per service + supervisord cfg (standalone image)
-│   └── helm/         ← Helm chart `suitest/` untuk k8s
+│   └── helm/         ← Helm chart `suitest/` for k8s
 ├── docs/             ← markdown specs (you are reading these)
 ├── pyproject.toml    ← uv workspace root
 └── pnpm-workspace.yaml
 ```
 
-**Kenapa monorepo:**
-- Pydantic schemas di `packages/shared` di-import baik dari `api` maupun `runner` → kontrak konsisten.
-- Atomic PR boleh menyentuh DB migration + endpoint + UI sekaligus.
-- LangGraph & LiteLLM dipakai bersama oleh `api` (generation, conversation) dan `runner` (execution, diagnosis).
+**Why a monorepo:**
+- Pydantic schemas in `packages/shared` are imported by both `api` and `runner` → consistent contracts.
+- An atomic PR may touch a DB migration + endpoint + UI at once.
+- LangGraph & LiteLLM are shared by `api` (generation, conversation) and `runner` (execution, diagnosis).
 
-Frontend pakai pnpm; backend pakai `uv` (uv workspace, satu `pyproject.toml` root + per-package).
+The frontend uses pnpm; the backend uses `uv` (uv workspace, one root `pyproject.toml` + per-package).
 
 ---
 
@@ -84,19 +84,19 @@ Frontend pakai pnpm; backend pakai `uv` (uv workspace, satu `pyproject.toml` roo
 
 ### 3.1 `apps/web` — Frontend
 
-| Aspek | Pilihan |
-|-------|---------|
+| Aspect | Choice |
+|--------|--------|
 | Build | Vite 6 |
 | Framework | React 19 + TypeScript 5.6 |
 | Router | TanStack Router (file-based, type-safe) |
 | Data fetching | TanStack Query (server state cache) |
-| Styling | Tailwind 4 + `@layer base` design tokens (lihat `CLAUDE.md` §3.3) |
+| Styling | Tailwind 4 + `@layer base` design tokens (see `CLAUDE.md` §3.3) |
 | UI primitives | shadcn/ui (Radix) — Dialog, Popover, Tooltip, Tabs |
 | AI UI | `@ai-sdk/react` (streaming chat) + `assistant-ui` (tool render) |
 | Forms | React Hook Form + Zod resolver |
 | Realtime | Native `WebSocket` + `EventSource` (SSE) |
 | State | Local: React state. Server: TanStack Query. App-wide (capabilities, autonomy, AI panel): Zustand |
-| Auth | Bearer token (httpOnly cookie atau header), OAuth callback via API |
+| Auth | Bearer token (httpOnly cookie or header), OAuth callback via API |
 | Icons | Lucide React |
 | Fonts | Geist Sans + Geist Mono (self-hosted, no external CDN — air-gap friendly) |
 
@@ -104,13 +104,13 @@ Frontend pakai pnpm; backend pakai `uv` (uv workspace, satu `pyproject.toml` roo
 
 ### 3.2 `apps/api` — Backend
 
-| Aspek | Pilihan |
-|-------|---------|
+| Aspect | Choice |
+|--------|--------|
 | Framework | FastAPI 0.115 |
-| ASGI server | Uvicorn (workers) di belakang nginx atau langsung |
-| Schemas | Pydantic v2 (semua request/response model) |
+| ASGI server | Uvicorn (workers) behind nginx or directly |
+| Schemas | Pydantic v2 (all request/response models) |
 | Auth | FastAPI-Users (session + Bearer JWT) + OAuth providers (Google, GitHub) |
-| Authz | Hand-rolled `assert_can(user, action, resource)` policy module di `packages/core/authz.py` (roles: owner, admin, qa, viewer) |
+| Authz | Hand-rolled `assert_can(user, action, resource)` policy module in `packages/core/authz.py` (roles: owner, admin, qa, viewer) |
 | Realtime | FastAPI native `WebSocket` + `EventSource` (SSE) — no Socket.io |
 | Database | SQLAlchemy 2 async via `asyncpg`, sessions per-request |
 | Queue producer | ARQ client (enqueue) |
@@ -128,69 +128,69 @@ Frontend pakai pnpm; backend pakai `uv` (uv workspace, satu `pyproject.toml` roo
 - `/ws/runs/{id}` — WS upgrade for live run logs
 - `/sse/runs/{id}` — SSE alternative (proxy-friendly)
 
-**Deploy:** Docker image, 2+ replicas behind ingress. Lihat [DEPLOYMENT.md](./DEPLOYMENT.md).
+**Deploy:** Docker image, 2+ replicas behind ingress. See [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ### 3.3 `apps/runner` — Test executor
 
-| Aspek | Detail |
-|-------|--------|
+| Aspect | Detail |
+|--------|--------|
 | Type | ARQ worker (`arq.worker.Worker`), long-running async process |
 | Concurrency | `max_jobs=8` per worker, autoscale 2–N (HPA queue-depth based) |
 | MCP clients | `packages/mcp` — connect via stdio / SSE / WebSocket |
-| Step engine | Decision tree per step (lihat [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md) §8) |
-| Agentic step | Bila `step.code` kosong & tier != ZERO → translate via LangGraph node → MCP call |
-| Output | Stream log lines ke Redis pub/sub channel `run:{id}` → `api` fan-out via WS/SSE |
-| Artifacts | Upload ke MinIO/S3 (`s3://{bucket}/runs/{run_id}/{step_idx}/`) |
+| Step engine | Decision tree per step (see [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md) §8) |
+| Agentic step | When `step.code` is empty & tier != ZERO → translate via LangGraph node → MCP call |
+| Output | Stream log lines to Redis pub/sub channel `run:{id}` → `api` fan-out via WS/SSE |
+| Artifacts | Upload to MinIO/S3 (`s3://{bucket}/runs/{run_id}/{step_idx}/`) |
 | Sandbox | Per-job temp workdir, cleaned up after success/fail |
 
 **Deploy:** Docker image, HPA target `runner_queue_depth > 10` → scale up.
 
 ### 3.4 `packages/agent` — AI core
 
-| Aspek | Detail |
-|-------|--------|
-| LLM router | **LiteLLM** — single client untuk 100+ provider (Anthropic, OpenAI, Gemini, Groq, Bedrock, Vertex, Ollama, llama.cpp, vLLM, LMStudio, OpenRouter, DeepSeek, Azure) |
-| Orchestrator | **LangGraph** — state machine deterministik untuk 4 mode agen: `generation`, `execution`, `diagnosis`, `conversation` |
-| Prompts | Versioned di `packages/agent/prompts/` — naming `v{N}/{task}.md`. `AgentSession.prompt_version` direkam ke DB |
-| Capability gate | Setiap entrypoint dibungkus `@require_tier(min="LOCAL")` decorator — fail fast dgn `LLM_DISABLED` di ZERO |
-| Autonomy gate | `@require_autonomy(min="assist")` decorator untuk operasi yang butuh auto-approve |
-| Caching | LiteLLM cache (Redis) + provider-native prompt caching jika tersedia (Anthropic ephemeral, Gemini context) |
+| Aspect | Detail |
+|--------|--------|
+| LLM router | **LiteLLM** — single client for 100+ providers (Anthropic, OpenAI, Gemini, Groq, Bedrock, Vertex, Ollama, llama.cpp, vLLM, LMStudio, OpenRouter, DeepSeek, Azure) |
+| Orchestrator | **LangGraph** — deterministic state machine for the 4 agent modes: `generation`, `execution`, `diagnosis`, `conversation` |
+| Prompts | Versioned in `packages/agent/prompts/` — naming `v{N}/{task}.md`. `AgentSession.prompt_version` is recorded to the DB |
+| Capability gate | Every entrypoint is wrapped in the `@require_tier(min="LOCAL")` decorator — fails fast with `LLM_DISABLED` on ZERO |
+| Autonomy gate | `@require_autonomy(min="assist")` decorator for operations that require auto-approve |
+| Caching | LiteLLM cache (Redis) + provider-native prompt caching where available (Anthropic ephemeral, Gemini context) |
 | Cost tracking | `litellm.completion_cost(response)` → `AgentSession.cost_usd` |
 | Eval harness | `packages/agent/evals/` — golden cases + LangSmith-compatible runner (weekly CI job) |
 | Observability | Optional Langfuse client — set `SUITEST_LANGFUSE_*` |
 
-Lihat `docs/AI_AGENT.md` untuk detail per-mode.
+See `docs/AI_AGENT.md` for per-mode details.
 
 ### 3.5 `packages/db` — Database
 
-PostgreSQL 16 + **pgvector** extension (single DB target untuk OSS v1.0).
+PostgreSQL 16 + **pgvector** extension (single DB target for OSS v1.0).
 
-- SQLAlchemy 2 (async) models di `packages/db/models/`
-- Alembic migrations di `packages/db/alembic/versions/`
-- Seed script `packages/db/seed.py` — bikin demo workspace "Nusantara Retail"
-- pgvector index pakai `ivfflat` (default) atau `hnsw` (opt-in via setting)
-- Vector dimensi flex per `SUITEST_EMBEDDINGS_BACKEND`: `fastembed=384`, `openai=1536`, `cohere=1024` (kolom `DocumentChunk.embedding` pakai `Vector(dim)` ditentukan saat migration `--embeddings-dim`)
-- FTS fallback via `tsvector` kolom `DocumentChunk.search_tsv` — selalu aktif, termasuk ZERO tier
+- SQLAlchemy 2 (async) models in `packages/db/models/`
+- Alembic migrations in `packages/db/alembic/versions/`
+- Seed script `packages/db/seed.py` — creates the demo workspace "Nusantara Retail"
+- pgvector indexes use `ivfflat` (default) or `hnsw` (opt-in via setting)
+- Vector dimension is flexible per `SUITEST_EMBEDDINGS_BACKEND`: `fastembed=384`, `openai=1536`, `cohere=1024` (the `DocumentChunk.embedding` column uses `Vector(dim)`, determined at migration time via `--embeddings-dim`)
+- FTS fallback via the `tsvector` column `DocumentChunk.search_tsv` — always active, including on the ZERO tier
 
-Schema lengkap: `docs/DATA_MODEL.md`.
+Full schema: `docs/DATA_MODEL.md`.
 
 ### 3.6 `packages/mcp` — MCP plugin layer
 
-| Aspek | Detail |
-|-------|--------|
-| SDK | `mcp` Python SDK (resmi Anthropic) |
+| Aspect | Detail |
+|--------|--------|
+| SDK | `mcp` Python SDK (official Anthropic) |
 | Transports | stdio, SSE, WebSocket — selectable per registered server |
-| Registry | Static YAML di `packages/mcp/registry/default.yaml` (built-in providers) + DB table `mcp_provider` untuk user-added |
-| Plugin loader | Lazy-instantiate client saat step pertama pakai provider, pooling per-workspace |
+| Registry | Static YAML in `packages/mcp/registry/default.yaml` (built-in providers) + DB table `mcp_provider` for user-added ones |
+| Plugin loader | Lazy-instantiate client when a step first uses a provider, per-workspace pooling |
 | Routing | `target_kind` (BE_REST / BE_GRAPHQL / FE_WEB / DATA / INFRA / CUSTOM) → default MCP provider, overridable per step |
 
-Detail: [MCP_PLUGINS.md](./MCP_PLUGINS.md).
+Details: [MCP_PLUGINS.md](./MCP_PLUGINS.md).
 
 ---
 
 ## 4. External integrations
 
-| Service | Tujuan | SDK / Mekanisme |
+| Service | Purpose | SDK / Mechanism |
 |---------|--------|-----------------|
 | LLM providers (any 100+) | LLM completion / embeddings | LiteLLM router |
 | Jira Cloud | Issue tracker | REST API v3 (httpx) |
@@ -204,7 +204,7 @@ Detail: [MCP_PLUGINS.md](./MCP_PLUGINS.md).
 | Google OAuth | SSO | FastAPI-Users OAuth client |
 | GitHub OAuth | SSO | FastAPI-Users OAuth client |
 
-Setiap integration tracker punya adapter di `apps/api/integrations/<vendor>.py` dengan interface uniform:
+Every issue-tracker integration has an adapter in `apps/api/integrations/<vendor>.py` with a uniform interface:
 
 ```python
 class IssueTrackerAdapter(Protocol):
@@ -217,9 +217,9 @@ class IssueTrackerAdapter(Protocol):
 
 ## 5. Environment variables
 
-Naming: `SUITEST_<SCOPE>_<KEY>`. Defaults di `.env.example` = **ZERO tier**, jalan tanpa LLM.
+Naming: `SUITEST_<SCOPE>_<KEY>`. Defaults in `.env.example` = **ZERO tier**, runs without an LLM.
 
-**Required (semua tier):**
+**Required (all tiers):**
 
 ```env
 DATABASE_URL=postgresql+asyncpg://suitest:suitest@postgres:5432/suitest
@@ -240,8 +240,8 @@ SUITEST_S3_SECRET_KEY=minioadmin
 SUITEST_LLM_PROVIDER=none           # none | anthropic | openai | gemini | groq | openrouter |
                                     # ollama | llamacpp | vllm | lmstudio | azure | bedrock | vertex | deepseek
 SUITEST_LLM_API_KEY=
-SUITEST_LLM_MODEL=                  # contoh: claude-sonnet-4-5, gpt-4o, ollama/llama3.1
-SUITEST_LLM_BASE_URL=               # untuk self-hosted / OpenAI-compatible
+SUITEST_LLM_MODEL=                  # example: claude-sonnet-4-5, gpt-4o, ollama/llama3.1
+SUITEST_LLM_BASE_URL=               # for self-hosted / OpenAI-compatible
 SUITEST_EMBEDDINGS_BACKEND=none     # none | fastembed | openai | cohere
 SUITEST_EMBEDDINGS_MODEL=
 ```
@@ -267,22 +267,22 @@ SUITEST_LANGFUSE_HOST=
 SUITEST_OTLP_ENDPOINT=
 ```
 
-`.env.example` di-track; salin ke `.env` lokal, jangan commit. Production via Docker/Helm secret, **never** in repo.
+`.env.example` is tracked; copy it to a local `.env`, do not commit it. Production via Docker/Helm secrets, **never** in the repo.
 
 ---
 
 ## 6. Local development
 
 ```bash
-# Sekali saja
-uv sync                                # install Python deps untuk semua workspace package
-pnpm install                           # install JS deps utk apps/web
+# One-time setup
+uv sync                                # install Python deps for all workspace packages
+pnpm install                           # install JS deps for apps/web
 cp .env.example .env                   # default ZERO tier
 docker compose up -d postgres redis minio
 uv run alembic -c packages/db/alembic.ini upgrade head
 uv run python -m packages.db.seed
 
-# Setiap hari
+# Every day
 uv run uvicorn apps.api.main:app --reload --port 8000 &
 uv run arq apps.runner.worker.WorkerSettings &
 pnpm --filter web dev                  # http://localhost:5173
@@ -303,23 +303,23 @@ Port mapping default:
 
 ## 7. Production deployment
 
-3 mode dukungan (compose / standalone / Helm). Detail step-by-step + `values.yaml` schema: [DEPLOYMENT.md](./DEPLOYMENT.md).
+3 supported modes (compose / standalone / Helm). Step-by-step details + `values.yaml` schema: [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ---
 
 ## 8. CI/CD
 
-GitHub Actions workflows di `.github/workflows/`:
+GitHub Actions workflows in `.github/workflows/`:
 
-| Workflow | Trigger | Aksi |
+| Workflow | Trigger | Action |
 |----------|---------|------|
 | `lint.yml` | PR | `ruff check`, `ruff format --check`, `pnpm lint` |
 | `typecheck.yml` | PR | `mypy packages apps`, `pnpm --filter web typecheck` (tsc) |
 | `test.yml` | PR | `pytest -q` (api + runner + packages), `pnpm --filter web test` (vitest) |
-| `e2e.yml` | PR | Run Suitest smoke suite (dogfood) di ZERO mode |
-| `build-images.yml` | Push to `main` + tag | Build & push 3 image (`suitest-api`, `suitest-runner`, `suitest-web`) ke ghcr.io |
+| `e2e.yml` | PR | Run Suitest smoke suite (dogfood) in ZERO mode |
+| `build-images.yml` | Push to `main` + tag | Build & push 3 images (`suitest-api`, `suitest-runner`, `suitest-web`) to ghcr.io |
 | `eval.yml` | Weekly cron | Run `packages/agent/evals/` against pinned provider matrix |
-| `helm-release.yml` | Tag `v*` | Package + push chart ke OCI registry |
+| `helm-release.yml` | Tag `v*` | Package + push chart to OCI registry |
 
 ---
 
@@ -332,13 +332,13 @@ GitHub Actions workflows di `.github/workflows/`:
 | Metrics | `prometheus-fastapi-instrumentator` → `/metrics` endpoint |
 | Errors | Sentry (web + api + runner) — opt-in via `SUITEST_SENTRY_DSN` |
 | LLM trace | Langfuse self-host (opt-in) |
-| Uptime | External (BetterStack / Uptime Kuma), ping `/health` tiap 30s |
+| Uptime | External (BetterStack / Uptime Kuma), ping `/health` every 30s |
 
 **Custom metrics (Prometheus):**
 
 - `suitest_runs_started_total{env,source,tier}`
 - `suitest_runs_duration_seconds{outcome}`
-- `suitest_runs_queue_depth` (gauge, dipakai HPA runner)
+- `suitest_runs_queue_depth` (gauge, used by the runner HPA)
 - `suitest_agent_generation_seconds{source,provider,model}`
 - `suitest_agent_cost_usd_total{workspace,provider,model}`
 - `suitest_mcp_session_starts_total{provider}`
@@ -350,57 +350,57 @@ GitHub Actions workflows di `.github/workflows/`:
 
 ## 10. Security
 
-- TLS terminating di ingress (nginx / Traefik / cloud LB)
-- Secrets via Docker secret / k8s Secret / external secret operator — **tidak pernah** di repo
-- LLM API key disimpan **encrypted (AES-GCM, key derivation HKDF dari `SUITEST_ENCRYPTION_KEY`)** di `llm_config.api_key_ciphertext`
-- Password user via FastAPI-Users (argon2 default)
-- API token hashed (argon2) di DB
-- WebSocket auth via Bearer token saat handshake (query param atau header)
+- TLS terminated at the ingress (nginx / Traefik / cloud LB)
+- Secrets via Docker secret / k8s Secret / external secret operator — **never** in the repo
+- LLM API keys stored **encrypted (AES-GCM, HKDF key derivation from `SUITEST_ENCRYPTION_KEY`)** in `llm_config.api_key_ciphertext`
+- User passwords via FastAPI-Users (argon2 default)
+- API tokens hashed (argon2) in the DB
+- WebSocket auth via Bearer token at handshake (query param or header)
 - CSP header default: `default-src 'self'; img-src 'self' data:; connect-src 'self' <api_url> <ws_url>`
 - Rate limit: `slowapi` per-IP + workspace-level limiter (per-tier multiplier)
-- HMAC verification untuk inbound webhook (GitHub/GitLab/Jira) — secret per integration
-- Audit log untuk: login, integration connect/disconnect, LLM config rotate, test case delete, defect close, autonomy change
+- HMAC verification for inbound webhooks (GitHub/GitLab/Jira) — secret per integration
+- Audit log for: login, integration connect/disconnect, LLM config rotate, test case delete, defect close, autonomy change
 
 ---
 
 ## 11. Capability tier resolver
 
-Implementasi di `packages/core/capabilities.py`. Algoritma:
+Implemented in `packages/core/capabilities.py`. Algorithm:
 
-1. Baca `SUITEST_LLM_PROVIDER` env saat process startup.
+1. Read the `SUITEST_LLM_PROVIDER` env at process startup.
 2. Map provider → tier:
    - `none` / unset → **ZERO**
    - `ollama` / `llamacpp` / `vllm` / `lmstudio` → **LOCAL**
-   - lainnya (cloud SaaS) → **CLOUD**
-3. Validate kombinasi (e.g. cloud provider butuh API key kecuali Bedrock/Vertex IAM).
-4. Resolve `SUITEST_EMBEDDINGS_BACKEND` independen.
-5. Cache hasil ke memory + expose via `GET /capabilities`.
-6. Frontend fetch sekali saat boot, simpan di Zustand `useCapabilities()`.
+   - everything else (cloud SaaS) → **CLOUD**
+3. Validate the combination (e.g. cloud providers require an API key, except Bedrock/Vertex IAM).
+4. Resolve `SUITEST_EMBEDDINGS_BACKEND` independently.
+5. Cache the result in memory + expose it via `GET /capabilities`.
+6. The frontend fetches once at boot, stores it in Zustand `useCapabilities()`.
 
-Workspace-level override (lewat DB-stored `LLMConfig`) ditangani via reload signal — restart `api` + `runner` saat config berubah.
+Workspace-level overrides (via DB-stored `LLMConfig`) are handled via a reload signal — restart `api` + `runner` when the config changes.
 
-Spec lengkap: [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md).
+Full spec: [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md).
 
 ---
 
-## 12. Cara tambah dependency baru
+## 12. How to add a new dependency
 
-| Stack | Tool | Cara |
-|-------|------|------|
-| Python | `uv` | `uv add <pkg>` di package yang relevan, commit `pyproject.toml` + `uv.lock` |
+| Stack | Tool | How |
+|-------|------|-----|
+| Python | `uv` | `uv add <pkg>` in the relevant package, commit `pyproject.toml` + `uv.lock` |
 | Frontend | `pnpm` | `pnpm --filter web add <pkg>`, commit `package.json` + `pnpm-lock.yaml` |
 
 PR requirement:
 
-1. **Justify** di PR description: kenapa perlu, alternatif yang sudah dipertimbangkan, license check.
-2. Update tabel di section 3 di doc ini bila dependency strategis (mis. ganti orchestrator).
+1. **Justify** in the PR description: why it is needed, alternatives already considered, license check.
+2. Update the table in section 3 of this doc if the dependency is strategic (e.g. replacing the orchestrator).
 3. Bundle size impact (frontend): `pnpm --filter web build && pnpm --filter web analyze`.
-4. Approval dari maintainer — **auto-merge tidak boleh** untuk dependency baru.
-5. Tambah entry di `docs/SECURITY.md` (TBD) bila dependency touch crypto / auth.
+4. Approval from a maintainer — **auto-merge is not allowed** for new dependencies.
+5. Add an entry in `docs/SECURITY.md` (TBD) if the dependency touches crypto / auth.
 
 ---
 
-## 13. Referensi silang
+## 13. Cross-references
 
 - Tier spec → [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md)
 - Deployment detail → [DEPLOYMENT.md](./DEPLOYMENT.md)

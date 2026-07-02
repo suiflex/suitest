@@ -16,8 +16,11 @@ import socket
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @dataclass(frozen=True)
@@ -67,9 +70,8 @@ def wait_until_ready(
             return Readiness(True, "http", f"GET {ready_url} alive", _ms(start, monotonic))
         if _port_open(host, port, timeout=min(2.0, poll_interval * 2)):
             return Readiness(True, "port", f"tcp {host}:{port} open", _ms(start, monotonic))
-        if ready_log_pattern and log_reader is not None:
-            if ready_log_pattern in log_reader():
-                return Readiness(True, "log", f"matched '{ready_log_pattern}'", _ms(start, monotonic))
+        if ready_log_pattern and log_reader is not None and ready_log_pattern in log_reader():
+            return Readiness(True, "log", f"matched '{ready_log_pattern}'", _ms(start, monotonic))
         sleep(poll_interval)
     return Readiness(False, "timeout", f"not ready after {timeout_sec}s", _ms(start, monotonic))
 

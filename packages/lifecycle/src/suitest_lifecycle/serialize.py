@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from suitest_lifecycle.models import (
-    CodeSummary,
-    PlanCase,
-    Prd,
-    RunSummary,
-    TestResult,
-)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from suitest_lifecycle.models import (
+        CodeSummary,
+        PlanCase,
+        Prd,
+        RunSummary,
+        TestResult,
+    )
 
 JsonValue = object  # documented alias; concrete dicts/lists below are fully typed
 
@@ -60,7 +63,12 @@ def code_summary_to_json(summary: CodeSummary) -> dict[str, object]:
             for e in summary.endpoints
         ],
         "pages": [
-            {"route": p.route, "name": p.name, "protected": p.protected, "source_file": p.source_file}
+            {
+                "route": p.route,
+                "name": p.name,
+                "protected": p.protected,
+                "source_file": p.source_file,
+            }
             for p in summary.pages
         ],
     }
@@ -79,7 +87,12 @@ def result_to_json(r: TestResult) -> dict[str, object]:
         "video": r.video_path,
         "screenshot": r.screenshot_path,
         "steps": [
-            {"index": s.index, "type": s.type, "description": s.description, "status": s.status.value}
+            {
+                "index": s.index,
+                "type": s.type,
+                "description": s.description,
+                "status": s.status.value,
+            }
             for s in r.steps
         ],
     }

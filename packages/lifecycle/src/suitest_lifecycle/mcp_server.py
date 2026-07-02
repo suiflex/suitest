@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import json
 import sys
-from collections.abc import Callable
-from typing import TextIO
+from typing import TYPE_CHECKING, TextIO
 
 from suitest_lifecycle.tools import KWARG_TOOLS, TOOLS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 PROTOCOL_VERSION = "2024-11-05"
 
@@ -145,7 +147,13 @@ def handle(message: dict[str, object]) -> dict[str, object] | None:
             else:
                 envelope = tool(str(arguments.get("config_path", "suitest.config.json")))
         except Exception as exc:  # defensive: never crash the server on a tool bug
-            envelope = {"success": False, "summary": f"tool crashed: {exc}", "data": {}, "artifacts": [], "errors": [str(exc)]}
+            envelope = {
+                "success": False,
+                "summary": f"tool crashed: {exc}",
+                "data": {},
+                "artifacts": [],
+                "errors": [str(exc)],
+            }
         return _ok(
             req_id,
             {

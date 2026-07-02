@@ -149,7 +149,9 @@ def test_steps_sorted_by_order_within_case() -> None:
     failure = root.find("./testsuite/testcase/failure")
     assert failure is not None
     assert failure.attrib["message"] == "second"
-    assert root.find("./testsuite/testcase").attrib["time"] == "0.150"
+    testcase = root.find("./testsuite/testcase")
+    assert testcase is not None
+    assert testcase.attrib["time"] == "0.150"
 
 
 def test_empty_run_is_valid_empty_suite() -> None:

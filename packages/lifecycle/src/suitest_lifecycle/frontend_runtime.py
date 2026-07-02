@@ -31,9 +31,9 @@ def _playwright_importable() -> bool:
 
 def _chromium_present() -> bool:
     """True if the Chromium binary is installed (cheap, no browser launch)."""
-    try:
-        from playwright._impl._driver import compute_driver_executable  # type: ignore
-    except ImportError:
+    from importlib.util import find_spec
+
+    if find_spec("playwright") is None:
         return False
     try:
         from playwright.sync_api import sync_playwright

@@ -115,9 +115,7 @@ class LLMConfigService:
         if p in _LOCAL_PROVIDERS and not base_url:
             raise LLMConfigError("MISSING_BASE_URL", f"LOCAL provider {p} requires config.base_url")
         if p == _CUSTOM and not base_url:
-            raise LLMConfigError(
-                "MISSING_BASE_URL", "custom provider requires config.base_url"
-            )
+            raise LLMConfigError("MISSING_BASE_URL", "custom provider requires config.base_url")
         if p in _CLOUD_PROVIDERS and p not in _KEYLESS and not api_key:
             raise LLMConfigError("MISSING_API_KEY", f"CLOUD provider {p} requires an api key")
 

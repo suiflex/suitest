@@ -126,9 +126,7 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
             stmt = stmt.where(TestCase.id.in_(select(CaseTag.case_id).where(CaseTag.tag == tag)))
         if q is not None:
             pattern = f"%{q}%"
-            stmt = stmt.where(
-                or_(TestCase.title.ilike(pattern), TestCase.name.ilike(pattern))
-            )
+            stmt = stmt.where(or_(TestCase.title.ilike(pattern), TestCase.name.ilike(pattern)))
         if cursor is not None:
             cursor_ts, cursor_id = cursor
             stmt = stmt.where(

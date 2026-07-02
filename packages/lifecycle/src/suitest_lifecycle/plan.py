@@ -150,7 +150,10 @@ def generate_backend_plan(summary: CodeSummary) -> list[PlanCase]:
                         Priority.HIGH,
                         f"{anon_ep.method} {anon_ep.path}",
                         [
-                            ("action", f"Send {anon_ep.method} {anon_ep.path} with no Authorization header"),
+                            (
+                                "action",
+                                f"Send {anon_ep.method} {anon_ep.path} with no Authorization header",
+                            ),
                             ("assertion", "Expect HTTP 401"),
                         ],
                     )
@@ -164,7 +167,10 @@ def generate_backend_plan(summary: CodeSummary) -> list[PlanCase]:
                         Priority.MEDIUM,
                         f"{anon_ep.method} {anon_ep.path}",
                         [
-                            ("action", f"Send {anon_ep.method} {anon_ep.path} with Authorization: Bearer <garbage>"),
+                            (
+                                "action",
+                                f"Send {anon_ep.method} {anon_ep.path} with Authorization: Bearer <garbage>",
+                            ),
                             ("assertion", "Expect HTTP 401"),
                         ],
                     )
@@ -215,7 +221,10 @@ def generate_backend_plan(summary: CodeSummary) -> list[PlanCase]:
                     ref,
                     [
                         ("action", "Log in to obtain a token"),
-                        ("action", f"Send authenticated GET {ep.path} with an id that does not exist"),
+                        (
+                            "action",
+                            f"Send authenticated GET {ep.path} with an id that does not exist",
+                        ),
                         ("assertion", "Expect HTTP 404"),
                     ],
                 )
@@ -308,7 +317,10 @@ def generate_backend_plan(summary: CodeSummary) -> list[PlanCase]:
                     ref,
                     [
                         ("action", "Log in to obtain a token"),
-                        ("action", f"Send authenticated {ep.method} {ep.path} with an id that does not exist"),
+                        (
+                            "action",
+                            f"Send authenticated {ep.method} {ep.path} with an id that does not exist",
+                        ),
                         ("assertion", "Expect HTTP 404"),
                     ],
                 )
@@ -339,7 +351,10 @@ def generate_backend_plan(summary: CodeSummary) -> list[PlanCase]:
                     ref,
                     [
                         ("action", "Log in to obtain a token"),
-                        ("action", f"Send authenticated DELETE {ep.path} with an id that does not exist"),
+                        (
+                            "action",
+                            f"Send authenticated DELETE {ep.path} with an id that does not exist",
+                        ),
                         ("assertion", "Expect HTTP 404"),
                     ],
                 )

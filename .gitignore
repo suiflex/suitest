@@ -85,3 +85,11 @@ agentdb.rvf.lock
 ruvector.db
 .impeccable
 .playwright-mcp
+
+# @suitest/mcp — generated at prepack (sync-python.js)
+packages/mcp-npx/python/
+packages/mcp-npx/LICENSE
+packages/mcp-npx/*.tgz
+
+# internal session notes (not part of the public repo)
+SESSION_LOOP.md

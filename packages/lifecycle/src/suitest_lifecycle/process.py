@@ -8,6 +8,7 @@ it gracefully (SIGTERM → SIGKILL). POSIX-focused (the dev target is darwin/lin
 
 from __future__ import annotations
 
+import contextlib
 import os
 import shlex
 import signal
@@ -16,7 +17,10 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass
@@ -89,18 +93,14 @@ class ProcessManager:
             return
         popen = self._proc.popen
         if popen.poll() is None:
-            try:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
                 os.killpg(os.getpgid(popen.pid), signal.SIGTERM)
-            except (ProcessLookupError, PermissionError):
-                pass
             deadline = time.monotonic() + grace_sec
             while time.monotonic() < deadline and popen.poll() is None:
                 time.sleep(0.1)
             if popen.poll() is None:
-                try:
+                with contextlib.suppress(ProcessLookupError, PermissionError):
                     os.killpg(os.getpgid(popen.pid), signal.SIGKILL)
-                except (ProcessLookupError, PermissionError):
-                    pass
         self._proc = None
 
     @property

@@ -44,7 +44,9 @@ def _resolve_ref(ref: str, spec: dict[str, object]) -> dict[str, object]:
     return node if isinstance(node, dict) else {}
 
 
-def _example_from_schema(schema: dict[str, object], spec: dict[str, object], depth: int = 0) -> object:
+def _example_from_schema(
+    schema: dict[str, object], spec: dict[str, object], depth: int = 0
+) -> object:
     if depth > 5 or not isinstance(schema, dict):
         return None
     if "$ref" in schema and isinstance(schema["$ref"], str):
@@ -61,7 +63,9 @@ def _example_from_schema(schema: dict[str, object], spec: dict[str, object], dep
                 # include required fields (+ a couple optionals are fine)
                 if isinstance(required, list) and name not in required:
                     continue
-                out[str(name)] = _example_from_schema(sub if isinstance(sub, dict) else {}, spec, depth + 1)
+                out[str(name)] = _example_from_schema(
+                    sub if isinstance(sub, dict) else {}, spec, depth + 1
+                )
         return out
     if stype == "string":
         fmt = schema.get("format")
@@ -136,9 +140,11 @@ def analyze_openapi(spec: dict[str, object], project_name: str) -> CodeSummary:
         parts = [p for p in ep.path.strip("/").split("/") if p and not _is_param(p) and p != "api"]
         key = parts[0] if parts else "root"
         groups[key] = groups.get(key, 0) + 1
-    auth_flow = "Auth required on secured operations (per OpenAPI security)." if any(
-        e.auth_required for e in endpoints
-    ) else ""
+    auth_flow = (
+        "Auth required on secured operations (per OpenAPI security)."
+        if any(e.auth_required for e in endpoints)
+        else ""
+    )
 
     return CodeSummary(
         project_name=str(title) or project_name,

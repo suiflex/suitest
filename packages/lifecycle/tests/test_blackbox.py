@@ -246,7 +246,6 @@ def test_prd_markdown_ingest() -> None:
 
 def test_prd_requires_markdown(tmp_path: Path) -> None:
     import pytest
-
     from suitest_lifecycle.blackbox.prd_ingest import load_prd
 
     bad = tmp_path / "spec.pdf"

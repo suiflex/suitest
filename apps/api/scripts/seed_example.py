@@ -91,9 +91,7 @@ async def seed() -> tuple[str, str]:
             ):
                 existing = await session.scalar(select(Project).where(Project.id == pid))
                 if existing is None:
-                    session.add(
-                        Project(id=pid, workspace_id=ws.id, slug=slug, name=name)
-                    )
+                    session.add(Project(id=pid, workspace_id=ws.id, slug=slug, name=name))
             await session.flush()
 
             _, token = await create_api_key(

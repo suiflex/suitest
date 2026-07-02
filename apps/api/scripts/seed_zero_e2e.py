@@ -107,7 +107,11 @@ async def _seed_case(
     session.add(suite)
     await session.flush()
     case = TestCase(
-        workspace_id=ws.id, suite_id=suite.id, name=case_name, title=case_name, source=CaseSource.MANUAL
+        workspace_id=ws.id,
+        suite_id=suite.id,
+        name=case_name,
+        title=case_name,
+        source=CaseSource.MANUAL,
     )
     set_workspace_id(case, ws.id)  # public_id before_insert listener needs this
     session.add(case)

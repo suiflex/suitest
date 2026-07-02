@@ -9,24 +9,24 @@ strict, no ``Any``) and serialise to/from JSON via :func:`to_jsonable`.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 
-class Mode(str, Enum):
+class Mode(StrEnum):
     """Which side of the target app the lifecycle drives."""
 
     BACKEND = "backend"
     FRONTEND = "frontend"
 
 
-class TestOutcome(str, Enum):
+class TestOutcome(StrEnum):
     PASSED = "PASSED"
     FAILED = "FAILED"
     SKIPPED = "SKIPPED"
     ERROR = "ERROR"
 
 
-class Priority(str, Enum):
+class Priority(StrEnum):
     HIGH = "High"
     MEDIUM = "Medium"
     LOW = "Low"

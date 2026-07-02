@@ -45,7 +45,9 @@ async def test_upload_stores_and_returns_url(
     ws, auth = await _key_for(api_db, email="files-up@example.com", slug="files-up")
     key = f"uploads/{ws.id}/deadbeef/clip.webm"
 
-    async def fake_upload(*, workspace_id: str, filename: str, data: bytes, content_type: str):
+    async def fake_upload(
+        *, workspace_id: str, filename: str, data: bytes, content_type: str
+    ) -> tuple[str, str, int]:
         assert workspace_id == ws.id
         return f"s3://bucket/{key}", key, len(data)
 

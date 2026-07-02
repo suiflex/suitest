@@ -111,7 +111,9 @@ def analyze_postman(collection: dict[str, object], project_name: str) -> CodeSum
     name = info.get("name", project_name) if isinstance(info, dict) else project_name
     groups: dict[str, int] = {}
     for ep in unique:
-        parts = [p for p in ep.path.strip("/").split("/") if p and not p.startswith(":") and p != "api"]
+        parts = [
+            p for p in ep.path.strip("/").split("/") if p and not p.startswith(":") and p != "api"
+        ]
         key = parts[0] if parts else "root"
         groups[key] = groups.get(key, 0) + 1
 
@@ -121,9 +123,9 @@ def analyze_postman(collection: dict[str, object], project_name: str) -> CodeSum
         tech_stack=["Postman", "HTTP API"],
         endpoints=unique,
         features=[k for k, _ in sorted(groups.items(), key=lambda kv: (-kv[1], kv[0]))],
-        auth_flow="Auth inferred from Authorization header / auth block." if any(
-            e.auth_required for e in unique
-        ) else "",
+        auth_flow="Auth inferred from Authorization header / auth block."
+        if any(e.auth_required for e in unique)
+        else "",
     )
 
 

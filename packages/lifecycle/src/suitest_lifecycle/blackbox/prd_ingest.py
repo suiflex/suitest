@@ -94,9 +94,7 @@ def parse_prd_markdown(text: str, *, source_file: str = "") -> PrdDocument:
 
     # PRD with no headings at all → one implicit section from the whole body.
     if not doc.sections and text.strip():
-        doc.sections.append(
-            PrdSection(heading="Requirements", level=2, text=text.strip()[:600])
-        )
+        doc.sections.append(PrdSection(heading="Requirements", level=2, text=text.strip()[:600]))
     return doc
 
 

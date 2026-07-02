@@ -36,13 +36,13 @@ def _default_title(context: DefaultExecutionContext) -> str:
     only covers direct :class:`TestCase` constructions (tests, seeds, legacy
     call sites) so the NOT NULL contract can never be violated.
     """
-    params = context.get_current_parameters()
+    params = context.get_current_parameters()  # type: ignore[no-untyped-call]  # sqlalchemy stub gap
     return derive_title(str(params.get("name") or ""))
 
 
 def _default_slug(context: DefaultExecutionContext) -> str | None:
     """Insert-time fallback: keep the technical key when ``name`` is one."""
-    params = context.get_current_parameters()
+    params = context.get_current_parameters()  # type: ignore[no-untyped-call]  # sqlalchemy stub gap
     return derive_slug(str(params.get("name") or ""))
 
 

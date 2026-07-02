@@ -21,6 +21,9 @@ frontend = ["playwright>=1.40"]
 
 [project.scripts]
 suitest = "suitest_lifecycle.cli:main"
+# MCP stdio server — `uvx --from suitest-lifecycle suitest-mcp` (or the npm
+# wrapper: `npx -y @suitest/mcp`).
+suitest-mcp = "suitest_lifecycle.mcp_server:serve"
 
 [build-system]
 requires = ["hatchling"]

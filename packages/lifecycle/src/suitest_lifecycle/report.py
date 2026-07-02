@@ -11,10 +11,13 @@ Writes:
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from suitest_lifecycle.models import RunSummary, TestOutcome, TestResult
-from suitest_lifecycle.paths import Paths
 from suitest_lifecycle.serialize import summary_to_json
+
+if TYPE_CHECKING:
+    from suitest_lifecycle.paths import Paths
 
 _BADGE = {
     TestOutcome.PASSED: "✅ Passed",
@@ -100,9 +103,7 @@ def _coverage_by_outcome(results: list[TestResult]) -> list[tuple[str, int]]:
 def write_summary_json(summary: RunSummary, paths: Paths) -> None:
     paths.reports_dir.mkdir(parents=True, exist_ok=True)
     payload = summary_to_json(summary)
-    (paths.reports_dir / "summary.json").write_text(
-        json.dumps(payload, indent=2), encoding="utf-8"
-    )
+    (paths.reports_dir / "summary.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def write_summary_md(summary: RunSummary, paths: Paths) -> None:

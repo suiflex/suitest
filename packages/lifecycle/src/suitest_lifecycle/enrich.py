@@ -48,7 +48,11 @@ class MockLlmClient:
         out: list[EdgeSuggestion] = []
         if summary.mode is Mode.BACKEND:
             for ep in summary.endpoints:
-                if ep.method == "POST" and ":" not in ep.path and ep.path.rstrip("/").split("/")[-1] not in {"login"}:
+                if (
+                    ep.method == "POST"
+                    and ":" not in ep.path
+                    and ep.path.rstrip("/").split("/")[-1] not in {"login"}
+                ):
                     res = [p for p in ep.path.strip("/").split("/") if p and p != "api"][-1]
                     title = f"post_{res}_with_missing_required_field_returns_validation_error"
                     if title in existing_titles:
@@ -63,7 +67,10 @@ class MockLlmClient:
                             source_ref=f"{ep.method} {ep.path}",
                             steps=[
                                 ("action", "Log in to obtain a token"),
-                                ("action", f"Send authenticated POST {ep.path} with an incomplete payload"),
+                                (
+                                    "action",
+                                    f"Send authenticated POST {ep.path} with an incomplete payload",
+                                ),
                                 ("assertion", "Expect HTTP 400/422 (validation error)"),
                             ],
                         )

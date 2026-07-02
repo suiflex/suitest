@@ -17,7 +17,9 @@ def _title(slug: str) -> str:
 def _backend_features(summary: CodeSummary) -> list[PrdFeature]:
     by_group: dict[str, list[Endpoint]] = {}
     for ep in summary.endpoints:
-        parts = [p for p in ep.path.strip("/").split("/") if p and not p.startswith(":") and p != "api"]
+        parts = [
+            p for p in ep.path.strip("/").split("/") if p and not p.startswith(":") and p != "api"
+        ]
         key = parts[0] if parts else "root"
         by_group.setdefault(key, []).append(ep)
 

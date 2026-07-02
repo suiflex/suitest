@@ -12,9 +12,12 @@ import json
 import subprocess
 import sys
 import time
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from suitest_lifecycle.models import PlanCase, StepResult, TestOutcome, TestResult
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _collect_steps(
@@ -70,7 +73,11 @@ def _run_one(file_path: Path, python: str, timeout_sec: int) -> tuple[TestOutcom
             cwd=str(file_path.parent),
         )
     except subprocess.TimeoutExpired:
-        return TestOutcome.ERROR, int((time.monotonic() - start) * 1000), f"timeout after {timeout_sec}s"
+        return (
+            TestOutcome.ERROR,
+            int((time.monotonic() - start) * 1000),
+            f"timeout after {timeout_sec}s",
+        )
     duration_ms = int((time.monotonic() - start) * 1000)
     if proc.returncode == 0:
         return TestOutcome.PASSED, duration_ms, ""

@@ -117,6 +117,7 @@ def test_publish_result_payload_shape() -> None:
             )
         ],
     )
+
     class _NoopUploader:
         def upload_file(self, path: str, *, content_type: str | None = None) -> str:
             raise AssertionError("no artifacts should upload in this test")

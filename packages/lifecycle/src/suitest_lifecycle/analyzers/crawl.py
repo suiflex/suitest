@@ -12,6 +12,7 @@ Async (Playwright); :func:`analyze_crawl` is the sync entry the orchestrator cal
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from dataclasses import dataclass, field
 
 from suitest_lifecycle.models import CodeSummary, Mode, Page
@@ -97,9 +98,16 @@ async def _crawl(base_url: str, username: str, password: str, max_pages: int) ->
             )
             login.error = _pick_testid(data["inputs"], "error") or ""
             route = _route_of(anon_url, base)
-            pages.append(Page(route=route or "/login", name="LoginPage", protected=False, source_file="crawl"))
+            pages.append(
+                Page(
+                    route=route or "/login", name="LoginPage", protected=False, source_file="crawl"
+                )
+            )
             page_testids[route or "/login"] = data["testids"]
-            page_elements[route or "/login"] = {"inputs": data["inputs"], "buttons": data["buttons"]}
+            page_elements[route or "/login"] = {
+                "inputs": data["inputs"],
+                "buttons": data["buttons"],
+            }
 
             # perform login
             if username and password and login.submit:
@@ -108,14 +116,10 @@ async def _crawl(base_url: str, username: str, password: str, max_pages: int) ->
                 await page.get_by_test_id(login.submit).click()
                 # SPA: the route changes client-side — wait for the URL to leave
                 # /login (any new route) rather than a network event.
-                try:
+                with contextlib.suppress(Exception):
                     await page.wait_for_url(lambda u: "/login" not in u, timeout=8000)
-                except Exception:
-                    pass
-                try:
+                with contextlib.suppress(Exception):
                     await page.wait_for_load_state("networkidle", timeout=4000)
-                except Exception:
-                    pass
 
         # collect reachable internal routes (post-login)
         after = await page.evaluate(_EXTRACT_JS)
@@ -136,7 +140,14 @@ async def _crawl(base_url: str, username: str, password: str, max_pages: int) ->
             protected = landed != href and ("login" in landed.lower())  # redirected to login
             name = _name_of(href)
             if not any(pg.route == href for pg in pages):
-                pages.append(Page(route=href, name=name, protected=not protected and href != "/login", source_file="crawl"))
+                pages.append(
+                    Page(
+                        route=href,
+                        name=name,
+                        protected=not protected and href != "/login",
+                        source_file="crawl",
+                    )
+                )
             page_testids[href] = d["testids"]
             page_elements[href] = {"inputs": d["inputs"], "buttons": d["buttons"]}
             for ln in d["links"]:
@@ -159,7 +170,7 @@ async def _crawl(base_url: str, username: str, password: str, max_pages: int) ->
 
 
 def _route_of(url: str, base: str) -> str:
-    tail = url[len(base):] if url.startswith(base) else url
+    tail = url[len(base) :] if url.startswith(base) else url
     tail = tail.split("?", 1)[0].split("#", 1)[0]
     return tail or "/"
 

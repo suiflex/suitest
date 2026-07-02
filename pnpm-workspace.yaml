@@ -1,5 +1,6 @@
 packages:
   - "apps/web"
+  - "packages/mcp-npx"
 allowBuilds:
   esbuild: true
   msw: true

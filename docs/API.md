@@ -1,6 +1,6 @@
 # docs/API.md
 
-> REST endpoints + WebSocket events Suitest OSS. Semua route di-mount di `/api/v1/*` kecuali disebutkan lain. Input/output di-validate dengan **Pydantic v2** (lihat `packages/shared/schemas/`).
+> REST endpoints + WebSocket events for Suitest OSS. All routes are mounted at `/api/v1/*` unless stated otherwise. Input/output is validated with **Pydantic v2** (see `packages/shared/schemas/`).
 
 > ℹ️ **Built today (M0–M3 foundation):** auth, workspaces, TCM CRUD, runs, defects, requirements, integrations, webhooks, analytics, `/capabilities`, `/auth/me`, `WS /ws`, deterministic generators (M2-1..M2-5), MCP-provider CRUD + `/discover`·`/invoke`·`/routing` (M2-6..M2-9), **`/workspaces/:id/llm-config` (GET/PUT/test/DELETE/models — M3-2/M3-3)**. **Not built (M3–M4 spec):** agent `/agent/*` sessions+replay, eval, sdk, code export. Build truth = `apps/api/src/suitest_api/routers/` + [ROADMAP.md](./ROADMAP.md).
 >
@@ -10,7 +10,7 @@
 
 ## 1. Authentication
 
-Suitest OSS pakai **FastAPI-Users** (self-host friendly, multi-tenant) untuk session + OAuth, plus opaque API token untuk integrasi.
+Suitest OSS uses **FastAPI-Users** (self-host friendly, multi-tenant) for sessions + OAuth, plus opaque API tokens for integrations.
 
 | Method | Header | Used by |
 |--------|--------|---------|
@@ -22,9 +22,9 @@ Suitest OSS pakai **FastAPI-Users** (self-host friendly, multi-tenant) untuk ses
 
 Optional alt format (set `SUITEST_API_TOKEN_FORMAT=paseto`): signed **PASETO v4 local** tokens with workspace + scopes claims. Useful for stateless ephemeral CI tokens. Disabled by default to keep ZERO setup trivial.
 
-Workspace context via `X-Workspace-Id: ws_xxx` header atau path segment `/api/v1/ws/:wsId/...`.
+Workspace context via `X-Workspace-Id: ws_xxx` header or path segment `/api/v1/ws/:wsId/...`.
 
-**401** unauthenticated, **403** authenticated tapi tidak punya akses workspace/resource.
+**401** unauthenticated, **403** authenticated but lacking access to the workspace/resource.
 
 ---
 
@@ -45,21 +45,21 @@ Workspace context via `X-Workspace-Id: ws_xxx` header atau path segment `/api/v1
   }
   ```
 - **Timestamps:** ISO 8601 UTC (`2026-05-22T14:32:01.024Z`).
-- **IDs di response:** public ID (`TC-1045`) di field `publicId`, opaque `id` (cuid) tetap ada untuk internal lookups.
+- **IDs in responses:** public ID (`TC-1045`) in the `publicId` field; the opaque `id` (cuid) remains available for internal lookups.
 - **Optimistic concurrency:** mutation endpoints on test cases accept an optional `If-Unmodified-Since` request header (HTTP-date). Currently honoured by `PATCH /test-cases/:id` and `PATCH /test-cases/:id/steps`. If the header is older than the row's `updated_at`, the server returns **409 `CONCURRENT_MODIFICATION`** with `details.serverUpdatedAt` so the client can refetch and retry. Header absent → last-write-wins (existing behaviour).
 
 ### 2.1 Capability/tier-aware error codes
 
-Endpoints yang menyentuh AI/MCP/autonomy memunculkan error code khusus supaya FE bisa render banner/gate yang jelas.
+Endpoints that touch AI/MCP/autonomy raise dedicated error codes so the FE can render a clear banner/gate.
 
 | Code | HTTP | Trigger | Body shape |
 |------|:----:|---------|------------|
-| `LLM_DISABLED` | **503** | Workspace tier=`ZERO` (no LLM configured) tapi endpoint butuh LLM | `{"error":{"code":"LLM_DISABLED","message":"This feature requires an LLM provider. Configure one in Settings → LLM.","docsUrl":"/docs/capability-tiers"}}` |
-| `STEPS_REQUIRE_CODE_IN_ZERO_LLM` | **400** | Saat membuat/menjalankan case di ZERO, ada step yang hanya punya `action` tanpa `code` | `{"error":{"code":"STEPS_REQUIRE_CODE_IN_ZERO_LLM","message":"Step #3 has no executable code. ZERO tier cannot translate action → MCP call at runtime.","details":{"stepIndex":3,"caseId":"ckxxx"}}}` |
-| `AUTONOMY_LEVEL_INSUFFICIENT` | **403** | Action butuh autonomy lebih tinggi (mis. auto-close defect saat level=`assist`) | `{"error":{"code":"AUTONOMY_LEVEL_INSUFFICIENT","message":"Auto-close requires autonomy=semi_auto. Current: assist.","details":{"required":"semi_auto","current":"assist"},"docsUrl":"/docs/autonomy"}}` |
-| `MCP_PROVIDER_NOT_REGISTERED` | **404** | Step/run reference MCP provider yang belum terdaftar di workspace | `{"error":{"code":"MCP_PROVIDER_NOT_REGISTERED","message":"MCP provider 'postgres-mcp' not registered.","details":{"name":"postgres-mcp"},"docsUrl":"/docs/mcp-plugins"}}` |
-| `MCP_PROVIDER_UNHEALTHY` | **503** | Provider terdaftar tapi `health_status != healthy` saat dipanggil | `{"error":{"code":"MCP_PROVIDER_UNHEALTHY","message":"MCP provider 'browser-use-mcp' is unhealthy (last check: 2026-05-26T10:12:01Z).","details":{"providerId":"mcp_xxx","lastHealth":"..."}}}` |
-| `TARGET_KIND_UNSUPPORTED_IN_TIER` | **400** | Generator/run mencoba `target_kind` yang butuh LLM di ZERO (mis. `FE_WEB` semantic crawl) | `{"error":{"code":"TARGET_KIND_UNSUPPORTED_IN_TIER","message":"Semantic FE_WEB crawl requires CLOUD or LOCAL tier.","details":{"targetKind":"FE_WEB","tier":"ZERO","alternatives":["/api/v1/generators/crawler"]}}}` |
+| `LLM_DISABLED` | **503** | Workspace tier=`ZERO` (no LLM configured) but the endpoint requires an LLM | `{"error":{"code":"LLM_DISABLED","message":"This feature requires an LLM provider. Configure one in Settings → LLM.","docsUrl":"/docs/capability-tiers"}}` |
+| `STEPS_REQUIRE_CODE_IN_ZERO_LLM` | **400** | When creating/running a case in ZERO, a step only has `action` without `code` | `{"error":{"code":"STEPS_REQUIRE_CODE_IN_ZERO_LLM","message":"Step #3 has no executable code. ZERO tier cannot translate action → MCP call at runtime.","details":{"stepIndex":3,"caseId":"ckxxx"}}}` |
+| `AUTONOMY_LEVEL_INSUFFICIENT` | **403** | Action requires a higher autonomy level (e.g. auto-close defect while level=`assist`) | `{"error":{"code":"AUTONOMY_LEVEL_INSUFFICIENT","message":"Auto-close requires autonomy=semi_auto. Current: assist.","details":{"required":"semi_auto","current":"assist"},"docsUrl":"/docs/autonomy"}}` |
+| `MCP_PROVIDER_NOT_REGISTERED` | **404** | Step/run references an MCP provider not registered in the workspace | `{"error":{"code":"MCP_PROVIDER_NOT_REGISTERED","message":"MCP provider 'postgres-mcp' not registered.","details":{"name":"postgres-mcp"},"docsUrl":"/docs/mcp-plugins"}}` |
+| `MCP_PROVIDER_UNHEALTHY` | **503** | Provider is registered but `health_status != healthy` when invoked | `{"error":{"code":"MCP_PROVIDER_UNHEALTHY","message":"MCP provider 'browser-use-mcp' is unhealthy (last check: 2026-05-26T10:12:01Z).","details":{"providerId":"mcp_xxx","lastHealth":"..."}}}` |
+| `TARGET_KIND_UNSUPPORTED_IN_TIER` | **400** | Generator/run attempts a `target_kind` that requires an LLM in ZERO (e.g. `FE_WEB` semantic crawl) | `{"error":{"code":"TARGET_KIND_UNSUPPORTED_IN_TIER","message":"Semantic FE_WEB crawl requires CLOUD or LOCAL tier.","details":{"targetKind":"FE_WEB","tier":"ZERO","alternatives":["/api/v1/generators/crawler"]}}}` |
 | `INVALID_SOURCE_FOR_TIER` | **400** | `/agent/generate/cases` with a `source` whose tier-appropriate counterpart is the deterministic generator (see §3.10) | `{"error":{"code":"INVALID_SOURCE_FOR_TIER","message":"OpenAPI generation is deterministic and available in ZERO tier via /generators/openapi.","details":{"source":"OPENAPI","tier":"ZERO","useEndpoint":"/api/v1/generators/openapi"}}}` |
 | `CONCURRENT_MODIFICATION` | **409** | `If-Unmodified-Since` predates server `updated_at` on a mutating endpoint | `{"error":{"code":"CONCURRENT_MODIFICATION","message":"Test case was modified by another client.","details":{"resourceType":"test_case","id":"TC-1045","serverUpdatedAt":"2026-05-26T07:11:00Z"}}}` |
 | `CROSS_WORKSPACE_LINK` | **400** | Attempt to link a requirement and case that live in different workspaces | `{"error":{"code":"CROSS_WORKSPACE_LINK","message":"Requirement REQ-401 and case TC-1045 belong to different workspaces.","details":{"requirementWorkspaceId":"ws_a","caseWorkspaceId":"ws_b"}}}` |
@@ -76,7 +76,7 @@ FE rule of thumb: any 4xx/5xx with a `code` in the table above → render the **
 
 Surfaces tier + autonomy + MCP + embeddings state. **No auth required** — frontend boot fetches this before login screen so the login UI can show tier badge.
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/capabilities` | Public; full snapshot |
 | GET | `/capabilities/health` | Public; lightweight: `{tier, status, uptime}` for k8s liveness |
@@ -134,10 +134,10 @@ Surfaces tier + autonomy + MCP + embeddings state. **No auth required** — fron
 
 ### 3.1 Auth & workspace
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/auth/me` | Current user + memberships |
-| GET | `/workspaces` | List workspaces user |
+| GET | `/workspaces` | List the user's workspaces |
 | POST | `/workspaces` | Create workspace |
 | GET | `/workspaces/:id` | Workspace detail |
 | PATCH | `/workspaces/:id` | Update workspace settings |
@@ -149,7 +149,7 @@ Surfaces tier + autonomy + MCP + embeddings state. **No auth required** — fron
 
 **M1e local auth + invite-only onboarding**
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | POST | `/auth/cookie/login` | Password login; FastAPI-Users form body `username` + `password`; sets `suitest_session` cookie |
 | POST | `/auth/forgot-password` | Start reset-password flow; stores encrypted reset link for super-admin review until SMTP exists |
@@ -203,7 +203,7 @@ Response:
 
 ### 3.2 Projects
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/projects` | List projects (workspace-scoped) |
 | POST | `/projects` | Create project |
@@ -213,7 +213,7 @@ Response:
 
 ### 3.3 Test cases
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/test-cases` | List, supports filters: `?suiteId&status&source&priority&tag&q` |
 | POST | `/test-cases` | Create manual case |
@@ -328,7 +328,7 @@ In all tiers `mcpProvider` is required; missing field → 400 `MCP_PROVIDER_NOT_
 
 ### 3.4 Suites
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/suites?projectId=...` | List |
 | POST | `/suites` | Create |
@@ -350,7 +350,7 @@ When `case_order` is supplied, every case id currently in the suite must appear 
 
 ### 3.5 Runs
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/runs` | List, filters: `?status&projectId&branch&env` |
 | POST | `/runs` | Create + queue run |
@@ -358,7 +358,7 @@ When `case_order` is supplied, every case id currently in the suite must appear 
 | GET | `/runs/:id/steps` | Run steps with outcomes |
 | GET | `/runs/:id/logs?cursor=...` | Streaming-friendly cursor pagination |
 | GET | `/runs/:id/artifacts` | List artifacts |
-| GET | `/runs/:id/artifacts/:artifactId` | Signed URL ke R2 |
+| GET | `/runs/:id/artifacts/:artifactId` | Signed URL to R2 |
 | POST | `/runs/:id/cancel` | Cancel |
 | POST | `/runs/:id/rerun` | Re-trigger same run config |
 
@@ -386,18 +386,18 @@ When `case_order` is supplied, every case id currently in the suite must appear 
 
 ### 3.6 Defects
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/defects` | List, filters: `?status&severity&assigneeId&component` |
-| POST | `/defects` | Create manual (agent juga pakai endpoint sama internal) |
+| POST | `/defects` | Create manually (the agent also uses the same endpoint internally) |
 | GET | `/defects/:id` | Detail |
 | PATCH | `/defects/:id` | Update (status, assignee, severity) |
-| POST | `/defects/:id/sync-external` | Force re-sync ke Jira/Linear |
+| POST | `/defects/:id/sync-external` | Force re-sync to Jira/Linear |
 | GET | `/defects/:id/timeline` | Activity log |
 
 ### 3.7 Requirements & traceability
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/requirements` | List with link counts |
 | POST | `/requirements` | Create |
@@ -419,7 +419,7 @@ When `case_order` is supplied, every case id currently in the suite must appear 
 
 ### 3.8 Analytics
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/analytics/kpis?projectId&period=7d` | Pass rate, duration, runs count |
 | GET | `/analytics/pass-rate?projectId&period=30d` | Time series |
@@ -430,7 +430,7 @@ When `case_order` is supplied, every case id currently in the suite must appear 
 
 ### 3.9 Integrations
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/integrations` | List for workspace |
 | POST | `/integrations` | Connect new integration |
@@ -493,14 +493,14 @@ Both endpoints enforce a 10s timeout end-to-end and require role `ADMIN`+.
 
 ### 3.10 Agent (AI)
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | POST | `/agent/sessions` | Start a new agent session |
 | GET | `/agent/sessions/:id` | Session + messages |
 | POST | `/agent/sessions/:id/messages` | Send user message (returns SSE stream) |
-| POST | `/agent/generate/cases` | One-shot generation, lihat detail di bawah |
+| POST | `/agent/generate/cases` | One-shot generation, see details below |
 | POST | `/agent/diagnose/defect/:defectId` | Re-run root-cause analysis |
-| POST | `/agent/suggest/edge-cases` | Saran edge case untuk existing case |
+| POST | `/agent/suggest/edge-cases` | Edge-case suggestions for an existing case |
 
 **POST `/agent/generate/cases`** request:
 ```json
@@ -537,7 +537,7 @@ event: complete
 data: { "totalGenerated": 5, "sessionId": "sess_xxx", "tokensUsed": 4821 }
 ```
 
-Frontend pakai EventSource untuk render cases streaming masuk.
+The frontend uses EventSource to render cases as they stream in.
 
 **Tier behaviour for `/agent/generate/cases`.** All four `source` values require an LLM. In ZERO tier this endpoint **always** errors — but the error shape depends on whether a deterministic alternative exists:
 
@@ -563,7 +563,7 @@ Sample 400 body:
 
 ### 3.11 Documents (RAG sources)
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/documents` | List indexed sources |
 | POST | `/documents` | Add (PRD URL, OpenAPI URL, frontend URL) |
@@ -579,14 +579,14 @@ Sample 400 body:
 | POST | `/webhooks/jenkins` | Jenkins post-build |
 | POST | `/webhooks/jira` | Jira issue updates (for status sync back) |
 
-Setiap webhook verifies HMAC signature dengan secret yang di-set saat connect integration.
+Each webhook verifies the HMAC signature with the secret set when the integration was connected.
 
-### 3.13 SDK / Public API (untuk integrasi user)
+### 3.13 SDK / Public API (for user integrations)
 
-Same `/api/v1/*` endpoints tapi via Bearer token. Rate-limited 1000 req/min per token.
+Same `/api/v1/*` endpoints but via Bearer token. Rate-limited 1000 req/min per token.
 
-Tambahan helper:
-| Method | Path | Tujuan |
+Additional helpers:
+| Method | Path | Purpose |
 |--------|------|--------|
 | POST | `/sdk/runs/start` | Concise: `{ tag, branch, commit }` → returns runId |
 | POST | `/sdk/runs/:id/report` | External runner posts step outcomes |
@@ -596,7 +596,7 @@ Tambahan helper:
 
 Workspace-scoped LLM provider config. Secrets stored AES-GCM encrypted ([DATA_MODEL.md §12](./DATA_MODEL.md#12-encryption-aes-gcm)); API never returns plaintext keys.
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/workspaces/:id/llm-config` | Current config (key redacted as `sk-****`) |
 | PUT | `/workspaces/:id/llm-config` | Set/rotate provider + key (write-only key) |
@@ -674,7 +674,7 @@ Side-effects:
 
 ### 3.15 Autonomy
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/workspaces/:id/autonomy` | Current level + per-feature overrides |
 | PUT | `/workspaces/:id/autonomy` | Set level (`manual` / `assist` / `semi_auto` / `auto`) + optional overrides |
@@ -709,7 +709,7 @@ Side-effects:
 
 Per-workspace MCP server registry. Distinct from `/integrations` — these are the runtime adapters that execute test steps. See [MCP_PLUGINS.md](./MCP_PLUGINS.md).
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/mcp/providers` | List registered MCP servers + health |
 | POST | `/mcp/providers` | Register a custom MCP server (validates + discovers tools unless `validate=false`) |
@@ -775,7 +775,7 @@ Errors:
 
 Deterministic + LLM-driven test generators. Deterministic ones (`/openapi`, `/recorder`, `/crawler`, `/classify`) work in **all tiers including ZERO**.
 
-| Method | Path | Tujuan | LLM required? |
+| Method | Path | Purpose | LLM required? |
 |--------|------|--------|:-:|
 | POST | `/generators/openapi` | Parse OpenAPI spec, emit per-operation cases with executable `step.code`. **(M3-8)** `options.includeLlmEdgeCases` adds AI boundary/fuzz/negative cases when an LLM is active (else skipped) | Core: No / edge: optional |
 | POST | `/generators/recorder/sessions` | Start browser recorder session → returns `sessionId` + WS room | No |
@@ -873,7 +873,7 @@ Response:
 
 Export a test case to runnable code in a target framework. Always available (no LLM required for the export itself — it walks `step.code`).
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | GET | `/test-cases/:id/export?target=playwright` | Return generated code (text/plain) + `Content-Disposition: attachment` |
 
@@ -896,7 +896,7 @@ A row is written to `code_exports` for audit.
 
 ### 3.19 Eval (v1.x — backend ships in v1.0, no UI yet)
 
-| Method | Path | Tujuan |
+| Method | Path | Purpose |
 |--------|------|--------|
 | POST | `/eval/runs` | Kick off an eval suite (gated to `ADMIN`+, CLOUD/LOCAL only) |
 | GET | `/eval/runs/:id` | Results |
@@ -934,9 +934,9 @@ A row is written to `code_exports` for audit.
 
 Path: `/ws`, **native FastAPI WebSocket** (no Socket.io). Auth via `?token=<bearer>` query string or `Authorization` header during the HTTP upgrade.
 
-Setelah connect, client join rooms via the explicit `subscribe.*` events below:
+After connecting, clients join rooms via the explicit `subscribe.*` events below:
 - `workspace:<wsId>` — global notifs (defect filed, integration error, capability/MCP changes)
-- `run:<runId>` — live updates untuk specific run
+- `run:<runId>` — live updates for a specific run
 - `agent-session:<sessionId>` — message streaming
 - `recorder:<sessionId>` — live preview of recorder-captured steps
 
@@ -970,7 +970,7 @@ Wire format: each frame is a JSON envelope `{"type": "<event>", "data": {...}}` 
 
 ### Client → server events
 
-| Event | Payload | Tujuan |
+| Event | Payload | Purpose |
 |-------|---------|--------|
 | `subscribe.workspace` | `{ wsId }` | Join workspace room (capability / MCP / defect notifs) |
 | `subscribe.run` | `{ runId }` | Join run room |
@@ -986,11 +986,11 @@ Wire format: each frame is a JSON envelope `{"type": "<event>", "data": {...}}` 
 |----------|-------|
 | Web user (session cookie) | 600 req/min |
 | API token | 1000 req/min |
-| Webhooks | unlimited tapi signature required |
+| Webhooks | unlimited but signature required |
 | Agent endpoints | 60 req/min per workspace |
 | Generation specifically (LLM) | 20 req/min per workspace |
 
-`429` response includes `Retry-After` header dalam detik.
+`429` responses include a `Retry-After` header in seconds.
 
 **Per-tier note.**
 
@@ -1005,7 +1005,7 @@ Wire format: each frame is a JSON envelope `{"type": "<event>", "data": {...}}` 
 
 **Targeted M4:**
 
-- `suitest-py` — Python SDK, generated dari OpenAPI via `openapi-python-client`. Primary SDK (matches backend language; used by CI tooling and the CLI internally).
+- `suitest-py` — Python SDK, generated from OpenAPI via `openapi-python-client`. Primary SDK (matches backend language; used by CI tooling and the CLI internally).
 - `@suitest/sdk` — TypeScript SDK, generated via `openapi-typescript-codegen`. Kept for browser/Node integration users.
 - `suitest` — CLI, single Python entrypoint installed via [`uv`](https://github.com/astral-sh/uv): `uv tool install suitest`, then `suitest run --suite smoke --branch main`.
 
@@ -1059,11 +1059,11 @@ Build artifact `openapi.json` is committed to `packages/shared/openapi.json` on 
 
 ---
 
-## 8. Aturan saat tambah endpoint baru
+## 8. Rules when adding a new endpoint
 
-1. **Tulis Pydantic schema dulu** di `packages/shared/schemas/<resource>.py` (request + response models, with `model_config = ConfigDict(from_attributes=True)`)
-2. **Tambahkan tabel di doc ini** (section 3) — termasuk error codes baru di §2.1 kalau ada
-3. **Implement handler** di `apps/api/src/routes/<resource>.py` pakai FastAPI `APIRouter`, register di `apps/api/src/main.py`. Wajib `Depends(require_tier(...))` kalau endpoint LLM-dependent
-4. **Tulis pytest** di `apps/api/tests/test_<resource>.py` (pytest-asyncio strict) — minimum: happy path + 1 error path + 1 tier-gating path kalau relevan
-5. **Update SDKs** (regenerate dari `openapi.json` — `make sdk` di repo root regen kedua-duanya)
-6. **PR** dengan doc diff + Alembic migration kalau menyentuh schema
+1. **Write the Pydantic schema first** in `packages/shared/schemas/<resource>.py` (request + response models, with `model_config = ConfigDict(from_attributes=True)`)
+2. **Add the table to this doc** (section 3) — including new error codes in §2.1 if any
+3. **Implement the handler** in `apps/api/src/routes/<resource>.py` using FastAPI `APIRouter`, register it in `apps/api/src/main.py`. `Depends(require_tier(...))` is mandatory if the endpoint is LLM-dependent
+4. **Write pytest** in `apps/api/tests/test_<resource>.py` (pytest-asyncio strict) — minimum: happy path + 1 error path + 1 tier-gating path where relevant
+5. **Update SDKs** (regenerate from `openapi.json` — `make sdk` at the repo root regenerates both)
+6. **PR** with the doc diff + an Alembic migration if it touches the schema

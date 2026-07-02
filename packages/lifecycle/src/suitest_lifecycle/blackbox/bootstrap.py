@@ -194,10 +194,10 @@ def _make_handler(state: _State) -> type[BaseHTTPRequestHandler]:
             self.end_headers()
             self.wfile.write(data)
 
-        def do_GET(self) -> None:  # noqa: N802 — http.server API
+        def do_GET(self) -> None:
             self._send(_FORM_HTML.format(project=state.project))
 
-        def do_POST(self) -> None:  # noqa: N802 — http.server API
+        def do_POST(self) -> None:
             length = int(self.headers.get("Content-Length", "0"))
             fields = _parse_multipart(self.headers.get("Content-Type", ""), self.rfile.read(length))
             config = _build_config(fields, state.project)

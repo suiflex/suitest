@@ -1,18 +1,18 @@
 # docs/DEPLOYMENT.md
 
-> Cara deploy Suitest OSS di 3 mode: single-host docker-compose, standalone all-in-one container, dan Helm chart untuk k8s production. Untuk konteks arsitektur baca [ARCHITECTURE.md](./ARCHITECTURE.md). Untuk capability tier (ZERO/LOCAL/CLOUD) baca [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md). Design rationale: [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
+> How to deploy Suitest OSS in 3 modes: single-host docker-compose, standalone all-in-one container, and Helm chart for k8s production. For architecture context read [ARCHITECTURE.md](./ARCHITECTURE.md). For capability tiers (ZERO/LOCAL/CLOUD) read [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md). Design rationale: [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
 
 ---
 
 ## 0. Choose your mode
 
-| Mode | Audience | Effort | Skala | Air-gapped |
+| Mode | Audience | Effort | Scale | Air-gapped |
 |------|----------|--------|-------|------------|
-| **Compose** | Self-host VPS, homelab, small team (<50 user) | 5 menit | 1 host, vertikal | ya |
-| **Standalone** | Demo / hobby / "try in 1 command" | 1 menit | 1 container, ≤10 user | ya |
-| **Helm (k8s)** | Production, multi-tenant, multi-region | 30 menit | horizontal autoscale | ya |
+| **Compose** | Self-host VPS, homelab, small team (<50 users) | 5 minutes | 1 host, vertical | yes |
+| **Standalone** | Demo / hobby / "try in 1 command" | 1 minute | 1 container, ≤10 users | yes |
+| **Helm (k8s)** | Production, multi-tenant, multi-region | 30 minutes | horizontal autoscale | yes |
 
-Default tier semua mode = **ZERO** (jalan tanpa LLM). Upgrade ke LOCAL/CLOUD dgn set env. Lihat [§5 tier matrix](#5-tier-specific-environment-matrix).
+Default tier for all modes = **ZERO** (runs without an LLM). Upgrade to LOCAL/CLOUD by setting env vars. See [§5 tier matrix](#5-tier-specific-environment-matrix).
 
 ---
 
@@ -30,7 +30,7 @@ docker compose exec api python -m packages.db.seed
 open http://localhost:8080
 ```
 
-Login sebagai `admin@example.com` / `changeme`. Ganti password segera.
+Log in as `admin@example.com` / `changeme`. Change the password immediately.
 
 ### 1.2 `docker-compose.yml` (annotated)
 
@@ -137,10 +137,10 @@ networks:
 | Tier | Command | Container set |
 |------|---------|---------------|
 | ZERO | `docker compose --profile zero up -d` | web, api, runner, postgres, redis, minio |
-| CLOUD | `docker compose --profile cloud up -d` | sama dgn ZERO + env LLM provider di-set (no extra container) |
-| LOCAL | `docker compose --profile local up -d` | + container `ollama` |
+| CLOUD | `docker compose --profile cloud up -d` | same as ZERO + LLM provider env set (no extra container) |
+| LOCAL | `docker compose --profile local up -d` | + `ollama` container |
 
-Tip: CLOUD tier hanya butuh env diff, image sama persis. Restart `api` + `runner` setelah edit `.env`.
+Tip: the CLOUD tier only needs an env diff, the images are exactly the same. Restart `api` + `runner` after editing `.env`.
 
 ### 1.4 `.env.example` excerpt (ZERO default)
 
@@ -162,7 +162,7 @@ SUITEST_EMBEDDINGS_BACKEND=none
 # SUITEST_LLM_MODEL=claude-sonnet-4-5
 # SUITEST_EMBEDDINGS_BACKEND=openai
 # SUITEST_EMBEDDINGS_MODEL=text-embedding-3-small
-# OPENAI_API_KEY=sk-...   # untuk embeddings backend
+# OPENAI_API_KEY=sk-...   # for the embeddings backend
 
 # === To upgrade to LOCAL (uncomment + use --profile local) ===
 # SUITEST_LLM_PROVIDER=ollama
@@ -173,7 +173,7 @@ SUITEST_EMBEDDINGS_BACKEND=none
 
 ### 1.5 Reverse proxy & TLS
 
-Production compose: tambah `traefik` atau `caddy` di-front sebagai TLS terminator. Contoh dgn Caddy:
+Production compose: add `traefik` or `caddy` in front as the TLS terminator. Example with Caddy:
 
 ```caddy
 suitest.example.com {
@@ -184,13 +184,13 @@ suitest.example.com {
 }
 ```
 
-WebSocket & SSE diteruskan ke `api` (handle `Upgrade` header).
+WebSocket & SSE are forwarded to `api` (handles the `Upgrade` header).
 
 ---
 
 ## 2. Mode 2 — Docker standalone (all-in-one)
 
-Untuk hobbyist / demo. Single image jalan `api` + `runner` + nginx serving `web`, via `supervisord`. Postgres + Redis tetap eksternal (jangan satu image — data hilang saat restart).
+For hobbyists / demos. A single image runs `api` + `runner` + nginx serving `web`, via `supervisord`. Postgres + Redis stay external (do not put them in one image — data is lost on restart).
 
 ### 2.1 One-command try
 
@@ -219,9 +219,9 @@ ghcr.io/suitest-dev/suitest-standalone
 
 - ✅ Quick demo, internal POC, screencast.
 - ✅ Air-gapped trial (image self-contained).
-- ❌ Tidak untuk production — single point of failure, no horizontal scale.
-- ❌ Tidak ada local LLM bundled — set `SUITEST_LLM_*` ke endpoint external bila ingin CLOUD/LOCAL.
-- ⚠️ External Postgres harus punya `pgvector` extension (`CREATE EXTENSION vector`).
+- ❌ Not for production — single point of failure, no horizontal scale.
+- ❌ No local LLM bundled — set `SUITEST_LLM_*` to an external endpoint if you want CLOUD/LOCAL.
+- ⚠️ External Postgres must have the `pgvector` extension (`CREATE EXTENSION vector`).
 
 ---
 
@@ -232,7 +232,7 @@ ghcr.io/suitest-dev/suitest-standalone
 ```
 infra/helm/suitest/
 ├── Chart.yaml
-├── values.yaml                      ← default values (lihat §3.2)
+├── values.yaml                      ← default values (see §3.2)
 ├── values-zero.yaml                 ← preset ZERO tier
 ├── values-cloud.yaml                ← preset CLOUD tier
 ├── values-local.yaml                ← preset LOCAL tier (in-cluster Ollama)
@@ -269,7 +269,7 @@ suitest:
 image:
   registry: ghcr.io/suitest-dev
   pullPolicy: IfNotPresent
-  pullSecrets: []                     # untuk private registry / air-gapped
+  pullSecrets: []                     # for private registry / air-gapped
 
 llm:
   provider: none                      # none | anthropic | openai | ollama | ...
@@ -364,7 +364,7 @@ probes:
 networkPolicy:
   enabled: true
   egress:
-    allowLLM: true                    # set false untuk air-gap (selain LOCAL)
+    allowLLM: true                    # set false for air-gap (except LOCAL)
     allowExternalIntegrations: true   # jira/linear/slack/github
 
 observability:
@@ -396,7 +396,7 @@ helm upgrade suitest suitest/suitest --version 1.1.0 -f values-cloud.yaml
 
 ### 3.4 HPA detail
 
-Runner di-scale berdasarkan `suitest_runs_queue_depth` (gauge dari `/metrics` `api`). Butuh `prometheus-adapter` atau KEDA. Contoh KEDA:
+The runner is scaled based on `suitest_runs_queue_depth` (a gauge from the `api` `/metrics`). Requires `prometheus-adapter` or KEDA. KEDA example:
 
 ```yaml
 apiVersion: keda.sh/v1alpha1
@@ -425,11 +425,11 @@ spec:
 
 ### 3.6 PodDisruptionBudget
 
-Default `minAvailable: 1` untuk `api` dan `runner`. Override via `values.yaml`.
+Default `minAvailable: 1` for `api` and `runner`. Override via `values.yaml`.
 
 ### 3.7 NetworkPolicy
 
-Default rule:
+Default rules:
 
 | Source | Dest | Allowed |
 |--------|------|---------|
@@ -441,7 +441,7 @@ Default rule:
 | runner | MCP server pods | yes |
 | runner | LLM provider (egress) | controlled by `allowLLM` |
 
-**Air-gapped**: set `tier=zero`, `networkPolicy.egress.allowLLM=false`, dan pakai internal image registry via `image.pullSecrets`. Embeddings tetap bisa pakai `fastembed` (CPU local, no egress).
+**Air-gapped**: set `tier=zero`, `networkPolicy.egress.allowLLM=false`, and use an internal image registry via `image.pullSecrets`. Embeddings can still use `fastembed` (local CPU, no egress).
 
 ---
 
@@ -449,14 +449,14 @@ Default rule:
 
 ### 4.1 Backup strategy
 
-| Layer | Strategi | Frequency |
+| Layer | Strategy | Frequency |
 |-------|----------|-----------|
-| Postgres | `pg_dump --format=custom` ke S3 / object storage | tiap 6 jam |
+| Postgres | `pg_dump --format=custom` to S3 / object storage | every 6 hours |
 | Postgres WAL | wal-g / pgbackrest (streaming) | continuous |
-| MinIO artifacts | `mc mirror` ke remote bucket | tiap 24 jam |
-| Encryption key | sealed-secrets / external KMS — **off-cluster** | manual rotate ≥ 90 hari |
+| MinIO artifacts | `mc mirror` to remote bucket | every 24 hours |
+| Encryption key | sealed-secrets / external KMS — **off-cluster** | manual rotate ≥ 90 days |
 
-Contoh CronJob (k8s):
+Example CronJob (k8s):
 
 ```yaml
 apiVersion: batch/v1
@@ -485,23 +485,23 @@ spec:
 1. Provision fresh cluster / namespace.
 2. Restore Postgres: `pg_restore --clean --if-exists -d $DATABASE_URL <dump>`.
 3. Restore MinIO: `mc mirror s3://remote/ minio/local/`.
-4. Apply same `SUITEST_ENCRYPTION_KEY` Secret (tanpa ini, LLM config terenkripsi tidak terbaca).
-5. Helm install dgn version yang sama persis (mis-match version → alembic mungkin downgrade-blocked).
-6. Smoke: login → buka run lama → verify artifact bisa di-download.
-7. Run smoke suite Suitest sendiri (dogfood).
+4. Apply the same `SUITEST_ENCRYPTION_KEY` Secret (without it, encrypted LLM configs are unreadable).
+5. Helm install with the exact same version (version mismatch → alembic may be downgrade-blocked).
+6. Smoke: log in → open an old run → verify artifacts can be downloaded.
+7. Run Suitest's own smoke suite (dogfood).
 
-Drill **wajib quarterly** untuk production.
+The drill is **mandatory quarterly** for production.
 
 ### 4.3 Upgrade path
 
-| Step | Aksi |
+| Step | Action |
 |------|------|
-| 1 | Read CHANGELOG, cek breaking changes (data model, env var rename) |
-| 2 | `helm diff upgrade` untuk preview |
-| 3 | Migrations: pre-upgrade Job jalankan `alembic upgrade head` (auto via Helm hook) |
-| 4 | Blue/green untuk `api`: new ReplicaSet rolling, old drain |
-| 5 | `runner` rolling — long-running job di-drain via `SIGTERM` grace `90s` |
-| 6 | Verify `/capabilities` mismatch tier (kalau tidak sengaja swap provider) |
+| 1 | Read CHANGELOG, check breaking changes (data model, env var renames) |
+| 2 | `helm diff upgrade` for a preview |
+| 3 | Migrations: pre-upgrade Job runs `alembic upgrade head` (auto via Helm hook) |
+| 4 | Blue/green for `api`: new ReplicaSet rolling, old drains |
+| 5 | `runner` rolling — long-running jobs are drained via `SIGTERM` with `90s` grace |
+| 6 | Verify `/capabilities` for a tier mismatch (in case a provider was swapped unintentionally) |
 | 7 | Rollback: `helm rollback suitest <revision>` — downgrade-safe migrations only |
 
 ### 4.4 Resource sizing guidance
@@ -512,7 +512,7 @@ Drill **wajib quarterly** untuk production.
 | Medium | 25–250 | 5–25 | 4 vCPU / 16Gi / 100Gi | 4Gi | 2–6 | 3–5 |
 | Large | 250–2000 | 25–200 | 8 vCPU / 64Gi / 500Gi + replica | 16Gi | 4–20 | 5–15 |
 
-Catatan: LLM cost scales linearly with run volume in CLOUD tier — set budget guard di Settings → LLM (v1.x).
+Note: LLM cost scales linearly with run volume in CLOUD tier — set a budget guard in Settings → LLM (v1.x).
 
 ### 4.5 Concurrency & MCP pool tuning
 
@@ -535,7 +535,7 @@ Rule of thumb: per replica, `SUITEST_RUNNER_CONCURRENCY × average_steps_per_run
 | Variable | ZERO (default) | LOCAL | CLOUD |
 |----------|----------------|-------|-------|
 | `SUITEST_LLM_PROVIDER` | `none` | `ollama` / `llamacpp` / `vllm` / `lmstudio` | `anthropic` / `openai` / `gemini` / `groq` / `openrouter` / `azure` / `bedrock` / `vertex` / `deepseek` |
-| `SUITEST_LLM_API_KEY` | empty | empty (atau token internal) | required |
+| `SUITEST_LLM_API_KEY` | empty | empty (or an internal token) | required |
 | `SUITEST_LLM_MODEL` | empty | `ollama/llama3.1` | provider-specific |
 | `SUITEST_LLM_BASE_URL` | empty | `http://ollama:11434` | optional (Azure / OpenAI-compat) |
 | `SUITEST_EMBEDDINGS_BACKEND` | `none` *(FTS fallback)* | `fastembed` recommended | `openai` / `cohere` |
@@ -566,17 +566,17 @@ For production LOCAL tier, use **Ollama** (CPU/GPU) or **vLLM** (GPU); **llama.c
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| API container restart loop | `SUITEST_ENCRYPTION_KEY` salah length | Generate ulang via `openssl rand -base64 32` |
-| `GET /capabilities` selalu ZERO meski set env | Lupa restart `api` setelah edit `.env` | `docker compose restart api runner` |
-| Runner queue piling up | HPA tidak terhubung / `runs_queue_depth` metric kosong | Cek Prometheus scrape `/metrics` reachable |
-| Alembic gagal upgrade | `pgvector` extension belum di-create | `CREATE EXTENSION IF NOT EXISTS vector;` sebagai superuser |
-| LLM call timeout di LOCAL | Ollama belum pull model | `docker compose exec ollama ollama pull llama3.1` |
-| WS disconnect terus | Ingress timeout < 60s | Set `nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"` |
+| API container restart loop | `SUITEST_ENCRYPTION_KEY` has the wrong length | Regenerate via `openssl rand -base64 32` |
+| `GET /capabilities` always ZERO even with env set | Forgot to restart `api` after editing `.env` | `docker compose restart api runner` |
+| Runner queue piling up | HPA not connected / `runs_queue_depth` metric empty | Check that the Prometheus scrape `/metrics` is reachable |
+| Alembic upgrade fails | `pgvector` extension not created yet | `CREATE EXTENSION IF NOT EXISTS vector;` as superuser |
+| LLM call timeout on LOCAL | Ollama has not pulled the model yet | `docker compose exec ollama ollama pull llama3.1` |
+| WS keeps disconnecting | Ingress timeout < 60s | Set `nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"` |
 
 ---
 
-## 7. Referensi silang
+## 7. Cross-references
 
-- Arsitektur services → [ARCHITECTURE.md](./ARCHITECTURE.md)
+- Services architecture → [ARCHITECTURE.md](./ARCHITECTURE.md)
 - Tier semantics → [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md)
 - Design memo → [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md)

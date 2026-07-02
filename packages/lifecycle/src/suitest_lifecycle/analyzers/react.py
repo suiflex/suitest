@@ -9,9 +9,12 @@ the UI with stable selectors instead of brittle text matching.
 from __future__ import annotations
 
 import re
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from suitest_lifecycle.models import CodeSummary, Mode, Page
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _ROUTE_RE = re.compile(
     r"""<Route\s+[^>]*?path=["'](?P<path>[^"']+)["'][^>]*?element=\{<(?P<comp>\w+)""",
@@ -26,7 +29,9 @@ def _find_app_file(src: Path) -> Path | None:
         cand = src / name
         if cand.is_file():
             return cand
-    matches = [p for p in src.rglob("*.tsx") if "<Route" in p.read_text(encoding="utf-8", errors="replace")]
+    matches = [
+        p for p in src.rglob("*.tsx") if "<Route" in p.read_text(encoding="utf-8", errors="replace")
+    ]
     return matches[0] if matches else None
 
 

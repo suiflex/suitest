@@ -27,13 +27,13 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
-    op.add_column("test_cases", sa.Column("automation_file_path", sa.String(length=512), nullable=True))
+    op.add_column(
+        "test_cases", sa.Column("automation_file_path", sa.String(length=512), nullable=True)
+    )
     op.add_column("test_cases", sa.Column("automation_code", sa.Text(), nullable=True))
     op.add_column("test_cases", sa.Column("last_run_id", sa.String(length=32), nullable=True))
     op.add_column("test_cases", sa.Column("last_run_result", sa.String(length=16), nullable=True))
-    op.add_column(
-        "test_cases", sa.Column("last_run_at", sa.DateTime(timezone=True), nullable=True)
-    )
+    op.add_column("test_cases", sa.Column("last_run_at", sa.DateTime(timezone=True), nullable=True))
     op.add_column("test_cases", sa.Column("last_failure_reason", sa.Text(), nullable=True))
     op.add_column("test_cases", sa.Column("last_duration_ms", sa.Integer(), nullable=True))
 
