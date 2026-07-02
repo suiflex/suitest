@@ -1,4 +1,4 @@
-"""Minimal MCP stdio server exposing the Sutest lifecycle tools.
+"""Minimal MCP stdio server exposing the Suitest lifecycle tools.
 
 Speaks newline-delimited JSON-RPC 2.0 (the MCP stdio framing): ``initialize``,
 ``tools/list``, ``tools/call``. Stdlib-only so it runs anywhere ``python`` does::
@@ -13,7 +13,8 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Callable, TextIO
+from collections.abc import Callable
+from typing import TextIO
 
 from suitest_lifecycle.tools import TOOLS
 

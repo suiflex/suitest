@@ -9,9 +9,12 @@ Suitest provides the browser (user installs nothing).
 
 from __future__ import annotations
 
-from suitest_lifecycle.config import Config
-from suitest_lifecycle.models import CodeSummary, PlanCase
-from suitest_lifecycle.paths import Paths
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from suitest_lifecycle.config import Config
+    from suitest_lifecycle.models import CodeSummary, PlanCase
+    from suitest_lifecycle.paths import Paths
 
 _HEADER = '''import asyncio
 import glob
@@ -26,6 +29,15 @@ USERNAME = "{username}"
 PASSWORD = "{password}"
 TIMEOUT = 15000
 TC_ID = "{cid}"
+
+# --- evidence pacing (watchable, step-by-step video) -------------------------
+# The lifecycle video is human EVIDENCE, so it must NOT run at machine speed.
+# We hold each step on screen (``_STEP_PAUSE_MS``) and slow every Playwright
+# action (``_SLOWMO_MS``) so the recording reads step-by-step. Defaults are on;
+# set SUITEST_EVIDENCE_RECORDING=false (or the pause to 0) for a fast run.
+_EVIDENCE = os.environ.get("SUITEST_EVIDENCE_RECORDING", "true").lower() not in ("0", "false", "no")
+_STEP_PAUSE_MS = int(os.environ.get("SUITEST_EVIDENCE_PAUSE_MS", "1200"))
+_SLOWMO_MS = int(os.environ.get("SUITEST_EVIDENCE_SLOWMO_MS", "300"))
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _TMP = os.path.join(_HERE, "tmp")
@@ -55,7 +67,16 @@ async def _shot(page):
 
 
 async def _ok(page):
-    STEPS.append(dict(_cur, status="PASSED", screenshot=await _shot(page)))
+    shot = await _shot(page)
+    # Hold the finished step on screen so the recorded video reads step-by-step
+    # instead of flashing past in ~1s. Screenshot is taken BEFORE the hold so it
+    # captures the step's end state, not the idle pause.
+    if _EVIDENCE and _STEP_PAUSE_MS > 0:
+        try:
+            await page.wait_for_timeout(_STEP_PAUSE_MS)
+        except Exception:
+            pass
+    STEPS.append(dict(_cur, status="PASSED", screenshot=shot))
 
 
 async def _login(page):
@@ -91,6 +112,9 @@ async def run_test():
         # Launch a Chromium browser in headless mode with custom arguments.
         browser = await pw.chromium.launch(
             headless=True,
+            # slow_mo delays each action so intra-step motion (typing, clicks,
+            # navigation) is visible in the recorded video, not just the gaps.
+            slow_mo=_SLOWMO_MS if _EVIDENCE else 0,
             args=["--window-size=1280,720", "--disable-dev-shm-usage", "--ipc=host"],
         )
         # Create a new browser context that records video of the whole run.
@@ -101,6 +125,13 @@ async def run_test():
         context.set_default_timeout(TIMEOUT)
         page = await context.new_page()
         await _body(page)
+        # Hold the final state so the video's last frames aren't clipped when the
+        # context closes (Playwright stops recording on context.close()).
+        if _EVIDENCE and _STEP_PAUSE_MS > 0:
+            try:
+                await page.wait_for_timeout(_STEP_PAUSE_MS)
+            except Exception:
+                pass
         try:
             await page.screenshot(path=screenshot)
         except Exception:
@@ -244,7 +275,7 @@ async def _body(page):
     await _ok(page)
     token = uuid.uuid4().hex[:8]
     _begin("action", "Fill the required product fields")
-    await page.get_by_test_id("product-name-input").fill(f"Sutest Product {token}")
+    await page.get_by_test_id("product-name-input").fill(f"Suitest Product {token}")
     await page.get_by_test_id("product-sku-input").fill(f"SKU-{token}")
     await page.get_by_test_id("product-price-input").fill("19.99")
     await page.get_by_test_id("product-stock-input").fill("5")
@@ -254,6 +285,110 @@ async def _body(page):
     await _ok(page)
     _begin("assertion", "Returns to the products list")
     await expect(page.get_by_test_id("products-page")).to_be_visible(timeout=TIMEOUT)
+    await _ok(page)
+'''
+    if arch == "empty_login":
+        return '''
+async def _body(page):
+    _begin("action", "Navigate to /login")
+    await page.goto(f"{BASE_URL}/login")
+    await _ok(page)
+    _begin("action", "Click 'Sign in' with both fields empty")
+    await page.get_by_test_id("login-submit-button").click()
+    await _ok(page)
+    _begin("assertion", "A validation error is shown and the URL stays /login")
+    await expect(page.get_by_test_id("login-error-message")).to_be_visible(timeout=TIMEOUT)
+    assert "/login" in page.url
+    await _ok(page)
+'''
+    if arch == "logout":
+        return '''
+async def _body(page):
+    await _login(page)
+    _begin("action", "Click the logout button")
+    await page.get_by_test_id("logout-button").click()
+    await _ok(page)
+    _begin("assertion", "Login page is shown")
+    await expect(page.get_by_test_id("login-page")).to_be_visible(timeout=TIMEOUT)
+    await _ok(page)
+    _begin("action", "Navigate to /dashboard again")
+    await page.goto(f"{BASE_URL}/dashboard")
+    await _ok(page)
+    _begin("assertion", "Still on the login page (session cleared)")
+    await expect(page.get_by_test_id("login-page")).to_be_visible(timeout=TIMEOUT)
+    await _ok(page)
+'''
+    if arch == "search_match":
+        return '''
+async def _body(page):
+    await _login(page)
+    token = uuid.uuid4().hex[:8]
+    name = f"Suitest Match {token}"
+    _begin("action", "Create a uniquely-named product via the form")
+    await page.goto(f"{BASE_URL}/products/new")
+    await expect(page.get_by_test_id("product-form-page")).to_be_visible(timeout=TIMEOUT)
+    await page.get_by_test_id("product-name-input").fill(name)
+    await page.get_by_test_id("product-sku-input").fill(f"SKU-{token}")
+    await page.get_by_test_id("product-price-input").fill("9.99")
+    await page.get_by_test_id("product-stock-input").fill("3")
+    await page.get_by_test_id("product-submit-button").click()
+    await expect(page.get_by_test_id("products-page")).to_be_visible(timeout=TIMEOUT)
+    await _ok(page)
+    _begin("action", "Search for the exact product name")
+    await page.get_by_test_id("product-search-input").fill(name)
+    await page.wait_for_timeout(600)
+    await _ok(page)
+    _begin("assertion", "Exactly the matching product row is shown")
+    rows = page.get_by_test_id("product-row")
+    assert await rows.count() == 1, f"expected 1 matching row, got {await rows.count()}"
+    await expect(rows.first).to_contain_text(name)
+    await _ok(page)
+'''
+    if arch == "delete_product":
+        return '''
+async def _body(page):
+    await _login(page)
+    token = uuid.uuid4().hex[:8]
+    name = f"Suitest Delete {token}"
+    _begin("action", "Create a uniquely-named product via the form")
+    await page.goto(f"{BASE_URL}/products/new")
+    await expect(page.get_by_test_id("product-form-page")).to_be_visible(timeout=TIMEOUT)
+    await page.get_by_test_id("product-name-input").fill(name)
+    await page.get_by_test_id("product-sku-input").fill(f"SKU-{token}")
+    await page.get_by_test_id("product-price-input").fill("9.99")
+    await page.get_by_test_id("product-stock-input").fill("3")
+    await page.get_by_test_id("product-submit-button").click()
+    await expect(page.get_by_test_id("products-page")).to_be_visible(timeout=TIMEOUT)
+    await _ok(page)
+    _begin("action", "Search for it and delete it, accepting the confirm dialog")
+    await page.get_by_test_id("product-search-input").fill(name)
+    await page.wait_for_timeout(600)
+    page.on("dialog", lambda dialog: asyncio.ensure_future(dialog.accept()))
+    await page.get_by_test_id("product-delete-button").first.click()
+    await page.wait_for_timeout(800)
+    await _ok(page)
+    _begin("assertion", "The product row disappears from the list")
+    await page.get_by_test_id("product-search-input").fill(name)
+    await page.wait_for_timeout(600)
+    assert await page.get_by_test_id("product-row").count() == 0, "deleted product still listed"
+    await _ok(page)
+'''
+    if arch == "create_invalid":
+        return '''
+async def _body(page):
+    await _login(page)
+    _begin("action", "Open the product create form")
+    await page.goto(f"{BASE_URL}/products/new")
+    await expect(page.get_by_test_id("product-form-page")).to_be_visible(timeout=TIMEOUT)
+    await _ok(page)
+    _begin("action", "Fill a too-short name and no SKU, then submit")
+    await page.get_by_test_id("product-name-input").fill("ab")
+    await page.get_by_test_id("product-submit-button").click()
+    await page.wait_for_timeout(600)
+    await _ok(page)
+    _begin("assertion", "Form stays visible with validation errors; no navigation")
+    await expect(page.get_by_test_id("product-form-page")).to_be_visible(timeout=TIMEOUT)
+    assert "/products/new" in page.url, f"unexpected navigation to {page.url}"
     await _ok(page)
 '''
     return f'''

@@ -1,4 +1,4 @@
-"""Domain models for the Sutest testing lifecycle.
+"""Domain models for the Suitest testing lifecycle.
 
 Plain ``dataclasses`` (not Pydantic) on purpose: the lifecycle core runs as a
 CLI / MCP subprocess with a stdlib-only footprint so it can drive *any* target

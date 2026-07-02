@@ -1,6 +1,6 @@
 """Request/response schemas for the lifecycle ingest endpoints (Phase 2).
 
-The Sutest lifecycle (``suitest test``) executes tests itself, then publishes the
+The Suitest lifecycle (``suitest test``) executes tests itself, then publishes the
 *completed* results here. These models carry generated cases (+ their runnable
 source) and finished run results — there is no ARQ execution on this path.
 """
@@ -26,9 +26,19 @@ class IngestStep(_Camel):
 
 class IngestCase(_Camel):
     source_ref: str = Field(alias="sourceRef")
+    # ``name`` is the legacy/compat field (historically the generated function
+    # slug). Publishers SHOULD also send ``title`` (human display title) and
+    # ``slug`` (technical key); when absent the service derives them from
+    # ``name`` server-side — the frontend never humanizes.
     name: str
+    title: str | None = None
+    slug: str | None = None
     description: str | None = None
     preconditions: str | None = None
+    # Origin of the case. Lifecycle/MCP publishers send "MCP"; generic importers
+    # (TestRail, JIRA, file) omit it and fall back to IMPORT. Any unknown value
+    # also degrades to IMPORT so the enum stays authoritative.
+    source: str | None = None
     priority: str = "P2"  # P1 | P2 | P3
     category: str | None = None
     tags: list[str] = Field(default_factory=list)
@@ -77,7 +87,8 @@ class IngestArtifact(_Camel):
 
 
 class IngestResult(_Camel):
-    name: str = ""  # case name — the idempotency/match key (source_ref is not unique)
+    name: str = ""  # legacy match key (case name); kept for older publishers
+    slug: str = ""  # preferred match key — the case's technical slug
     source_ref: str = Field(default="", alias="sourceRef")
     outcome: str = "PASSED"
     duration_ms: int = Field(default=0, alias="durationMs")

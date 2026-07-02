@@ -114,7 +114,7 @@ def sample_value(field: ZodField, unique_token: str) -> object:
         if field.name.lower() in {"email"}:
             return f"user_{unique_token}@example.com"
         min_len = int(field.min_value or 0)
-        base = f"Sutest {field.name.title()}"
+        base = f"Suitest {field.name.title()}"
         return base if len(base) >= min_len else base + "x" * (min_len - len(base))
     if field.base_type == "number":
         base_num = field.min_value if field.min_value is not None else 1

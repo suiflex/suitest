@@ -68,6 +68,424 @@
         "title": "AdHocRunResponse",
         "type": "object"
       },
+      "AgentDefinitionBody": {
+        "description": "Request body for POST / PATCH \u2014 the raw YAML spec.",
+        "properties": {
+          "spec_yaml": {
+            "description": "Full AgentPluginSpec serialised as YAML.",
+            "minLength": 10,
+            "title": "Spec Yaml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "spec_yaml"
+        ],
+        "title": "AgentDefinitionBody",
+        "type": "object"
+      },
+      "AgentDefinitionRead": {
+        "description": "Response schema for a single agent definition.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "spec": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentPluginSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spec_version": {
+            "title": "Spec Version",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "name",
+          "spec_version",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AgentDefinitionRead",
+        "type": "object"
+      },
+      "AgentPluginListResponse": {
+        "description": "Combined list of workspace definitions and system plugins.",
+        "properties": {
+          "system_plugins": {
+            "items": {
+              "$ref": "#/components/schemas/SystemPluginRead"
+            },
+            "title": "System Plugins",
+            "type": "array"
+          },
+          "workspace_definitions": {
+            "items": {
+              "$ref": "#/components/schemas/AgentDefinitionRead"
+            },
+            "title": "Workspace Definitions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "workspace_definitions",
+          "system_plugins"
+        ],
+        "title": "AgentPluginListResponse",
+        "type": "object"
+      },
+      "AgentPluginSpec": {
+        "description": "YAML-serialisable descriptor for a custom agent plugin (M8-1).\n\n``name`` must be a valid slug (kebab-case, no spaces) and unique within the\nworkspace. ``requires_tier`` gates which deployments may activate this plugin.",
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Plugin author name or email.",
+            "title": "Author"
+          },
+          "description": {
+            "description": "Short explanation of what this agent does.",
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "description": "Human-readable label shown in the UI.",
+            "title": "Display Name",
+            "type": "string"
+          },
+          "homepage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL to plugin docs / repo.",
+            "title": "Homepage"
+          },
+          "model_preference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "LiteLLM model string (e.g. 'claude-sonnet-4-6'). None falls back to the workspace default.",
+            "title": "Model Preference"
+          },
+          "name": {
+            "description": "Unique slug (kebab-case). Used as the lookup key in the registry.",
+            "title": "Name",
+            "type": "string"
+          },
+          "requires_tier": {
+            "default": "ZERO",
+            "description": "Minimum tier required to activate. One of: 'ZERO', 'LOCAL', 'CLOUD'.",
+            "title": "Requires Tier",
+            "type": "string"
+          },
+          "system_prompt": {
+            "description": "System prompt injected ahead of the user turn. Max 4000 chars.",
+            "maxLength": 4000,
+            "title": "System Prompt",
+            "type": "string"
+          },
+          "target_kind_filter": {
+            "description": "TargetKind values this agent handles (e.g. ['BE_REST', 'FE_WEB']). Empty list means the agent handles all target kinds.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Target Kind Filter",
+            "type": "array"
+          },
+          "tool_whitelist": {
+            "description": "MCP tool names this agent may call (e.g. 'playwright_mcp.navigate'). Empty list means all tools are permitted.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tool Whitelist",
+            "type": "array"
+          },
+          "version": {
+            "description": "SemVer string, e.g. '1.0.0'.",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "display_name",
+          "description",
+          "system_prompt"
+        ],
+        "title": "AgentPluginSpec",
+        "type": "object"
+      },
+      "ApiKeyCreateRequest": {
+        "description": "Create a key for the current workspace.",
+        "properties": {
+          "expires_in_days": {
+            "anyOf": [
+              {
+                "maximum": 3650.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires In Days"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ApiKeyCreateRequest",
+        "type": "object"
+      },
+      "ApiKeyCreated": {
+        "description": "Returned ONCE on creation \u2014 the only time the plaintext key is exposed.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "key_prefix": {
+            "title": "Key Prefix",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "key_prefix",
+          "key",
+          "created_at",
+          "last_used_at",
+          "expires_at",
+          "revoked_at"
+        ],
+        "title": "ApiKeyCreated",
+        "type": "object"
+      },
+      "ApiKeyItem": {
+        "description": "A key in the management list.\n\n``key`` carries the full plaintext token, decrypted from the AES-GCM column,\nso admins can re-copy it. It is ``None`` for keys created before the\nencrypted column existed. The list endpoint is admin-gated for this reason.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "key_prefix": {
+            "title": "Key Prefix",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "key_prefix",
+          "created_at",
+          "last_used_at",
+          "expires_at",
+          "revoked_at"
+        ],
+        "title": "ApiKeyItem",
+        "type": "object"
+      },
+      "ApiKeyList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ApiKeyItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ApiKeyList",
+        "type": "object"
+      },
+      "ApiKeyWhoami": {
+        "description": "Verify-probe result: which workspace a key authenticates to.",
+        "properties": {
+          "key_id": {
+            "title": "Key Id",
+            "type": "string"
+          },
+          "key_name": {
+            "title": "Key Name",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "key_id",
+          "key_name"
+        ],
+        "title": "ApiKeyWhoami",
+        "type": "object"
+      },
       "ArtifactKind": {
         "enum": [
           "SCREENSHOT",
@@ -498,6 +916,21 @@
         "title": "Body_reset_reset_password_auth_reset_password_post",
         "type": "object"
       },
+      "Body_upload_file_api_v1_files_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "Artifact blob (video, screenshot, trace, \u2026).",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_file_api_v1_files_post",
+        "type": "object"
+      },
       "BudgetOut": {
         "properties": {
           "alert": {
@@ -585,6 +1018,56 @@
           "ids"
         ],
         "title": "BulkDeleteRequest",
+        "type": "object"
+      },
+      "BulkImportBody": {
+        "properties": {
+          "cases": {
+            "items": {
+              "$ref": "#/components/schemas/IngestCase"
+            },
+            "title": "Cases",
+            "type": "array"
+          },
+          "mode": {
+            "default": "backend",
+            "title": "Mode",
+            "type": "string"
+          },
+          "projectId": {
+            "title": "Projectid",
+            "type": "string"
+          },
+          "suiteName": {
+            "title": "Suitename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId",
+          "suiteName"
+        ],
+        "title": "BulkImportBody",
+        "type": "object"
+      },
+      "BulkImportResult": {
+        "properties": {
+          "imported": {
+            "items": {
+              "$ref": "#/components/schemas/ImportedCase"
+            },
+            "title": "Imported",
+            "type": "array"
+          },
+          "suiteId": {
+            "title": "Suiteid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "suiteId"
+        ],
+        "title": "BulkImportResult",
         "type": "object"
       },
       "BulkMoveToSuiteRequest": {
@@ -1287,6 +1770,99 @@
         "title": "CreateRunBody",
         "type": "object"
       },
+      "CreateSuiteRunBody": {
+        "description": "``POST /suites/{id}/run`` body \u2014 run every active case in a suite as a bundle.\n\nAll fields optional: the selection is derived server-side from the suite's\nactive cases (in suite order), so the caller only supplies run metadata. ``name``\ndefaults to the suite name when omitted. This is the QA \"run smoke/regression\nsuite\" entry point \u2014 one Run row fanning out over N cases.",
+        "properties": {
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "commitSha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitsha"
+          },
+          "env": {
+            "default": "staging",
+            "title": "Env",
+            "type": "string"
+          },
+          "mcpRoutingOverride": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mcproutingoverride"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/RunTrigger",
+            "default": "MANUAL"
+          }
+        },
+        "title": "CreateSuiteRunBody",
+        "type": "object"
+      },
+      "CustomMcpProviderInfo": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "transport": {
+            "title": "Transport",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "name",
+          "transport"
+        ],
+        "title": "CustomMcpProviderInfo",
+        "type": "object"
+      },
       "DefectCreate": {
         "additionalProperties": false,
         "description": "Body for ``POST /defects`` \u2014 manual file (docs/API.md \u00a73.6).",
@@ -1747,6 +2323,64 @@
         ],
         "title": "DiagnosisKind",
         "type": "string"
+      },
+      "DiffSelectRequest": {
+        "description": "POST /generators/diff-select request body.",
+        "properties": {
+          "diff_text": {
+            "title": "Diff Text",
+            "type": "string"
+          },
+          "suite_id": {
+            "title": "Suite Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "suite_id",
+          "diff_text"
+        ],
+        "title": "DiffSelectRequest",
+        "type": "object"
+      },
+      "DiffSelectResponse": {
+        "description": "POST /generators/diff-select response body.",
+        "properties": {
+          "parsed_files_count": {
+            "title": "Parsed Files Count",
+            "type": "integer"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          },
+          "selected_case_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Selected Case Ids",
+            "type": "array"
+          },
+          "tier_used": {
+            "title": "Tier Used",
+            "type": "string"
+          }
+        },
+        "required": [
+          "selected_case_ids",
+          "rationale",
+          "tier_used",
+          "parsed_files_count"
+        ],
+        "title": "DiffSelectResponse",
+        "type": "object"
       },
       "DocumentDetail": {
         "description": "Detail for ``GET /documents/:id`` \u2014 no chunk bodies in M1a.",
@@ -2315,6 +2949,54 @@
         "title": "FeaturesSection",
         "type": "object"
       },
+      "FileSignedUrl": {
+        "description": "Time-limited presigned GET URL for an owned object.",
+        "properties": {
+          "expiresInSeconds": {
+            "title": "Expiresinseconds",
+            "type": "integer"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expiresInSeconds"
+        ],
+        "title": "FileSignedUrl",
+        "type": "object"
+      },
+      "FileUploadResult": {
+        "description": "Result of storing an uploaded object server-side.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "mimeType": {
+            "title": "Mimetype",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "title": "Sizebytes",
+            "type": "integer"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "key",
+          "sizeBytes",
+          "mimeType"
+        ],
+        "title": "FileUploadResult",
+        "type": "object"
+      },
       "FlakyCaseOut": {
         "properties": {
           "caseId": {
@@ -2453,6 +3135,34 @@
         "title": "HeatmapCell",
         "type": "object"
       },
+      "ImportedCase": {
+        "properties": {
+          "caseId": {
+            "title": "Caseid",
+            "type": "string"
+          },
+          "created": {
+            "title": "Created",
+            "type": "boolean"
+          },
+          "publicId": {
+            "title": "Publicid",
+            "type": "string"
+          },
+          "sourceRef": {
+            "title": "Sourceref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceRef",
+          "caseId",
+          "publicId",
+          "created"
+        ],
+        "title": "ImportedCase",
+        "type": "object"
+      },
       "InboxItem": {
         "description": "One notification card in the Inbox feed.",
         "properties": {
@@ -2522,6 +3232,321 @@
           }
         },
         "title": "InboxResponse",
+        "type": "object"
+      },
+      "IngestArtifact": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "mimeType": {
+            "default": "application/octet-stream",
+            "title": "Mimetype",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "default": 0,
+            "title": "Sizebytes",
+            "type": "integer"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "url"
+        ],
+        "title": "IngestArtifact",
+        "type": "object"
+      },
+      "IngestCase": {
+        "properties": {
+          "automationCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automationcode"
+          },
+          "automationFilePath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automationfilepath"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "generatedBy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generatedby"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "preconditions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preconditions"
+          },
+          "priority": {
+            "default": "P2",
+            "title": "Priority",
+            "type": "string"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "sourceRef": {
+            "title": "Sourceref",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/IngestStep"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "sourceRef",
+          "name"
+        ],
+        "title": "IngestCase",
+        "type": "object"
+      },
+      "IngestResult": {
+        "properties": {
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/IngestArtifact"
+            },
+            "title": "Artifacts",
+            "type": "array"
+          },
+          "durationMs": {
+            "default": 0,
+            "title": "Durationms",
+            "type": "integer"
+          },
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "outcome": {
+            "default": "PASSED",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "slug": {
+            "default": "",
+            "title": "Slug",
+            "type": "string"
+          },
+          "sourceRef": {
+            "default": "",
+            "title": "Sourceref",
+            "type": "string"
+          },
+          "stderr": {
+            "default": "",
+            "title": "Stderr",
+            "type": "string"
+          },
+          "stdout": {
+            "default": "",
+            "title": "Stdout",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/IngestRunStep"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "title": "IngestResult",
+        "type": "object"
+      },
+      "IngestRunStep": {
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Durationms"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          },
+          "outcome": {
+            "default": "PASSED",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "screenshot": {
+            "default": "",
+            "title": "Screenshot",
+            "type": "string"
+          },
+          "type": {
+            "default": "action",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order"
+        ],
+        "title": "IngestRunStep",
+        "type": "object"
+      },
+      "IngestStep": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "expected": {
+            "title": "Expected",
+            "type": "string"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order",
+          "action",
+          "expected"
+        ],
+        "title": "IngestStep",
+        "type": "object"
+      },
+      "IntegrationAdapterInfo": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "IntegrationAdapterInfo",
         "type": "object"
       },
       "IntegrationCreate": {
@@ -4431,6 +5456,162 @@
         "title": "PasswordResetRequestsEnvelope",
         "type": "object"
       },
+      "PluginManifestOut": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "homepage_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage Url"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "install_command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Install Command"
+          },
+          "is_community": {
+            "title": "Is Community",
+            "type": "boolean"
+          },
+          "is_official": {
+            "title": "Is Official",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "plugin_type": {
+            "title": "Plugin Type",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "display_name",
+          "description",
+          "version",
+          "plugin_type",
+          "author",
+          "homepage_url",
+          "install_command",
+          "is_official",
+          "is_community",
+          "created_at"
+        ],
+        "title": "PluginManifestOut",
+        "type": "object"
+      },
+      "PluginManifestSubmit": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "homepage_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage Url"
+          },
+          "install_command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Install Command"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "plugin_type": {
+            "title": "Plugin Type",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "display_name",
+          "version",
+          "plugin_type"
+        ],
+        "title": "PluginManifestSubmit",
+        "type": "object"
+      },
       "PrdGenerateRequest": {
         "description": "LLM-driven PRD generation (M3-6) \u2014 CLOUD/LOCAL only.\n\n``prd_text`` is the requirement / user story / free text. The agent extracts\nstories and drafts happy-path + edge cases. ``default_target_kind`` decides\nthe steps' default ``mcp_provider`` (steps are agentic \u2014 code is translated at\nexecution time, M3-10). ``seed`` is threaded for reproducibility (M3-5).",
         "properties": {
@@ -5183,6 +6364,19 @@
         "title": "RecorderSessionStartResponse",
         "type": "object"
       },
+      "ReporterInfo": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ReporterInfo",
+        "type": "object"
+      },
       "RequirementCreate": {
         "additionalProperties": false,
         "description": "Body for ``POST /requirements`` (docs/API.md \u00a73.7).\n\n``project_id`` is workspace-scoped (cross-workspace ids return 404). The\n``REQ-N`` ``public_id`` is assigned by the ``before_insert`` listener via\n``generate_public_id`` (docs/DATA_MODEL \u00a78) \u2014 never accepted from the caller.",
@@ -5679,6 +6873,96 @@
         "title": "RunDetail",
         "type": "object"
       },
+      "RunIngestBody": {
+        "properties": {
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
+          },
+          "commitSha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitsha"
+          },
+          "env": {
+            "default": "staging",
+            "title": "Env",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "projectId": {
+            "title": "Projectid",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/IngestResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "suiteName": {
+            "title": "Suitename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId",
+          "suiteName",
+          "name"
+        ],
+        "title": "RunIngestBody",
+        "type": "object"
+      },
+      "RunIngestResult": {
+        "properties": {
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "integer"
+          },
+          "runId": {
+            "title": "Runid",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "runId",
+          "status",
+          "total",
+          "passed",
+          "failed"
+        ],
+        "title": "RunIngestResult",
+        "type": "object"
+      },
       "RunListItem": {
         "description": "List row for ``GET /runs`` (docs/API.md \u00a73.5).",
         "properties": {
@@ -6142,8 +7426,18 @@
             "title": "Case Id",
             "type": "string"
           },
+          "case_name": {
+            "default": "",
+            "title": "Case Name",
+            "type": "string"
+          },
           "case_public_id": {
             "title": "Case Public Id",
+            "type": "string"
+          },
+          "case_title": {
+            "default": "",
+            "title": "Case Title",
             "type": "string"
           },
           "completed_at": {
@@ -6206,6 +7500,16 @@
           "step_order": {
             "title": "Step Order",
             "type": "integer"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "default": "action",
+            "title": "Type",
+            "type": "string"
           }
         },
         "required": [
@@ -6787,6 +8091,24 @@
         "title": "SyncResult",
         "type": "object"
       },
+      "SystemPluginRead": {
+        "description": "Response schema for a system (entry-point-discovered) plugin.",
+        "properties": {
+          "source": {
+            "default": "system",
+            "title": "Source",
+            "type": "string"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/AgentPluginSpec"
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "title": "SystemPluginRead",
+        "type": "object"
+      },
       "TargetKind": {
         "enum": [
           "BE_REST",
@@ -6875,6 +8197,28 @@
       "TestCaseDetail": {
         "description": "Detail \u2014 adds steps (with ``executable``) + tags.",
         "properties": {
+          "automation_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automation Code"
+          },
+          "automation_file_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automation File Path"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -6894,6 +8238,51 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "last_duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Duration Ms"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "last_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run Id"
+          },
+          "last_run_result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run Result"
           },
           "name": {
             "title": "Name",
@@ -6929,6 +8318,17 @@
             "title": "Public Id",
             "type": "string"
           },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
           "source": {
             "$ref": "#/components/schemas/CaseSource"
           },
@@ -6953,6 +8353,10 @@
             "title": "Tags",
             "type": "array"
           },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -6964,6 +8368,7 @@
           "suite_id",
           "public_id",
           "name",
+          "title",
           "source",
           "status",
           "priority",
@@ -6996,6 +8401,17 @@
             "title": "Id",
             "type": "string"
           },
+          "last_run_result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run Result"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -7019,6 +8435,17 @@
             "title": "Public Id",
             "type": "string"
           },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
           "source": {
             "$ref": "#/components/schemas/CaseSource"
           },
@@ -7027,6 +8454,10 @@
           },
           "suite_id": {
             "title": "Suite Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
             "type": "string"
           },
           "updated_at": {
@@ -7040,6 +8471,7 @@
           "suite_id",
           "public_id",
           "name",
+          "title",
           "source",
           "status",
           "priority",
@@ -7063,6 +8495,11 @@
           "score": {
             "title": "Score",
             "type": "number"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
           }
         },
         "required": [
@@ -7145,6 +8582,19 @@
               }
             ],
             "title": "Tags"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           }
         },
         "title": "TestCaseUpdate",
@@ -7221,7 +8671,7 @@
         "type": "object"
       },
       "Tier": {
-        "description": "Capability tier resolved from env.",
+        "description": "Capability tier. The env base is always ZERO; LOCAL/CLOUD come from the\nper-workspace LLM config (web UI).",
         "enum": [
           "ZERO",
           "LOCAL",
@@ -7302,6 +8752,84 @@
           "intent"
         ],
         "title": "UrlSemanticGenerateRequest",
+        "type": "object"
+      },
+      "UserLimitIn": {
+        "description": "Request body for ``POST /cost/user-limits``.",
+        "properties": {
+          "dailyCapUsd": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Dailycapusd"
+          },
+          "monthlyCapUsd": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "0",
+            "title": "Monthlycapusd"
+          },
+          "userId": {
+            "format": "uuid",
+            "title": "Userid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "title": "UserLimitIn",
+        "type": "object"
+      },
+      "UserLimitOut": {
+        "description": "Response body for user-budget endpoints.",
+        "properties": {
+          "dailyCapUsd": {
+            "title": "Dailycapusd",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "monthlyCapUsd": {
+            "title": "Monthlycapusd",
+            "type": "number"
+          },
+          "userId": {
+            "format": "uuid",
+            "title": "Userid",
+            "type": "string"
+          },
+          "workspaceId": {
+            "title": "Workspaceid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "workspaceId",
+          "dailyCapUsd",
+          "monthlyCapUsd"
+        ],
+        "title": "UserLimitOut",
         "type": "object"
       },
       "UserRead": {
@@ -7496,6 +9024,49 @@
           }
         },
         "title": "WebhookPingResponse",
+        "type": "object"
+      },
+      "WorkspaceCreate": {
+        "additionalProperties": false,
+        "description": "``POST /workspaces`` body \u2014 bootstrap a workspace; caller becomes OWNER.\n\n``slug`` is optional: when omitted it is derived from ``name`` (kebab-case,\none ``-2`` retry on collision). Workspace slugs are globally unique, so a\nsecond collision surfaces a 409 ``DUPLICATE_WORKSPACE_SLUG``.",
+        "properties": {
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WorkspaceCreate",
         "type": "object"
       },
       "WorkspaceDeleteAccepted": {
@@ -8041,6 +9612,330 @@
         ]
       }
     },
+    "/api/v1/agent-plugins": {
+      "get": {
+        "description": "List workspace agent definitions and system-discovered plugins.",
+        "operationId": "list_agent_plugins_api_v1_agent_plugins_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPluginListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Agent Plugins",
+        "tags": [
+          "agent-plugins"
+        ]
+      },
+      "post": {
+        "description": "Register a new workspace agent definition from a YAML spec.",
+        "operationId": "register_agent_plugin_api_v1_agent_plugins_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentDefinitionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentDefinitionRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Register Agent Plugin",
+        "tags": [
+          "agent-plugins"
+        ]
+      }
+    },
+    "/api/v1/agent-plugins/{name}": {
+      "delete": {
+        "description": "Soft-deactivate a workspace agent definition.",
+        "operationId": "delete_agent_plugin_api_v1_agent_plugins__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete Agent Plugin",
+        "tags": [
+          "agent-plugins"
+        ]
+      },
+      "get": {
+        "description": "Return a single workspace agent definition by name.",
+        "operationId": "get_agent_plugin_api_v1_agent_plugins__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentDefinitionRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Agent Plugin",
+        "tags": [
+          "agent-plugins"
+        ]
+      },
+      "patch": {
+        "description": "Update the YAML spec for an existing workspace agent definition.",
+        "operationId": "update_agent_plugin_api_v1_agent_plugins__name__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentDefinitionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentDefinitionRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Agent Plugin",
+        "tags": [
+          "agent-plugins"
+        ]
+      }
+    },
     "/api/v1/agent/chat": {
       "post": {
         "description": "Stream a conversation-mode reply (SSE tokens + WS tool events).",
@@ -8554,6 +10449,56 @@
         "summary": "Analytics Readiness",
         "tags": [
           "analytics"
+        ]
+      }
+    },
+    "/api/v1/api-keys/whoami": {
+      "get": {
+        "description": "Verify a key: returns the workspace it authenticates to. 401 if invalid.\n\nUsed by the CLI / MCP setup to confirm ``SUITEST_API_KEY`` works before use.",
+        "operationId": "whoami_api_v1_api_keys_whoami_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyWhoami"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Whoami",
+        "tags": [
+          "api-keys"
         ]
       }
     },
@@ -9822,6 +11767,251 @@
         ]
       }
     },
+    "/api/v1/files": {
+      "delete": {
+        "description": "Delete an object the caller owns (no-op-safe; 404 for out-of-scope keys).",
+        "operationId": "delete_file_api_v1_files_delete",
+        "parameters": [
+          {
+            "description": "Workspace-scoped object key to delete.",
+            "in": "query",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "description": "Workspace-scoped object key to delete.",
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete File",
+        "tags": [
+          "files"
+        ]
+      },
+      "post": {
+        "description": "Store an uploaded blob in the workspace's object store; return its s3:// URL.",
+        "operationId": "upload_file_api_v1_files_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_file_api_v1_files_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUploadResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Upload File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/v1/files/signed-url": {
+      "get": {
+        "description": "Return a presigned GET URL for an object the caller owns (404 otherwise).",
+        "operationId": "sign_file_api_v1_files_signed_url_get",
+        "parameters": [
+          {
+            "description": "Workspace-scoped object key returned by the upload.",
+            "in": "query",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "description": "Workspace-scoped object key returned by the upload.",
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileSignedUrl"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Sign File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
     "/api/v1/generators/classify": {
       "post": {
         "description": "Classify a generation input into a target kind + recommended strategy/MCP.",
@@ -9951,6 +12141,74 @@
           }
         ],
         "summary": "Generate Crawler",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
+    "/api/v1/generators/diff-select": {
+      "post": {
+        "description": "Select relevant test cases for a PR diff via LLM impact analysis (M6).\n\nAt CLOUD/LOCAL tier the endpoint queries the active LLM to identify which\ncases are most likely to catch regressions introduced by ``diff_text``.\nAt ZERO tier (or when no LLM is configured) it returns **all** cases in\nthe suite so CI always has a safe fallback.\n\n``diff_text`` must not exceed 50 000 characters; a 400 is returned if it\ndoes.  The suite must belong to the caller's workspace; a 404 is returned\nwhen the suite has no cases.",
+        "operationId": "diff_select_api_v1_generators_diff_select_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiffSelectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffSelectResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Diff Select",
         "tags": [
           "generators"
         ]
@@ -11903,6 +14161,249 @@
         ]
       }
     },
+    "/api/v1/plugins/integration-adapters": {
+      "get": {
+        "description": "Return the kinds of all registered custom integration adapters.",
+        "operationId": "list_integration_adapters_api_v1_plugins_integration_adapters_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IntegrationAdapterInfo"
+                  },
+                  "title": "Response List Integration Adapters Api V1 Plugins Integration Adapters Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List custom integration adapter kinds",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/plugins/marketplace": {
+      "get": {
+        "description": "Return all registered plugin manifests, optionally filtered by type.",
+        "operationId": "list_marketplace_api_v1_plugins_marketplace_get",
+        "parameters": [
+          {
+            "description": "Filter by plugin_type",
+            "in": "query",
+            "name": "plugin_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by plugin_type",
+              "title": "Plugin Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PluginManifestOut"
+                  },
+                  "title": "Response List Marketplace Api V1 Plugins Marketplace Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List all plugin manifests (public)",
+        "tags": [
+          "plugins"
+        ]
+      },
+      "post": {
+        "description": "Register a new community plugin manifest.\n\nOnly ADMIN or OWNER can submit.  Name must be globally unique.",
+        "operationId": "submit_marketplace_entry_api_v1_plugins_marketplace_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PluginManifestSubmit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PluginManifestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Submit a new plugin manifest (ADMIN/OWNER)",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/plugins/marketplace/{name}": {
+      "get": {
+        "description": "Return a single plugin manifest by its unique name.",
+        "operationId": "get_marketplace_entry_api_v1_plugins_marketplace__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PluginManifestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get one plugin manifest by name (public)",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/plugins/mcp-providers": {
+      "get": {
+        "description": "Return custom MCP providers discovered via the suitest.mcp_providers entry group.",
+        "operationId": "list_custom_mcp_providers_api_v1_plugins_mcp_providers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CustomMcpProviderInfo"
+                  },
+                  "title": "Response List Custom Mcp Providers Api V1 Plugins Mcp Providers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List discovered custom MCP entry-point providers",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/plugins/reporters": {
+      "get": {
+        "description": "Return the names of all registered reporter plugin instances.",
+        "operationId": "list_reporters_api_v1_plugins_reporters_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReporterInfo"
+                  },
+                  "title": "Response List Reporters Api V1 Plugins Reporters Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List registered reporter plugins",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "description": "List the current workspace's active projects, keyset-paginated.",
@@ -13702,6 +16203,90 @@
         ]
       }
     },
+    "/api/v1/runs/ingest": {
+      "post": {
+        "description": "Record an already-completed run (run + run_steps + artifacts). No ARQ enqueue.",
+        "operationId": "ingest_completed_run_api_v1_runs_ingest_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunIngestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunIngestResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Ingest Completed Run",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
     "/api/v1/runs/summary": {
       "get": {
         "description": "Aggregated counters for the Runs dashboard summary bar (docs/API.md \u00a73.5).\n\nCounts are workspace-scoped (joined via ``projects``). ``failed`` folds\n``FAIL`` + ``ERROR`` together to match the Runs UI's binary outcome card.\nStatic endpoint declared BEFORE the dynamic ``/runs/{run_id}`` route below\nso FastAPI's path matcher doesn't try to treat ``summary`` as a run id.",
@@ -13762,7 +16347,7 @@
     },
     "/api/v1/runs/{run_id}": {
       "get": {
-        "description": "Return a run with a step-outcome summary; 404 when cross-workspace.",
+        "description": "Return a run with a step-outcome summary; 404 when cross-workspace.\n\nAccepts the internal id OR the per-workspace ``public_id`` (e.g. ``R-1004``)\nthat the web routes on.",
         "operationId": "get_run_api_v1_runs__run_id__get",
         "parameters": [
           {
@@ -14260,6 +16845,66 @@
           }
         ],
         "summary": "Get Run Replay",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/v1/runs/{run_id}/report.junit": {
+      "get": {
+        "description": "Render a run as a JUnit XML report for CI consumption (Jenkins / GHA).\n\nDeterministic / ZERO-tier: each test case becomes one ``<testcase>`` rolled up\nfrom its run steps (error > failure > skipped > passed). 404 when cross-workspace.\nReturned as ``application/xml`` so a CI job can pipe it into its test reporter.",
+        "operationId": "get_run_junit_report_api_v1_runs__run_id__report_junit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Run Junit Report",
         "tags": [
           "runs"
         ]
@@ -14810,6 +17455,83 @@
         ]
       }
     },
+    "/api/v1/suites/{suite_id}/run": {
+      "post": {
+        "description": "Run every active case in a suite as ONE bundle run, then enqueue the ARQ job.\n\nQA \"run smoke/regression suite\" entry point: the selection is derived\nserver-side from the suite's active cases (in suite order), so the caller only\nsends run metadata. Returns 202 like ``POST /runs``. 400 when the suite is\ncross-workspace (\"suite not found\") or empty (\"suite has no active cases\").",
+        "operationId": "create_suite_run_api_v1_suites__suite_id__run_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "title": "Suite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSuiteRunBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Suite Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/v1/test-cases": {
       "get": {
         "description": "List cases by suite (filtered, paginated) or by project (all suites).\n\nPass exactly one of ``suiteId`` or ``projectId``. The per-suite path applies\nthe full filter/keyset-pagination contract; the per-project path returns\nevery non-deleted case across the project's suites (used by the Cases tree\nwhich groups cases under their suites). Both 404 when the target is\ncross-workspace.\n\n``?includeDeleted=true`` surfaces tombstoned rows. Per ``docs/API.md \u00a73.3``\nthat capability is ADMIN/OWNER only \u2014 QA + VIEWER asking for it get 403.\nDefault behaviour (no query param / ``false``) hides every soft-deleted row\nso VIEWER reads remain safe.",
@@ -15081,6 +17803,90 @@
         "summary": "Create Test Case",
         "tags": [
           "test-cases"
+        ]
+      }
+    },
+    "/api/v1/test-cases/bulk-import": {
+      "post": {
+        "description": "Upsert a suite's cases + steps from a lifecycle payload (idempotent by sourceRef).",
+        "operationId": "bulk_import_api_v1_test_cases_bulk_import_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkImportBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkImportResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Bulk Import",
+        "tags": [
+          "ingest"
         ]
       }
     },
@@ -15543,6 +18349,76 @@
           }
         ],
         "summary": "Duplicate Test Case",
+        "tags": [
+          "test-cases"
+        ]
+      }
+    },
+    "/api/v1/test-cases/{case_id}/export": {
+      "get": {
+        "description": "Return test case steps as a runnable script (M2-12).\n\nWalks ``step.code`` and wraps each step in the target framework scaffold.\nSteps with no ``code`` render as TODO comments \u2014 always succeeds at ZERO\ntier without LLM. Writes a ``code_exports`` row for audit traceability.\n\nSupported ``target`` values: ``playwright`` (default), ``cypress``,\n``selenium``. An unknown value returns 400 ``INVALID_EXPORT_TARGET``.",
+        "operationId": "export_test_case_code_api_v1_test_cases__case_id__export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target",
+            "required": false,
+            "schema": {
+              "default": "playwright",
+              "title": "Target",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Export test case as runnable code (docs/API.md \u00a73.18)",
         "tags": [
           "test-cases"
         ]
@@ -16423,6 +19299,54 @@
         "tags": [
           "workspaces"
         ]
+      },
+      "post": {
+        "description": "Create a workspace; the caller becomes its OWNER (bootstrap, ZERO-safe).\n\nNo membership/role gate \u2014 a user with zero workspaces must be able to make\ntheir first one (dogfood blocker #1). Slug collisions return 409\n``DUPLICATE_WORKSPACE_SLUG``.",
+        "operationId": "create_workspace_api_v1_workspaces_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspacePublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Workspace",
+        "tags": [
+          "workspaces"
+        ]
       }
     },
     "/api/v1/workspaces/import": {
@@ -16472,6 +19396,187 @@
         "summary": "Import Workspace",
         "tags": [
           "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/api-keys": {
+      "get": {
+        "operationId": "list_keys_api_v1_workspaces__workspaceId__api_keys_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Keys",
+        "tags": [
+          "api-keys"
+        ]
+      },
+      "post": {
+        "operationId": "create_key_api_v1_workspaces__workspaceId__api_keys_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Key",
+        "tags": [
+          "api-keys"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/api-keys/{keyId}": {
+      "delete": {
+        "operationId": "revoke_key_api_v1_workspaces__workspaceId__api_keys__keyId__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "keyId",
+            "required": true,
+            "schema": {
+              "title": "Keyid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Revoke Key",
+        "tags": [
+          "api-keys"
         ]
       }
     },
@@ -16664,6 +19769,195 @@
           }
         ],
         "summary": "Get Workspace Cost",
+        "tags": [
+          "cost"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cost/user-limits": {
+      "get": {
+        "description": "List all per-user spend caps for the workspace. Admin or Owner only.",
+        "operationId": "list_user_limits_api_v1_workspaces__workspaceId__cost_user_limits_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserLimitOut"
+                  },
+                  "title": "Response List User Limits Api V1 Workspaces  Workspaceid  Cost User Limits Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List User Limits",
+        "tags": [
+          "cost"
+        ]
+      },
+      "post": {
+        "description": "Set (or replace) the per-user daily/monthly LLM spend cap.\n\nAdmin or Owner only. Setting ``dailyCapUsd`` or ``monthlyCapUsd`` to 0\nmeans unlimited for that window.",
+        "operationId": "upsert_user_limit_api_v1_workspaces__workspaceId__cost_user_limits_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserLimitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserLimitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Upsert User Limit",
+        "tags": [
+          "cost"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cost/user-limits/{userId}": {
+      "delete": {
+        "description": "Remove a per-user spend cap. Admin or Owner only.",
+        "operationId": "delete_user_limit_api_v1_workspaces__workspaceId__cost_user_limits__userId__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Userid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete User Limit",
         "tags": [
           "cost"
         ]

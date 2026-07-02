@@ -1,10 +1,10 @@
-# Sutest Lifecycle — Usage
+# Suitest Lifecycle — Usage
 
 The `suitest_lifecycle` package adds a TestSprite-style end-to-end testing
 lifecycle on top of Suitest: **analyze → generate → start → wait ready → run →
 report**, driven by a single `suitest.config.json`. It runs with a stdlib-only
 core (no LLM, ZERO tier) and emits TestSprite-shaped artifacts under
-`sutest-output/`.
+`suitest-output/`.
 
 ## 1. Install / run
 
@@ -54,7 +54,7 @@ per-step trace) into a running Suitest so it shows up in the web run-detail
 ```
 
 Publishing never fails a run: if the API is unreachable it logs `publish
-skipped — …` and the local `sutest-output/` artifacts + file-mirror TCM still
+skipped — …` and the local `suitest-output/` artifacts + file-mirror TCM still
 apply. The web Code tab reads the persisted `automation_code`; the Preview tab
 plays the `VIDEO` artifact.
 
@@ -88,7 +88,7 @@ plays the `VIDEO` artifact.
     "stopGraceSec": 5
   },
   "testIds": [],
-  "output": "sutest-output"
+  "output": "suitest-output"
 }
 ```
 
@@ -104,13 +104,13 @@ plays the `VIDEO` artifact.
   "port": 5173,
   "auth": { "type": "form", "username": "admin@example.com", "password": "password123" },
   "server": { "autostart": true, "startCommand": "npm run dev", "readyLogPattern": "Local:" },
-  "output": "sutest-output"
+  "output": "suitest-output"
 }
 ```
 
 ### Dependencies (auto-start supporting services)
 
-A frontend run usually needs its backend up (login → API). Declare it and Sutest
+A frontend run usually needs its backend up (login → API). Declare it and Suitest
 starts each dependency, waits until ready, then runs — and stops everything after:
 
 ```json
@@ -143,15 +143,15 @@ starts each dependency, waits until ready, then runs — and stops everything af
 | `baseUrl` / `port` | where the target listens |
 | `readyPath` | path probed for readiness (default `/api/health` BE, `/` FE) |
 | `auth.*` | login flow for authenticated tests |
-| `server.autostart` | `true` → Sutest spawns the target; `false` → only waits for readiness |
-| `server.startCommand` | command Sutest runs to start the target |
+| `server.autostart` | `true` → Suitest spawns the target; `false` → only waits for readiness |
+| `server.startCommand` | command Suitest runs to start the target |
 | `server.readyTimeoutSec` | fail the run if not ready in time |
 | `testIds` | subset of `TCxxx` ids to run; empty = all |
 
-## 3. What you get — `sutest-output/`
+## 3. What you get — `suitest-output/`
 
 ```
-sutest-output/
+suitest-output/
   <mode>/
     standard_prd.json                 PRD (features + user flows)
     suitest_<mode>_test_plan.json     test plan (cases, steps, priority, source_ref)

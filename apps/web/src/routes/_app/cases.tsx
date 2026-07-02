@@ -1,7 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
-import { AlertTriangle, ChevronDown, FileText, FolderTree, ListChecks, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  Code2,
+  FileText,
+  FolderTree,
+  ListChecks,
+  Paperclip,
+  ScrollText,
+  Trash2,
+} from "lucide-react";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -13,8 +23,8 @@ import type { GeneratorStrategy } from "@/components/cases/GenerateModal";
 import { CasesSkeleton } from "@/components/cases/skeleton";
 import { StepEditor } from "@/components/cases/StepEditor";
 import type { DraftStep } from "@/components/cases/StepEditor";
+import { StepList } from "@/components/cases/StepList";
 import { BrowserPreview } from "@/components/runs/BrowserPreview";
-import { StepTable } from "@/components/runs/StepTable";
 import { Gated } from "@/components/gating/Gated";
 import { AgentInsightCallout } from "@/components/shared/AgentInsightCallout";
 import { DisabledTooltip } from "@/components/shared/DisabledTooltip";
@@ -36,10 +46,18 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   fetchRunArtifacts,
+  fetchRunLogs,
   fetchRunSignedUrl,
   fetchRunSteps,
-  fetchTestCaseCode,
 } from "@/lib/api-client";
+import {
+  caseTypeLabel,
+  deriveCaseType,
+  deriveServerStep,
+  displayTitle,
+  generateFallbackSteps,
+  technicalKey,
+} from "@/lib/test-case-format";
 import { useFeatureEnabled } from "@/hooks/use-feature-enabled";
 import { useProject, useSetGatingSuite } from "@/hooks/use-projects";
 import { useActiveProject } from "@/stores/use-active-project";
@@ -61,6 +79,8 @@ type Suite = components["schemas"]["SuitePublic"];
 type Priority = components["schemas"]["Priority"];
 type CaseDetail = components["schemas"]["TestCaseDetail"];
 type RunStepPublic = components["schemas"]["RunStepPublic"];
+type StepOutcome = components["schemas"]["StepOutcome"];
+type ArtifactPublic = components["schemas"]["ArtifactPublic"];
 
 type Tab = "all" | "manual" | "ai" | "mcp" | "failing";
 
@@ -72,6 +92,11 @@ function caseSourceToPill(source: Case["source"]): "MANUAL" | "AI" | "MCP" | "IM
   if (source === "MCP") return "MCP";
   if (source === "IMPORT" || source === "RECORDER" || source === "HEURISTIC_CRAWL") return "IMPORT";
   return "MANUAL";
+}
+
+/** A case is "failing" when its last run ended in FAIL or ERROR. */
+function isFailing(c: Case): boolean {
+  return c.last_run_result === "FAIL" || c.last_run_result === "ERROR";
 }
 
 interface SearchSchema {
@@ -507,15 +532,18 @@ function CaseTree({
                       onSelect(c.public_id);
                     }}
                     className={cn(
-                      "flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-[12.5px] text-fg-1 hover:bg-bg-elev-2",
-                      c.public_id === selectedId && "bg-bg-elev-2",
+                      "flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] text-fg-1 hover:bg-bg-elev-2",
+                      c.public_id === selectedId &&
+                        "bg-bg-elev-2 shadow-[inset_2px_0_0_0_theme(colors.accent)]",
                     )}
                   >
                     <SourceDot status={c.status === "DEPRECATED" ? "warn" : "pass"} />
                     <span className="shrink-0 whitespace-nowrap font-mono text-[11px] text-fg-4">
                       {c.public_id}
                     </span>
-                    <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium" title={c.title}>
+                      {c.title || displayTitle(c.name)}
+                    </span>
                     <span className="ml-auto shrink-0">
                       <SourcePill source={caseSourceToPill(c.source)} />
                     </span>
@@ -589,6 +617,42 @@ function CaseDetailPanel({
     setDraftSteps(next);
   }, []);
 
+  // ---- QA-readable derivations (hooks must run before the guards below) ----
+  const lastRunId = detail?.last_run_id ?? null;
+  const { data: caseRunSteps } = useQuery({
+    queryKey: ["case-result-steps", lastRunId] as const,
+    queryFn: () => (lastRunId ? fetchRunSteps(lastRunId) : Promise.resolve({ items: [] })),
+    enabled: Boolean(lastRunId),
+  });
+
+  // Fallback generation keys off the technical slug (the legacy name is only
+  // used when a pre-migration row has no slug).
+  const detailName = detail?.slug ?? detail?.name;
+  // Real steps → derive readable view; none → labelled fallback from the slug.
+  const derivedSteps = useMemo(
+    () =>
+      serverSteps.length > 0
+        ? serverSteps.map(deriveServerStep)
+        : detailName
+          ? generateFallbackSteps(detailName)
+          : [],
+    // serverStepIds is a stable signature of serverSteps (ids joined).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [serverStepIds, detailName],
+  );
+  const stepsAreFallback = serverSteps.length === 0 && Boolean(detail);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const caseType = useMemo(() => deriveCaseType(serverSteps), [serverStepIds]);
+  const outcomeByOrder = useMemo(() => {
+    const m = new Map<number, StepOutcome>();
+    const cid = detail?.id;
+    if (!cid) return m;
+    for (const s of caseRunSteps?.items ?? []) {
+      if (s.case_id === cid) m.set(s.step_order, s.outcome);
+    }
+    return m;
+  }, [caseRunSteps, detail?.id]);
+
   if (!publicId) {
     return (
       <EmptyState
@@ -612,6 +676,10 @@ function CaseDetailPanel({
   }
 
   const sourcePill = caseSourceToPill(detail.source);
+  // The API now sends the human ``title`` (backend derives it — DATA_MODEL
+  // §3.4); the client-side humanizer only remains as a legacy fallback.
+  const caseTitle = detail.title || displayTitle(detail.name);
+  const slugKey = detail.slug ?? technicalKey(detail.name);
   // ``TestCaseDetail`` exposes ``suite_id`` but not ``project_id``; derive the
   // latter from the cached suites list so ``POST /runs`` can be addressed to
   // the right project without an extra round-trip.
@@ -623,7 +691,7 @@ function CaseDetailPanel({
     createRun.mutate(
       {
         projectId,
-        name: `Ad-hoc: ${detail.name}`,
+        name: `Ad-hoc: ${detail.title || detail.name}`,
         selection: [{ caseId: detail.id }],
         trigger: "MANUAL",
       },
@@ -671,9 +739,19 @@ function CaseDetailPanel({
         className="flex items-center justify-between gap-3 border-b border-border pb-3"
         data-testid="case-toolbar"
       >
-        <div className="flex items-center gap-2">
-          <span className="rounded-md border border-border bg-bg-elev-1 px-2 py-0.5 font-mono text-[11px] text-fg-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            data-testid="case-code"
+            className="rounded-md border border-border bg-bg-elev-1 px-2 py-0.5 font-mono text-[11px] text-fg-3"
+          >
             {detail.public_id}
+          </span>
+          <SourcePill source={sourcePill} />
+          <span
+            data-testid="case-type-badge"
+            className="rounded-full border border-border bg-bg-elev-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-3"
+          >
+            {caseTypeLabel(caseType)}
           </span>
           <StatusBadge
             status={detail.status === "ACTIVE" ? "pass" : "neutral"}
@@ -682,7 +760,6 @@ function CaseDetailPanel({
           <span className="rounded-md border border-border bg-bg-elev-1 px-2 py-0.5 font-mono text-[11px] text-fg-3">
             {detail.priority}
           </span>
-          <SourcePill source={sourcePill} />
         </div>
         <div className="flex items-center gap-1.5">
           <Button
@@ -711,45 +788,72 @@ function CaseDetailPanel({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-[10.5px] uppercase tracking-wide text-fg-5">Suite</span>
-        <h3 className="text-[22px] font-semibold leading-tight tracking-[-.01em] text-fg-1">
-          {detail.name}
+        <h3
+          data-testid="case-title"
+          className="text-[22px] font-semibold leading-tight tracking-[-.01em] text-fg-1"
+        >
+          {caseTitle}
         </h3>
+        {slugKey ? (
+          <span data-testid="case-slug" className="font-mono text-[11px] text-fg-5">
+            {slugKey}
+          </span>
+        ) : null}
         {detail.description ? (
-          <p className="text-[12.5px] text-fg-3">{detail.description}</p>
+          <p className="max-w-[70ch] text-[13px] leading-relaxed text-fg-3">{detail.description}</p>
         ) : null}
       </div>
 
-      <Tabs defaultValue="details" className="gap-4" data-testid="case-detail-tabs">
-        <TabsList variant="line" className="h-auto p-0">
-          <TabsTrigger value="details" className="text-[12.5px]" data-testid="case-tab-details">
-            Details
+      <Tabs defaultValue="basics" className="gap-4" data-testid="case-detail-tabs">
+        <TabsList variant="line" className="h-auto flex-wrap p-0">
+          <TabsTrigger value="basics" className="text-[12.5px]" data-testid="case-tab-basics">
+            Basics
           </TabsTrigger>
-          <TabsTrigger value="result" className="text-[12.5px]" data-testid="case-tab-result">
-            Result
+          <TabsTrigger value="steps" className="text-[12.5px]" data-testid="case-tab-steps">
+            Steps
+          </TabsTrigger>
+          <TabsTrigger value="preview" className="text-[12.5px]" data-testid="case-tab-preview">
+            Video / Preview
+          </TabsTrigger>
+          <TabsTrigger value="code" className="text-[12.5px]" data-testid="case-tab-code">
+            Code
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="text-[12.5px]" data-testid="case-tab-logs">
+            Logs
+          </TabsTrigger>
+          <TabsTrigger value="artifacts" className="text-[12.5px]" data-testid="case-tab-artifacts">
+            Artifacts
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="details" className="flex flex-col gap-4">
-          <dl className="grid grid-cols-5 gap-3 rounded-md border border-border bg-bg-elev-1 p-[14px] text-[12px]">
-            <Meta label="Owner" value={detail.owner_id ?? "—"} />
-            <Meta label="Suite" value={detail.suite_id} mono />
-            <Meta label="Generated by" value={sourcePill} />
-            <Meta label="Tags" value={(detail.tags ?? []).join(", ") || "—"} />
-            <Meta
-              label="Updated"
-              value={formatDistanceToNow(new Date(detail.updated_at), { addSuffix: true })}
-            />
-          </dl>
+        <TabsContent value="basics">
+          <CaseBasicsTab
+            detail={detail}
+            sourcePill={sourcePill}
+            caseType={caseType}
+            derivedSteps={derivedSteps}
+            slugKey={slugKey}
+          />
+        </TabsContent>
 
-          <div data-testid="case-steps">
-            <StepEditor
-              caseId={detail.public_id}
-              steps={stepsToShow}
-              onStepsChange={handleStepsChange}
-            />
-          </div>
-
+        <TabsContent value="steps" className="flex flex-col gap-4">
+          <StepList
+            steps={derivedSteps}
+            isFallback={stepsAreFallback}
+            outcomeByOrder={outcomeByOrder}
+          />
+          <details className="group rounded-md border border-border bg-bg-elev-1">
+            <summary className="cursor-pointer select-none px-3 py-2 text-[12px] text-fg-3 hover:text-fg-1">
+              Edit steps
+            </summary>
+            <div className="border-t border-border p-3" data-testid="case-steps">
+              <StepEditor
+                caseId={detail.public_id}
+                steps={stepsToShow}
+                onStepsChange={handleStepsChange}
+              />
+            </div>
+          </details>
           <Gated feature="ai_diagnose" fallback={null}>
             <AgentInsightCallout
               title="Agent diagnosis"
@@ -759,22 +863,140 @@ function CaseDetailPanel({
           </Gated>
         </TabsContent>
 
-        <TabsContent value="result">
-          <CaseResultView detail={detail} />
+        <TabsContent value="preview">
+          <EvidencePreview detail={detail} derivedSteps={derivedSteps} />
+        </TabsContent>
+
+        <TabsContent value="code">
+          <CaseCodeTab detail={detail} />
+        </TabsContent>
+
+        <TabsContent value="logs">
+          <CaseLogsTab lastRunId={lastRunId} />
+        </TabsContent>
+
+        <TabsContent value="artifacts">
+          <CaseArtifactsTab lastRunId={lastRunId} />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Detail tabs
+// ---------------------------------------------------------------------------
+
+function CaseBasicsTab({
+  detail,
+  sourcePill,
+  caseType,
+  derivedSteps,
+  slugKey,
+}: {
+  detail: CaseDetail;
+  sourcePill: "MANUAL" | "AI" | "MCP" | "IMPORT";
+  caseType: ReturnType<typeof deriveCaseType>;
+  derivedSteps: ReturnType<typeof deriveServerStep>[];
+  slugKey: string | null;
+}): React.ReactElement {
+  const expectations = derivedSteps.filter((s) => s.type === "assertion").map((s) => s.expected);
+  const tags = detail.tags ?? [];
+
+  return (
+    <div className="flex flex-col gap-4" data-testid="case-basics">
+      {detail.description ? (
+        <Field label="Description">
+          <p className="text-[12.5px] leading-relaxed text-fg-2">{detail.description}</p>
+        </Field>
+      ) : null}
+
+      {detail.preconditions ? (
+        <Field label="Preconditions">
+          <p className="whitespace-pre-line text-[12.5px] leading-relaxed text-fg-2">
+            {detail.preconditions}
+          </p>
+        </Field>
+      ) : null}
+
+      <Field label="Expected result">
+        {expectations.length > 0 ? (
+          <ul className="flex list-inside list-disc flex-col gap-1 text-[12.5px] text-fg-2">
+            {expectations.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[12.5px] text-fg-4">
+            Derived from the case&apos;s assertion steps once available.
+          </p>
+        )}
+      </Field>
+
+      <dl className="grid grid-cols-2 gap-3 rounded-md border border-border bg-bg-elev-1 p-[14px] text-[12px] sm:grid-cols-3">
+        <Meta label="Source" value={<SourcePill source={sourcePill} />} />
+        <Meta label="Type" value={caseTypeLabel(caseType)} />
+        <Meta label="Priority" value={detail.priority} mono />
+        <Meta label="Owner" value={detail.owner_id ?? "—"} />
+        <Meta label="Suite" value={detail.suite_id} mono />
+        <Meta
+          label="Updated"
+          value={formatDistanceToNow(new Date(detail.updated_at), { addSuffix: true })}
+        />
+        <Meta label="Key / slug" value={slugKey ?? "—"} mono />
+        <Meta
+          label="Tags"
+          value={
+            tags.length > 0 ? (
+              <span className="flex flex-wrap gap-1">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-sm bg-bg-elev-2 px-1.5 py-0.5 text-[10.5px] text-fg-3"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              "—"
+            )
+          }
+        />
+      </dl>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}): React.ReactElement {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[10.5px] uppercase tracking-wide text-fg-5">{label}</span>
+      {children}
+    </div>
+  );
+}
+
 /**
- * TestSprite-style "Result" view for a single case: its LATEST RUN's steps
- * (filtered to this case), a Preview|Code pane where Code = the case's
- * ``automation_code`` and Preview = the run VIDEO, and clicking a step swaps
- * the preview to that step's screenshot. Mirrors the run-detail wiring in
- * ``runs_.$runId.tsx`` but scoped to one case's steps.
+ * Evidence timeline for a case: the readable step list on the left (with per-
+ * step run outcome + a cumulative timestamp), and a video/screenshot preview on
+ * the right. Clicking a step selects it and swaps the preview to that step's
+ * screenshot. When no run exists yet the timeline still renders (from the
+ * derived steps) with an elegant "run to capture evidence" placeholder.
  */
-function CaseResultView({ detail }: { detail: CaseDetail }): React.ReactElement {
+function EvidencePreview({
+  detail,
+  derivedSteps,
+}: {
+  detail: CaseDetail;
+  derivedSteps: ReturnType<typeof deriveServerStep>[];
+}): React.ReactElement {
   const lastRunId = detail.last_run_id ?? null;
 
   const { data: stepsData } = useQuery({
@@ -787,30 +1009,49 @@ function CaseResultView({ detail }: { detail: CaseDetail }): React.ReactElement 
     queryFn: () => (lastRunId ? fetchRunArtifacts(lastRunId) : Promise.resolve({ items: [] })),
     enabled: Boolean(lastRunId),
   });
-  const { data: code } = useQuery({
-    queryKey: ["case-result-code", detail.id] as const,
-    queryFn: () => fetchTestCaseCode(detail.id),
-    enabled: Boolean(lastRunId),
-  });
 
-  // Only the steps that belong to THIS case (a run can span several cases).
-  const steps = useMemo<RunStepPublic[]>(
-    () => (stepsData?.items ?? []).filter((s) => s.case_id === detail.id),
+  const runSteps = useMemo<RunStepPublic[]>(
+    () =>
+      (stepsData?.items ?? [])
+        .filter((s) => s.case_id === detail.id)
+        .sort((a, b) => a.step_order - b.step_order),
     [stepsData, detail.id],
   );
-  const stepIds = useMemo(() => new Set(steps.map((s) => s.id)), [steps]);
   const artifacts = useMemo(() => artifactsData?.items ?? [], [artifactsData]);
+  const runStepIds = useMemo(() => new Set(runSteps.map((s) => s.id)), [runSteps]);
+
+  const outcomeByOrder = useMemo(() => {
+    const m = new Map<number, StepOutcome>();
+    for (const s of runSteps) m.set(s.step_order, s.outcome);
+    return m;
+  }, [runSteps]);
+  const runStepIdByOrder = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const s of runSteps) m.set(s.step_order, s.id);
+    return m;
+  }, [runSteps]);
+  // Cumulative offset per step (start of step N = sum of durations before it).
+  const offsetByOrder = useMemo(() => {
+    const m = new Map<number, number>();
+    let acc = 0;
+    for (const s of runSteps) {
+      m.set(s.step_order, acc);
+      acc += s.duration_ms ?? 0;
+    }
+    return m;
+  }, [runSteps]);
 
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<number | null>(null);
   const [stepShotUrl, setStepShotUrl] = useState<string | null>(null);
   const lastResolvedVideoId = useRef<string | null>(null);
 
-  // Resolve the case's run VIDEO — the artifact whose ``run_step_id`` belongs to
-  // one of this case's steps. Backend cases have no video, so this stays null.
   useEffect(() => {
-    if (!lastRunId) return;
-    const video = artifacts.find((a) => a.kind === "VIDEO" && stepIds.has(a.run_step_id));
+    if (!lastRunId) {
+      setVideoUrl(null);
+      return;
+    }
+    const video = artifacts.find((a) => a.kind === "VIDEO" && runStepIds.has(a.run_step_id));
     if (!video) {
       setVideoUrl(null);
       lastResolvedVideoId.current = null;
@@ -825,15 +1066,15 @@ function CaseResultView({ detail }: { detail: CaseDetail }): React.ReactElement 
     return () => {
       cancelled = true;
     };
-  }, [lastRunId, artifacts, stepIds]);
+  }, [lastRunId, artifacts, runStepIds]);
 
-  // Resolve the selected step's SCREENSHOT for the per-step preview.
   useEffect(() => {
-    if (!lastRunId || selectedStepId === null) {
+    const runStepId = selectedOrder === null ? null : (runStepIdByOrder.get(selectedOrder) ?? null);
+    if (!lastRunId || runStepId === null) {
       setStepShotUrl(null);
       return;
     }
-    const shot = artifacts.find((a) => a.kind === "SCREENSHOT" && a.run_step_id === selectedStepId);
+    const shot = artifacts.find((a) => a.kind === "SCREENSHOT" && a.run_step_id === runStepId);
     if (!shot) {
       setStepShotUrl(null);
       return;
@@ -845,47 +1086,168 @@ function CaseResultView({ detail }: { detail: CaseDetail }): React.ReactElement 
     return () => {
       cancelled = true;
     };
-  }, [lastRunId, selectedStepId, artifacts]);
+  }, [lastRunId, selectedOrder, artifacts, runStepIdByOrder]);
 
-  const selectedStepLabel = useMemo(() => {
-    const s = steps.find((x) => x.id === selectedStepId);
-    return s ? `Step ${s.step_order.toString()}` : null;
-  }, [steps, selectedStepId]);
-
-  if (!lastRunId) {
-    return (
-      <div
-        className="rounded-md border border-border bg-bg-elev-1 p-6 text-center text-[12.5px] text-fg-4"
-        data-testid="case-result-empty"
-      >
-        No run yet — run this case to see its result.
-      </div>
-    );
-  }
+  const selectedStepLabel = selectedOrder === null ? null : `Step ${selectedOrder.toString()}`;
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="case-result">
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[10.5px] uppercase tracking-wide text-fg-5">Steps</span>
-        <StepTable
-          steps={steps}
-          selectedStepId={selectedStepId}
-          onSelectStep={(stepId) => {
-            setSelectedStepId((prev) => (prev === stepId ? null : stepId));
+    <div className="flex flex-col gap-3" data-testid="case-evidence">
+      {!lastRunId ? (
+        <div
+          className="rounded-md border border-border bg-bg-elev-2 px-4 py-3 text-[12px] text-fg-3"
+          data-testid="case-evidence-norun"
+        >
+          No run yet — run this case (or enable evidence recording) to capture video and per-step
+          screenshots. The step timeline below is the planned scenario.
+        </div>
+      ) : null}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10.5px] uppercase tracking-wide text-fg-5">Step timeline</span>
+          <StepList
+            steps={derivedSteps}
+            outcomeByOrder={outcomeByOrder}
+            offsetByOrder={offsetByOrder}
+            selectedOrder={selectedOrder}
+            onSelectStep={(order) => {
+              setSelectedOrder((prev) => (prev === order ? null : order));
+            }}
+          />
+        </div>
+        <BrowserPreview
+          url={null}
+          videoUrl={videoUrl}
+          code={detail.automation_code ?? null}
+          stepScreenshotUrl={stepShotUrl}
+          stepLabel={selectedStepLabel}
+          onClearStep={() => {
+            setSelectedOrder(null);
           }}
         />
       </div>
-      <BrowserPreview
-        url={null}
-        videoUrl={videoUrl}
-        code={code ?? null}
-        stepScreenshotUrl={stepShotUrl}
-        stepLabel={selectedStepLabel}
-        onClearStep={() => {
-          setSelectedStepId(null);
-        }}
-      />
     </div>
+  );
+}
+
+function CaseCodeTab({ detail }: { detail: CaseDetail }): React.ReactElement {
+  const code = detail.automation_code?.trim();
+  if (!code) {
+    return (
+      <EmptyState
+        icon={Code2}
+        title="No generated code"
+        subtitle="Generated code is not available for this test case yet."
+      />
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2" data-testid="case-code-view">
+      {detail.automation_file_path ? (
+        <span className="font-mono text-[11px] text-fg-4">{detail.automation_file_path}</span>
+      ) : null}
+      <pre className="max-h-[420px] overflow-auto rounded-md border border-border bg-bg-code p-3 font-mono text-[11.5px] leading-relaxed text-fg-3">
+        {code}
+      </pre>
+    </div>
+  );
+}
+
+function CaseLogsTab({ lastRunId }: { lastRunId: string | null }): React.ReactElement {
+  const { data, isLoading } = useQuery({
+    queryKey: ["case-result-logs", lastRunId] as const,
+    queryFn: () => (lastRunId ? fetchRunLogs(lastRunId) : Promise.resolve(null)),
+    enabled: Boolean(lastRunId),
+  });
+
+  if (!lastRunId) {
+    return (
+      <EmptyState
+        icon={ScrollText}
+        title="No logs yet"
+        subtitle="Run this case to capture its execution logs."
+      />
+    );
+  }
+  if (isLoading) return <CasesSkeleton />;
+  const items = data?.items ?? [];
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        icon={ScrollText}
+        title="No logs recorded"
+        subtitle="The last run did not emit any log lines."
+      />
+    );
+  }
+  return (
+    <div
+      className="max-h-[420px] overflow-auto rounded-md border border-border bg-bg-code p-3 font-mono text-[11.5px] leading-relaxed"
+      data-testid="case-logs-view"
+    >
+      {items.map((log) => (
+        <div key={log.seq} className="flex gap-2">
+          <span className="shrink-0 text-fg-5">{log.level.toUpperCase()}</span>
+          <span className="whitespace-pre-wrap break-all text-fg-3">{log.message}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CaseArtifactsTab({ lastRunId }: { lastRunId: string | null }): React.ReactElement {
+  const { data, isLoading } = useQuery({
+    queryKey: ["case-result-artifacts", lastRunId] as const,
+    queryFn: () => (lastRunId ? fetchRunArtifacts(lastRunId) : Promise.resolve({ items: [] })),
+    enabled: Boolean(lastRunId),
+  });
+
+  if (!lastRunId) {
+    return (
+      <EmptyState
+        icon={Paperclip}
+        title="No artifacts yet"
+        subtitle="Run this case to capture video, screenshots, traces, and logs."
+      />
+    );
+  }
+  if (isLoading) return <CasesSkeleton />;
+  const items: ArtifactPublic[] = data?.items ?? [];
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        icon={Paperclip}
+        title="No artifacts"
+        subtitle="The last run produced no downloadable artifacts."
+      />
+    );
+  }
+
+  const open = (artifactId: string): void => {
+    void fetchRunSignedUrl(lastRunId, artifactId).then((signed) => {
+      window.open(signed.url, "_blank", "noopener,noreferrer");
+    });
+  };
+
+  return (
+    <ul className="flex flex-col gap-1.5" data-testid="case-artifacts-view">
+      {items.map((a) => (
+        <li
+          key={a.id}
+          className="flex items-center gap-3 rounded-md border border-border bg-bg-elev-1 px-3 py-2 text-[12px]"
+        >
+          <span className="rounded-sm bg-bg-elev-2 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-fg-3">
+            {a.kind}
+          </span>
+          <span className="font-mono text-[11px] text-fg-4">{a.mime_type}</span>
+          <span className="ml-auto font-mono text-[11px] text-fg-5 tabular-nums">
+            {Math.max(1, Math.round(a.size_bytes / 1024)).toString()} KB
+          </span>
+          <Button type="button" size="sm" variant="outline" onClick={() => open(a.id)}>
+            Open
+          </Button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -943,7 +1305,8 @@ function CasesBody(): React.ReactElement {
     const manual = cases.items.filter((c) => c.source === "MANUAL").length;
     const ai = cases.items.filter((c) => c.source === "AI").length;
     const mcp = cases.items.filter((c) => c.source === "MCP").length;
-    return { all, manual, ai, mcp, failing: 0 };
+    const failing = cases.items.filter(isFailing).length;
+    return { all, manual, ai, mcp, failing };
   }, [cases]);
 
   const filtered = useMemo(() => {
@@ -956,16 +1319,20 @@ function CasesBody(): React.ReactElement {
         case "mcp":
           return cases.items.filter((c) => c.source === "MCP");
         case "failing":
-          return [];
+          return cases.items.filter(isFailing);
         default:
           return cases.items;
       }
     })();
     const q = query.trim().toLowerCase();
     if (q === "") return byTab;
-    // Client-side, ZERO-friendly search over the loaded cases (name + public id).
+    // Client-side, ZERO-friendly search over the loaded cases (title + name +
+    // public id) so both human phrasing and the technical key match.
     return byTab.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.public_id.toLowerCase().includes(q),
+      (c) =>
+        c.title.toLowerCase().includes(q) ||
+        c.name.toLowerCase().includes(q) ||
+        c.public_id.toLowerCase().includes(q),
     );
   }, [active, cases, query]);
 
@@ -1052,9 +1419,9 @@ function CasesBody(): React.ReactElement {
           }}
         />
       ) : (
-        <div className="grid grid-cols-[280px_1fr] gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)]">
           <aside
-            className="flex flex-col gap-2 rounded-md border border-border bg-bg-elev-1 p-3"
+            className="flex min-w-0 flex-col gap-3 self-start rounded-lg border border-border bg-bg-elev-1 p-3"
             data-testid="cases-left-pane"
           >
             <div className="flex items-center gap-2">
@@ -1116,7 +1483,7 @@ function CasesBody(): React.ReactElement {
             />
           </aside>
           <section
-            className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
+            className="min-w-0 rounded-lg border border-border bg-bg-elev-1 p-5"
             data-testid="cases-right-pane"
           >
             <CaseDetailPanel publicId={selectedId} suites={suites.items} />

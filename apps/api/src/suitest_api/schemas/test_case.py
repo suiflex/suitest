@@ -52,12 +52,19 @@ class TestCaseListItem(BaseModel):
     id: str
     suite_id: str
     public_id: str
+    # Legacy technical field — kept on the wire for compatibility. UI renders
+    # ``title``; ``slug`` is the technical key (docs/DATA_MODEL.md §3.4).
     name: str
+    title: str
+    slug: str | None = None
     description: str | None = None
     source: CaseSource
     status: CaseStatus
     priority: Priority
     owner_id: uuid.UUID | None = None
+    # Denormalized latest-run outcome (PASS/FAIL/ERROR) — lets the Cases tree
+    # compute the "Failing" filter/count without loading every case's runs.
+    last_run_result: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -155,6 +162,7 @@ class TestCaseUpdate(BaseModel):
     model_config = _WRITE_CONFIG
 
     name: Annotated[str, Field(min_length=1, max_length=255)] | None = None
+    title: Annotated[str, Field(min_length=1, max_length=255)] | None = None
     description: str | None = None
     preconditions: str | None = None
     status: CaseStatus | None = None
@@ -347,4 +355,5 @@ class TestCaseSearchHit(BaseModel):
 
     case_id: str = Field(serialization_alias="caseId")
     name: str
+    title: str = ""
     score: float

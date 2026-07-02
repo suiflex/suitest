@@ -3,17 +3,16 @@
 Output matches TestSprite's backend tests: plain ``requests``, real login →
 bearer-token flow, real CRUD that seeds a record before hitting ``/:id`` routes,
 and standalone execution at the bottom (guarded so pytest doesn't double-run).
-Each file is fully runnable on its own — no Sutest import needed.
+Each file is fully runnable on its own — no Suitest import needed.
 """
 
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from suitest_lifecycle.analyzers.zod_schema import ZodField, find_create_schema, sample_value
 from suitest_lifecycle.config import Config
-from suitest_lifecycle.models import CodeSummary, Endpoint, PlanCase
+from suitest_lifecycle.models import CodeSummary, PlanCase
 from suitest_lifecycle.paths import Paths
 
 
@@ -30,6 +29,10 @@ def _archetype(title: str) -> str:
         "_with_valid_data_updates_resource": "update",
         "_with_valid_id_deletes_resource": "delete",
         "_with_missing_required_field_returns_validation_error": "validation",
+        "_with_missing_credentials_returns_validation_error": "login_missing",
+        "_with_invalid_token_returns_401": "invalid_token",
+        "_with_unknown_id_returns_404": "not_found",
+        "_with_duplicate_unique_field_returns_conflict": "duplicate",
     }
     for suffix, name in suffix_map.items():
         if title.endswith(suffix):
@@ -237,7 +240,7 @@ def {fn}():
     assert resp.status_code == 200, f"expected 200, got {{resp.status_code}}"
 '''
         elif arch == "update":
-            action = f'''    resp = requests.{method.lower()}(f"{{BASE_URL}}{item_rel}", json={{"name": "Sutest Updated"}}, headers=headers, timeout=TIMEOUT)
+            action = f'''    resp = requests.{method.lower()}(f"{{BASE_URL}}{item_rel}", json={{"name": "Suitest Updated"}}, headers=headers, timeout=TIMEOUT)
     assert resp.status_code == 200, f"expected 200, got {{resp.status_code}}"
 '''
         else:  # delete
@@ -263,6 +266,44 @@ def {fn}():
     headers = _auth_headers()
     resp = requests.post(f"{{BASE_URL}}{rel}", json={{}}, headers=headers, timeout=TIMEOUT)
     assert resp.status_code in (400, 422), f"expected validation 4xx, got {{resp.status_code}} {{resp.text}}"
+'''
+    elif arch == "login_missing":
+        body = f'''
+def {fn}():
+    resp = requests.post(f"{{BASE_URL}}{rel}", json={{}}, timeout=TIMEOUT)
+    assert resp.status_code in (400, 422), f"expected validation 4xx, got {{resp.status_code}} {{resp.text}}"
+'''
+    elif arch == "invalid_token":
+        verb = method.lower()
+        body = f'''
+def {fn}():
+    headers = {{"Authorization": "Bearer invalid-token-xyz"}}
+    resp = requests.{verb}(f"{{BASE_URL}}{rel}", headers=headers, timeout=TIMEOUT)
+    assert resp.status_code == 401, f"expected 401, got {{resp.status_code}}"
+'''
+    elif arch == "not_found":
+        verb = method.lower()
+        missing_rel = rel.replace(":id", "999999").replace("{id}", "999999")
+        extra = ', json={"name": "Suitest Updated"}' if verb in ("put", "patch") else ""
+        body = f'''
+def {fn}():
+    headers = _auth_headers()
+    resp = requests.{verb}(f"{{BASE_URL}}{missing_rel}", headers=headers{extra}, timeout=TIMEOUT)
+    assert resp.status_code == 404, f"expected 404, got {{resp.status_code}} {{resp.text}}"
+'''
+    elif arch == "duplicate":
+        resource = [p for p in path.strip("/").split("/") if p and not p.startswith(":") and p != "api"]
+        res_name = resource[-1] if resource else "resource"
+        payload = _resolve_payload(res_name, summary, config)
+        body = f'''
+def {fn}():
+    headers = _auth_headers()
+    token = uuid.uuid4().hex[:8]
+    payload = {payload}
+    first = requests.post(f"{{BASE_URL}}{rel}", json=payload, headers=headers, timeout=TIMEOUT)
+    assert first.status_code in (200, 201), f"seed failed: {{first.status_code}} {{first.text}}"
+    resp = requests.post(f"{{BASE_URL}}{rel}", json=payload, headers=headers, timeout=TIMEOUT)
+    assert resp.status_code in (400, 409), f"expected conflict, got {{resp.status_code}} {{resp.text}}"
 '''
     else:
         body = f'''

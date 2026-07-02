@@ -7,13 +7,14 @@ from datetime import datetime  # runtime import: Pydantic v2 evaluates field ann
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import selectinload
 from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.project import Project, Suite
 from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.base import AsyncRepository
 from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority
+from suitest_shared.text import derive_slug, derive_title
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -24,6 +25,11 @@ class TestCaseCreate(BaseModel):
 
     suite_id: str
     name: str
+    # Display title + technical slug (docs/DATA_MODEL.md §3.4). Optional on the
+    # DTO: when a caller sends only ``name``, :meth:`TestCaseRepo.create`
+    # derives them server-side so ``title`` is never missing on a row.
+    title: str | None = None
+    slug: str | None = None
     source: CaseSource
     # Optional: the ``before_insert`` listener (suitest_db.public_id) fills this
     # from the per-workspace ``TC`` sequence. Callers may still pin a value for
@@ -44,8 +50,11 @@ class TestCaseUpdate(BaseModel):
     __test__ = False  # not a pytest test class (name starts with "Test")
 
     name: str | None = None
+    title: str | None = None
+    slug: str | None = None
     description: str | None = None
     preconditions: str | None = None
+    source: CaseSource | None = None
     status: CaseStatus | None = None
     priority: Priority | None = None
     # Automation linkage + denormalized last-run pointers (set by run ingest).
@@ -77,7 +86,15 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
         (LSP override) — the base lacks the workspace context this generator
         needs.
         """
-        row = TestCase(**dto.model_dump(exclude_unset=True), workspace_id=workspace_id)
+        data = dto.model_dump(exclude_unset=True)
+        # Server-side derivation — publishers that only send a technical
+        # ``name`` still get a human ``title`` + preserved ``slug`` (never let
+        # the frontend guess).
+        if not data.get("title"):
+            data["title"] = derive_title(dto.name)
+        if "slug" not in data:
+            data["slug"] = derive_slug(dto.name)
+        row = TestCase(**data, workspace_id=workspace_id)
         set_workspace_id(row, workspace_id)
         self.session.add(row)
         await self.session.flush()
@@ -108,7 +125,10 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
         if tag is not None:
             stmt = stmt.where(TestCase.id.in_(select(CaseTag.case_id).where(CaseTag.tag == tag)))
         if q is not None:
-            stmt = stmt.where(TestCase.name.ilike(f"%{q}%"))
+            pattern = f"%{q}%"
+            stmt = stmt.where(
+                or_(TestCase.title.ilike(pattern), TestCase.name.ilike(pattern))
+            )
         if cursor is not None:
             cursor_ts, cursor_id = cursor
             stmt = stmt.where(

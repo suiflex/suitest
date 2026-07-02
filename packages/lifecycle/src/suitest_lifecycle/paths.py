@@ -1,10 +1,10 @@
-"""``sutest-output/`` directory layout.
+"""``suitest-output/`` directory layout.
 
 Mirrors the TestSprite ``testsprite_tests/`` folder (PRD + plan + ``TCxxx.py``
 at top level, ``tmp/`` for code-summary / config snapshot / results / report)
-but rooted at a single ``sutest-output/`` tree so a repo stays clean::
+but rooted at a single ``suitest-output/`` tree so a repo stays clean::
 
-    sutest-output/
+    suitest-output/
       backend/  (or frontend/)
         standard_prd.json
         suitest_backend_test_plan.json

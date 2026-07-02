@@ -108,4 +108,4 @@ class ProcessManager:
         return self._proc
 
 
-__all__ = ["ProcessManager", "ManagedProcess"]
+__all__ = ["ManagedProcess", "ProcessManager"]

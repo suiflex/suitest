@@ -16,8 +16,8 @@ import socket
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 
 @dataclass(frozen=True)
@@ -35,7 +35,7 @@ def _http_ok(url: str, timeout: float) -> bool:
             return int(resp.status) < 500
     except urllib.error.HTTPError as exc:
         return int(exc.code) < 500  # 401/404 still means the server is alive
-    except (urllib.error.URLError, socket.timeout, ConnectionError, OSError):
+    except (TimeoutError, urllib.error.URLError, ConnectionError, OSError):
         return False
 
 

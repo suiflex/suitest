@@ -2,7 +2,7 @@
 
 Mirrors the TestSprite *Testing Configuration* screen (mode / scope / auth /
 local server port / PRD) and adds the two pieces TestSprite hides behind its
-cloud: an explicit **server start command** (Sutest spawns the target) and an
+cloud: an explicit **server start command** (Suitest spawns the target) and an
 explicit **readiness probe**.
 
 The file is plain JSON so non-Python users can author it. This module parses it
@@ -104,7 +104,7 @@ class Config:
     additional_instruction: str = ""
     enrich: bool = False  # LLM enrichment (deterministic mock; real provider via per-workspace web config later)
     publish: PublishConfig = field(default_factory=PublishConfig)
-    output_dir: Path = field(default_factory=lambda: Path("sutest-output"))
+    output_dir: Path = field(default_factory=lambda: Path("suitest-output"))
     config_path: Path = field(default_factory=lambda: Path("suitest.config.json"))
 
     @property
@@ -249,7 +249,7 @@ def load_config(path: str | Path) -> Config:
     if not ready_path:
         ready_path = "/api/health" if mode is Mode.BACKEND else "/"
 
-    output_raw = str(raw.get("output", "sutest-output"))
+    output_raw = str(raw.get("output", "suitest-output"))
     output_dir = (base_dir / output_raw).resolve()
 
     port_raw = int(raw.get("port", 0) or 0)

@@ -24,7 +24,7 @@ def load_spec(*, url: str, file: str, base_url: str) -> dict[str, object]:
         return _as_dict(json.loads(text))
     if url:
         full = url if url.startswith("http") else base_url.rstrip("/") + "/" + url.lstrip("/")
-        with urllib.request.urlopen(full, timeout=15) as resp:  # noqa: S310 - user-provided spec URL
+        with urllib.request.urlopen(full, timeout=15) as resp:
             return _as_dict(json.loads(resp.read().decode("utf-8")))
     raise ValueError("no openapi url or file provided")
 
@@ -70,7 +70,7 @@ def _example_from_schema(schema: dict[str, object], spec: dict[str, object], dep
         enum = schema.get("enum")
         if isinstance(enum, list) and enum:
             return enum[0]
-        return "sutest-sample"
+        return "suitest-sample"
     if stype == "integer":
         return 1
     if stype == "number":
@@ -154,4 +154,4 @@ def _is_param(seg: str) -> bool:
     return seg.startswith(":") or (seg.startswith("{") and seg.endswith("}"))
 
 
-__all__ = ["load_spec", "analyze_openapi"]
+__all__ = ["analyze_openapi", "load_spec"]

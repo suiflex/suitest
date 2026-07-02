@@ -110,7 +110,11 @@ export function groupStepsByCase(steps: RunStepPublic[], artifacts: ArtifactPubl
     groups.push({
       caseId,
       casePublicId: first?.case_public_id ?? caseId,
-      caseName: first?.case_name?.trim() ?? first?.case_public_id ?? "Untitled case",
+      // Prefer the server-provided human title (test_cases.title); the legacy
+      // case_name (technical key) only backstops pre-migration payloads.
+      caseName:
+        first?.case_title?.trim() ||
+        (first?.case_name?.trim() ?? first?.case_public_id ?? "Untitled case"),
       steps: ordered,
       total: ordered.length,
       passed,

@@ -182,17 +182,21 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
 
     async def get_steps_with_case_public_id(
         self, run_id: str
-    ) -> Sequence[tuple[RunStep, str, str]]:
-        """Run steps in ``step_order`` with each step's case ``(public_id, name)``."""
+    ) -> Sequence[tuple[RunStep, str, str, str]]:
+        """Run steps in ``step_order`` with each step's case ``(public_id, name, title)``.
+
+        ``title`` is the human display title (docs/DATA_MODEL.md §3.4); ``name``
+        stays in the tuple as the legacy technical key for compatibility.
+        """
         stmt = (
-            select(RunStep, TestCase.public_id, TestCase.name)
+            select(RunStep, TestCase.public_id, TestCase.name, TestCase.title)
             .join(TestCase, TestCase.id == RunStep.case_id)
             .where(RunStep.run_id == run_id)
             .order_by(RunStep.step_order.asc())
         )
         return [
-            (step, public_id, name)
-            for step, public_id, name in (await self.session.execute(stmt)).all()
+            (step, public_id, name, title)
+            for step, public_id, name, title in (await self.session.execute(stmt)).all()
         ]
 
     async def get_artifacts(self, run_id: str) -> Sequence[Artifact]:

@@ -1,16 +1,16 @@
-# SUTEST — Gap Analysis vs TestSprite
+# SUITEST — Gap Analysis vs TestSprite
 
 > **Goal 1 + 2 deliverable.** Compares the current `suitest` codebase against the
-> `testsprite-example/` gold-standard output, and defines the gap that the Sutest
+> `testsprite-example/` gold-standard output, and defines the gap that the Suitest
 > Engineering Loop (Goals 3–12) must close.
 >
 > Date: 2026-06-30 · Status: analysis (no code changed yet)
 
 ---
 
-## 1. What Sutest is today
+## 1. What Suitest is today
 
-Sutest is a **web-driven, DB-centric test-management product** (FastAPI API + React web +
+Suitest is a **web-driven, DB-centric test-management product** (FastAPI API + React web +
 ARQ runner + MCP provider layer + Postgres TCM). It is **not** a CLI lifecycle tool — runs are
 triggered from the UI/REST, dispatched per-step through MCP, and results live in Postgres.
 
@@ -71,7 +71,7 @@ status + JSON body. Each file is **directly runnable** and ends by calling its o
 `http://localhost:5173`, locates elements via `get_by_test_id` / `get_by_role` / xpath, performs
 real login, asserts with `expect(...).to_contain_text(..., timeout=15000)`, scrolls into view.
 
-### Inferred lifecycle (the loop Sutest must match)
+### Inferred lifecycle (the loop Suitest must match)
 
 ```
 config (mode/scope/auth/port/PRD)
@@ -86,9 +86,9 @@ config (mode/scope/auth/port/PRD)
 
 ---
 
-## 3. The Gap (what Sutest must build)
+## 3. The Gap (what Suitest must build)
 
-| # | Capability | TestSprite | Sutest now | Action (Goal) |
+| # | Capability | TestSprite | Suitest now | Action (Goal) |
 |---|-----------|:---------:|:----------:|---------------|
 | G1 | **Lifecycle orchestrator** (analyze→generate→start→wait→run→report) as one command | ✅ | ❌ (UI/REST only) | New `suitest test` CLI + orchestrator service (Goals 3,4) |
 | G2 | **Config front-door** (mode/scope/auth/port/path/PRD) | ✅ `config.json` | ❌ | `suitest.config.json` schema + loader (Goal 4) |
@@ -98,20 +98,20 @@ config (mode/scope/auth/port/PRD)
 | G6 | **Runnable test-file export** (`TCxxx.py`) | ✅ | ❌ steps stay MCP-JSON in DB | Code-export layer: TCM step → pytest/requests + playwright file (Goals 3,4) |
 | G7 | **Server startup** of target under test | ✅ | ❌ assumes running | Process manager: spawn backend/frontend from config (Goal 7) |
 | G8 | **Readiness detection** before execute | ✅ health/DOM/tunnel | ❌ | Readiness checker: health endpoint / port / ready-log / page-load / timeout-fallback (Goal 7) |
-| G9 | **File report** `raw_report.md` + `test_results.json` (+ html) | ✅ | DB + external stubs only | Reporter writing `sutest-output/reports/summary.{md,json,html}` (Goal 9) |
+| G9 | **File report** `raw_report.md` + `test_results.json` (+ html) | ✅ | DB + external stubs only | Reporter writing `suitest-output/reports/summary.{md,json,html}` (Goal 9) |
 | G10 | **TCM as source of truth synced to runs** | partial (files) | ✅ DB strong, but no last-run denorm / file link | Add `automation_file_path`, `last_run_*`; sync after run (Goal 5) |
 | G11 | **Structured MCP tools** (analyze/generate/run/report) | ✅ | MCP = providers, not lifecycle tools | Expose lifecycle as MCP tools w/ `{success,summary,data,artifacts,errors}` (Goal 6) |
 
 ### Strategic note — DB-centric vs file-centric
 
-Sutest's strength is its **Postgres TCM** (richer than TestSprite's flat JSON). The gap is **not**
+Suitest's strength is its **Postgres TCM** (richer than TestSprite's flat JSON). The gap is **not**
 "replace the DB with files" — it is to add a **file-emitting lifecycle layer on top of the existing
 TCM** so that:
 
 - TCM stays the **source of truth** (Goal 5),
-- but every run also materializes TestSprite-shaped artifacts under `sutest-output/` (PRD, plan,
+- but every run also materializes TestSprite-shaped artifacts under `suitest-output/` (PRD, plan,
   runnable `TCxxx.py`, `test_results.json`, `raw_report.md`),
-- and the orchestrator adds the two missing runtime pieces TestSprite has and Sutest lacks:
+- and the orchestrator adds the two missing runtime pieces TestSprite has and Suitest lacks:
   **server startup** + **readiness detection**.
 
 This keeps existing runner/MCP/generators intact and additive.
@@ -120,7 +120,7 @@ This keeps existing runner/MCP/generators intact and additive.
 
 ## 4. Build order (maps to Engineering Loop)
 
-1. **Loop 4** — Config schema (`suitest.config.json`) + `sutest-output/` layout + TCM migration
+1. **Loop 4** — Config schema (`suitest.config.json`) + `suitest-output/` layout + TCM migration
    (`automation_file_path`, `last_run_*`).
 2. **Loop 5 (backend)** — orchestrator: analyze (openapi/code) → code_summary → standard_prd →
    test_plan → export `TCxxx.py` (requests) → **start backend + wait ready** → execute → results →
@@ -139,12 +139,12 @@ This keeps existing runner/MCP/generators intact and additive.
 
 ## 5. Open architecture decisions (need confirmation before Loop 4)
 
-1. **Artifact strategy** — emit TestSprite-shaped files under `sutest-output/` *in addition to*
+1. **Artifact strategy** — emit TestSprite-shaped files under `suitest-output/` *in addition to*
    the DB TCM (recommended), vs DB-only, vs files-only.
 2. **Generated-test runtime** — export real runnable `TCxxx.py` (`requests` + `playwright`,
-   TestSprite-identical, runnable without Sutest) vs keep MCP-JSON steps and only render files for
+   TestSprite-identical, runnable without Suitest) vs keep MCP-JSON steps and only render files for
    reading.
-3. **Server startup ownership** — Sutest spawns the target (needs a `start` command per mode in
-   config) vs Sutest only waits for a user-started server (readiness only, no startup).
+3. **Server startup ownership** — Suitest spawns the target (needs a `start` command per mode in
+   config) vs Suitest only waits for a user-started server (readiness only, no startup).
 4. **Lifecycle entrypoint** — new `suitest test` CLI subcommand driving the orchestrator
    (recommended) vs MCP-tools-only vs REST endpoint.

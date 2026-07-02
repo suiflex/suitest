@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from suitest_lifecycle import publish
 from suitest_lifecycle.config import Config
 from suitest_lifecycle.enrich import MockLlmClient, enrich_plan
 from suitest_lifecycle.models import (
@@ -27,7 +28,6 @@ from suitest_lifecycle.models import (
 )
 from suitest_lifecycle.paths import build_paths
 from suitest_lifecycle.runner import _collect_steps
-from suitest_lifecycle import publish
 
 
 def _summary() -> CodeSummary:
@@ -87,6 +87,11 @@ def test_publish_case_payload_shape(tmp_path: Path) -> None:
     assert payloads[0]["sourceRef"] == "POST /api/products"
     assert payloads[0]["automationCode"] == "import requests\n"
     assert payloads[0]["priority"] == "P1"
+    # Title/slug split: slug keeps the technical key, title is humanized, and
+    # name stays the slug (server-side idempotency match for legacy rows).
+    assert payloads[0]["slug"] == "post_api_products_with_valid_data_creates_resource"
+    assert payloads[0]["name"] == payloads[0]["slug"]
+    assert payloads[0]["title"] == "Post API products with valid data creates resource"
 
 
 def test_publish_result_payload_shape() -> None:
@@ -112,10 +117,15 @@ def test_publish_result_payload_shape() -> None:
             )
         ],
     )
-    payloads = publish._result_payloads(run, cases)
+    class _NoopUploader:
+        def upload_file(self, path: str, *, content_type: str | None = None) -> str:
+            raise AssertionError("no artifacts should upload in this test")
+
+    payloads = publish._result_payloads(_NoopUploader(), run, cases)
     assert payloads[0]["sourceRef"] == "POST /api/products"
     assert payloads[0]["outcome"] == "PASSED"
     assert payloads[0]["steps"][0]["outcome"] == "PASSED"
+    assert payloads[0]["slug"] == "post_api_products_with_valid_data_creates_resource"
 
 
 def test_publish_disabled_returns_reason() -> None:
@@ -168,7 +178,7 @@ def _config(*, enrich: bool = False) -> Config:
 
 
 def _paths():
-    return build_paths(Path("/tmp/sutest-test-out"), Mode.BACKEND)
+    return build_paths(Path("/tmp/suitest-test-out"), Mode.BACKEND)
 
 
 def _summary_run() -> RunSummary:

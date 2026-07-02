@@ -38,6 +38,7 @@ from suitest_db.repositories.test_cases import TestCaseRepo
 from suitest_db.repositories.workspaces import WorkspaceRepo
 from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, RunTrigger, Tier
 from suitest_shared.schemas.responses import TestCaseDetailOut, TestCaseOut, TestStepOut
+from suitest_shared.text import derive_slug, derive_title
 
 from suitest_api.deps.scope import TenantContext
 from suitest_api.deps.tier import require_tier
@@ -302,6 +303,8 @@ class TestCaseService:
             suite_id=case.suite_id,
             public_id=case.public_id,
             name=case.name,
+            title=case.title,
+            slug=case.slug,
             description=case.description,
             preconditions=case.preconditions,
             source=case.source,
@@ -341,6 +344,10 @@ class TestCaseService:
             workspace_id=self._ctx.workspace_id,
             suite_id=body.suite_id,
             name=body.name,
+            # Manual creates carry a human name — it IS the title. If someone
+            # pastes a technical key, derive a readable title + keep the slug.
+            title=derive_title(body.name),
+            slug=derive_slug(body.name),
             description=body.description,
             preconditions=body.preconditions,
             priority=body.priority,
@@ -424,10 +431,15 @@ class TestCaseService:
 
         changed_fields: list[str] = []
         payload = body.model_dump(exclude_unset=True)
-        for field in ("name", "description", "preconditions", "status", "priority"):
+        for field in ("name", "title", "description", "preconditions", "status", "priority"):
             if field in payload:
                 setattr(case, field, payload[field])
                 changed_fields.append(field)
+        # Renaming via the legacy ``name`` field keeps the display title in sync
+        # unless the caller set ``title`` explicitly.
+        if "name" in payload and "title" not in payload:
+            case.title = derive_title(payload["name"])
+            changed_fields.append("title")
         if "tags" in payload:
             tag_list = payload["tags"] or []
             await self._repo.replace_tags(case.id, tag_list)
@@ -698,7 +710,7 @@ class TestCaseService:
         run_service = RunService(self._ctx, RunRepo(self._session), self._project_repo)
         run = await run_service.create_run(
             project_id=suite.project_id,
-            name=f"Ad-hoc: {case.name}",
+            name=f"Ad-hoc: {case.title}",
             selection=[{"case_id": case.id}],
             branch=None,
             commit_sha=None,
@@ -738,6 +750,8 @@ class TestCaseService:
             workspace_id=self._ctx.workspace_id,
             suite_id=case.suite_id,
             name=f"{case.name} (Copy)",
+            title=f"{case.title} (Copy)",
+            slug=None,  # a manual clone is no longer bound to the generated key
             description=case.description,
             preconditions=case.preconditions,
             priority=case.priority,

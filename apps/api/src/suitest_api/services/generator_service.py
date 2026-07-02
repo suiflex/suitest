@@ -46,6 +46,7 @@ from suitest_shared.schemas.generator_input import (
     TestCaseDraft,
     UrlSemanticGenerateRequest,
 )
+from suitest_shared.text import derive_slug, derive_title
 
 from suitest_api.services.prompt_resolver import resolve_and_pin
 
@@ -893,6 +894,8 @@ class GeneratorService:
             workspace_id=workspace_id,
             suite_id=suite_id,
             name=draft.name,
+            title=derive_title(draft.name),
+            slug=derive_slug(draft.name),
             description=draft.description,
             status=CaseStatus.DRAFT,
             priority=draft.priority,
@@ -947,6 +950,8 @@ class GeneratorService:
             workspace_id=workspace_id,
             suite_id=suite_id,
             name=draft.name,
+            title=derive_title(draft.name),
+            slug=derive_slug(draft.name),
             description=draft.description,
             status=CaseStatus.DRAFT,
             priority=draft.priority,

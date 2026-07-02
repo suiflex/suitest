@@ -41,14 +41,14 @@ def _gaps(summary: RunSummary) -> list[str]:
 
 def write_raw_report(summary: RunSummary, paths: Paths, date: str) -> None:
     lines: list[str] = []
-    lines.append("# Sutest Testing Report")
+    lines.append("# Suitest Testing Report")
     lines.append("")
     lines.append("## 1️⃣ Document Metadata")
     lines.append(f"- **Project:** {summary.project}")
     lines.append(f"- **Mode:** {summary.mode.value}")
     lines.append(f"- **Base URL:** {summary.base_url}")
     lines.append(f"- **Date:** {date}")
-    lines.append(f"- **Prepared by:** Sutest")
+    lines.append("- **Prepared by:** Suitest")
     lines.append(
         f"- **Summary:** {summary.total} tests — {summary.passed} passed, "
         f"{summary.failed} failed, {summary.skipped} skipped, {summary.errored} error "
@@ -109,7 +109,7 @@ def write_summary_md(summary: RunSummary, paths: Paths) -> None:
     paths.reports_dir.mkdir(parents=True, exist_ok=True)
     pct = (summary.passed / summary.total * 100) if summary.total else 0.0
     lines = [
-        f"# Sutest Summary — {summary.project}",
+        f"# Suitest Summary — {summary.project}",
         "",
         f"- Mode: **{summary.mode.value}** · Base URL: `{summary.base_url}`",
         f"- Ready: **{'yes' if summary.ready else 'NO'}** ({summary.ready_detail})",
@@ -133,7 +133,7 @@ def write_summary_html(summary: RunSummary, paths: Paths) -> None:
         for r in summary.results
     )
     html = f"""<!doctype html><html><head><meta charset="utf-8">
-<title>Sutest — {_esc(summary.project)}</title>
+<title>Suitest — {_esc(summary.project)}</title>
 <style>
  body{{font-family:ui-sans-serif,system-ui,sans-serif;background:#0a0a0a;color:#fafafa;margin:0;padding:2rem}}
  h1{{font-size:1.4rem}} .meta{{color:#a3a3a3;margin-bottom:1rem}}
@@ -143,7 +143,7 @@ def write_summary_html(summary: RunSummary, paths: Paths) -> None:
  tr.passed td:nth-child(3){{color:#4ade80}} tr.failed td:nth-child(3),tr.error td:nth-child(3){{color:#f87171}}
  .pill{{display:inline-block;padding:.2rem .6rem;border-radius:999px;background:#161616;margin-right:.4rem}}
 </style></head><body>
-<h1>Sutest Report — {_esc(summary.project)} ({summary.mode.value})</h1>
+<h1>Suitest Report — {_esc(summary.project)} ({summary.mode.value})</h1>
 <div class="meta">
  <span class="pill">Base: {_esc(summary.base_url)}</span>
  <span class="pill">Ready: {"yes" if summary.ready else "NO"}</span>
@@ -170,9 +170,9 @@ def write_all_reports(summary: RunSummary, paths: Paths, date: str) -> None:
 
 
 __all__ = [
+    "write_all_reports",
     "write_raw_report",
+    "write_summary_html",
     "write_summary_json",
     "write_summary_md",
-    "write_summary_html",
-    "write_all_reports",
 ]

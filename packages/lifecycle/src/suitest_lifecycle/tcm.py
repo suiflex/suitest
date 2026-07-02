@@ -1,6 +1,6 @@
 """TCM — the test-case source of truth.
 
-Primary store is a readable JSON mirror under ``sutest-output/tcm/`` so the
+Primary store is a readable JSON mirror under ``suitest-output/tcm/`` so the
 lifecycle runs with zero infrastructure. When the Suitest Postgres stack is
 reachable, :func:`sync_to_db` upserts the same records through the real
 ``packages/db`` repositories (best-effort; skipped cleanly when unavailable).
@@ -143,4 +143,4 @@ def _try_db_sync(cases: list[PlanCase], summary: RunSummary, mode: Mode) -> str:
     return "available (deferred to API sync service)"
 
 
-__all__ = ["TcmSyncReport", "sync_tcm", "upsert_cases", "record_run"]
+__all__ = ["TcmSyncReport", "record_run", "sync_tcm", "upsert_cases"]

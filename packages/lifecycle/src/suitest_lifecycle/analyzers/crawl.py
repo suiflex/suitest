@@ -164,4 +164,4 @@ def analyze_crawl(base_url: str, username: str, password: str, max_pages: int = 
     return asyncio.run(_crawl(base_url, username, password, max_pages))
 
 
-__all__ = ["analyze_crawl", "CrawlResult", "LoginSelectors"]
+__all__ = ["CrawlResult", "LoginSelectors", "analyze_crawl"]

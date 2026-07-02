@@ -118,9 +118,24 @@ def generate_backend_plan(summary: CodeSummary) -> list[PlanCase]:
                     ],
                 )
             )
+            cases.append(
+                _case(
+                    next_id(),
+                    f"{_slug('post', ep.path)}_with_missing_credentials_returns_validation_error",
+                    f"POST {ep.path} with an empty body returns a 400/422 validation error.",
+                    "Auth",
+                    Priority.MEDIUM,
+                    ref,
+                    [
+                        ("action", f"Send POST {ep.path} with an empty JSON body"),
+                        ("assertion", "Expect HTTP 400/422 and a validation error body"),
+                    ],
+                )
+            )
             continue
 
-        # Protected endpoint: emit a single anonymous-rejection case per resource
+        # Protected endpoint: emit anonymous-rejection + invalid-token cases once
+        # per resource (negative auth coverage without exploding the plan).
         if ep.auth_required:
             res = _resource(ep)
             if res not in seen_unauth_resource:
@@ -136,6 +151,20 @@ def generate_backend_plan(summary: CodeSummary) -> list[PlanCase]:
                         f"{anon_ep.method} {anon_ep.path}",
                         [
                             ("action", f"Send {anon_ep.method} {anon_ep.path} with no Authorization header"),
+                            ("assertion", "Expect HTTP 401"),
+                        ],
+                    )
+                )
+                cases.append(
+                    _case(
+                        next_id(),
+                        f"{_slug(anon_ep.method.lower(), anon_ep.path)}_with_invalid_token_returns_401",
+                        f"{anon_ep.method} {anon_ep.path} with a malformed bearer token returns 401.",
+                        res.title(),
+                        Priority.MEDIUM,
+                        f"{anon_ep.method} {anon_ep.path}",
+                        [
+                            ("action", f"Send {anon_ep.method} {anon_ep.path} with Authorization: Bearer <garbage>"),
                             ("assertion", "Expect HTTP 401"),
                         ],
                     )
@@ -176,6 +205,21 @@ def generate_backend_plan(summary: CodeSummary) -> list[PlanCase]:
                     ],
                 )
             )
+            cases.append(
+                _case(
+                    next_id(),
+                    f"{_slug('get', ep.path)}_with_unknown_id_returns_404",
+                    f"GET {ep.path} with a nonexistent id returns 404.",
+                    category,
+                    Priority.MEDIUM,
+                    ref,
+                    [
+                        ("action", "Log in to obtain a token"),
+                        ("action", f"Send authenticated GET {ep.path} with an id that does not exist"),
+                        ("assertion", "Expect HTTP 404"),
+                    ],
+                )
+            )
         elif ep.method == "GET":
             cases.append(
                 _case(
@@ -208,6 +252,36 @@ def generate_backend_plan(summary: CodeSummary) -> list[PlanCase]:
                     ],
                 )
             )
+            cases.append(
+                _case(
+                    next_id(),
+                    f"{_slug('post', ep.path)}_with_missing_required_field_returns_validation_error",
+                    f"POST {ep.path} with an empty body returns a 400/422 validation error.",
+                    category,
+                    Priority.MEDIUM,
+                    ref,
+                    [
+                        ("action", "Log in to obtain a token"),
+                        ("action", f"Send authenticated POST {ep.path} with an empty JSON body"),
+                        ("assertion", "Expect HTTP 400/422 and a validation error body"),
+                    ],
+                )
+            )
+            cases.append(
+                _case(
+                    next_id(),
+                    f"{_slug('post', ep.path)}_with_duplicate_unique_field_returns_conflict",
+                    f"POST {ep.path} twice with the same unique field returns a 409 conflict.",
+                    category,
+                    Priority.MEDIUM,
+                    ref,
+                    [
+                        ("action", f"Log in and create a {res} with a unique payload"),
+                        ("action", f"Send the exact same POST {ep.path} payload again"),
+                        ("assertion", "Expect HTTP 409 (conflict on the unique field)"),
+                    ],
+                )
+            )
         elif ep.method == "PUT" or ep.method == "PATCH":
             cases.append(
                 _case(
@@ -224,6 +298,21 @@ def generate_backend_plan(summary: CodeSummary) -> list[PlanCase]:
                     ],
                 )
             )
+            cases.append(
+                _case(
+                    next_id(),
+                    f"{_slug(ep.method.lower(), ep.path)}_with_unknown_id_returns_404",
+                    f"{ep.method} {ep.path} against a nonexistent id returns 404.",
+                    category,
+                    Priority.MEDIUM,
+                    ref,
+                    [
+                        ("action", "Log in to obtain a token"),
+                        ("action", f"Send authenticated {ep.method} {ep.path} with an id that does not exist"),
+                        ("assertion", "Expect HTTP 404"),
+                    ],
+                )
+            )
         elif ep.method == "DELETE":
             cases.append(
                 _case(
@@ -237,6 +326,21 @@ def generate_backend_plan(summary: CodeSummary) -> list[PlanCase]:
                         ("action", "Log in and create a record to delete"),
                         ("action", f"Send authenticated DELETE {ep.path}"),
                         ("assertion", "Expect HTTP 200"),
+                    ],
+                )
+            )
+            cases.append(
+                _case(
+                    next_id(),
+                    f"{_slug('delete', ep.path)}_with_unknown_id_returns_404",
+                    f"DELETE {ep.path} against a nonexistent id returns 404.",
+                    category,
+                    Priority.MEDIUM,
+                    ref,
+                    [
+                        ("action", "Log in to obtain a token"),
+                        ("action", f"Send authenticated DELETE {ep.path} with an id that does not exist"),
+                        ("assertion", "Expect HTTP 404"),
                     ],
                 )
             )

@@ -31,11 +31,13 @@ from suitest_shared.domain.enums import (
     TargetKind,
     Tier,
 )
+from suitest_shared.text import derive_slug, derive_title
 
 from suitest_api.schemas.ingest import (
     BulkImportBody,
     BulkImportResult,
     ImportedCase,
+    IngestStep,
     RunIngestBody,
     RunIngestResult,
 )
@@ -55,6 +57,17 @@ def _priority(value: str) -> Priority:
         return Priority.P2
 
 
+def _source(value: str | None) -> CaseSource:
+    """Map a publisher-declared source onto the enum. Lifecycle/MCP publishers
+    send "MCP"; generic imports omit it. Unknown values degrade to IMPORT."""
+    if value is None:
+        return CaseSource.IMPORT
+    try:
+        return CaseSource(value)
+    except ValueError:
+        return CaseSource.IMPORT
+
+
 def _now() -> datetime:
     return datetime.now(tz=UTC)
 
@@ -68,10 +81,28 @@ async def _ensure_suite(session: AsyncSession, project_id: str, name: str) -> st
     return created.id
 
 
-async def _find_by_name(session: AsyncSession, suite_id: str, name: str) -> TestCase | None:
-    """Idempotency key = (suite, name). A ``source_ref`` is NOT unique — two cases
-    can target the same endpoint (login-valid vs login-invalid), so matching on it
-    would collapse distinct cases. Case names are unique within a generated plan."""
+async def _find_case(
+    session: AsyncSession, suite_id: str, *, slug: str | None, name: str
+) -> TestCase | None:
+    """Idempotency key = (suite, slug) with a (suite, name) fallback.
+
+    A ``source_ref`` is NOT unique — two cases can target the same endpoint
+    (login-valid vs login-invalid), so matching on it would collapse distinct
+    cases. Slugs/names are unique within a generated plan. The name fallback
+    covers rows created before the title/slug split (migration 0044) and
+    publishers that predate the ``slug`` field.
+    """
+    if slug:
+        stmt = select(TestCase).where(
+            TestCase.suite_id == suite_id,
+            TestCase.slug == slug,
+            TestCase.deleted_at.is_(None),
+        )
+        found = (await session.scalars(stmt)).first()
+        if found is not None:
+            return found
+    if not name:
+        return None
     stmt = select(TestCase).where(
         TestCase.suite_id == suite_id,
         TestCase.name == name,
@@ -100,20 +131,29 @@ async def bulk_import_cases(
             "category": c.category,
             "tags": list(c.tags),
         }
-        existing = await _find_by_name(session, suite_id, c.name)
+        # Server-authoritative title/slug: prefer explicit payload fields, fall
+        # back to deriving from the legacy ``name`` (docs/DATA_MODEL.md §3.4).
+        slug = c.slug or derive_slug(c.name)
+        title = c.title or derive_title(c.name)
+        existing = await _find_case(session, suite_id, slug=slug, name=c.name)
         if existing is not None:
             await case_repo.update(
                 existing.id,
                 TestCaseUpdate(
                     name=c.name,
+                    title=title,
+                    slug=slug,
                     description=c.description,
                     preconditions=c.preconditions,
+                    source=_source(c.source),
                     automation_file_path=c.automation_file_path,
                     automation_code=c.automation_code,
                 ),
             )
             await case_repo.delete_steps(existing.id)
-            await case_repo.add_steps(existing.id, _steps(existing.id, c.steps, mcp_provider, target_kind))
+            await case_repo.add_steps(
+                existing.id, _steps(existing.id, c.steps, mcp_provider, target_kind)
+            )
             imported.append(
                 ImportedCase(
                     source_ref=c.source_ref,
@@ -128,7 +168,9 @@ async def bulk_import_cases(
             TestCaseCreate(
                 suite_id=suite_id,
                 name=c.name,
-                source=CaseSource.IMPORT,
+                title=title,
+                slug=slug,
+                source=_source(c.source),
                 priority=_priority(c.priority),
                 description=c.description,
                 preconditions=c.preconditions,
@@ -149,7 +191,9 @@ async def bulk_import_cases(
     return BulkImportResult(suite_id=suite_id, imported=imported)
 
 
-def _steps(case_id: str, steps: list, mcp_provider: str, target_kind: TargetKind) -> list[TestStep]:
+def _steps(
+    case_id: str, steps: list[IngestStep], mcp_provider: str, target_kind: TargetKind
+) -> list[TestStep]:
     return [
         TestStep(
             case_id=case_id,
@@ -193,7 +237,7 @@ async def ingest_run(
     step_seq = 0  # global step ordering across the whole run (StepTable reads this)
 
     for r in body.results:
-        case = await _find_by_name(session, suite_id, r.name or "")
+        case = await _find_case(session, suite_id, slug=r.slug or None, name=r.name or "")
         if case is None:
             continue
         case_outcome = _OUTCOME.get(r.outcome, StepOutcome.ERROR)

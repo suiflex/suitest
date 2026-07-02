@@ -1,4 +1,4 @@
-# Sutest Lifecycle — Architecture
+# Suitest Lifecycle — Architecture
 
 The lifecycle lives in `packages/lifecycle` (`suitest_lifecycle`), a **stdlib-only,
 ZERO-tier** package that both the `suitest test` CLI and the MCP server call. It
@@ -32,7 +32,7 @@ suitest.config.json
 |--------|----------------|
 | `config.py` | Parse/validate `suitest.config.json` → typed `Config` |
 | `models.py` | Dataclasses: `Endpoint`, `Page`, `CodeSummary`, `Prd`, `PlanCase`, `TestResult`, `RunSummary` |
-| `paths.py` | `sutest-output/` directory layout |
+| `paths.py` | `suitest-output/` directory layout |
 | `analyzers/express.py` | Deterministic Express route discovery (mounts, router-level auth) |
 | `analyzers/react.py` | React Router page discovery + `data-testid` harvest |
 | `analyzers/zod_schema.py` | Reads Zod create-schemas → valid request-body synthesis |
@@ -52,14 +52,14 @@ suitest.config.json
 ## Design decisions
 
 1. **Additive, DB + files.** TCM (Postgres) stays the source of truth; the
-   lifecycle also materializes TestSprite-shaped files under `sutest-output/`.
+   lifecycle also materializes TestSprite-shaped files under `suitest-output/`.
    The file `tcm/cases.json` is a readable mirror that runs with zero infra; a
    `_try_db_sync` hook upgrades to the real `packages/db` repositories when a DB
    is reachable.
 2. **Real runnable `.py`.** Generated tests are standalone (`requests` /
-   `playwright`), runnable without Sutest, executed as subprocesses — matching
+   `playwright`), runnable without Suitest, executed as subprocesses — matching
    TestSprite output exactly.
-3. **Sutest spawns the target.** `server.startCommand` is spawned on run and
+3. **Suitest spawns the target.** `server.startCommand` is spawned on run and
    torn down after; readiness gates execution. `autostart:false` degrades to
    readiness-only (wait for a server you started).
 4. **ZERO-tier deterministic core.** No LLM is required end to end. LLM

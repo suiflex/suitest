@@ -173,9 +173,9 @@ async def get_run_steps(
 ) -> list[RunStepPublic]:
     """Return a run's steps (ordered) with outcomes + case public ids; 404 if cross-ws."""
     run_id = await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
-    triples = await RunRepo(session).get_steps_with_case_public_id(run_id)
+    rows = await RunRepo(session).get_steps_with_case_public_id(run_id)
     out: list[RunStepPublic] = []
-    for step, public_id, name in triples:
+    for step, public_id, name, case_title in rows:
         snap = step.state_snapshot if isinstance(step.state_snapshot, dict) else {}
         out.append(
             RunStepPublic(
@@ -184,6 +184,7 @@ async def get_run_steps(
                 case_id=step.case_id,
                 case_public_id=public_id,
                 case_name=name or "",
+                case_title=case_title or "",
                 step_order=step.step_order,
                 outcome=step.outcome,
                 title=str(snap.get("description") or ""),
@@ -218,7 +219,7 @@ async def get_run_junit_report(
     if not await _project_in_scope(session, run.project_id, ctx.workspace_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
     steps = await repo.get_steps_with_case_public_id(run.id)
-    xml = render_junit(run.name, [(step, public_id) for step, public_id, _ in steps])
+    xml = render_junit(run.name, [(step, public_id) for step, public_id, _name, _title in steps])
     return Response(content=xml, media_type="application/xml")
 
 
@@ -238,7 +239,7 @@ async def get_run_replay(
     pairs = await RunRepo(session).get_steps_with_case_public_id(run_id)
     replay_steps: list[RunReplayStep] = []
     prev_snapshot: dict[str, object] | None = None
-    for step, public_id, _case_name in pairs:
+    for step, public_id, _case_name, _case_title in pairs:
         snapshot = step.state_snapshot
         delta = compute_state_delta(prev_snapshot, snapshot)
         replay_steps.append(

@@ -338,19 +338,29 @@ async def search_test_cases(
 
     rows = (
         await session.execute(
-            select(TestCase.id, TestCase.name, TestCase.description)
+            select(TestCase.id, TestCase.name, TestCase.title, TestCase.description)
             .join(Suite, Suite.id == TestCase.suite_id)
             .join(Project, Project.id == Suite.project_id)
             .where(Project.workspace_id == ctx.workspace_id, TestCase.deleted_at.is_(None))
         )
     ).all()
+    title_by_id = {r[0]: r[2] for r in rows}
     candidates = [
-        Candidate(case_id=r[0], name=r[1], text=f"{r[1]}\n{r[2] or ''}".strip()) for r in rows
+        # Rank over title + name + description so both human phrasing and the
+        # technical key match the query.
+        Candidate(case_id=r[0], name=r[1], text=f"{r[2]}\n{r[1]}\n{r[3] or ''}".strip())
+        for r in rows
     ]
     service = SemanticSearchService(get_embedder())
     hits = service.rank(q, candidates, top_k=limit)
     return [
-        TestCaseSearchHit(case_id=h.case_id, name=h.name, score=round(h.score, 4)) for h in hits
+        TestCaseSearchHit(
+            case_id=h.case_id,
+            name=h.name,
+            title=title_by_id.get(h.case_id, h.name),
+            score=round(h.score, 4),
+        )
+        for h in hits
     ]
 
 

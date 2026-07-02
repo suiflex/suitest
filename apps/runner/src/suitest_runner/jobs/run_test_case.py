@@ -26,6 +26,7 @@ context manager so the worker's job-level concurrency doesn't share an
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from datetime import UTC, datetime
@@ -46,6 +47,7 @@ from suitest_shared.domain.enums import RunStatus, StepOutcome, Tier
 from suitest_runner.executors.step_executor import StepTranslator, execute_step
 from suitest_runner.handlers.step_handler import on_run_step_failed
 from suitest_runner.observability import get_tracer
+from suitest_runner.settings import RunnerSettings
 
 if TYPE_CHECKING:
     from suitest_api.services.defect_auto_filer import DefectAutoFiler
@@ -280,6 +282,24 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                 factory=factory,
                 run_step_id=run_step.id,
             )
+
+            # Evidence recording mode: insert a small pause between steps so the
+            # session video (recorded by the playwright-mcp subprocess) is long
+            # enough to follow step-by-step. Gated on the flag so normal runs stay
+            # full-speed. Per-step timestamps + screenshots are already persisted
+            # (run_step.started_at/completed_at + step artifacts) and drive the
+            # web evidence timeline.
+            # TODO(evidence): also force a per-step screenshot + start a Playwright
+            # trace here once the invoker exposes a session-scoped tool call, so
+            # every step has a screenshot even when the step itself takes none.
+            settings_obj = ctx.get("settings")
+            if (
+                isinstance(settings_obj, RunnerSettings)
+                and settings_obj.evidence_recording
+                and settings_obj.evidence_pause_ms > 0
+            ):
+                await asyncio.sleep(settings_obj.evidence_pause_ms / 1000)
+
             if result.outcome == StepOutcome.PASS:
                 summary["passed"] += 1
             elif result.outcome == StepOutcome.FAIL:

@@ -597,7 +597,18 @@ class TestCase(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String(30), primary_key=True, default=cuid)
     suite_id: Mapped[str] = mapped_column(ForeignKey("suites.id", ondelete="CASCADE"), nullable=False)
     public_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    # `name` = legacy/compat field (historically mixed human titles and generated
+    # slugs; also the publish idempotency fallback key). NOT a display field.
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Migration 0044 — title/slug split:
+    # `title` = human-readable display title (REQUIRED; the ONLY field the UI
+    #   renders as a case heading). Backfilled from `name` (slug-shaped names are
+    #   humanized to sentence case); write paths derive it server-side via
+    #   `suitest_shared.text.derive_title` when a publisher omits it.
+    # `slug`  = technical key (generated test function name, automation key,
+    #   run-ingest match key). NULL for manually-authored cases.
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str | None] = mapped_column(String(255))  # + ix_test_cases_suite_slug
     description: Mapped[str | None] = mapped_column(Text)
     preconditions: Mapped[str | None] = mapped_column(Text)
     source: Mapped[CaseSource] = mapped_column(SAEnum(CaseSource, name="case_source"), nullable=False)

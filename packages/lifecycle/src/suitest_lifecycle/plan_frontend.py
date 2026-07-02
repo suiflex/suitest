@@ -73,6 +73,21 @@ def generate_frontend_plan(summary: CodeSummary, config: Config) -> list[PlanCas
                 ],
             )
         )
+        cases.append(
+            _case(
+                nid(),
+                "login_with_empty_fields_shows_validation_error",
+                "Submitting the login form with empty fields shows a validation error.",
+                "Auth",
+                Priority.MEDIUM,
+                "fe:empty_login /login",
+                [
+                    ("action", "Navigate to /login"),
+                    ("action", "Submit the form with both fields empty"),
+                    ("assertion", "A validation error is shown and URL stays /login"),
+                ],
+            )
+        )
 
     if protected:
         target = "/products" if "/products" in routes else protected[0]
@@ -106,6 +121,24 @@ def generate_frontend_plan(summary: CodeSummary, config: Config) -> list[PlanCas
                 ],
             )
         )
+        if has_login:
+            cases.append(
+                _case(
+                    nid(),
+                    "logout_returns_to_login_and_clears_session",
+                    "Logging out returns to /login and protected routes redirect again.",
+                    "Auth",
+                    Priority.MEDIUM,
+                    "fe:logout /dashboard",
+                    [
+                        ("action", "Log in"),
+                        ("action", "Click the logout button"),
+                        ("assertion", "Login page is shown"),
+                        ("action", "Navigate to /dashboard again"),
+                        ("assertion", "Still on the login page (session cleared)"),
+                    ],
+                )
+            )
 
     if "/products" in routes:
         cases.append(
@@ -136,6 +169,37 @@ def generate_frontend_plan(summary: CodeSummary, config: Config) -> list[PlanCas
                 ],
             )
         )
+        if "/products/new" in routes:
+            cases.append(
+                _case(
+                    nid(),
+                    "search_with_match_filters_the_product_list",
+                    "Searching for an existing product narrows the list to that product.",
+                    "Products",
+                    Priority.MEDIUM,
+                    "fe:search_match /products",
+                    [
+                        ("action", "Log in and create a uniquely-named product"),
+                        ("action", "Open /products and search for that exact name"),
+                        ("assertion", "Exactly the matching product row is shown"),
+                    ],
+                )
+            )
+            cases.append(
+                _case(
+                    nid(),
+                    "delete_product_removes_it_from_the_list",
+                    "Deleting a product removes its row from the list.",
+                    "Products",
+                    Priority.MEDIUM,
+                    "fe:delete_product /products",
+                    [
+                        ("action", "Log in and create a uniquely-named product"),
+                        ("action", "Search for it and click its delete button, accepting the confirm"),
+                        ("assertion", "The product row disappears from the list"),
+                    ],
+                )
+            )
 
     if "/products/new" in routes:
         cases.append(
@@ -150,6 +214,21 @@ def generate_frontend_plan(summary: CodeSummary, config: Config) -> list[PlanCas
                     ("action", "Log in and open /products/new"),
                     ("action", "Fill required fields and submit"),
                     ("assertion", "Returns to the products list"),
+                ],
+            )
+        )
+        cases.append(
+            _case(
+                nid(),
+                "create_product_with_invalid_data_shows_validation_error",
+                "Submitting the product form with invalid data keeps the user on the form.",
+                "Products",
+                Priority.MEDIUM,
+                "fe:create_invalid /products/new",
+                [
+                    ("action", "Log in and open /products/new"),
+                    ("action", "Fill a too-short name and no SKU, then submit"),
+                    ("assertion", "Form stays visible with validation errors; no navigation"),
                 ],
             )
         )

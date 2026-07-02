@@ -16,6 +16,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, TargetKind
+from suitest_shared.text import derive_slug, derive_title
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
@@ -23,7 +24,26 @@ from suitest_db.ids import new_id
 if TYPE_CHECKING:
     # Resolved at runtime via SQLAlchemy's registry; a runtime import would create
     # a project ↔ case cycle.
+    from sqlalchemy.engine.default import DefaultExecutionContext
+
     from suitest_db.models.project import Suite  # noqa: TCH004
+
+
+def _default_title(context: DefaultExecutionContext) -> str:
+    """Insert-time fallback: derive the display title from ``name``.
+
+    Write paths (repo/service/ingest) set ``title`` explicitly; this default
+    only covers direct :class:`TestCase` constructions (tests, seeds, legacy
+    call sites) so the NOT NULL contract can never be violated.
+    """
+    params = context.get_current_parameters()
+    return derive_title(str(params.get("name") or ""))
+
+
+def _default_slug(context: DefaultExecutionContext) -> str | None:
+    """Insert-time fallback: keep the technical key when ``name`` is one."""
+    params = context.get_current_parameters()
+    return derive_slug(str(params.get("name") or ""))
 
 
 class TestCase(Base, TimestampMixin):
@@ -42,7 +62,18 @@ class TestCase(Base, TimestampMixin):
         ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
     )
     public_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    # ``name`` is the legacy mixed field (kept for backward compatibility and as
+    # a publish idempotency key). Display uses ``title``; technical lookups use
+    # ``slug``. See docs/DATA_MODEL.md §3.4.
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Human-readable display title — REQUIRED, the only field the UI renders as
+    # the case heading. Backfilled from ``name`` by migration 0044; write paths
+    # derive it server-side (suitest_shared.text.derive_title) when a publisher
+    # sends only a technical name.
+    title: Mapped[str] = mapped_column(String(255), nullable=False, default=_default_title)
+    # Technical key (generated test function name, automation key, publish match
+    # key). NULL for manually-authored cases that never had one.
+    slug: Mapped[str | None] = mapped_column(String(255), default=_default_slug)
     description: Mapped[str | None] = mapped_column(Text)
     preconditions: Mapped[str | None] = mapped_column(Text)
     source: Mapped[CaseSource] = mapped_column(
@@ -102,6 +133,7 @@ class TestCase(Base, TimestampMixin):
         Index("ix_test_cases_source", "source"),
         Index("ix_test_cases_deleted_at", "deleted_at"),
         Index("ix_test_cases_suite_order", "suite_id", "order_in_suite"),
+        Index("ix_test_cases_suite_slug", "suite_id", "slug"),
     )
 
 

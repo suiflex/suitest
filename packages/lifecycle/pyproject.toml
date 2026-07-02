@@ -1,7 +1,7 @@
 [project]
 name = "suitest-lifecycle"
 version = "0.1.0"
-description = "Sutest testing lifecycle — TestSprite-parity analyze→generate→start→wait→run→report"
+description = "Suitest testing lifecycle — TestSprite-parity analyze→generate→start→wait→run→report"
 requires-python = ">=3.11"
 # No third-party runtime deps: the lifecycle core is stdlib-only so it can drive
 # any target project. Generated tests use `requests` / `playwright`, installed in

@@ -10,13 +10,48 @@ clean ``{"published": False, "reason": ...}`` instead of failing the run.
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING, Protocol
 
-from suitest_lifecycle.config import Config
-from suitest_lifecycle.models import PlanCase, RunSummary
-from suitest_lifecycle.paths import Paths
+if TYPE_CHECKING:
+    from suitest_lifecycle.config import Config
+    from suitest_lifecycle.models import PlanCase, RunSummary
+    from suitest_lifecycle.paths import Paths
+
+
+class Uploader(Protocol):
+    """Minimal upload surface the publisher needs (satisfied by SuitestClient).
+
+    Artifacts go THROUGH the API — the server holds the S3 credentials, so the
+    lifecycle/MCP client needs no ``SUITEST_S3_*`` env of its own.
+    """
+
+    def upload_file(self, path: str, *, content_type: str | None = None) -> str: ...
+
 
 _PRIORITY = {"High": "P1", "Medium": "P2", "Low": "P3"}
 _MIME = {".webm": "video/webm", ".png": "image/png", ".jpg": "image/jpeg"}
+
+# PlanCase.title is the generated test function slug (codegen emits
+# ``test_<title>``), so the publish layer is where the human display title is
+# minted: ``slug`` carries the technical key, ``title`` the readable sentence.
+# Mirrors suitest_shared.text.humanize_slug (lifecycle stays stdlib-only).
+_ACRONYMS = frozenset({"api", "url", "id", "ui", "ux", "http", "sql", "ok", "sso", "mcp"})
+
+
+def _humanize(slug: str) -> str:
+    words = [w for w in slug.replace("_", " ").replace("-", " ").split() if w]
+    if not words:
+        return slug.strip()
+    out: list[str] = []
+    for i, word in enumerate(words):
+        lower = word.lower()
+        if lower in _ACRONYMS:
+            out.append(lower.upper())
+        elif i == 0:
+            out.append(word[:1].upper() + word[1:].lower())
+        else:
+            out.append(lower)
+    return " ".join(out)
 
 
 def _suite_name(config: Config) -> str:
@@ -34,8 +69,15 @@ def _case_payloads(cases: list[PlanCase], paths: Paths) -> list[dict[str, object
         out.append(
             {
                 "sourceRef": c.source_ref,
+                # ``name`` stays the slug — it is the server's idempotency match
+                # key for rows published before the title/slug split.
                 "name": c.title,
+                "slug": c.title,
+                "title": _humanize(c.title),
                 "description": c.description,
+                # Lifecycle cases are produced by the MCP-native plan/run loop, so
+                # they surface under the MCP filter (not the generic IMPORT bucket).
+                "source": "MCP",
                 "priority": _PRIORITY.get(c.priority.value, "P2"),
                 "category": c.category,
                 "tags": list(c.tags),
@@ -43,9 +85,15 @@ def _case_payloads(cases: list[PlanCase], paths: Paths) -> list[dict[str, object
                 "automationCode": code,
                 "generatedBy": "suitest-lifecycle",
                 "steps": [
-                    {"order": i + 1, "action": s.description, "expected": s.description, "code": None}
-                    if s.type == "action"
-                    else {"order": i + 1, "action": s.description, "expected": s.description, "code": None}
+                    {
+                        "order": i + 1,
+                        "action": s.description,
+                        # For assertions the description *is* the expectation; for
+                        # actions there's no distinct expected, so leave it blank
+                        # and let the reader derive one.
+                        "expected": s.description if s.type == "assertion" else "",
+                        "code": None,
+                    }
                     for i, s in enumerate(c.steps)
                 ],
             }
@@ -53,70 +101,44 @@ def _case_payloads(cases: list[PlanCase], paths: Paths) -> list[dict[str, object
     return out
 
 
-def _s3_settings() -> dict[str, str] | None:
-    """Read S3/MinIO settings from env (SUITEST_S3_*). None if not configured."""
-    endpoint = os.environ.get("SUITEST_S3_ENDPOINT", "")
-    bucket = os.environ.get("SUITEST_S3_BUCKET", "")
-    access = os.environ.get("SUITEST_S3_ACCESS_KEY", "")
-    secret = os.environ.get("SUITEST_S3_SECRET_KEY", "")
-    if endpoint and bucket and access and secret:
-        return {
-            "endpoint": endpoint,
-            "bucket": bucket,
-            "access": access,
-            "secret": secret,
-            "region": os.environ.get("SUITEST_S3_REGION", "us-east-1"),
-        }
-    return None
-
-
-def _resolve_url(path: str, mime: str) -> str:
-    """Upload to S3/MinIO when configured (so the web can sign + play it), else a
-    local ``file://`` URL (web falls back to the static /artifacts/raw/ route)."""
-    s3 = _s3_settings()
-    if s3 is None:
-        return "file://" + os.path.abspath(path)
+def _resolve_url(client: Uploader, path: str, mime: str) -> str:
+    """Upload the artifact THROUGH the API (server owns the S3 creds) and return
+    the durable ``s3://`` URL. On any upload hiccup fall back to a local
+    ``file://`` URL so publishing never fails on an artifact."""
     try:
-        import boto3  # lazy: only when S3 is configured
-
-        client = boto3.client(
-            "s3",
-            endpoint_url=s3["endpoint"],
-            aws_access_key_id=s3["access"],
-            aws_secret_access_key=s3["secret"],
-            region_name=s3["region"],
-        )
-        key = f"lifecycle/{os.path.basename(os.path.dirname(path))}/{os.path.basename(path)}"
-        client.upload_file(path, s3["bucket"], key, ExtraArgs={"ContentType": mime})
-        return f"s3://{s3['bucket']}/{key}"
+        return client.upload_file(path, content_type=mime)
     except Exception:  # never fail publish on an upload hiccup
         return "file://" + os.path.abspath(path)
 
 
-def _artifact(path: str, kind: str) -> dict[str, object] | None:
+def _artifact(client: Uploader, path: str, kind: str) -> dict[str, object] | None:
     if not path or not os.path.isfile(path):
         return None
     ext = os.path.splitext(path)[1].lower()
     mime = _MIME.get(ext, "application/octet-stream")
     return {
         "kind": kind,
-        "url": _resolve_url(path, mime),
+        "url": _resolve_url(client, path, mime),
         "mimeType": mime,
         "sizeBytes": os.path.getsize(path),
     }
 
 
-def _result_payloads(summary: RunSummary, cases: list[PlanCase]) -> list[dict[str, object]]:
+def _result_payloads(
+    client: Uploader, summary: RunSummary, cases: list[PlanCase]
+) -> list[dict[str, object]]:
     ref_by_id = {c.id: c.source_ref for c in cases}
     name_by_id = {c.id: c.title for c in cases}
     out: list[dict[str, object]] = []
     for r in summary.results:
         # Case level carries only the VIDEO now; screenshots are per-step (each
         # run_step gets its own SCREENSHOT), so the "final" one would be redundant.
-        artifacts = [a for a in (_artifact(r.video_path, "VIDEO"),) if a is not None]
+        artifacts = [a for a in (_artifact(client, r.video_path, "VIDEO"),) if a is not None]
+        slug = name_by_id.get(r.test_id, r.title)
         out.append(
             {
-                "name": name_by_id.get(r.test_id, r.title),
+                "name": slug,
+                "slug": slug,
                 "sourceRef": ref_by_id.get(r.test_id, r.test_id),
                 "outcome": r.status.value,
                 "durationMs": r.duration_ms,
@@ -129,7 +151,7 @@ def _result_payloads(summary: RunSummary, cases: list[PlanCase]) -> list[dict[st
                         "outcome": s.status.value,
                         # Per-step screenshot, uploaded so the web can sign + show it.
                         "screenshot": (
-                            _resolve_url(s.screenshot_path, "image/png")
+                            _resolve_url(client, s.screenshot_path, "image/png")
                             if s.screenshot_path and os.path.isfile(s.screenshot_path)
                             else ""
                         ),
@@ -177,7 +199,7 @@ def publish_results(
                 project_id=config.publish.project_id,
                 suite_name=suite,
                 name=f"{config.project_name} lifecycle",
-                results=_result_payloads(summary, cases),
+                results=_result_payloads(client, summary, cases),
             )
     except SuitestAPIError as exc:
         return {"published": False, "reason": f"api error: {exc}"}

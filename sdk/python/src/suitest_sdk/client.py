@@ -135,6 +135,26 @@ class SuitestClient:
         }
         return self._request("POST", "/api/v1/test-cases/bulk-import", json=body)
 
+    def upload_file(self, path: str, *, content_type: str | None = None) -> str:
+        """Upload a local file to the workspace object store; return its s3:// URL.
+
+        The server holds the S3 credentials — the client only needs its API key.
+        Used by the lifecycle publisher for run videos + per-step screenshots so
+        no ``SUITEST_S3_*`` env is required client-side.
+        """
+        import mimetypes
+        import os
+
+        ct = content_type or mimetypes.guess_type(path)[0] or "application/octet-stream"
+        with open(path, "rb") as fh:
+            result = self._request(
+                "POST",
+                "/api/v1/files",
+                files={"file": (os.path.basename(path), fh, ct)},
+            )
+        url: str = result["url"]
+        return url
+
     def ingest_run(
         self,
         *,

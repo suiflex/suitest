@@ -60,9 +60,11 @@ class RunStepPublic(BaseModel):
     run_id: str
     case_id: str
     case_public_id: str
-    # The test case's title — lets the run detail group + label cases instead of
-    # showing the bare ``TC-xxxx`` id.
+    # Legacy technical key of the case (kept for compatibility; may be a slug).
     case_name: str = ""
+    # The case's human display title (``test_cases.title``) — what the run
+    # detail renders as the case heading. Never a slug.
+    case_title: str = ""
     step_order: int
     outcome: StepOutcome
     # Human-readable step instruction + kind, recorded in ``state_snapshot``.

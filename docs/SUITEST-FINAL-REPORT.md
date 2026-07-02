@@ -1,16 +1,16 @@
-# Sutest — Final Report (TestSprite-parity lifecycle)
+# Suitest — Final Report (TestSprite-parity lifecycle)
 
 Date: 2026-06-30 · Scope: implement a TestSprite-style testing lifecycle in
-Sutest and self-test it end to end against `suitest-example/`.
+Suitest and self-test it end to end against `suitest-example/`.
 
 ## What was built
 
 A new stdlib-only package `packages/lifecycle` (`suitest_lifecycle`) implementing
 the full loop **analyze → generate → start → wait ready → run → report**, plus a
 `suitest test` / `suitest generate` CLI and an MCP stdio server. See
-[SUTEST-ARCHITECTURE.md](./SUTEST-ARCHITECTURE.md) and
-[SUTEST-USAGE.md](./SUTEST-USAGE.md). Gap analysis that motivated it:
-[SUTEST-GAP-ANALYSIS.md](./SUTEST-GAP-ANALYSIS.md).
+[SUITEST-ARCHITECTURE.md](./SUITEST-ARCHITECTURE.md) and
+[SUITEST-USAGE.md](./SUITEST-USAGE.md). Gap analysis that motivated it:
+[SUITEST-GAP-ANALYSIS.md](./SUITEST-GAP-ANALYSIS.md).
 
 ## Self-test evidence (against `suitest-example`)
 
@@ -37,7 +37,7 @@ happy/invalid, protected-401, authenticated CRUD), same artifact set
 
 | Goal | Status |
 |------|--------|
-| 1 Understand existing Sutest | ✅ gap analysis |
+| 1 Understand existing Suitest | ✅ gap analysis |
 | 2 Study TestSprite example | ✅ gap analysis |
 | 3 Backend testing like TestSprite | ✅ self-tested 11/11 |
 | 4 Frontend testing like TestSprite | ✅ 7/7 E2E; Suitest bundles the browser + auto-starts backend dependency |

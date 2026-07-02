@@ -35,7 +35,13 @@ describe("Test Cases screen", () => {
           id: "u_demo",
           email: "demo@suitest.dev",
           name: "Maya",
-          memberships: [{ workspace_id: "ws_1", role: "OWNER", workspace: { id: "ws_1", slug: "demo", name: "Demo" } }],
+          memberships: [
+            {
+              workspace_id: "ws_1",
+              role: "OWNER",
+              workspace: { id: "ws_1", slug: "demo", name: "Demo" },
+            },
+          ],
         }),
       ),
     );
@@ -122,7 +128,9 @@ describe("Test Cases screen", () => {
     expect(
       await screen.findByTestId("case-detail", undefined, { timeout: 3000 }),
     ).toBeInTheDocument();
-    expect(screen.getAllByTestId("step-row").length).toBeGreaterThan(0);
+    // Steps live under the Steps tab; open it and assert readable steps render.
+    await user.click(await screen.findByTestId("case-tab-steps"));
+    expect((await screen.findAllByTestId("case-step")).length).toBeGreaterThan(0);
   });
 
   it("M1d-23: clicking Delete fires DELETE /test-cases/:id", async () => {

@@ -127,4 +127,4 @@ def analyze_postman(collection: dict[str, object], project_name: str) -> CodeSum
     )
 
 
-__all__ = ["load_collection", "analyze_postman"]
+__all__ = ["analyze_postman", "load_collection"]

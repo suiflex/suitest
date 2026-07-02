@@ -91,6 +91,30 @@ class RunnerSettings(BaseSettings):
     queue_name: str = Field(default="suitest:runs")
     keep_result_seconds: int = Field(default=3600, ge=0)
 
+    # Evidence recording mode. OFF by default so normal CI/test execution stays
+    # full-speed. When enabled, the runner inserts a small pause between steps so
+    # the session video (recorded by the playwright-mcp Node subprocess) is long
+    # enough to follow step-by-step, and downstream evidence (per-step
+    # screenshots + timestamps) reads as a proper timeline. Honors the unprefixed
+    # ``SUITEST_EVIDENCE_RECORDING`` so the lifecycle CLI and the worker agree.
+    evidence_recording: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "SUITEST_RUNNER_EVIDENCE_RECORDING",
+            "SUITEST_EVIDENCE_RECORDING",
+        ),
+    )
+    # Pause inserted AFTER each step when evidence recording is on (milliseconds).
+    # Only applied in evidence mode — it never affects default execution.
+    evidence_pause_ms: int = Field(
+        default=700,
+        ge=0,
+        validation_alias=AliasChoices(
+            "SUITEST_RUNNER_EVIDENCE_PAUSE_MS",
+            "SUITEST_EVIDENCE_PAUSE_MS",
+        ),
+    )
+
     # S3 / MinIO target for artifact upload. Defaults point at a local MinIO
     # (the docker-compose dev stack). Production deploys override the endpoint
     # with the real bucket URL. Credentials default to the well-known MinIO

@@ -89,7 +89,11 @@ class TestCaseOut(DomainModel):
     id: str
     suite_id: str
     public_id: str
+    # ``name`` = legacy technical field; UI renders ``title``; ``slug`` is the
+    # technical key (docs/DATA_MODEL.md §3.4).
     name: str
+    title: str
+    slug: str | None = None
     description: str | None = None
     preconditions: str | None = None
     source: CaseSource
