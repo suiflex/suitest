@@ -302,8 +302,8 @@ function BulkActionBar({
     <div
       data-testid="bulk-action-bar"
       className={cn(
-        "sticky bottom-0 z-10 flex items-center gap-3 rounded-t-md border border-border bg-bg-elev-2 px-4 py-2",
-        "border-b-0 shadow-[0_-2px_8px_rgba(0,0,0,.4)]",
+        "z-10 flex shrink-0 items-center gap-3 border-t border-border bg-bg-elev-2 px-4 py-2",
+        "shadow-[0_-2px_8px_rgba(0,0,0,.4)]",
       )}
     >
       <span className="shrink-0 font-mono text-[12px] text-fg-3">{count} selected</span>
@@ -436,6 +436,7 @@ function CaseTree({
       <EmptyState
         icon={ListChecks}
         title="No cases yet"
+        className="h-full border-none bg-transparent"
         subtitle="Generate from OpenAPI, record a browser session, or write manually."
         action={[
           {
@@ -459,9 +460,9 @@ function CaseTree({
   }
 
   return (
-    <nav className="flex flex-col gap-3" data-testid="cases-tree">
+    <nav className="flex flex-col gap-4" data-testid="cases-tree">
       {/* Select-all header */}
-      <div className="flex items-center gap-2 px-1">
+      <div className="flex items-center gap-2 px-2">
         <Checkbox
           ref={headerCheckboxRef}
           data-testid="select-all-checkbox"
@@ -481,7 +482,7 @@ function CaseTree({
         const suite = suites.find((s) => s.id === suiteId);
         return (
           <div key={suiteId} data-testid="cases-tree-suite">
-            <div className="mb-1 flex items-center gap-1.5 px-1 text-[11px] font-medium uppercase tracking-wide text-fg-5">
+            <div className="mb-1.5 flex items-center gap-1.5 px-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-fg-5">
               <FolderTree className="h-3 w-3" aria-hidden="true" />
               {suite?.name ?? "Unassigned"}
               <span className="font-mono text-[10px] text-fg-5">{items.length}</span>
@@ -507,14 +508,14 @@ function CaseTree({
                 )
               ) : null}
             </div>
-            <ul className="flex flex-col">
+            <ul className="flex flex-col gap-px">
               {items.map((c) => (
-                <li key={c.id} className="flex items-center">
+                <li key={c.id} className="flex min-w-0 items-center">
                   <Checkbox
                     data-testid="case-row-checkbox"
                     checked={selectedIds.has(c.id)}
                     aria-label={`Select ${c.public_id}`}
-                    className="ml-1 mr-1 shrink-0"
+                    className="ml-1 mr-1.5 shrink-0"
                     onCheckedChange={() => {
                       onToggleSelection(c.id);
                     }}
@@ -532,19 +533,19 @@ function CaseTree({
                       onSelect(c.public_id);
                     }}
                     className={cn(
-                      "flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] text-fg-1 hover:bg-bg-elev-2",
+                      "flex min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-md px-2 py-2 text-left text-[12.5px] text-fg-1 hover:bg-bg-elev-2",
                       c.public_id === selectedId &&
                         "bg-bg-elev-2 shadow-[inset_2px_0_0_0_theme(colors.accent)]",
                     )}
                   >
                     <SourceDot status={c.status === "DEPRECATED" ? "warn" : "pass"} />
-                    <span className="shrink-0 whitespace-nowrap font-mono text-[11px] text-fg-4">
+                    <span className="shrink-0 whitespace-nowrap font-mono text-[10.5px] text-fg-5">
                       {c.public_id}
                     </span>
                     <span className="min-w-0 flex-1 truncate font-medium" title={c.title}>
                       {c.title || displayTitle(c.name)}
                     </span>
-                    <span className="ml-auto shrink-0">
+                    <span className="shrink-0">
                       <SourcePill source={caseSourceToPill(c.source)} />
                     </span>
                   </button>
@@ -658,6 +659,7 @@ function CaseDetailPanel({
       <EmptyState
         icon={FileText}
         title="Select a case"
+        className="h-full border-none bg-transparent"
         subtitle="Pick a case from the tree to view details."
       />
     );
@@ -1419,12 +1421,15 @@ function CasesBody(): React.ReactElement {
           }}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] xl:grid-cols-[minmax(340px,420px)_minmax(0,1fr)]">
           <aside
-            className="flex min-w-0 flex-col gap-3 self-start rounded-lg border border-border bg-bg-elev-1 p-3"
+            className={cn(
+              "flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-bg-elev-1",
+              "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04),0_16px_40px_-24px_rgba(0,0,0,0.9)]",
+            )}
             data-testid="cases-left-pane"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
               <Input
                 value={query}
                 onChange={(event) => {
@@ -1435,47 +1440,53 @@ function CasesBody(): React.ReactElement {
                 data-testid="cases-search"
                 aria-label="Search cases"
               />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                data-testid="new-suite-btn"
-                onClick={() => {
-                  setSuiteDialogOpen(true);
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  data-testid="new-suite-btn"
+                  onClick={() => {
+                    setSuiteDialogOpen(true);
+                  }}
+                >
+                  New suite
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="flex-1"
+                  data-testid="new-case-btn"
+                  onClick={() => {
+                    setCaseDialogOpen(true);
+                  }}
+                >
+                  New case
+                </Button>
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+              <CaseTree
+                suites={suites.items}
+                cases={filtered}
+                selectedId={selectedId}
+                selectedIds={selectedIds}
+                onSelect={(publicId) => {
+                  void navigate({ search: { case: publicId } });
                 }}
-              >
-                New suite
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                data-testid="new-case-btn"
-                onClick={() => {
+                onToggleSelection={handleToggleSelection}
+                onToggleAll={handleToggleAll}
+                onNewCase={() => {
                   setCaseDialogOpen(true);
                 }}
-              >
-                New case
-              </Button>
+                onGenerate={handleGenerate}
+                gatingSuiteId={gatingSuiteId}
+                onSetGating={(suiteId) => {
+                  if (projectId) setGating.mutate({ projectId, suiteId });
+                }}
+              />
             </div>
-            <CaseTree
-              suites={suites.items}
-              cases={filtered}
-              selectedId={selectedId}
-              selectedIds={selectedIds}
-              onSelect={(publicId) => {
-                void navigate({ search: { case: publicId } });
-              }}
-              onToggleSelection={handleToggleSelection}
-              onToggleAll={handleToggleAll}
-              onNewCase={() => {
-                setCaseDialogOpen(true);
-              }}
-              onGenerate={handleGenerate}
-              gatingSuiteId={gatingSuiteId}
-              onSetGating={(suiteId) => {
-                if (projectId) setGating.mutate({ projectId, suiteId });
-              }}
-            />
             <BulkActionBar
               selectedIds={selectedIds}
               suites={suites.items}
@@ -1483,7 +1494,10 @@ function CasesBody(): React.ReactElement {
             />
           </aside>
           <section
-            className="min-w-0 rounded-lg border border-border bg-bg-elev-1 p-5"
+            className={cn(
+              "min-h-0 min-w-0 overflow-y-auto rounded-lg border border-border bg-bg-elev-1 p-5",
+              "shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04),0_16px_40px_-24px_rgba(0,0,0,0.9)]",
+            )}
             data-testid="cases-right-pane"
           >
             <CaseDetailPanel publicId={selectedId} suites={suites.items} />
@@ -1539,7 +1553,7 @@ function NoProjectBootstrap(): React.ReactElement {
 function CasesContainer(): React.ReactElement {
   const projectId = useActiveProject((s) => s.projectId);
   return (
-    <section className="flex flex-col gap-4" data-testid="cases-screen">
+    <section className="flex h-full min-h-0 flex-col gap-4" data-testid="cases-screen">
       <ErrorBoundary fallback={({ reset }) => <CasesError reset={reset} />}>
         <Suspense fallback={<CasesSkeleton />}>
           {projectId === null ? <NoProjectBootstrap /> : <CasesBody />}

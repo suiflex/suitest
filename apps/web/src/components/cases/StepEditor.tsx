@@ -355,7 +355,7 @@ export function StepEditor({ caseId, steps, onStepsChange }: StepEditorProps): R
       ) : null}
 
       {steps.length === 0 ? (
-        <div className="rounded-md border border-dashed border-border px-4 py-6 text-center text-[12px] text-fg-4">
+        <div className="rounded-md border border-border bg-bg-elev-2 px-4 py-6 text-center text-[12px] text-fg-4">
           No steps yet. Click &quot;+ New step&quot; to add one.
         </div>
       ) : (
