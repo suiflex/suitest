@@ -82,7 +82,8 @@ function Login(): React.ReactElement {
 
   return (
     <section className="mx-auto max-w-md space-y-6 pt-16">
-      <div className="space-y-2 text-center">
+      <div className="space-y-3 text-center">
+        <img src="/logo.svg" alt="Suitest" className="mx-auto h-12 w-12 rounded-xl" />
         <h2 className="font-mono text-2xl font-semibold tracking-tight">
           sui<span className="text-accent">test</span>
         </h2>
@@ -166,6 +167,9 @@ function Login(): React.ReactElement {
           </button>
         </div>
       ) : null}
+      <p className="pt-4 text-center text-[11px] text-fg-5">
+        © 2026 Suitest contributors · Apache-2.0 · open source
+      </p>
     </section>
   );
 }

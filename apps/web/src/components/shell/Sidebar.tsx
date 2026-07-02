@@ -14,11 +14,14 @@ import {
   Play,
   Plug,
   Plus,
+  LogOut,
   Settings,
   Shield,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
+
+import { api } from "@/lib/api-client";
 
 import { ProjectPicker } from "@/components/shell/ProjectPicker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -137,8 +140,11 @@ export function Sidebar({
     >
       {/* Section 1 — Brand */}
       <div className="flex h-[47px] items-center justify-between border-b border-border-subtle px-4">
-        <span className="select-none font-mono text-[15px] font-bold tracking-tight">
-          sui<span className="text-accent">test</span>
+        <span className="flex select-none items-center gap-2">
+          <img src="/logo.svg" alt="" aria-hidden="true" className="h-6 w-6 rounded-md" />
+          <span className="font-mono text-[15px] font-bold tracking-tight">
+            sui<span className="text-accent">test</span>
+          </span>
         </span>
         <button
           type="button"
@@ -278,6 +284,24 @@ export function Sidebar({
         >
           <Settings className="h-4 w-4" aria-hidden="true" />
         </Link>
+        <button
+          type="button"
+          aria-label="Log out"
+          title="Log out"
+          data-testid="user-logout-button"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-red"
+          onClick={() => {
+            // fastapi-users cookie backend: POST clears the session cookie.
+            void api.post("/auth/cookie/logout").finally(() => {
+              window.location.assign("/login");
+            });
+          }}
+        >
+          <LogOut className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+      <div className="border-t border-border-subtle px-4 py-2 text-center text-[10px] text-fg-5">
+        © 2026 Suitest contributors · Apache-2.0
       </div>
     </aside>
   );

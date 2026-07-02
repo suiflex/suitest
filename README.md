@@ -1,23 +1,32 @@
+# 🧪 Suitest — MCP-Native Testing Platform
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo-dark.svg">
-    <img src="assets/brand/logo-light.svg" alt="Suitest" width="320">
+    <img src="assets/brand/logo-light.svg" alt="Suitest" width="380">
   </picture>
 </p>
 
-<p align="center"><strong>MCP-native testing platform. Manual test management, deterministic runs, optional autonomous AI. Your stack, your LLM, your data.</strong></p>
-
 <p align="center">
-  <a href="https://github.com/suiflex/suitest/actions/workflows/ci.yml"><img src="https://github.com/suiflex/suitest/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-4ade80" alt="License"></a>
-  <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-native-4ade80" alt="MCP"></a>
+  <strong>Manual test management. Deterministic runs. Optional autonomous AI.<br>Your stack, your LLM, your data.</strong>
 </p>
 
-# Suitest
+<p align="center">
+  <a href="https://github.com/suiflex/suitest/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/suiflex/suitest/ci.yml?branch=main&style=for-the-badge" alt="CI status"></a>
+  <a href="https://github.com/suiflex/suitest/releases"><img src="https://img.shields.io/github/v/tag/suiflex/suitest?include_prereleases&style=for-the-badge&label=release" alt="Release"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-4ade80.svg?style=for-the-badge" alt="Apache-2.0 License"></a>
+  <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-native-4ade80?style=for-the-badge" alt="MCP native"></a>
+</p>
 
-Self-hostable open-source test platform. Works fully **without any LLM** (ZERO tier) — manual test case management + a deterministic run engine that drives any target through [MCP](https://modelcontextprotocol.io) (Playwright, HTTP APIs, Postgres, and more). Plug in your own LLM key — cloud or local Ollama — to unlock AI generation, diagnosis, and conversational testing. No vendor lock-in, no forced API keys.
+**Suitest** is a _self-hostable, open-source QA platform_ that works fully **without any LLM** (ZERO tier): manual test case management plus a deterministic run engine that drives any target through [MCP](https://modelcontextprotocol.io) — Playwright, HTTP APIs, Postgres, and more. Plug in your own LLM key — cloud or local Ollama — to unlock AI generation, diagnosis, and conversational testing. No vendor lock-in, no forced API keys.
+
+It ships an **MCP server for IDE agents** (Claude Code, Cursor, Codex): analyze a repo, generate runnable tests, execute them with video/screenshot evidence, and publish results — including a **blackbox DOM engine** that tests any web app from just a URL and test credentials, no repo access required.
 
 Backend: Python 3.12 + FastAPI · Frontend: Vite + React 19 · DB: Postgres 16 + pgvector · Queue: ARQ/Redis · Plugin layer: MCP.
+
+[Docs](./docs) · [Getting started](#-install) · [MCP server](./docs/MCP_PLUGINS.md) · [Blackbox testing](./docs/BLACKBOX_UI_TESTING.md) · [Deployment](./docs/DEPLOYMENT.md) · [Architecture](./docs/ARCHITECTURE.md) · [Troubleshooting](./docs/TROUBLESHOOTING.md) · [Contributing](./CONTRIBUTING.md)
+
+New install? Start at [Install](#-install) below — the MCP server is one `npx` away; the full platform is one `docker compose up`.
 
 ---
 
@@ -36,19 +45,21 @@ Backend: Python 3.12 + FastAPI · Frontend: Vite + React 19 · DB: Postgres 16 +
 
 See [docs/ROADMAP.md](./docs/ROADMAP.md) — the single source of truth for build status.
 
-> Every spec doc in `docs/` carries a build-status banner at the top (built vs. spec). Trust the banner before the prose.
-
 ---
 
-## Quick start — MCP server (no install)
+## 📦 Install
 
-Turn your IDE agent into a QA engineer in one line. Node route:
+Four supported paths, smallest first.
+
+### 1. MCP server only (recommended first taste — no install)
+
+Requirements: **Node ≥ 18** and **Python ≥ 3.11** on PATH.
 
 ```bash
 npx -y @suitest/mcp
 ```
 
-Python route (same server, via [uv](https://docs.astral.sh/uv/)):
+Python-native route (same server, via [uv](https://docs.astral.sh/uv/)):
 
 ```bash
 uvx --from suitest-lifecycle suitest-mcp
@@ -68,11 +79,11 @@ Wire it into Claude Code / Cursor (`.mcp.json`):
 }
 ```
 
-The agent gets 21 tools: repo-based lifecycle (analyze → generate → run → report), a **blackbox engine** for apps you have no repo for (browser setup wizard, login detection, safe crawling, deterministic Playwright generation, evidence), and PRD-driven planning. `SUITEST_API_URL`/`KEY` are optional — with them, cases/runs/evidence publish into the web TCM below; without them results stay local. Details: [docs/MCP_PLUGINS.md](./docs/MCP_PLUGINS.md) · [docs/BLACKBOX_UI_TESTING.md](./docs/BLACKBOX_UI_TESTING.md).
+The agent gets 21 tools: repo-based lifecycle (analyze → generate → run → report), the **blackbox engine** for apps you have no repo for (browser setup wizard, login detection, safe crawling, deterministic Playwright generation, evidence), and PRD-driven planning. `SUITEST_API_URL`/`KEY` are optional — with them, cases/runs/evidence publish into the web TCM; without them results stay local under `suitest-output/`.
 
----
+### 2. Full platform — Docker Compose
 
-## Quick start — full platform (Docker Compose)
+Requirements: **Docker + Docker Compose**.
 
 ```bash
 git clone https://github.com/suiflex/suitest && cd suitest
@@ -88,31 +99,29 @@ SUITEST_SUPERADMIN_PASSWORD=<strong-password>
 ```
 
 ```bash
-docker compose up -d
+docker compose up -d      # postgres + redis + minio + api + web + runner
 open http://localhost:3000
 ```
 
-Log in with the super-admin email/password. From **Settings → invite** others by link — onboarding is invite-only by default. Google OAuth is optional (set `SUITEST_OAUTH_GOOGLE_CLIENT_ID` / `_SECRET`). Default tier is **ZERO** — no LLM calls are ever made.
+Log in with the super-admin email/password. From **Settings → invite** others by link — onboarding is invite-only by default. Default tier is **ZERO** — no LLM calls are ever made. Optional profiles: `--profile local` adds an Ollama service for air-gapped LOCAL-tier inference.
 
-To load the demo workspace (Nusantara Retail + sample suites/cases/runs): `make seed` (or `docker compose exec api python -m suitest_db.seed`).
+Demo data: `make seed` (or `docker compose exec api python -m suitest_db.seed`).
 
-### Your first test — entirely from the UI, no LLM
+### 3. Kubernetes — Helm
 
-From an empty install you can bootstrap and run a real browser test without touching the API:
+Requirements: a cluster + [Helm](https://helm.sh); Postgres/Redis/object storage as external services (URLs in `values.yaml`).
 
-1. **Log in** (super-admin email/password). A first **workspace** is created on install; the sidebar picker (`＋ New workspace`) makes more.
-2. **Create a project, then a suite** — the Test Cases screen prompts you when each is empty.
-3. **Author a test case** — “New case”, then add steps. A step targets an MCP provider (e.g. the bundled **`playwright-mcp`**, `target_kind = FE_WEB`) with a JSON tool call, e.g. `{"tool":"browser_navigate","arguments":{"url":"https://www.saucedemo.com"}}`.
-4. **Run now** — the deterministic runner dispatches each step through MCP (Playwright drives a real browser) and the run-detail page **streams live status to PASS/FAIL**.
-5. **Triage** — a failing step **auto-files a defect** (rule-based at ZERO); mark a suite **gating** to block deploys; watch pass-rate/readiness on the **dashboard**.
+```bash
+helm install suitest infra/helm/suitest -f infra/helm/suitest/values.yaml
+# air-gapped (LOCAL tier via in-cluster Ollama):
+helm install suitest infra/helm/suitest -f infra/helm/suitest/values-airgapped.yaml
+```
 
-This whole journey is locked by a no-mock, real-backend Playwright suite — `make e2e-real` (boots a ZERO api + web + runner, seeds an empty workspace, and drives the UI against the live stack).
+The chart deploys `api`, `web`, and `runner` separately with a PodDisruptionBudget. Full guide (env vars, TLS, backups, air-gapped checklist): [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) · chart notes: [infra/README.md](./infra/README.md).
 
----
+### 4. Local development (no Docker for the app)
 
-## Local development (no Docker for the app)
-
-Prerequisites: **Python 3.12 + [uv](https://docs.astral.sh/uv/)**, **Node 20 + [pnpm](https://pnpm.io/)**, and Postgres/Redis/MinIO (easiest: `docker compose up -d postgres redis minio`).
+Requirements: **Python 3.12 + [uv](https://docs.astral.sh/uv/)**, **Node 20 + [pnpm](https://pnpm.io/)**, and Postgres/Redis/MinIO (easiest: `docker compose up -d postgres redis minio`).
 
 ```bash
 make setup     # cp .env → install deps → run migrations → seed DB
@@ -129,6 +138,20 @@ Other useful targets (`make help` for the full list):
 | `make ci` | Everything CI runs: lint + typecheck + tests (py + web) |
 | `make check-all` | Lint + typecheck only (no tests) |
 | `make docker-up-local` / `docker-up-cloud` | Boot with Ollama / cloud-LLM profile |
+
+---
+
+## 🚀 Your first test — entirely from the UI, no LLM
+
+From an empty install you can bootstrap and run a real browser test without touching the API:
+
+1. **Log in** (super-admin email/password). A first **workspace** is created on install; the sidebar picker (`＋ New workspace`) makes more.
+2. **Create a project, then a suite** — the Test Cases screen prompts you when each is empty.
+3. **Author a test case** — "New case", then add steps. A step targets an MCP provider (e.g. the bundled **`playwright-mcp`**, `target_kind = FE_WEB`) with a JSON tool call, e.g. `{"tool":"browser_navigate","arguments":{"url":"https://www.saucedemo.com"}}`.
+4. **Run now** — the deterministic runner dispatches each step through MCP (Playwright drives a real browser) and the run-detail page **streams live status to PASS/FAIL**.
+5. **Triage** — a failing step **auto-files a defect** (rule-based at ZERO); mark a suite **gating** to block deploys; watch pass-rate/readiness on the **dashboard**.
+
+This whole journey is locked by a no-mock, real-backend Playwright suite — `make e2e-real` (boots a ZERO api + web + runner, seeds an empty workspace, and drives the UI against the live stack).
 
 ---
 
