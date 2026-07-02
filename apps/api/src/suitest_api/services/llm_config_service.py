@@ -56,6 +56,10 @@ _CLOUD_PROVIDERS = frozenset(
 )
 # CLOUD providers that authenticate without SUITEST_LLM_API_KEY (IAM / canned creds).
 _KEYLESS = frozenset({"bedrock", "vertex", "mock"})
+# ``custom`` = any hosted OpenAI-compatible endpoint (gateway/router/proxy) the
+# user points at via base URL. CLOUD tier; API key optional (gateway-dependent);
+# base URL required — there is no default endpoint to fall back to.
+_CUSTOM = "custom"
 
 
 class LLMConfigError(Exception):
@@ -68,7 +72,7 @@ class LLMConfigError(Exception):
 
 
 def known_providers() -> frozenset[str]:
-    return _LOCAL_PROVIDERS | _CLOUD_PROVIDERS
+    return _LOCAL_PROVIDERS | _CLOUD_PROVIDERS | {_CUSTOM}
 
 
 def provider_tier(provider: str) -> CoreTier:
@@ -110,6 +114,10 @@ class LLMConfigService:
             raise LLMConfigError("INVALID_MODEL", "model is required")
         if p in _LOCAL_PROVIDERS and not base_url:
             raise LLMConfigError("MISSING_BASE_URL", f"LOCAL provider {p} requires config.base_url")
+        if p == _CUSTOM and not base_url:
+            raise LLMConfigError(
+                "MISSING_BASE_URL", "custom provider requires config.base_url"
+            )
         if p in _CLOUD_PROVIDERS and p not in _KEYLESS and not api_key:
             raise LLMConfigError("MISSING_API_KEY", f"CLOUD provider {p} requires an api key")
 

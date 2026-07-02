@@ -188,6 +188,8 @@ def sync_tcm(config_path: str) -> dict[str, object]:
 
 
 # Tool registry (name -> callable) used by the MCP server.
+from suitest_lifecycle.blackbox.mcp import BLACKBOX_TOOLS
+
 TOOLS = {
     "analyze_project": analyze_project,
     "generate_test_cases": generate_test_cases,
@@ -198,7 +200,11 @@ TOOLS = {
     "run_tests": run_tests,
     "sync_tcm": sync_tcm,
     "generate_report": generate_report,
+    **BLACKBOX_TOOLS,
 }
 
+# Blackbox tools take structured kwargs (url/username/…), not just config_path.
+KWARG_TOOLS = frozenset(BLACKBOX_TOOLS)
 
-__all__ = ["TOOLS", *TOOLS.keys()]
+
+__all__ = ["KWARG_TOOLS", "TOOLS", *TOOLS.keys()]

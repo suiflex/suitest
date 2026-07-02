@@ -397,8 +397,49 @@ async def _body(page):
 '''
 
 
+_UNSUPPORTED_MARKER = "unsupported frontend archetype"
+
+
+def _resolve_body(
+    case: PlanCase,
+    config: Config,
+    llm: object | None,
+    dom_context: str,
+) -> str:
+    """Pick the test body: deterministic archetype vs LLM-generated.
+
+    ``codegen`` policy (config):
+      deterministic — archetypes only (ZERO baseline).
+      auto          — archetypes first; the LLM covers cases no archetype
+                      supports (LLM-proposed plans, unconventional apps).
+      llm           — the LLM writes every body (TestSprite-style; needed for
+                      apps that don't follow the data-testid convention).
+    Any LLM failure falls back to the deterministic result so a run never
+    breaks because of the model.
+    """
+    deterministic = _body(case)
+    if llm is None or config.codegen == "deterministic":
+        return deterministic
+    wants_llm = config.codegen == "llm" or _UNSUPPORTED_MARKER in deterministic
+    if not wants_llm:
+        return deterministic
+    generate = getattr(llm, "generate_frontend_body", None)
+    if generate is None:
+        return deterministic
+    generated = generate(case, dom_context)
+    if not generated:
+        return deterministic
+    return "\n" + generated.rstrip() + "\n"
+
+
 def export_frontend_tests(
-    cases: list[PlanCase], summary: CodeSummary, config: Config, paths: Paths
+    cases: list[PlanCase],
+    summary: CodeSummary,
+    config: Config,
+    paths: Paths,
+    *,
+    llm: object | None = None,
+    dom_context: str = "",
 ) -> list[PlanCase]:
     paths.ensure()
     for case in cases:
@@ -408,7 +449,7 @@ def export_frontend_tests(
             password=config.auth.password,
             cid=case.id,
         )
-        code = header + _body(case) + _RUNNER
+        code = header + _resolve_body(case, config, llm, dom_context) + _RUNNER
         filename = f"{case.id}_{case.title}.py"
         paths.test_file(filename).write_text(code, encoding="utf-8")
         case.automation_file = filename

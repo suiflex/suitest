@@ -114,6 +114,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from suitest_api.auth.router import router as auth_router
     from suitest_api.routers.admin_users import router as admin_users_router
     from suitest_api.routers.agent_chat import router as agent_chat_router
+    from suitest_api.routers.llm_proxy import router as llm_proxy_router
     from suitest_api.routers.agent_plugins import router as agent_plugins_router
     from suitest_api.routers.analytics import router as analytics_router
     from suitest_api.routers.api_keys import router as api_keys_router
@@ -231,6 +232,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(autonomy_router)
     app.include_router(cost_router)
     app.include_router(agent_chat_router)
+    app.include_router(llm_proxy_router)
     app.include_router(prompts_router)
     app.include_router(generators_router)
     app.include_router(agent_plugins_router)

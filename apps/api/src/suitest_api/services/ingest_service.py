@@ -72,6 +72,54 @@ def _now() -> datetime:
     return datetime.now(tz=UTC)
 
 
+async def _ensure_project(
+    session: AsyncSession,
+    *,
+    workspace_id: str,
+    project_id: str,
+    project_slug: str,
+    project_name: str,
+) -> str:
+    """Resolve the target project: explicit id wins; else find-or-create by slug.
+
+    Publisher-facing (API-key) path — mirrors ``_ensure_suite``'s idempotent
+    find-or-create so a blackbox/lifecycle run can publish into a fresh
+    workspace without a human pre-creating the project. Audited on create.
+    """
+    from suitest_db.audit import write_audit
+    from suitest_db.models.project import Project
+
+    if project_id:
+        return project_id
+    if not project_slug:
+        raise ValueError("either projectId or projectSlug is required")
+    stmt = select(Project).where(
+        Project.workspace_id == workspace_id,
+        Project.slug == project_slug,
+        Project.deleted_at.is_(None),
+    )
+    existing = (await session.scalars(stmt)).first()
+    if existing is not None:
+        return existing.id
+    row = Project(
+        workspace_id=workspace_id,
+        slug=project_slug[:64],
+        name=(project_name or project_slug)[:120],
+    )
+    session.add(row)
+    await session.flush()
+    await write_audit(
+        session,
+        workspace_id=workspace_id,
+        user_id=None,
+        action="project.created",
+        resource_type="project",
+        resource_id=row.id,
+        metadata={"slug": row.slug, "via": "ingest"},
+    )
+    return row.id
+
+
 async def _ensure_suite(session: AsyncSession, project_id: str, name: str) -> str:
     repo = SuiteRepo(session)
     for suite in await repo.list_by_project(project_id):
@@ -120,7 +168,14 @@ def _target(mode: str) -> tuple[TargetKind, str]:
 async def bulk_import_cases(
     session: AsyncSession, *, workspace_id: str, body: BulkImportBody
 ) -> BulkImportResult:
-    suite_id = await _ensure_suite(session, body.project_id, body.suite_name)
+    project_id = await _ensure_project(
+        session,
+        workspace_id=workspace_id,
+        project_id=body.project_id,
+        project_slug=body.project_slug,
+        project_name=body.project_name,
+    )
+    suite_id = await _ensure_suite(session, project_id, body.suite_name)
     case_repo = TestCaseRepo(session)
     target_kind, mcp_provider = _target(body.mode)
     imported: list[ImportedCase] = []
@@ -211,7 +266,14 @@ def _steps(
 async def ingest_run(
     session: AsyncSession, *, workspace_id: str, body: RunIngestBody
 ) -> RunIngestResult:
-    suite_id = await _ensure_suite(session, body.project_id, body.suite_name)
+    project_id = await _ensure_project(
+        session,
+        workspace_id=workspace_id,
+        project_id=body.project_id,
+        project_slug=body.project_slug,
+        project_name=body.project_name,
+    )
+    suite_id = await _ensure_suite(session, project_id, body.suite_name)
     run_repo = RunRepo(session)
     step_repo = RunStepRepo(session)
     artifact_repo = ArtifactRepo(session)
@@ -219,7 +281,7 @@ async def ingest_run(
 
     run = await run_repo.create(
         RunCreate(
-            project_id=body.project_id,
+            project_id=project_id,
             name=body.name,
             trigger=RunTrigger.AGENT,
             tier_at_runtime=Tier.ZERO,

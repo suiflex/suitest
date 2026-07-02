@@ -21,9 +21,17 @@ const CLOUD_PROVIDERS = [
 ] as const;
 const LOCAL_PROVIDERS = ["ollama", "llamacpp", "vllm", "lmstudio"] as const;
 
+/** Any hosted OpenAI-compatible endpoint (gateway / router / LiteLLM proxy). */
+const CUSTOM_PROVIDER = "custom";
+
 /** LOCAL providers require a base URL instead of an API key. */
 function isLocal(provider: string): boolean {
   return (LOCAL_PROVIDERS as readonly string[]).includes(provider);
+}
+
+/** Providers that talk to a user-supplied endpoint, so the form shows Base URL. */
+function needsBaseUrl(provider: string): boolean {
+  return isLocal(provider) || provider === CUSTOM_PROVIDER;
 }
 
 interface LlmSettingsPanelProps {
@@ -53,7 +61,7 @@ export function LlmSettingsPanel({
     const next: LlmConfigWriteBody = {
       provider,
       model,
-      config: isLocal(provider) && baseUrl ? { base_url: baseUrl } : {},
+      config: needsBaseUrl(provider) && baseUrl ? { base_url: baseUrl } : {},
     };
     if (apiKey) next.apiKey = apiKey;
     return next;
@@ -105,11 +113,16 @@ export function LlmSettingsPanel({
             <span className="text-fg-3">Loading…</span>
           ) : active ? (
             <div className="flex items-center justify-between rounded-md border border-accent/30 bg-accent/10 px-3 py-2">
-              <span>
+              <span className="min-w-0">
                 Active: <strong>{active.provider}</strong> / {active.model}{" "}
                 <span className="text-fg-3">({active.tier})</span>
                 {active.apiKeyHint ? (
                   <span className="ml-2 font-mono text-fg-4">{active.apiKeyHint}</span>
+                ) : null}
+                {typeof active.config["base_url"] === "string" && active.config["base_url"] ? (
+                  <span className="mt-0.5 block truncate font-mono text-[11px] text-fg-4">
+                    {active.config["base_url"]}
+                  </span>
                 ) : null}
               </span>
               {canWrite ? (
@@ -163,7 +176,16 @@ export function LlmSettingsPanel({
                   </option>
                 ))}
               </optgroup>
+              <optgroup label="Other">
+                <option value={CUSTOM_PROVIDER}>custom (OpenAI-compatible URL)</option>
+              </optgroup>
             </select>
+            {provider === CUSTOM_PROVIDER ? (
+              <p className="text-[11.5px] text-fg-4">
+                Any OpenAI-compatible endpoint: LLM gateways/routers, LiteLLM proxy, or a hosted
+                inference server. Point the base URL at its <code>/v1</code> root.
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -180,7 +202,7 @@ export function LlmSettingsPanel({
             />
           </div>
 
-          {isLocal(provider) ? (
+          {needsBaseUrl(provider) ? (
             <div className="space-y-2">
               <label htmlFor="llm-base-url" className="text-[12.5px] font-medium text-fg-1">
                 Base URL
@@ -189,14 +211,21 @@ export function LlmSettingsPanel({
                 id="llm-base-url"
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
-                placeholder="http://localhost:11434"
+                placeholder={
+                  provider === CUSTOM_PROVIDER
+                    ? "https://your-gateway.example.com/v1"
+                    : "http://localhost:11434"
+                }
+                required={provider === CUSTOM_PROVIDER}
                 className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
               />
             </div>
-          ) : (
+          ) : null}
+
+          {!isLocal(provider) ? (
             <div className="space-y-2">
               <label htmlFor="llm-api-key" className="text-[12.5px] font-medium text-fg-1">
-                API key
+                API key{provider === CUSTOM_PROVIDER ? " (optional)" : ""}
               </label>
               <input
                 id="llm-api-key"
@@ -208,7 +237,7 @@ export function LlmSettingsPanel({
                 className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
               />
             </div>
-          )}
+          ) : null}
 
           {error ? (
             <p

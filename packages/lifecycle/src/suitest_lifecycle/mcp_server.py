@@ -16,7 +16,7 @@ import sys
 from collections.abc import Callable
 from typing import TextIO
 
-from suitest_lifecycle.tools import TOOLS
+from suitest_lifecycle.tools import KWARG_TOOLS, TOOLS
 
 PROTOCOL_VERSION = "2024-11-05"
 
@@ -30,10 +30,64 @@ _TOOL_DESCRIPTIONS = {
     "run_tests": "Run the full lifecycle for whatever mode the config declares.",
     "sync_tcm": "Report the TCM mirror (case/run counts + file paths).",
     "generate_report": "Re-surface the last run's report artifacts without re-running.",
+    "bootstrap_project": "Open a browser setup wizard (target URL, credentials, crawl scope, optional markdown PRD upload); writes suitest.config.json into the project and returns its path. Call this FIRST when no config exists.",
+    "blackbox_discover_app": "Blackbox: open the app URL, detect+perform login, crawl routes, capture evidence, save discovery/graph/report JSON. No repo needed.",
+    "blackbox_detect_login": "Blackbox: detect the login form (username/password/submit locators) on the target — heuristics, no data-testid required.",
+    "blackbox_perform_login": "Blackbox: detect the login form and actually log in with the given credentials; reports the landing route.",
+    "blackbox_crawl_routes": "Blackbox: login + safe BFS crawl; returns the route map (safeMode skips destructive links).",
+    "blackbox_analyze_page": "Blackbox: classify one page (login/dashboard/list/form/…); returns its interactive elements + evidence screenshot.",
+    "blackbox_build_interaction_graph": "Blackbox: build the serializable interaction graph (page/form/table/modal nodes) from the saved discovery.",
+    "blackbox_generate_playwright_tests": "Blackbox: deterministically generate Playwright tests (smoke/auth/navigation/lists/forms) from the saved discovery.",
+    "blackbox_run_playwright_tests": "Blackbox: execute the generated tests; per-case outcomes + video/screenshot evidence.",
+    "blackbox_collect_evidence": "Blackbox: index all evidence (screenshots, videos, traces, report JSONs).",
+    "blackbox_publish_results": "Publish the blackbox suite + latest run (video/screenshot evidence) into the Suitest web TCM. Needs project_id (or publish.projectId in config).",
+    "blackbox_summarize_findings": "Blackbox: one JSON summary — route map, bug candidates, test outcomes — for agent reasoning.",
+}
+
+
+_BLACKBOX_INPUT_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "config_path": {
+            "type": "string",
+            "description": "Optional suitest.config.json with a 'ui' blackbox section",
+        },
+        "url": {"type": "string", "description": "Target app URL (overrides config)"},
+        "username": {"type": "string", "description": "Test credential username/email"},
+        "password": {"type": "string", "description": "Test credential password"},
+        "max_routes": {"type": "integer", "description": "Crawl route cap"},
+        "page_url": {
+            "type": "string",
+            "description": "Route or absolute URL (blackbox_analyze_page only)",
+        },
+        "project_path": {
+            "type": "string",
+            "description": "Project directory for the setup wizard (bootstrap_project)",
+        },
+        "timeout_sec": {
+            "type": "integer",
+            "description": "How long to wait for the user to submit the wizard (bootstrap_project)",
+        },
+        "project_id": {
+            "type": "string",
+            "description": "Suitest project id to publish into (blackbox_publish_results)",
+        },
+        "prd_file": {
+            "type": "string",
+            "description": "Markdown PRD path — PRD-driven semantic plan via the workspace LLM (blackbox_generate_playwright_tests)",
+        },
+    },
+    "required": [],
 }
 
 
 def _tool_schema(name: str) -> dict[str, object]:
+    if name in KWARG_TOOLS:
+        return {
+            "name": name,
+            "description": _TOOL_DESCRIPTIONS.get(name, name),
+            "inputSchema": _BLACKBOX_INPUT_SCHEMA,
+        }
     return {
         "name": name,
         "description": _TOOL_DESCRIPTIONS.get(name, name),
@@ -84,9 +138,12 @@ def handle(message: dict[str, object]) -> dict[str, object] | None:
         tool: Callable[..., dict[str, object]] | None = TOOLS.get(str(name))
         if tool is None:
             return _err(req_id, -32601, f"unknown tool: {name}")
-        config_path = str(args.get("config_path", "suitest.config.json")) if isinstance(args, dict) else "suitest.config.json"
+        arguments = args if isinstance(args, dict) else {}
         try:
-            envelope = tool(config_path)
+            if str(name) in KWARG_TOOLS:
+                envelope = tool(**arguments)
+            else:
+                envelope = tool(str(arguments.get("config_path", "suitest.config.json")))
         except Exception as exc:  # defensive: never crash the server on a tool bug
             envelope = {"success": False, "summary": f"tool crashed: {exc}", "data": {}, "artifacts": [], "errors": [str(exc)]}
         return _ok(

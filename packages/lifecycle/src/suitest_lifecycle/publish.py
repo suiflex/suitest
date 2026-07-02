@@ -186,6 +186,9 @@ def publish_results(
         api_url,
         token=token,
         workspace_id=config.publish.workspace_id or None,
+        # Video artifacts upload THROUGH the API to remote object storage — the
+        # default 30s regularly times out on multi-MB webm files.
+        timeout=180.0,
     )
     try:
         with client:

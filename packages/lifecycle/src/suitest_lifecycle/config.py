@@ -102,7 +102,21 @@ class Config:
     dependencies: list[DependencyConfig] = field(default_factory=list)
     test_ids: list[str] = field(default_factory=list)  # empty = all
     additional_instruction: str = ""
-    enrich: bool = False  # LLM enrichment (deterministic mock; real provider via per-workspace web config later)
+    enrich: bool = False  # LLM enrichment (real provider via the Suitest LLM proxy when reachable)
+    # Blackbox DOM engine ("ui" section) — no-repo frontend testing from a URL
+    # + credentials. Parsed into suitest_lifecycle.blackbox.models.BlackboxUiConfig;
+    # kept as `object` here so the stdlib-only core has no import-order coupling.
+    ui: object | None = None
+    # Uploaded product spec (markdown, TestSprite-parity flow). When set and an
+    # LLM bridge is reachable, the plan is PRD-driven on top of the baseline.
+    prd_file: str = ""
+    # Frontend codegen strategy:
+    #   auto          — deterministic archetypes first; LLM writes the body for
+    #                   cases no archetype supports (requires the LLM proxy).
+    #   llm           — LLM writes EVERY frontend test body (TestSprite-style;
+    #                   arbitrary apps, no data-testid convention needed).
+    #   deterministic — archetypes only (ZERO baseline; unknown cases fail loud).
+    codegen: str = "auto"
     publish: PublishConfig = field(default_factory=PublishConfig)
     output_dir: Path = field(default_factory=lambda: Path("suitest-output"))
     config_path: Path = field(default_factory=lambda: Path("suitest.config.json"))
@@ -138,6 +152,16 @@ def load_config(path: str | Path) -> Config:
     base_dir = cfg_path.parent
 
     analysis_source = str(raw.get("analysisSource", "repo")).lower()
+    ui_raw = raw.get("ui")
+    ui_cfg = None
+    if isinstance(ui_raw, dict):
+        from suitest_lifecycle.blackbox.models import BlackboxUiConfig
+
+        ui_cfg = BlackboxUiConfig.from_raw(ui_raw)
+        # A "ui.mode: blackbox" section IS the analysis source for frontend runs
+        # unless the config explicitly pinned another one.
+        if mode is Mode.FRONTEND and "analysisSource" not in raw and ui_cfg.mode == "blackbox":
+            analysis_source = "blackbox"
     openapi_url = str(raw.get("openapiUrl", ""))
     openapi_file = str(raw.get("openapiFile", ""))
     postman_file = str(raw.get("postmanFile", ""))
@@ -159,7 +183,11 @@ def load_config(path: str | Path) -> Config:
                 "'openapiUrl', 'openapiFile', or 'postmanFile'"
             )
 
+    if "baseUrl" not in raw and ui_cfg is not None and ui_cfg.target_url:
+        raw = {**raw, "baseUrl": ui_cfg.target_url}
     base_url = str(_require(raw, "baseUrl")).rstrip("/")
+    if ui_cfg is not None and not ui_cfg.target_url:
+        ui_cfg.target_url = base_url
 
     auth_raw = raw.get("auth", {})
     auth = AuthConfig()
@@ -274,6 +302,9 @@ def load_config(path: str | Path) -> Config:
         test_ids=test_ids,
         additional_instruction=str(raw.get("additionalInstruction", "")),
         enrich=bool(raw.get("enrich", False)),
+        ui=ui_cfg,
+        prd_file=str((base_dir / str(raw["prdFile"])).resolve()) if raw.get("prdFile") else "",
+        codegen=str(raw.get("codegen", "auto")).lower(),
         publish=publish,
         output_dir=output_dir,
         config_path=cfg_path,

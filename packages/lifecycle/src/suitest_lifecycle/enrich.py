@@ -72,15 +72,20 @@ class MockLlmClient:
 
 
 def resolve_client(config: Config) -> LlmClient | None:
-    """None → no enrichment (deterministic baseline); the deterministic mock when
-    ``config.enrich`` is set.
+    """None → no enrichment (deterministic baseline).
 
-    LLM providers are configured per-workspace from the web UI (not env). A real
-    provider bridge that consumes that workspace config lands later; until then
-    enrichment uses :class:`MockLlmClient` so a run never hard-depends on a key.
+    With ``config.enrich`` set, prefer the REAL bridge: the Suitest server's
+    ``/llm/complete`` proxy (workspace LLM config, key stays server-side; see
+    :mod:`suitest_lifecycle.llm_bridge`). When no API url/key is available the
+    deterministic :class:`MockLlmClient` keeps the run key-independent.
     """
     if not config.enrich:
         return None
+    from suitest_lifecycle.llm_bridge import resolve_remote
+
+    remote = resolve_remote(config)
+    if remote is not None:
+        return remote
     return MockLlmClient()
 
 

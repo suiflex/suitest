@@ -48,6 +48,10 @@ class CrawlResult:
     summary: CodeSummary
     login: LoginSelectors
     page_testids: dict[str, list[str]] = field(default_factory=dict)
+    # Per-route interactive-element digest ({"inputs": [...], "buttons": [...]})
+    # — feeds LLM codegen so generated Playwright uses REAL selectors even on
+    # apps with no data-testid convention.
+    page_elements: dict[str, dict] = field(default_factory=dict)
 
 
 def _pick_testid(items: list[dict], *needles: str) -> str:
@@ -67,6 +71,7 @@ async def _crawl(base_url: str, username: str, password: str, max_pages: int) ->
     base = base_url.rstrip("/")
     pages: list[Page] = []
     page_testids: dict[str, list[str]] = {}
+    page_elements: dict[str, dict] = {}
     login = LoginSelectors()
     visited: set[str] = set()
 
@@ -94,6 +99,7 @@ async def _crawl(base_url: str, username: str, password: str, max_pages: int) ->
             route = _route_of(anon_url, base)
             pages.append(Page(route=route or "/login", name="LoginPage", protected=False, source_file="crawl"))
             page_testids[route or "/login"] = data["testids"]
+            page_elements[route or "/login"] = {"inputs": data["inputs"], "buttons": data["buttons"]}
 
             # perform login
             if username and password and login.submit:
@@ -132,6 +138,7 @@ async def _crawl(base_url: str, username: str, password: str, max_pages: int) ->
             if not any(pg.route == href for pg in pages):
                 pages.append(Page(route=href, name=name, protected=not protected and href != "/login", source_file="crawl"))
             page_testids[href] = d["testids"]
+            page_elements[href] = {"inputs": d["inputs"], "buttons": d["buttons"]}
             for ln in d["links"]:
                 if ln not in visited and len(queue) < max_pages * 2:
                     queue.append(ln)
@@ -146,7 +153,9 @@ async def _crawl(base_url: str, username: str, password: str, max_pages: int) ->
         features=[p.name for p in pages],
         auth_flow="Login form discovered via DOM crawl." if login.email else "No login form found.",
     )
-    return CrawlResult(summary=summary, login=login, page_testids=page_testids)
+    return CrawlResult(
+        summary=summary, login=login, page_testids=page_testids, page_elements=page_elements
+    )
 
 
 def _route_of(url: str, base: str) -> str:

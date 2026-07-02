@@ -49,7 +49,12 @@ class IngestCase(_Camel):
 
 
 class BulkImportBody(_Camel):
-    project_id: str = Field(alias="projectId")
+    # Either an explicit project id, or a slug (+ display name) the server
+    # resolves/creates in the caller's workspace — publishers like the blackbox
+    # pipeline have credentials but no project yet.
+    project_id: str = Field(default="", alias="projectId")
+    project_slug: str = Field(default="", alias="projectSlug")
+    project_name: str = Field(default="", alias="projectName")
     suite_name: str = Field(alias="suiteName")
     mode: str = "backend"  # backend | frontend -> target_kind / mcp_provider defaults
     cases: list[IngestCase] = Field(default_factory=list)
@@ -100,7 +105,9 @@ class IngestResult(_Camel):
 
 
 class RunIngestBody(_Camel):
-    project_id: str = Field(alias="projectId")
+    project_id: str = Field(default="", alias="projectId")
+    project_slug: str = Field(default="", alias="projectSlug")
+    project_name: str = Field(default="", alias="projectName")
     suite_name: str = Field(alias="suiteName")
     name: str
     env: str = "staging"

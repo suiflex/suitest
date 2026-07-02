@@ -19,6 +19,9 @@ frontend = ["playwright>=1.40"]
 # with:  uv pip install --python .venv/bin/python -e sdk/python
 # Without it, publish degrades to a no-op ("suitest-sdk not installed").
 
+[project.scripts]
+suitest = "suitest_lifecycle.cli:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

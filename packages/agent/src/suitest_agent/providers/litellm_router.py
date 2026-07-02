@@ -63,9 +63,11 @@ _PREFIX: dict[str, str] = {
     "deepseek": "deepseek",
     "ollama": "ollama",
 }
-# LOCAL OpenAI-compatible shims (llamacpp/vllm/lmstudio) talk OpenAI protocol
-# against a custom api_base.
-_OPENAI_SHIM = frozenset({"llamacpp", "vllm", "lmstudio"})
+# OpenAI-compatible shims talk OpenAI protocol against a custom api_base:
+# LOCAL servers (llamacpp/vllm/lmstudio) plus ``custom`` — any hosted
+# OpenAI-compatible gateway/router (e.g. LiteLLM proxy, 9router) the user
+# points at via base URL + API key. ``custom`` resolves to CLOUD tier.
+_OPENAI_SHIM = frozenset({"llamacpp", "vllm", "lmstudio", "custom"})
 
 # Seed support per docs/AI_AGENT.md §13.1 — drives the replay determinism label.
 _DETERMINISTIC_SEED = frozenset({"openai", "groq", "vllm", "llamacpp", "mock"})

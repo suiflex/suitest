@@ -785,6 +785,7 @@ Deterministic + LLM-driven test generators. Deterministic ones (`/openapi`, `/re
 | POST | `/generators/mcp-discovery` | **(M3-9)** LLM explores a registered MCP provider's tool catalog → DRAFT contract cases. SSE. **409** when no active LLM; **404** unknown provider; `EMPTY_CATALOG` error frame when no tools | **Yes (CLOUD/LOCAL)** |
 | POST | `/generators/url-semantic` | **(M3-7)** LLM decomposes an intent ("checkout flow") on a URL → FE_WEB journey cases (playwright-mcp). SSE. **409** when no active LLM | **Yes (CLOUD/LOCAL)** |
 | POST | `/agent/chat` | **(M3-12/M3-13)** Conversation mode — streams `token` SSE frames; tool requests emit a `tool` frame + `agent.tool.call` WS event. **409** when no active LLM | **Yes (CLOUD/LOCAL)** |
+| POST | `/llm/complete` | One-shot completion proxy for the lifecycle/MCP client (plan enrichment, Playwright codegen). Auth: API key (`sk_suitest_…`) or session. Body `{prompt, system?, maxTokens?, temperature?}` → `{content, model, tokensIn, tokensOut, costUsd}`. **409** when no active LLM (ZERO); **502** on provider error | Implicit (409 = ZERO) |
 | GET | `/workspaces/:id/cost` | **(M3-14)** Per-provider/per-kind LLM spend rollups + soft daily budget (`overBudget`/`alert`) | No |
 | GET/PUT | `/workspaces/:id/autonomy` | **(M3-15/M3-16)** Autonomy level + per-feature overrides + computed `effective`. PUT ADMIN+, audited. ZERO→`manual` only | No |
 | POST | `/generators/classify` | Utility: input → `{targetKind, recommendedMcp, recommendedStrategy}` | No |

@@ -122,13 +122,51 @@ class SuitestClient:
                 return run
             time.sleep(poll_interval)
 
+    # -- LLM proxy (lifecycle enrichment / codegen) ---------------------------
+    def llm_complete(
+        self,
+        prompt: str,
+        *,
+        system: str | None = None,
+        max_tokens: int = 4096,
+        temperature: float = 0.2,
+    ) -> str:
+        """One-shot completion via the workspace's active LLM (server-side key).
+
+        Raises :class:`SuitestAPIError` with status 409 when the workspace has
+        no LLM configured (ZERO tier) — callers degrade to deterministic paths.
+        Returns the completion text.
+        """
+        body: JSONDict = {
+            "prompt": prompt,
+            "maxTokens": max_tokens,
+            "temperature": temperature,
+        }
+        if system is not None:
+            body["system"] = system
+        result = self._request("POST", "/api/v1/llm/complete", json=body)
+        return str(result.get("content", ""))
+
     # -- lifecycle ingest (Phase 2) -----------------------------------------
     def bulk_import_cases(
-        self, *, project_id: str, suite_name: str, mode: str, cases: list[JSONDict]
+        self,
+        *,
+        project_id: str = "",
+        suite_name: str,
+        mode: str,
+        cases: list[JSONDict],
+        project_slug: str = "",
+        project_name: str = "",
     ) -> JSONDict:
-        """Upsert a suite's generated cases + steps (idempotent by sourceRef)."""
+        """Upsert a suite's generated cases + steps (idempotent by sourceRef).
+
+        Target project: pass ``project_id``, or ``project_slug`` (+ optional
+        display name) and the server finds-or-creates it in the workspace.
+        """
         body: JSONDict = {
             "projectId": project_id,
+            "projectSlug": project_slug,
+            "projectName": project_name,
             "suiteName": suite_name,
             "mode": mode,
             "cases": cases,
@@ -158,17 +196,25 @@ class SuitestClient:
     def ingest_run(
         self,
         *,
-        project_id: str,
+        project_id: str = "",
         suite_name: str,
         name: str,
         results: list[JSONDict],
         env: str = "staging",
         branch: str | None = None,
         commit_sha: str | None = None,
+        project_slug: str = "",
+        project_name: str = "",
     ) -> JSONDict:
-        """Record an already-completed lifecycle run (no ARQ execution)."""
+        """Record an already-completed lifecycle run (no ARQ execution).
+
+        Target project mirrors :meth:`bulk_import_cases` — id, or
+        find-or-create by ``project_slug``.
+        """
         body: JSONDict = {
             "projectId": project_id,
+            "projectSlug": project_slug,
+            "projectName": project_name,
             "suiteName": suite_name,
             "name": name,
             "env": env,

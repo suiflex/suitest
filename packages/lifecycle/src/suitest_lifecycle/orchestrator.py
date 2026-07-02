@@ -84,10 +84,18 @@ def _plan(config: Config, summary: CodeSummary) -> list[PlanCase]:
     return generate_frontend_plan(summary, config)
 
 
-def _export(config: Config, cases: list[PlanCase], summary: CodeSummary, paths: Paths) -> list[PlanCase]:
+def _export(
+    config: Config,
+    cases: list[PlanCase],
+    summary: CodeSummary,
+    paths: Paths,
+    *,
+    llm: object | None = None,
+    dom_context: str = "",
+) -> list[PlanCase]:
     if config.mode is Mode.BACKEND:
         return export_backend_tests(cases, summary, config, paths)
-    return export_frontend_tests(cases, summary, config, paths)
+    return export_frontend_tests(cases, summary, config, paths, llm=llm, dom_context=dom_context)
 
 
 def _is_crawl(config: Config) -> bool:
@@ -96,13 +104,23 @@ def _is_crawl(config: Config) -> bool:
     return config.mode is Mode.FRONTEND and config.analysis_source == "crawl"
 
 
+def _is_blackbox(config: Config) -> bool:
+    """Blackbox DOM engine (no repo, no LLM) — also deferred until the app is up."""
+    return config.mode is Mode.FRONTEND and config.analysis_source == "blackbox"
+
+
 def generate_only(
-    config: Config, summary: CodeSummary | None = None
+    config: Config,
+    summary: CodeSummary | None = None,
+    *,
+    crawl: object | None = None,
 ) -> tuple[CodeSummary, list[PlanCase], Paths]:
     """Run analyze → PRD → plan → export and write artifacts (no execution).
 
     ``summary`` may be pre-computed (e.g. from a live DOM crawl that already ran
-    after the app came up); otherwise it is analyzed here.
+    after the app came up); otherwise it is analyzed here. ``crawl`` is the
+    optional :class:`CrawlResult` whose DOM digest powers LLM codegen for apps
+    with no data-testid convention.
     """
     paths = build_paths(config.output_dir, config.mode)
     paths.ensure()
@@ -110,8 +128,19 @@ def generate_only(
         summary = _analyze(config)
     prd = build_prd(summary, _today(), config.project_name)
     cases = _plan(config, summary)
-    cases = enrich_plan(summary, cases, config, resolve_client(config))
-    cases = _export(config, cases, summary, paths)
+    client = resolve_client(config)
+    cases = enrich_plan(summary, cases, config, client)
+    # LLM codegen wants a client even when enrichment is off — resolve the
+    # remote bridge directly unless codegen is pinned deterministic.
+    codegen_llm = client
+    if codegen_llm is None and config.mode is Mode.FRONTEND and config.codegen != "deterministic":
+        from suitest_lifecycle.llm_bridge import resolve_remote
+
+        codegen_llm = resolve_remote(config)
+    from suitest_lifecycle.llm_bridge import build_dom_context
+
+    dom_context = build_dom_context(crawl, summary)  # type: ignore[arg-type]
+    cases = _export(config, cases, summary, paths, llm=codegen_llm, dom_context=dom_context)
 
     paths.code_summary_json.write_text(json.dumps(code_summary_to_json(summary), indent=2), "utf-8")
     paths.prd_json.write_text(json.dumps(prd_to_json(prd), indent=2), encoding="utf-8")
@@ -139,11 +168,95 @@ def _config_snapshot(config: Config) -> str:
     )
 
 
+def _blackbox_generate(config: Config) -> tuple[CodeSummary, list[PlanCase], Paths, list[str]]:
+    """Blackbox path: discover the live app → graph → deterministic tests.
+
+    Writes discovery.json / interaction_graph.json / blackbox_report.json next
+    to the other run artifacts so MCP tools and LLM consumers can pick them up.
+    """
+    import json as _json
+
+    from suitest_lifecycle.blackbox.crawler import discover
+    from suitest_lifecycle.blackbox.generator import export_blackbox_tests
+    from suitest_lifecycle.blackbox.graph import build_graph
+    from suitest_lifecycle.blackbox.models import BlackboxUiConfig
+    from suitest_lifecycle.blackbox.reporter import summarize, write_report
+    from suitest_lifecycle.models import Page
+
+    ui = config.ui if isinstance(config.ui, BlackboxUiConfig) else BlackboxUiConfig()
+    if not ui.target_url:
+        ui.target_url = config.base_url
+    if not ui.auth.username:
+        ui.auth.username = config.auth.username
+        ui.auth.password = config.auth.password
+
+    paths = build_paths(config.output_dir, config.mode)
+    paths.ensure()
+    evidence_dir = paths.tmp_dir / "blackbox"
+
+    discovery = discover(ui, evidence_dir)
+    steps = [
+        f"blackbox: discovered {len(discovery.pages)} route(s); "
+        f"login {'detected' if discovery.login else 'not found'}"
+        + (", login OK" if discovery.login_probe.success else ""),
+    ]
+    graph = build_graph(discovery)
+    (paths.tmp_dir / "discovery.json").write_text(
+        _json.dumps(discovery.to_json(), indent=2), encoding="utf-8"
+    )
+    (paths.tmp_dir / "interaction_graph.json").write_text(
+        _json.dumps(graph, indent=2), encoding="utf-8"
+    )
+    write_report(summarize(discovery, graph=graph), paths.reports_dir)
+
+    prd_context = ""
+    llm = None
+    if config.prd_file:
+        from suitest_lifecycle.blackbox.prd_ingest import load_prd
+        from suitest_lifecycle.llm_bridge import resolve_remote
+
+        prd_doc = load_prd(config.prd_file)
+        (paths.tmp_dir / "prd_ingest.json").write_text(
+            _json.dumps(prd_doc.to_json(), indent=2), encoding="utf-8"
+        )
+        prd_context = prd_doc.as_prompt_context()
+        llm = resolve_remote(config)
+        steps.append(
+            f"prd: ingested '{prd_doc.title or config.prd_file}' "
+            f"({len(prd_doc.requirements)} requirement(s)); "
+            f"LLM bridge {'available' if llm else 'unavailable — deterministic only'}"
+        )
+    cases = export_blackbox_tests(discovery, ui, paths, llm=llm, prd_context=prd_context)
+    steps.append(f"blackbox: generated {len(cases)} test case(s)")
+
+    summary = CodeSummary(
+        project_name=config.project_name,
+        mode=Mode.FRONTEND,
+        tech_stack=["Web", "blackbox"],
+        pages=[
+            Page(route=p.route, name=p.pattern, protected=p.protected, source_file="blackbox")
+            for p in discovery.pages
+        ],
+        features=[p.pattern for p in discovery.pages],
+        auth_flow=(
+            "Login form discovered via blackbox DOM heuristics."
+            if discovery.login
+            else "No login form found."
+        ),
+    )
+    paths.code_summary_json.write_text(
+        _json.dumps(code_summary_to_json(summary), indent=2), encoding="utf-8"
+    )
+    paths.test_plan_json.write_text(_json.dumps(plan_to_json(cases), indent=2), encoding="utf-8")
+    paths.config_snapshot_json.write_text(_config_snapshot(config), encoding="utf-8")
+    return summary, cases, paths, steps
+
+
 def run_lifecycle(config: Config) -> LifecycleResult:
     steps: list[str] = []
     errors: list[str] = []
 
-    crawl_mode = _is_crawl(config)
+    crawl_mode = _is_crawl(config) or _is_blackbox(config)
     summary_code: CodeSummary | None
     if crawl_mode:
         # Discovery needs the live app — defer analyze/generate until after ready.
@@ -238,8 +351,11 @@ def run_lifecycle(config: Config) -> LifecycleResult:
             if not browser.ready:
                 return _finish_fail(f"browser unavailable: {browser.detail}")
 
-        # 4) crawl mode: app is up — discover via live DOM, then generate.
-        if crawl_mode:
+        # 4) crawl/blackbox mode: app is up — discover via live DOM, then generate.
+        if _is_blackbox(config):
+            summary_code, cases, paths, bb_steps = _blackbox_generate(config)
+            steps.extend(bb_steps)
+        elif crawl_mode:
             from suitest_lifecycle.analyzers.crawl import analyze_crawl
 
             crawl = analyze_crawl(config.base_url, config.auth.username, config.auth.password)
@@ -247,7 +363,7 @@ def run_lifecycle(config: Config) -> LifecycleResult:
                 f"crawled {len(crawl.summary.pages)} page(s); "
                 f"login {'found' if crawl.login.email else 'not found'}"
             )
-            summary_code, cases, paths = generate_only(config, crawl.summary)
+            summary_code, cases, paths = generate_only(config, crawl.summary, crawl=crawl)
             steps.append(f"generated {len(cases)} test case(s) from crawl")
 
         results = run_tests(
