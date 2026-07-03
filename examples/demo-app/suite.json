@@ -8,7 +8,7 @@
       "priority": "P1",
       "status": "ACTIVE",
       "target_kind": "BE_REST",
-      "mcp_provider": "api-mcp",
+      "mcp_provider": "api-http-mcp",
       "description": "PRD R1: fixed launch menu of 4 items, each with price and stock.",
       "steps": [
         {
@@ -47,7 +47,7 @@
       "priority": "P0",
       "status": "ACTIVE",
       "target_kind": "BE_REST",
-      "mcp_provider": "api-mcp",
+      "mcp_provider": "api-http-mcp",
       "description": "PRD R2: order returns id + total (price × qty) and immediately decrements stock.",
       "steps": [
         {
@@ -100,7 +100,7 @@
       "priority": "P0",
       "status": "ACTIVE",
       "target_kind": "BE_REST",
-      "mcp_provider": "api-mcp",
+      "mcp_provider": "api-http-mcp",
       "description": "PRD R3: quantity above current stock → 409 'insufficient stock', stock unchanged.",
       "steps": [
         {
@@ -152,7 +152,7 @@
       "priority": "P1",
       "status": "ACTIVE",
       "target_kind": "BE_REST",
-      "mcp_provider": "api-mcp",
+      "mcp_provider": "api-http-mcp",
       "description": "PRD R4+R5: orders of ≥4 units get 10% off at checkout; checkout marks order paid.",
       "steps": [
         {

@@ -29,7 +29,6 @@ from suitest_shared.domain.enums import (
     AutonomyLevel,
     CaseSource,
     CaseStatus,
-    McpTransport,
     Priority,
     Role,
     TargetKind,
@@ -39,7 +38,6 @@ from suitest_shared.domain.enums import (
 from suitest_db.engine import lifespan_engine
 from suitest_db.models.case import TestCase, TestStep
 from suitest_db.models.llm_config import LLMConfig
-from suitest_db.models.mcp_provider import McpProvider
 from suitest_db.models.project import Project, Suite
 from suitest_db.models.tenancy import Membership
 from suitest_db.models.user import User
@@ -64,10 +62,10 @@ _DEFAULT_SUITE_PATH: Final = (
 
 _USER_NS: Final = uuid.UUID("00000000-0000-0000-0000-00000000bbbb")
 
-_MCP_PROVIDERS: Final[tuple[tuple[str, str, str, TargetKind], ...]] = (
-    ("playwright-mcp", "playwright", "stdio://playwright", TargetKind.FE_WEB),
-    ("api-mcp", "api", "stdio://api-http", TargetKind.BE_REST),
-)
+# No custom McpProvider rows: the fixture routes to the BUNDLED builtins
+# (api-http-mcp in-process, playwright-mcp stdio) which the registry seeds for
+# every workspace automatically. A custom row with the same name would
+# override the builtin and lose its spawn command.
 
 
 def _load_fixture() -> dict[str, Any]:
@@ -137,29 +135,6 @@ class DemoSeeder:
             await self.session.flush()
         self._project = row
         return row
-
-    async def ensure_mcp_providers(self) -> None:
-        ws = self._require_workspace()
-        for name, kind, endpoint, default_target in _MCP_PROVIDERS:
-            existing = await self.session.scalar(
-                select(McpProvider).where(
-                    McpProvider.workspace_id == ws.id, McpProvider.name == name
-                )
-            )
-            if existing is None:
-                self.session.add(
-                    McpProvider(
-                        workspace_id=ws.id,
-                        name=name,
-                        kind=kind,
-                        endpoint=endpoint,
-                        transport=McpTransport.STDIO,
-                        config_json={},
-                        is_default_for_target={default_target.value: True},
-                        health_status="unknown",
-                    )
-                )
-        await self.session.flush()
 
     async def ensure_suite_from_fixture(self, fixture: dict[str, Any]) -> Suite:
         project = self._require_project()
@@ -247,7 +222,6 @@ class DemoSeeder:
         await self.ensure_workspace()
         await self.ensure_user()
         await self.ensure_project()
-        await self.ensure_mcp_providers()
         await self.ensure_suite_from_fixture(fixture)
         await self.ensure_capability()
 

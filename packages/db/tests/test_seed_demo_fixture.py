@@ -18,8 +18,9 @@ from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, Target
 
 FIXTURE = Path(__file__).parents[3] / "examples" / "demo-app" / "suite.json"
 
-ALLOWED_PROVIDERS = {"api-mcp", "playwright-mcp"}
-PROVIDER_FOR_TARGET = {"BE_REST": "api-mcp", "FE_WEB": "playwright-mcp"}
+# Builtin provider names from suitest_mcp.providers.builtin_specs — the demo
+# seed registers no custom rows, so steps must route to bundled builtins.
+PROVIDER_FOR_TARGET = {"BE_REST": "api-http-mcp", "FE_WEB": "playwright-mcp"}
 
 
 @pytest.fixture(scope="module")
