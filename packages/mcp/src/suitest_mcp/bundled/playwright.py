@@ -50,7 +50,10 @@ from suitest_mcp.models import McpProviderConfig, McpToolSchema, McpTransport
 
 #: ``npx`` argv used to spawn the bundled provider. ``-y`` is required to
 #: keep the install handshake non-interactive (see module docstring).
-PLAYWRIGHT_COMMAND: list[str] = ["npx", "-y", "@playwright/mcp@latest"]
+#: ``--browser chromium`` pins the Playwright-managed chromium build: the
+#: default Chrome channel binary does not exist on linux/arm64 runner images,
+#: while chromium is preinstalled on every platform (Dockerfile.runner).
+PLAYWRIGHT_COMMAND: list[str] = ["npx", "-y", "@playwright/mcp@latest", "--browser", "chromium"]
 
 
 #: Informational tool catalog. Authoritative list comes from

@@ -8,9 +8,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir uv==0.11.8
 # Preinstall the bundled Playwright MCP provider + browser runtimes so the
 # runner can execute FE_WEB steps inside CI without a cold npx/npm bootstrap.
-# ``@playwright/mcp`` currently expects the Chrome channel binary path.
+# ``playwright install --with-deps chromium`` pulls the shared system libraries;
+# ``@playwright/mcp install-browser chrome-for-testing`` fetches the browser
+# build the MCP server actually launches (the Chrome channel binary does not
+# exist on linux/arm64, so the ``--browser chromium`` spawn flag +
+# chrome-for-testing build is the only combination that works on every arch).
 RUN npm install -g @playwright/mcp@latest \
-    && npx -y playwright install --with-deps chrome chromium
+    && npx -y playwright install --with-deps chromium \
+    && npx -y @playwright/mcp@latest install-browser chrome-for-testing
 
 WORKDIR /app
 COPY pyproject.toml uv.lock* ./

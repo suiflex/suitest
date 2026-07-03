@@ -1,0 +1,27 @@
+# Keep the monorepo build context small — Dockerfile.api/runner/web only COPY
+# pyproject/uv.lock, apps/, packages/, pnpm manifests. Everything heavy or
+# irrelevant stays out (node_modules alone is >1 GB).
+.git
+.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+node_modules
+**/node_modules
+docs
+docs-site
+mockup
+assets
+eval
+sdk
+cli
+scripts
+tests
+examples
+infra/helm
+*.rvf
+*.rvf.lock
+ruvector.db
+.env
+.env.*
