@@ -18,6 +18,15 @@
   <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-native-4ade80?style=for-the-badge" alt="MCP native"></a>
 </p>
 
+<p align="center">
+  <img src="assets/demo.gif" alt="Suitest 30-second demo: PRD-generated test suite executing green against the bundled Brewly demo app" width="960">
+</p>
+
+<p align="center">
+  <em>AI-generated suite (from <a href="./examples/demo-app/PRD.md">PRD.md</a>) running green against a live app — API + browser steps, screenshots included.<br>
+  Replay it yourself in one command: <code>make demo</code> → <a href="http://localhost:3000">localhost:3000</a> (<code>demo@suitest.dev</code> / <code>demo1234</code>). No LLM key needed.</em>
+</p>
+
 **Suitest** is a _self-hostable, open-source QA platform_ that works fully **without any LLM** (ZERO tier): manual test case management plus a deterministic run engine that drives any target through [MCP](https://modelcontextprotocol.io) — Playwright, HTTP APIs, Postgres, and more. Plug in your own LLM key — cloud or local Ollama — to unlock AI generation, diagnosis, and conversational testing. No vendor lock-in, no forced API keys.
 
 It ships an **MCP server for IDE agents** (Claude Code, Cursor, Codex): analyze a repo, generate runnable tests, execute them with video/screenshot evidence, and publish results — including a **blackbox DOM engine** that tests any web app from just a URL and test credentials, no repo access required.
