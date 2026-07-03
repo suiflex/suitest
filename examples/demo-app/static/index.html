@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Brewly — coffee, ordered.</title>
+  <style>
+    :root {
+      --bg: #0a0a0a; --card: #111; --hover: #161616; --border: #262626;
+      --fg: #fafafa; --muted: #a3a3a3; --dim: #737373; --accent: #4ade80; --red: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      background: var(--bg); color: var(--fg);
+      font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+      max-width: 760px; margin: 0 auto; padding: 48px 24px;
+    }
+    h1 { font-size: 30px; letter-spacing: -0.03em; }
+    h1 span { color: var(--accent); }
+    p.sub { color: var(--dim); margin: 4px 0 32px; font-size: 13px; }
+    .menu { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 32px; }
+    .item {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px; cursor: pointer; transition: background .15s;
+    }
+    .item:hover, .item.selected { background: var(--hover); }
+    .item.selected { border-color: var(--accent); }
+    .item .name { font-weight: 600; }
+    .item .price { color: var(--accent); font-family: ui-monospace, monospace; font-size: 13px; }
+    .item .stock { color: var(--dim); font-size: 12px; }
+    form { display: flex; gap: 8px; margin-bottom: 16px; }
+    input[type=number] {
+      width: 90px; background: var(--card); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font: inherit;
+    }
+    button {
+      background: var(--accent); color: #052e16; border: 0; border-radius: 8px;
+      padding: 10px 18px; font: inherit; font-weight: 600; cursor: pointer;
+    }
+    button:disabled { opacity: .4; cursor: default; }
+    #order-status {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px; color: var(--muted); font-family: ui-monospace, monospace; font-size: 13px;
+      min-height: 52px;
+    }
+    #order-status.ok { border-color: var(--accent); color: var(--accent); }
+    #order-status.err { border-color: var(--red); color: var(--red); }
+  </style>
+</head>
+<body>
+  <h1>Brewly <span>●</span></h1>
+  <p class="sub">coffee, ordered. — Suitest demo target</p>
+
+  <div class="menu" data-testid="menu"></div>
+
+  <form data-testid="order-form">
+    <input type="number" name="quantity" value="1" min="1" max="100" aria-label="Quantity" />
+    <button type="submit" data-testid="place-order" disabled>Place order</button>
+  </form>
+
+  <div id="order-status" data-testid="order-status">Select an item to order.</div>
+
+  <script>
+    let selected = null;
+    const menuEl = document.querySelector('[data-testid=menu]');
+    const statusEl = document.querySelector('[data-testid=order-status]');
+    const form = document.querySelector('[data-testid=order-form]');
+    const submitBtn = document.querySelector('[data-testid=place-order]');
+
+    async function loadMenu() {
+      const items = await (await fetch('/api/menu')).json();
+      menuEl.innerHTML = '';
+      for (const it of items) {
+        const el = document.createElement('div');
+        el.className = 'item' + (selected === it.id ? ' selected' : '');
+        el.dataset.testid = 'menu-item';
+        el.dataset.itemId = it.id;
+        el.innerHTML = `<div class="name">${it.name}</div>
+          <div class="price">$${it.price.toFixed(2)}</div>
+          <div class="stock">${it.stock} in stock</div>`;
+        el.onclick = () => { selected = it.id; submitBtn.disabled = false; loadMenu(); };
+        menuEl.appendChild(el);
+      }
+    }
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const quantity = parseInt(new FormData(form).get('quantity'), 10);
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: selected, quantity }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        statusEl.className = 'err';
+        statusEl.textContent = `Order failed: ${body.detail}`;
+        return;
+      }
+      const paid = await (await fetch(`/api/orders/${body.id}/checkout`, { method: 'POST' })).json();
+      statusEl.className = 'ok';
+      statusEl.textContent = `Order #${paid.id} confirmed — ${quantity}x item ${selected}, total $${paid.total.toFixed(2)} (${paid.status})`;
+      loadMenu();
+    };
+
+    loadMenu();
+  </script>
+</body>
+</html>
