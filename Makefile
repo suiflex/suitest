@@ -129,6 +129,17 @@ docker-up-cloud: ## Boot with CLOUD tier profile
 docker-down: ## Stop all services
 	docker compose -f infra/docker/docker-compose.yml down
 
+demo: ## Boot full stack + Brewly demo app + seeded runnable suite
+	@test -f .env || (cp .env.example .env && echo ".env created from .env.example")
+	docker compose --env-file .env -f infra/docker/docker-compose.yml --profile demo up -d --build
+	@echo ""
+	@echo "  Suitest demo ready:"
+	@echo "  Web       http://localhost:3000  (demo@suitest.dev / demo1234)"
+	@echo "  Brewly    http://localhost:8089"
+	@echo ""
+	@echo "  Open Test Cases -> 'Brewly — generated from PRD.md' -> Run."
+	@echo ""
+
 docker-logs: ## Tail logs from all services
 	docker compose -f infra/docker/docker-compose.yml logs -f
 

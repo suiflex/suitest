@@ -18,7 +18,7 @@ x-suitest-env: &suitest-env
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    profiles: ["zero", "cloud", "local", "dev"]
+    profiles: ["zero", "cloud", "local", "dev", "demo"]
     restart: unless-stopped
     environment:
       POSTGRES_USER: suitest
@@ -36,7 +36,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    profiles: ["zero", "cloud", "local", "dev"]
+    profiles: ["zero", "cloud", "local", "dev", "demo"]
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
@@ -51,7 +51,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    profiles: ["zero", "cloud", "local", "dev"]
+    profiles: ["zero", "cloud", "local", "dev", "demo"]
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
@@ -70,7 +70,7 @@ services:
 
   minio-init:
     image: minio/mc:latest
-    profiles: ["zero", "cloud", "local", "dev"]
+    profiles: ["zero", "cloud", "local", "dev", "demo"]
     depends_on:
       minio:
         condition: service_healthy
@@ -87,7 +87,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.api
-    profiles: ["zero", "cloud", "local", "dev"]
+    profiles: ["zero", "cloud", "local", "dev", "demo"]
     environment: *suitest-env
     depends_on:
       postgres:
@@ -100,7 +100,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.api
-    profiles: ["zero", "cloud", "local", "dev"]
+    profiles: ["zero", "cloud", "local", "dev", "demo"]
     environment: *suitest-env
     depends_on:
       postgres:
@@ -124,7 +124,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.runner
-    profiles: ["zero", "cloud", "local", "dev"]
+    profiles: ["zero", "cloud", "local", "dev", "demo"]
     environment: *suitest-env
     depends_on:
       api:
@@ -138,7 +138,7 @@ services:
       dockerfile: infra/docker/Dockerfile.web
       args:
         VITE_API_URL: ${SUITEST_API_URL}
-    profiles: ["zero", "cloud", "local", "dev"]
+    profiles: ["zero", "cloud", "local", "dev", "demo"]
     depends_on:
       api:
         condition: service_healthy
@@ -149,6 +149,43 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # 30-second demo (`make demo`): Brewly — tiny coffee-shop app the seeded
+  # demo suite executes against. Fixture, not a product (examples/demo-app/).
+  demo-app:
+    build:
+      context: ../../examples/demo-app
+    profiles: ["demo"]
+    restart: unless-stopped
+    ports:
+      - "8089:8089"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8089/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot seeder for the demo workspace (idempotent). Imports the committed
+  # generation-output fixture examples/demo-app/suite.json so the demo replays
+  # green at ZERO tier. Same image as the API.
+  demo-seed:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    profiles: ["demo"]
+    environment:
+      <<: *suitest-env
+      DEMO_APP_URL: http://demo-app:8089
+      DEMO_SUITE_PATH: /demo/suite.json
+    volumes:
+      - ../../examples/demo-app:/demo:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      demo-app:
+        condition: service_healthy
+    command: ["uv", "run", "--project", "/app", "python", "-m", "suitest_db.seed_demo"]
+    restart: "no"
 
   # M4-1: in-cluster Ollama for the LOCAL tier. CPU-only (no GPU reservation) so
   # it boots on any host / CI runner. Activated by the ``local`` profile (the
