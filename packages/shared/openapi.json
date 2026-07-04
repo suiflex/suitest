@@ -1029,6 +1029,11 @@
             "title": "Cases",
             "type": "array"
           },
+          "markStale": {
+            "default": false,
+            "title": "Markstale",
+            "type": "boolean"
+          },
           "mode": {
             "default": "backend",
             "title": "Mode",
@@ -1067,6 +1072,18 @@
               "$ref": "#/components/schemas/ImportedCase"
             },
             "title": "Imported",
+            "type": "array"
+          },
+          "projectId": {
+            "default": "",
+            "title": "Projectid",
+            "type": "string"
+          },
+          "stale": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Stale",
             "type": "array"
           },
           "suiteId": {
@@ -1256,6 +1273,7 @@
         "enum": [
           "DRAFT",
           "ACTIVE",
+          "STALE",
           "DEPRECATED",
           "ARCHIVED"
         ],
@@ -3425,6 +3443,11 @@
           "error": {
             "default": "",
             "title": "Error",
+            "type": "string"
+          },
+          "failureKind": {
+            "default": "",
+            "title": "Failurekind",
             "type": "string"
           },
           "name": {
@@ -5751,6 +5774,29 @@
         "title": "Priority",
         "type": "string"
       },
+      "ProjectCandidate": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ],
+        "title": "ProjectCandidate",
+        "type": "object"
+      },
       "ProjectCreate": {
         "additionalProperties": false,
         "description": "Body for ``POST /projects`` (docs/API.md \u00a73.2).\n\n``slug`` is optional \u2014 when omitted the service derives it from ``name``\nvia :func:`suitest_api.utils.slug.slugify` and retries with a ``-2``\nsuffix once on collision before bubbling 409.",
@@ -6768,6 +6814,57 @@
         "title": "ResetPasswordResponse",
         "type": "object"
       },
+      "ResolveProjectBody": {
+        "properties": {
+          "projectId": {
+            "default": "",
+            "title": "Projectid",
+            "type": "string"
+          },
+          "projectName": {
+            "default": "",
+            "title": "Projectname",
+            "type": "string"
+          },
+          "projectSlug": {
+            "default": "",
+            "title": "Projectslug",
+            "type": "string"
+          }
+        },
+        "title": "ResolveProjectBody",
+        "type": "object"
+      },
+      "ResolveProjectResult": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectCandidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "matchedBy": {
+            "default": "",
+            "title": "Matchedby",
+            "type": "string"
+          },
+          "projectId": {
+            "default": "",
+            "title": "Projectid",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ResolveProjectResult",
+        "type": "object"
+      },
       "Role": {
         "enum": [
           "OWNER",
@@ -7034,6 +7131,11 @@
           "passed": {
             "title": "Passed",
             "type": "integer"
+          },
+          "projectId": {
+            "default": "",
+            "title": "Projectid",
+            "type": "string"
           },
           "runId": {
             "title": "Runid",
@@ -12843,6 +12945,90 @@
         "summary": "List Inbox",
         "tags": [
           "inbox"
+        ]
+      }
+    },
+    "/api/v1/ingest/resolve-project": {
+      "post": {
+        "description": "Validate/repair a publisher's project binding (read-only, never creates).",
+        "operationId": "resolve_project_binding_api_v1_ingest_resolve_project_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveProjectBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveProjectResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Resolve Project Binding",
+        "tags": [
+          "ingest"
         ]
       }
     },
