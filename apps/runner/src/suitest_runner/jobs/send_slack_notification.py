@@ -7,8 +7,7 @@ defect-filing transaction means the user-facing defect API stays fast (under
 the API SLA) even when Slack is slow / unreachable; the retry policy below
 absorbs transient Slack failures without dragging the API down with them.
 
-Retry policy (per ``docs/superpowers/specs/2026-05-30-m1d-manual-tcm-writes.md
-§M1d-15``):
+Retry policy:
 
 * ``max_tries=5`` (5 attempts total).
 * ``backoff_seconds=[2, 4, 8, 16, 32]`` — exponential with jitter built into

@@ -1,6 +1,6 @@
 # docs/DEPLOYMENT.md
 
-> How to deploy Suitest OSS in 3 modes: single-host docker-compose, standalone all-in-one container, and Helm chart for k8s production. For architecture context read [ARCHITECTURE.md](./ARCHITECTURE.md). For capability tiers (ZERO/LOCAL/CLOUD) read [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md). Design rationale: [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
+> How to deploy Suitest OSS in 3 modes: single-host docker-compose, standalone all-in-one container, and Helm chart for k8s production. For architecture context read [ARCHITECTURE.md](./ARCHITECTURE.md). For capability tiers (ZERO/LOCAL/CLOUD) read [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md).
 
 ---
 
@@ -579,4 +579,3 @@ For production LOCAL tier, use **Ollama** (CPU/GPU) or **vLLM** (GPU); **llama.c
 
 - Services architecture → [ARCHITECTURE.md](./ARCHITECTURE.md)
 - Tier semantics → [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md)
-- Design memo → [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md)

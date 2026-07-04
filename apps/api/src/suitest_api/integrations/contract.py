@@ -8,8 +8,7 @@ the Protocol surface.
 With **zero adapters registered** (the M1d-11 baseline) the parametrize tuple
 is empty and pytest reports the test as collected-but-skipped with no
 failures, per the M1d-11 acceptance criterion "Contract test passes with zero
-adapters" (``docs/superpowers/plans/2026-05-30-plan-05b-m1d-manual-tcm-writes.md
-§Task M1d-11``).
+adapters".
 
 Adapters land their own per-adapter tests in PR-12..15 — this module is the
 **shared** contract every adapter must pass regardless of wire format.

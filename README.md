@@ -1,4 +1,4 @@
-# 🧪 Suitest — MCP-Native Testing Platform
+# Suitest — MCP-native testing platform
 
 <p align="center">
   <picture>
@@ -27,19 +27,19 @@
   Replay it yourself in one command: <code>make demo</code> → <a href="http://localhost:3000">localhost:3000</a> (<code>demo@suitest.dev</code> / <code>demo1234</code>). No LLM key needed.</em>
 </p>
 
-**Suitest** is a _self-hostable, open-source QA platform_ that works fully **without any LLM** (ZERO tier): manual test case management plus a deterministic run engine that drives any target through [MCP](https://modelcontextprotocol.io) — Playwright, HTTP APIs, Postgres, and more. Plug in your own LLM key — cloud or local Ollama — to unlock AI generation, diagnosis, and conversational testing. No vendor lock-in, no forced API keys.
+**Suitest** is a self-hostable, open-source QA platform that works fully **without an LLM** (ZERO tier): manual test case management plus a deterministic run engine that drives any target through [MCP](https://modelcontextprotocol.io) (Playwright, HTTP APIs, Postgres, and more). If you want AI on top, plug in your own LLM key (cloud, or local Ollama) to unlock test generation, failure diagnosis, and conversational testing. No vendor lock-in, no forced API keys.
 
-It ships an **MCP server for IDE agents** (Claude Code, Cursor, Codex): analyze a repo, generate runnable tests, execute them with video/screenshot evidence, and publish results — including a **blackbox DOM engine** that tests any web app from just a URL and test credentials, no repo access required.
+It also ships an **MCP server for IDE agents** (Claude Code, Cursor, Codex): analyze a repo, generate runnable tests, execute them with video and screenshot evidence, and publish results. Its **blackbox DOM engine** can test any web app from just a URL and test credentials, without repo access.
 
 Backend: Python 3.12 + FastAPI · Frontend: Vite + React 19 · DB: Postgres 16 + pgvector · Queue: ARQ/Redis · Plugin layer: MCP.
 
-[Docs](./docs) · [Getting started](#-install) · [MCP server](./docs/MCP_PLUGINS.md) · [Blackbox testing](./docs/BLACKBOX_UI_TESTING.md) · [Deployment](./docs/DEPLOYMENT.md) · [Architecture](./docs/ARCHITECTURE.md) · [Troubleshooting](./docs/TROUBLESHOOTING.md) · [Contributing](./CONTRIBUTING.md)
+[Docs](./docs) · [Getting started](#install) · [MCP server](./docs/MCP_PLUGINS.md) · [Blackbox testing](./docs/BLACKBOX_UI_TESTING.md) · [Deployment](./docs/DEPLOYMENT.md) · [Architecture](./docs/ARCHITECTURE.md) · [Troubleshooting](./docs/TROUBLESHOOTING.md) · [Contributing](./CONTRIBUTING.md)
 
-New install? Start at [Install](#-install) below — the MCP server is one `npx` away; the full platform is one `docker compose up`.
+New install? Start at [Install](#install) below. The MCP server runs from a single `npx` command; the full platform is one `docker compose up`.
 
 ---
 
-## ⚠️ Project status
+## Project status
 
 **Pre-v1.0, under active development.** What works **today**:
 
@@ -56,11 +56,11 @@ See [docs/ROADMAP.md](./docs/ROADMAP.md) — the single source of truth for buil
 
 ---
 
-## 📦 Install
+## Install
 
 Four supported paths, smallest first.
 
-### 1. MCP server only (recommended first taste — no install)
+### 1. MCP server only (no install required)
 
 Requirements: **Node ≥ 18** and **Python ≥ 3.11** on PATH.
 
@@ -150,7 +150,7 @@ Other useful targets (`make help` for the full list):
 
 ---
 
-## 🚀 Your first test — entirely from the UI, no LLM
+## Your first test (UI only, no LLM)
 
 From an empty install you can bootstrap and run a real browser test without touching the API:
 
@@ -193,7 +193,6 @@ Detail: [docs/CAPABILITY_TIERS.md](./docs/CAPABILITY_TIERS.md).
 suitest/
 ├── README.md                ← you are here
 ├── CLAUDE.md                ← coding rules for AI agents (Cursor / Claude Code)
-├── Suitest.html             ← UI mockup (read-only; removed after M1b visual parity)
 ├── Makefile                 ← all dev commands (make help)
 │
 ├── apps/
@@ -244,7 +243,6 @@ suitest/
 | [AI_AGENT.md](./docs/AI_AGENT.md) | Prompts + LangGraph + tool registry (spec, M3) |
 | [BLACKBOX_UI_TESTING.md](./docs/BLACKBOX_UI_TESTING.md) | Blackbox DOM engine — test any web app from a URL (Zero + MCP) |
 | [DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Compose / Helm / air-gapped |
-| [Design memo](./docs/superpowers/specs/2026-05-26-suitest-oss-pivot-design.md) | OSS pivot decisions (source of truth) |
 
 ---
 
@@ -276,8 +274,8 @@ See also [CONTRIBUTING.md](./CONTRIBUTING.md), [CODE_OF_CONDUCT.md](./CODE_OF_CO
 
 ## License
 
-**Apache License 2.0** — permissive, commercial-friendly. See [LICENSE](./LICENSE).
+Apache License 2.0. See [LICENSE](./LICENSE).
 
 ## Acknowledgments
 
-Built on [Model Context Protocol](https://modelcontextprotocol.io) (Anthropic), [LiteLLM](https://github.com/BerriAI/litellm) (BerriAI), [LangGraph](https://langchain-ai.github.io/langgraph/) (LangChain), [`@ai-sdk/react`](https://sdk.vercel.ai/docs) + assistant-ui (Vercel), shadcn/ui, TanStack, and the FastAPI / SQLAlchemy / Pydantic ecosystems. 🎉
+Built on [Model Context Protocol](https://modelcontextprotocol.io) (Anthropic), [LiteLLM](https://github.com/BerriAI/litellm) (BerriAI), [LangGraph](https://langchain-ai.github.io/langgraph/) (LangChain), [`@ai-sdk/react`](https://sdk.vercel.ai/docs) + assistant-ui (Vercel), shadcn/ui, TanStack, and the FastAPI / SQLAlchemy / Pydantic ecosystems.

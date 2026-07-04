@@ -2,8 +2,6 @@
 
 > Milestones for Suitest OSS. **ZERO-tier first**: every feature must work in ZERO mode before AI/LLM enrichment is added. Every PR references one acceptance criterion (`Closes #M2-3`). Work sequentially within a milestone.
 
-Source-of-truth memo: [`superpowers/specs/2026-05-26-suitest-oss-pivot-design.md`](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
-
 Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md), [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md), [MCP_PLUGINS.md](./MCP_PLUGINS.md), [AUTONOMY.md](./AUTONOMY.md), [GENERATORS.md](./GENERATORS.md), [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 > **📌 How to use (single entry point).** This file = the only entry point for continuing feature work. Flow: (1) find the first acceptance criterion in the active milestone that is not yet `[x]`; (2) an `[x]` item with a "shipped / tag" note = already done, skip it; (3) open other spec docs ONLY when that item needs them (see the table in CLAUDE.md §2.1) — do not read all docs upfront; (4) if the ROADMAP conflicts with a spec, the ROADMAP wins. Each spec doc has a build-status banner at the top (built vs spec M2–M4).
@@ -116,7 +114,7 @@ Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md
 #### Quality
 
 - [x] **M1-28** E2E test (Playwright in CI) covering golden path: login → create case → run → see result (shipped / tag `v0.5.0-m1d` — [`apps/web/e2e/golden-path.spec.ts`](../apps/web/e2e/golden-path.spec.ts))
-- [x] **M1-29** Visual regression vs `Suitest.html` mockup ≥ 95% match per screen (shipped / tag `v0.5.0-m1d` — [`apps/web/e2e/visual-regression.spec.ts`](../apps/web/e2e/visual-regression.spec.ts))
+- [x] **M1-29** Visual regression vs the original HTML mockup ≥ 95% match per screen (shipped / tag `v0.5.0-m1d` — [`apps/web/e2e/visual-regression.spec.ts`](../apps/web/e2e/visual-regression.spec.ts))
 - [x] **M1-30** Loading + empty + error states for all screens (shipped / tag `v0.5.0-m1d`)
 
 ### Definition of done
@@ -374,7 +372,7 @@ Tag `v1.0.0`. Announce on HN / Reddit / dev.to. Discord + community forum set up
 
 - **ZERO tier first.** Do not write an LLM call before the feature works deterministically first.
 - **Finish one milestone before moving on.** Do not work in parallel on M2 and M3.
-- **Reference the `Suitest.html` mockup every time you implement UI.**
+- **Reference `UI_SPEC.md` every time you implement UI.**
 - **Update other docs** when a contract changes ([API.md](./API.md), [DATA_MODEL.md](./DATA_MODEL.md), prompts).
 - **Smoke test the product yourself** after every milestone. If Suitest cannot test Suitest, we have failed the vision.
 - **Stuck > 2 hours?** Write the question in the PR description instead of guessing.

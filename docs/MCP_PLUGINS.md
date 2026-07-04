@@ -1,6 +1,6 @@
 # MCP Plugins — Universal Testing Plugin Layer
 
-> Source of truth: [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md) § 5. Cross-links: [API.md](./API.md), [DATA_MODEL.md](./DATA_MODEL.md), [GENERATORS.md](./GENERATORS.md), [AI_AGENT.md](./AI_AGENT.md), [ARCHITECTURE.md](./ARCHITECTURE.md), [DEPLOYMENT.md](./DEPLOYMENT.md).
+> Cross-links: [API.md](./API.md), [DATA_MODEL.md](./DATA_MODEL.md), [GENERATORS.md](./GENERATORS.md), [AI_AGENT.md](./AI_AGENT.md), [ARCHITECTURE.md](./ARCHITECTURE.md), [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 > ⚠️ **PARTIAL.** Bundled providers built: `playwright`, `api-http`, `postgres` (M1c) + `graphql`, `mysql`, `mongo`, `kubernetes`, `grpc` (M2-10, in-process; backend drivers — `aiomysql`/`motor`/`kubernetes`/`grpcio` — imported lazily at call time, so the registry/tool-listing never requires them, and `graphql` runs on the already-bundled `httpx`). Documented-but-unbuilt: `browser-use`/`appium`/`computer-use`/`jira`/`github` (later milestones). See [ROADMAP.md](./ROADMAP.md).
 

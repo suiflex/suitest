@@ -1,6 +1,6 @@
 # docs/CAPABILITY_TIERS.md
 
-> Complete spec of Suitest capability tiering: **ZERO / LOCAL / CLOUD**. Used as the contract between `packages/core/capabilities.py` (resolver), `apps/api` (endpoint gating), `apps/runner` (step execution), and `apps/web` (UI gating). For architecture read [ARCHITECTURE.md](./ARCHITECTURE.md). For deployment read [DEPLOYMENT.md](./DEPLOYMENT.md). Design rationale: [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
+> Complete spec of Suitest capability tiering: **ZERO / LOCAL / CLOUD**. Used as the contract between `packages/core/capabilities.py` (resolver), `apps/api` (endpoint gating), `apps/runner` (step execution), and `apps/web` (UI gating). For architecture read [ARCHITECTURE.md](./ARCHITECTURE.md). For deployment read [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 > ⚠️ **PARTIAL.** ZERO-tier resolver built (`packages/core/capabilities.py`). M3-2/M3-3 built: workspace `LLMConfig` write path recomputes `WorkspaceCapability` and `/capabilities` overlays the active config (per-workspace tier flip ZERO↔CLOUD/LOCAL); the `mock` provider works end-to-end. Still NOT built: per-feature 503 `LLM_DISABLED` enforcement in `require_tier` (decorator still records-only). See [ROADMAP.md](./ROADMAP.md) M3.
 
@@ -417,4 +417,3 @@ Cost is computed via `litellm.completion_cost()` → accumulated into `AgentSess
 - Deployment per tier → [DEPLOYMENT.md](./DEPLOYMENT.md)
 - Autonomy levels → [AUTONOMY.md](./AUTONOMY.md)
 - MCP plugins → [MCP_PLUGINS.md](./MCP_PLUGINS.md)
-- Design memo → [design memo](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md)

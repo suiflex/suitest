@@ -4,7 +4,7 @@
 
 > ℹ️ **VISION doc — describes full v1.0+ product.** Built today: M0–M1e (manual TCM + ZERO-tier deterministic runs + local auth/invite). AI/generators/journeys assuming LLM target M2–M4. Build status: [ROADMAP.md](./ROADMAP.md).
 >
-> OSS pivot (2026-05-26): Suitest is now **open-source, self-host, BYO-LLM**. Source-of-truth for the decision: [`superpowers/specs/2026-05-26-suitest-oss-pivot-design.md`](./superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
+> OSS pivot (2026-05-26): Suitest is now **open-source, self-host, BYO-LLM**.
 
 ---
 

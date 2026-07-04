@@ -1,7 +1,6 @@
 """GitHubAdapter — thin wrapper over bundled ``github-mcp-server@v1.1.2`` (M1d-14).
 
-Implementation notes (see ``docs/superpowers/plans/2026-05-30-plan-05b-m1d-manual-tcm-writes.md
-§Task M1d-14`` for the canonical decisions list):
+Implementation notes:
 
 * **Wire delegation.** Every issue-tracker operation goes through the bundled
   ``github-mcp-server`` Go binary via :class:`McpClientProtocol` — the adapter

@@ -2,7 +2,7 @@
 
 > Binding context untuk semua AI coding agent (Claude Code, Cursor, Cline, dll) yang bekerja di repo ini. Baca **sebelum** menulis kode.
 >
-> Setelah pivot OSS (2026-05-26), Suitest = **Python/FastAPI backend** + **Vite/React frontend** + **MCP-native plugin layer** + **capability tiering**. Mockup `Suitest.html` masih sebagai referensi visual.
+> Setelah pivot OSS (2026-05-26), Suitest = **Python/FastAPI backend** + **Vite/React frontend** + **MCP-native plugin layer** + **capability tiering**.
 
 ---
 
@@ -20,11 +20,7 @@ Platform OSS self-hostable yang menggabungkan:
 
 Posisi: replacement untuk TestRail + Playwright (ZERO tier) yang juga melampaui TestSprite (CLOUD/LOCAL tier) tanpa vendor lock-in.
 
-Visual reference: `Suitest.html` di root repo (mockup, **read-only**).
-
-> **Note on Suitest.html**: this is a TEMPORARY visual mockup used as design reference during M0–M1b implementation. Once UI screens reach ≥95% match with the mockup (per UI_SPEC.md § 7 acceptance), the file will be DELETED. Do not add features only documented in `Suitest.html` — they must also be in `docs/UI_SPEC.md` to be canonical.
-
-Source-of-truth pivot: [`docs/superpowers/specs/2026-05-26-suitest-oss-pivot-design.md`](./docs/superpowers/specs/2026-05-26-suitest-oss-pivot-design.md).
+Visual reference: [`docs/UI_SPEC.md`](./docs/UI_SPEC.md).
 
 ---
 
@@ -50,7 +46,6 @@ Tiap doc punya banner build-status di atas (built vs spec M2–M4) — baca itu 
 
 ### 2.2 Jangan
 
-- Jangan ubah `Suitest.html` (mockup, read-only)
 - Jangan tambah dependency baru tanpa update `docs/ARCHITECTURE.md`
 - Jangan bikin "demo data" yang persistent — selalu pakai Python seed script
 - Jangan hardcode credentials, API keys, atau URL produksi — pakai env vars
@@ -279,11 +274,10 @@ MCP = primary plugin layer. Lihat [MCP_PLUGINS.md](./docs/MCP_PLUGINS.md).
 
 Kalau tidak yakin tentang sesuatu yang tidak ada di docs:
 
-1. **Cek `Suitest.html`** dulu untuk hint visual / behavior
-2. **Cek pivot memo** [`docs/superpowers/specs/2026-05-26-suitest-oss-pivot-design.md`](./docs/superpowers/specs/2026-05-26-suitest-oss-pivot-design.md)
-3. **Cek `CAPABILITY_TIERS.md`** sebelum implement fitur LLM-dependent — pastikan tier gating jelas
-4. Kalau masih ambigu → **tulis pertanyaan di PR description** sebelum lanjut
-5. **Jangan tebak nama field, endpoint, atau prompt key** — minta klarifikasi
+1. **Cek `docs/UI_SPEC.md`** dulu untuk hint visual / behavior
+2. **Cek `CAPABILITY_TIERS.md`** sebelum implement fitur LLM-dependent — pastikan tier gating jelas
+3. Kalau masih ambigu → **tulis pertanyaan di PR description** sebelum lanjut
+4. **Jangan tebak nama field, endpoint, atau prompt key** — minta klarifikasi
 
 ---
 
@@ -292,7 +286,7 @@ Kalau tidak yakin tentang sesuatu yang tidak ada di docs:
 - **ZERO tier first.** Setiap fitur harus jalan atau gracefully degrade di ZERO sebelum LLM enrichment ditambahkan. Kalau fitur kamu cuma jalan di CLOUD, design ulang.
 - **Backend first, FE second.** Pydantic schema + Alembic migration + service test → baru wire UI.
 - **Mock the LLM last.** Untuk agent features, build via `packages/agent/providers/mock.py` deterministic dulu, real provider belakangan.
-- **Look at mockup, adapt for tier.** UI di mockup adalah CLOUD-tier view. ZERO-tier hide bagian AI; tunjukkan upgrade hint.
+- **Look at UI_SPEC, adapt for tier.** Spec menggambarkan CLOUD-tier view. ZERO-tier hide bagian AI; tunjukkan upgrade hint.
 - **Small PRs win.** Satu PR = satu acceptance criterion di roadmap.
 - **Dogfood always.** Begitu M3 selesai, jalankan smoke suite Suitest pakai Suitest. Suitest test Suitest.
 - **Capability gate is non-negotiable.** Fitur LLM tanpa gate = PR auto-blocked.

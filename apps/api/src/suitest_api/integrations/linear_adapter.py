@@ -30,9 +30,6 @@ AdapterError``.
 **Out of scope (deferred to M5/M2).** Linear OAuth, webhook sync-back,
 project / cycle assignment, MCP wrapping.
 
-Cross-refs: ``docs/superpowers/plans/2026-05-30-plan-05b-m1d-manual-tcm-writes.md
-§Task M1d-13`` and ``docs/superpowers/specs/2026-05-30-m1d-manual-tcm-writes.md
-§M1d-13``.
 """
 
 from __future__ import annotations

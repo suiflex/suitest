@@ -3,8 +3,7 @@
 Creates a self-contained "Demo" workspace whose suite executes against the
 live ``demo-app`` compose service. The suite comes from the committed
 generation-output fixture ``examples/demo-app/suite.json`` so the demo replays
-green at ZERO tier (spec: docs/superpowers/specs/2026-05-26 pivot + 2026-07-04
-demo design).
+green at ZERO tier.
 
 Idempotent — safe to re-run on every ``docker compose --profile demo up``.
 

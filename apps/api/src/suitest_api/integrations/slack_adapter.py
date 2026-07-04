@@ -5,8 +5,7 @@ because incoming webhooks have neither issue-id nor status-transition
 semantics — a single POST drops a Block Kit payload on the channel the
 webhook was minted for and that's it.
 
-Wire details (`docs/superpowers/specs/2026-05-30-m1d-manual-tcm-writes.md
-§M1d-15` + Slack's `chat.postMessage` Block Kit reference):
+Wire details (per Slack's `chat.postMessage` Block Kit reference):
 
 * Webhook URL stored AES-GCM-encrypted in
   ``integrations.secrets_encrypted`` as a JSON string with one key,
@@ -48,9 +47,7 @@ if TYPE_CHECKING:
     from suitest_db.models.integration import Integration
 
 
-# Severity → Slack attachment color hex. Source-of-truth: M1d-15 task spec
-# (`docs/superpowers/plans/2026-05-30-plan-05b-m1d-manual-tcm-writes.md`).
-# Slack renders the bar on the left of the attachment in this color, which is
+# Severity → Slack attachment color hex. Slack renders the bar on the left of the attachment in this color, which is
 # the only severity-visualisation channel Block Kit gives us without dropping
 # down to `chat.postMessage` proper (webhooks don't support reactions /
 # threads). Hex values are intentionally NOT pulled from `tailwind.config.ts`

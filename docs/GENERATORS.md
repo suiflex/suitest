@@ -479,7 +479,6 @@ Step 5: Review
   Bottom action: [ Add N cases to suite ]  → POST to /test-cases (batch).
 ```
 
-Visual mockup: see `Suitest.html` generation modal (read-only mockup).
 
 ---
 

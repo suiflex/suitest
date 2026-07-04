@@ -6,8 +6,7 @@ binary or hitting Jira. ``Integration`` rows are built directly (no DB) — the
 ``secrets_encrypted`` column type already decrypts on read, so tests can pass a
 JSON string verbatim and the adapter's identity-crypto seam keeps the shape.
 
-Coverage matrix (per ``docs/superpowers/plans/2026-05-30-plan-05b-m1d-manual-tcm-writes.md``
-§Task M1d-12):
+Coverage matrix:
 
 * ``test_connection`` happy path → ``ConnectionTestResult(ok=True, …)``.
 * ``test_connection`` auth fail → ``ok=False`` with ``"JIRA_AUTH"`` prefix.

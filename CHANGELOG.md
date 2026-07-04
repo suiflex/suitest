@@ -166,14 +166,12 @@ Annotated tag ``v0.4.0-m1c``.
 ## v0.3.0-m1b — M1b — ZERO Frontend Read-only complete
 
 App shell, capability boot, read-only screens (Dashboard, Test Cases, Runs,
-Defects, Requirements, Analytics, Integrations, Inbox, Audit). See
-``docs/superpowers/plans/2026-05-26-plan-03-m1b-frontend-readonly.md``.
+Defects, Requirements, Analytics, Integrations, Inbox, Audit).
 
 ## v0.2.0-m1a — M1a — Backend foundation + seed
 
 FastAPI app, FastAPI-Users JWT auth, capability resolver, read endpoints
-across the M1a surface, full Nusantara Retail seed. See
-``docs/superpowers/plans/2026-05-26-plan-02-m1a-backend-foundation.md``.
+across the M1a surface, full Nusantara Retail seed.
 
 ## v0.1.0-m0 — M0 — Monorepo skeleton
 

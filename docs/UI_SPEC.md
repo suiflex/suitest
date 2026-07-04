@@ -1,6 +1,6 @@
 # docs/UI_SPEC.md
 
-> Frontend component specification matching the mockup in `Suitest.html`. Use this document as a checklist when implementing a new screen. **Every visual claim here is backed by the mockup** — when in doubt, open the mockup.
+> Frontend component specification. Use this document as the canonical checklist when implementing a new screen. (Originally derived from the launch HTML mockup, which has since been removed — this spec is now the single visual source of truth.)
 
 > ℹ️ **Built today:** all M1b read-only screens + M1d write flows. `GenerateModal` (M2-5) not yet a complete component. AI panel hidden via `<Gated>` in ZERO. See [ROADMAP.md](./ROADMAP.md).
 
@@ -411,7 +411,7 @@ Appears (`data-testid="bulk-action-bar"`) when ≥1 row is checked. Rendered ins
 
 #### 3.2.1 GenerateModal (Dialog) — legacy 4-step flow
 
-> Note: this flow is superseded by **3.2.1.5** (target-first 5-step). This section is kept as a historical reference from the `Suitest.html` mockup; **the v1.0 implementation uses 3.2.1.5**.
+> Note: this flow is superseded by **3.2.1.5** (target-first 5-step). This section is kept as a historical reference from the original HTML mockup (since removed); **the v1.0 implementation uses 3.2.1.5**.
 
 shadcn Dialog, max-w 880px, max-h 88vh. (Sections 1-5 and the old generation flow — see git history if needed.)
 
@@ -1206,7 +1206,7 @@ Honor `prefers-reduced-motion` — disable pulse + slide-in.
 ## 7. Rules when implementing a new screen
 
 0. **Wrap any AI-touching component in `<Gated>` upfront** — before exposing the affordance, make sure the capability gate is in place. Otherwise the screen breaks in ZERO tier.
-1. **Open the mockup first** (`Suitest.html`) — screenshot the screen being worked on. **Note:** the mockup depicts the CLOUD tier as the ideal — ZERO tier is a **subset** of what's shown. Use the mockup as the visual upper bound + adapt for capability gating.
+1. **Follow this spec** — the per-screen sections above define the visual target. **Note:** the spec describes the CLOUD tier as the upper bound — ZERO tier renders a **subset**; adapt for capability gating.
 2. **Match spacing** — mind the 18px page header padding, 24px content sides, 14px card padding
 3. **Match copy** — use the exact wording from the mockup except for user content
 4. **Check typography sizes** — do NOT go up to 14px or 16px unless it's in the mockup

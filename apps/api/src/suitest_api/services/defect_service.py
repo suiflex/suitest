@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# Allowed-transitions matrix (docs/superpowers/plans/...m1d... §M1d-9).
+# Allowed-transitions matrix.
 # ---------------------------------------------------------------------------
 #
 # Forward edges only:

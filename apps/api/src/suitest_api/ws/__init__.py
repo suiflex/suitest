@@ -11,5 +11,4 @@ Topics produced by the rest of the system today:
 * ``run:<id>`` — runner step / log / completion events (Tasks 6, 8, 15)
 * ``workspace:<id>`` — workspace-scoped events (mcp.provider.health, capability.changed)
 
-See ``docs/superpowers/plans/2026-05-26-plan-04-m1c-runner-mcp.md`` § Task 14.
 """
