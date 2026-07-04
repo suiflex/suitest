@@ -35,16 +35,16 @@ Competitive positioning (brief — see memo §1 for the full matrix):
 
 ## 2. Four product pillars
 
-### 🔍 Traceability (bi-directional)
+### Traceability (bi-directional)
 Every defect is linked to a test case, every test case is linked to a requirement, every requirement can be traced to source code. No "tested but unknown what". Works in every tier — no LLM required.
 
-### ⚡ Agility
+### Agility
 Real-time sync between the CI/CD pipeline, MCP runner, and dashboard. Run results appear less than 1 second after completion. In tiers with AI: defects are opened in Jira before an engineer reads the log; in ZERO: defects are opened with a rule-based triage hint in < 5 seconds.
 
-### 🤖 Intelligence (tier-aware)
+### Intelligence (tier-aware)
 The ZERO tier is **still smart**: deterministic classifiers (target detection, MCP routing, flaky pattern matcher) + 3 deterministic generators (OpenAPI / Browser Recorder / URL Crawler). The LOCAL/CLOUD tiers add agentic generation (PRD → cases), semantic URL crawl, MCP tool discovery, AI diagnosis with confidence + evidence. Intelligence scales with capability, not a binary on/off.
 
-### 🧩 Pluggability (universal MCP-as-plugin) — **NEW**
+### Pluggability (universal MCP-as-plugin)
 Every MCP server becomes a testing plugin. Users install any MCP server → Suitest uses it. Built-in bundled: `api-mcp`, `playwright-mcp`, `browser-use-mcp`, `postgres-mcp`, `mongo-mcp`, `mysql-mcp`, `graphql-mcp`, `grpc-mcp`, `appium-mcp`, `kubernetes-mcp`. Custom MCP via Settings → Integrations → MCP Servers. Self-host air-gapped. Bring-your-own-LLM via the LiteLLM router. No vendor lock-in at any layer (TCM, runner, LLM, MCP, storage).
 
 See also: [MCP_PLUGINS.md](./MCP_PLUGINS.md), [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md).
