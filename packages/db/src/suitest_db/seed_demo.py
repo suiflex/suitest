@@ -55,9 +55,7 @@ DEMO_EMAIL: Final = "demo@suitest.dev"
 DEMO_NAME: Final = "Demo"
 DEMO_PASSWORD: Final = "demo1234"
 
-_DEFAULT_SUITE_PATH: Final = (
-    Path(__file__).parents[4] / "examples" / "demo-app" / "suite.json"
-)
+_DEFAULT_SUITE_PATH: Final = Path(__file__).parents[4] / "examples" / "demo-app" / "suite.json"
 
 _USER_NS: Final = uuid.UUID("00000000-0000-0000-0000-00000000bbbb")
 
@@ -114,9 +112,7 @@ class DemoSeeder:
             await self.session.flush()
         ws = self._require_workspace()
         membership = await self.session.scalar(
-            select(Membership).where(
-                Membership.workspace_id == ws.id, Membership.user_id == row.id
-            )
+            select(Membership).where(Membership.workspace_id == ws.id, Membership.user_id == row.id)
         )
         if membership is None:
             self.session.add(Membership(workspace_id=ws.id, user_id=row.id, role=Role.OWNER))
@@ -186,9 +182,7 @@ class DemoSeeder:
     async def ensure_capability(self) -> None:
         ws = self._require_workspace()
         if (
-            await self.session.scalar(
-                select(LLMConfig).where(LLMConfig.workspace_id == ws.id)
-            )
+            await self.session.scalar(select(LLMConfig).where(LLMConfig.workspace_id == ws.id))
             is None
         ):
             self.session.add(

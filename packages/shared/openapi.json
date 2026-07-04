@@ -1035,7 +1035,18 @@
             "type": "string"
           },
           "projectId": {
+            "default": "",
             "title": "Projectid",
+            "type": "string"
+          },
+          "projectName": {
+            "default": "",
+            "title": "Projectname",
+            "type": "string"
+          },
+          "projectSlug": {
+            "default": "",
+            "title": "Projectslug",
             "type": "string"
           },
           "suiteName": {
@@ -1044,7 +1055,6 @@
           }
         },
         "required": [
-          "projectId",
           "suiteName"
         ],
         "title": "BulkImportBody",
@@ -4336,6 +4346,81 @@
         "title": "LLMTestResult",
         "type": "object"
       },
+      "LlmCompleteRequest": {
+        "description": "One-shot completion request. Kept deliberately small \u2014 this is a proxy\nfor lifecycle codegen/enrichment, not a chat surface (that's /agent/chat).",
+        "properties": {
+          "maxTokens": {
+            "default": 4096,
+            "maximum": 32000.0,
+            "minimum": 1.0,
+            "title": "Maxtokens",
+            "type": "integer"
+          },
+          "prompt": {
+            "maxLength": 200000,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "system": {
+            "anyOf": [
+              {
+                "maxLength": 50000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System"
+          },
+          "temperature": {
+            "default": 0.2,
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Temperature",
+            "type": "number"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "title": "LlmCompleteRequest",
+        "type": "object"
+      },
+      "LlmCompleteResponse": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "costUsd": {
+            "title": "Costusd",
+            "type": "number"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "tokensIn": {
+            "title": "Tokensin",
+            "type": "integer"
+          },
+          "tokensOut": {
+            "title": "Tokensout",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "content",
+          "model",
+          "tokensIn",
+          "tokensOut",
+          "costUsd"
+        ],
+        "title": "LlmCompleteResponse",
+        "type": "object"
+      },
       "MatrixCase": {
         "properties": {
           "id": {
@@ -6907,7 +6992,18 @@
             "type": "string"
           },
           "projectId": {
+            "default": "",
             "title": "Projectid",
+            "type": "string"
+          },
+          "projectName": {
+            "default": "",
+            "title": "Projectname",
+            "type": "string"
+          },
+          "projectSlug": {
+            "default": "",
+            "title": "Projectslug",
             "type": "string"
           },
           "results": {
@@ -6923,7 +7019,6 @@
           }
         },
         "required": [
-          "projectId",
           "suiteName",
           "name"
         ],
@@ -13498,6 +13593,90 @@
         "summary": "Revoke Invitation",
         "tags": [
           "invitations"
+        ]
+      }
+    },
+    "/api/v1/llm/complete": {
+      "post": {
+        "description": "Proxy one completion through the workspace's active LLM provider.",
+        "operationId": "llm_complete_api_v1_llm_complete_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmCompleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Llm Complete",
+        "tags": [
+          "llm"
         ]
       }
     },

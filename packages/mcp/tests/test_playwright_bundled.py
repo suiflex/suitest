@@ -39,7 +39,9 @@ def test_playwright_command_is_npx_invocation() -> None:
     assert PLAYWRIGHT_COMMAND.index("-y") < PLAYWRIGHT_COMMAND.index("@playwright/mcp@latest")
     # chromium is the only browser guaranteed on every runner platform
     # (the Chrome channel has no linux/arm64 build).
-    assert PLAYWRIGHT_COMMAND.index("--browser") > PLAYWRIGHT_COMMAND.index("@playwright/mcp@latest")
+    assert PLAYWRIGHT_COMMAND.index("--browser") > PLAYWRIGHT_COMMAND.index(
+        "@playwright/mcp@latest"
+    )
     assert PLAYWRIGHT_COMMAND[PLAYWRIGHT_COMMAND.index("--browser") + 1] == "chromium"
 
 

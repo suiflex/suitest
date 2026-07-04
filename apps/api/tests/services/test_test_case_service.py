@@ -41,6 +41,7 @@ def _case() -> TestCase:
         suite_id="suite_1",
         public_id="TC-1",
         name="C",
+        title="C",
         source=CaseSource.MANUAL,
         status=CaseStatus.ACTIVE,
         priority=Priority.P2,
