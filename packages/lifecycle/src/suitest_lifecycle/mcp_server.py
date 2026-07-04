@@ -12,7 +12,10 @@ Every tool takes a single ``config_path`` argument and returns the structured
 from __future__ import annotations
 
 import json
+import os
 import sys
+import urllib.error
+import urllib.request
 from typing import TYPE_CHECKING, TextIO
 
 from suitest_lifecycle.tools import KWARG_TOOLS, TOOLS
@@ -194,7 +197,39 @@ def handle(message: dict[str, object]) -> dict[str, object] | None:
     return None
 
 
+def verify_credentials() -> str | None:
+    """Check SUITEST_API_URL + SUITEST_API_KEY; return an error string if unusable.
+
+    Both must be set, and the key must authenticate against the URL
+    (``GET /api/v1/api-keys/whoami`` — the key pins the workspace/project every
+    tool publishes into). Any failure must abort the connection: a server that
+    accepts empty or mismatched credentials silently drops all publishes.
+    """
+    api_url = os.environ.get("SUITEST_API_URL", "").strip().rstrip("/")
+    api_key = os.environ.get("SUITEST_API_KEY", "").strip()
+    if not api_url or not api_key:
+        return (
+            "SUITEST_API_URL and SUITEST_API_KEY are both required "
+            "(set them in the mcpServers env block); refusing to start"
+        )
+    req = urllib.request.Request(
+        f"{api_url}/api/v1/api-keys/whoami",
+        headers={"Authorization": f"Bearer {api_key}"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10):
+            return None
+    except urllib.error.HTTPError as exc:
+        return f"SUITEST_API_KEY rejected by {api_url} (HTTP {exc.code}); refusing to start"
+    except (urllib.error.URLError, OSError) as exc:
+        return f"SUITEST_API_URL {api_url} unreachable ({exc}); refusing to start"
+
+
 def serve(stdin: TextIO = sys.stdin, stdout: TextIO = sys.stdout) -> None:
+    error = verify_credentials()
+    if error is not None:
+        sys.stderr.write(f"suitest-mcp: {error}\n")
+        raise SystemExit(1)
     for line in stdin:
         line = line.strip()
         if not line:
