@@ -316,7 +316,17 @@ jobs:
         run: uv build --project packages/lifecycle -o dist-lifecycle
 
       - name: uvx boot smoke (console script from the wheel)
+        env:
+          SUITEST_API_URL: http://127.0.0.1:41999
+          SUITEST_API_KEY: sk_suitest_ci
         run: |
+          # The server refuses to boot without valid credentials — run a whoami stub.
+          python3 scripts/mcp_whoami_stub.py &
+          for i in $(seq 1 50); do
+            curl -sf -o /dev/null -H "Authorization: Bearer $SUITEST_API_KEY" \
+              "$SUITEST_API_URL/api/v1/api-keys/whoami" && break
+            sleep 0.1
+          done
           printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n' \
             | uvx --from "$(ls dist-lifecycle/*.whl)" suitest-mcp \
             | python3 -c '
