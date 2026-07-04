@@ -168,8 +168,7 @@ PostgreSQL 16 + **pgvector** extension (single DB target for OSS v1.0).
 - SQLAlchemy 2 (async) models in `packages/db/models/`
 - Alembic migrations in `packages/db/alembic/versions/`
 - Seed script `packages/db/seed.py` — creates the demo workspace "Nusantara Retail"
-- pgvector indexes use `ivfflat` (default) or `hnsw` (opt-in via setting)
-- Vector dimension is flexible per `SUITEST_EMBEDDINGS_BACKEND`: `fastembed=384`, `openai=1536`, `cohere=1024` (the `DocumentChunk.embedding` column uses `Vector(dim)`, determined at migration time via `--embeddings-dim`)
+- No persisted embeddings: the former `DocumentChunk.embedding` pgvector column was dropped in migration 0045 (RAG design superseded by the agent-first flow); the `SUITEST_EMBEDDINGS_BACKEND` env var and `--embeddings-dim` migration flag no longer exist. Semantic test-case search embeds on demand (no vectors stored).
 - FTS fallback via the `tsvector` column `DocumentChunk.search_tsv` — always active, including on the ZERO tier
 
 Full schema: `docs/DATA_MODEL.md`.
@@ -242,9 +241,9 @@ SUITEST_LLM_PROVIDER=none           # none | anthropic | openai | gemini | groq 
 SUITEST_LLM_API_KEY=
 SUITEST_LLM_MODEL=                  # example: claude-sonnet-4-5, gpt-4o, ollama/llama3.1
 SUITEST_LLM_BASE_URL=               # for self-hosted / OpenAI-compatible
-SUITEST_EMBEDDINGS_BACKEND=none     # none | fastembed | openai | cohere
-SUITEST_EMBEDDINGS_MODEL=
 ```
+
+> `SUITEST_EMBEDDINGS_BACKEND` / `SUITEST_EMBEDDINGS_MODEL` no longer exist — persisted document embeddings were removed in migration 0045, and semantic test-case search embeds on demand (see CAPABILITY_TIERS.md §5).
 
 **Optional per-integration:**
 
@@ -373,9 +372,10 @@ Implemented in `packages/core/capabilities.py`. Algorithm:
    - `ollama` / `llamacpp` / `vllm` / `lmstudio` → **LOCAL**
    - everything else (cloud SaaS) → **CLOUD**
 3. Validate the combination (e.g. cloud providers require an API key, except Bedrock/Vertex IAM).
-4. Resolve `SUITEST_EMBEDDINGS_BACKEND` independently.
-5. Cache the result in memory + expose it via `GET /capabilities`.
-6. The frontend fetches once at boot, stores it in Zustand `useCapabilities()`.
+4. Cache the result in memory + expose it via `GET /capabilities`.
+5. The frontend fetches once at boot, stores it in Zustand `useCapabilities()`.
+
+> The former step "resolve `SUITEST_EMBEDDINGS_BACKEND` independently" is gone — that env var no longer exists (embeddings are no longer an env dial; see CAPABILITY_TIERS.md §5).
 
 Workspace-level overrides (via DB-stored `LLMConfig`) are handled via a reload signal — restart `api` + `runner` when the config changes.
 

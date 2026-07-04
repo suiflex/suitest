@@ -1,11 +1,15 @@
-"""Document + DocumentChunk models with variable-dim pgvector (docs/DATA_MODEL.md §3.10)."""
+"""Document + DocumentChunk models (docs/DATA_MODEL.md §3.10).
+
+The pgvector ``embedding`` column was dropped in migration 0045 — the RAG-to-LLM
+design it served was superseded by the agent-first flow (the IDE coding agent
+reads repo/PRD context directly; see ROADMAP). Chunks remain for FTS/lexical use.
+"""
 
 from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
 
-from pgvector.sqlalchemy import Vector
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
@@ -45,14 +49,6 @@ class DocumentChunk(Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # Variable dim — Vector(None) → no fixed dim. Per-workspace dim check constraint
-    # is added in a later migration (DATA_MODEL §13). No M1a check yet.
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(None))
-
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
 
-    __table_args__ = (
-        Index("ix_document_chunks_document_id", "document_id"),
-        # TODO(M1b+): per-workspace HNSW index added via raw-SQL migration
-        # (DATA_MODEL §7.2): CREATE INDEX ... USING hnsw (embedding vector_cosine_ops).
-    )
+    __table_args__ = (Index("ix_document_chunks_document_id", "document_id"),)

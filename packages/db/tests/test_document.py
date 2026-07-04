@@ -1,4 +1,4 @@
-"""Tests for documents + chunks with variable-dim pgvector (Task 2i)."""
+"""Tests for documents + chunks (Task 2i; embedding column dropped in 0045)."""
 
 from __future__ import annotations
 
@@ -27,18 +27,18 @@ async def _document(session: AsyncSession) -> Document:
 
 
 @pytest.mark.asyncio
-async def test_document_chunk_variable_dim(session: AsyncSession) -> None:
+async def test_document_chunk_roundtrip(session: AsyncSession) -> None:
     doc = await _document(session)
-    c384 = DocumentChunk(document_id=doc.id, chunk_index=0, content="a", embedding=[0.1] * 384)
-    c1536 = DocumentChunk(document_id=doc.id, chunk_index=1, content="b", embedding=[0.1] * 1536)
-    session.add_all([c384, c1536])
-    await session.flush()  # both succeed — no fixed-dim constraint in M1a
+    c0 = DocumentChunk(document_id=doc.id, chunk_index=0, content="a")
+    c1 = DocumentChunk(document_id=doc.id, chunk_index=1, content="b")
+    session.add_all([c0, c1])
+    await session.flush()
 
 
 @pytest.mark.asyncio
 async def test_document_cascade_to_chunks(session: AsyncSession) -> None:
     doc = await _document(session)
-    chunk = DocumentChunk(document_id=doc.id, chunk_index=0, content="a", embedding=[0.1] * 8)
+    chunk = DocumentChunk(document_id=doc.id, chunk_index=0, content="a")
     session.add(chunk)
     await session.flush()
     cid = chunk.id

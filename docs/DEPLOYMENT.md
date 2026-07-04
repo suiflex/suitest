@@ -50,7 +50,6 @@ x-suitest-env: &suitest-env
   SUITEST_LLM_API_KEY: ${SUITEST_LLM_API_KEY:-}
   SUITEST_LLM_MODEL: ${SUITEST_LLM_MODEL:-}
   SUITEST_LLM_BASE_URL: ${SUITEST_LLM_BASE_URL:-}
-  SUITEST_EMBEDDINGS_BACKEND: ${SUITEST_EMBEDDINGS_BACKEND:-none}
 
 services:
   web:
@@ -154,21 +153,16 @@ SUITEST_ENCRYPTION_KEY=replace-with-base64-32-byte-key
 SUITEST_LLM_PROVIDER=none
 SUITEST_LLM_API_KEY=
 SUITEST_LLM_MODEL=
-SUITEST_EMBEDDINGS_BACKEND=none
 
 # === To upgrade to CLOUD (uncomment) ===
 # SUITEST_LLM_PROVIDER=anthropic
 # SUITEST_LLM_API_KEY=sk-ant-...
 # SUITEST_LLM_MODEL=claude-sonnet-4-5
-# SUITEST_EMBEDDINGS_BACKEND=openai
-# SUITEST_EMBEDDINGS_MODEL=text-embedding-3-small
-# OPENAI_API_KEY=sk-...   # for the embeddings backend
 
 # === To upgrade to LOCAL (uncomment + use --profile local) ===
 # SUITEST_LLM_PROVIDER=ollama
 # SUITEST_LLM_BASE_URL=http://ollama:11434
 # SUITEST_LLM_MODEL=ollama/llama3.1
-# SUITEST_EMBEDDINGS_BACKEND=fastembed
 ```
 
 ### 1.5 Reverse proxy & TLS
@@ -278,11 +272,6 @@ llm:
   apiKeySecretRef:                    # reference, never inline
     name: suitest-llm
     key: api-key
-
-embeddings:
-  backend: none                       # none | fastembed | openai | cohere
-  model: ""
-  dim: 384                            # must match backend default
 
 web:
   replicaCount: 2
@@ -441,7 +430,7 @@ Default rules:
 | runner | MCP server pods | yes |
 | runner | LLM provider (egress) | controlled by `allowLLM` |
 
-**Air-gapped**: set `tier=zero`, `networkPolicy.egress.allowLLM=false`, and use an internal image registry via `image.pullSecrets`. Embeddings can still use `fastembed` (local CPU, no egress).
+**Air-gapped**: set `tier=zero`, `networkPolicy.egress.allowLLM=false`, and use an internal image registry via `image.pullSecrets`.
 
 ---
 
@@ -538,7 +527,6 @@ Rule of thumb: per replica, `SUITEST_RUNNER_CONCURRENCY × average_steps_per_run
 | `SUITEST_LLM_API_KEY` | empty | empty (or an internal token) | required |
 | `SUITEST_LLM_MODEL` | empty | `ollama/llama3.1` | provider-specific |
 | `SUITEST_LLM_BASE_URL` | empty | `http://ollama:11434` | optional (Azure / OpenAI-compat) |
-| `SUITEST_EMBEDDINGS_BACKEND` | `none` *(FTS fallback)* | `fastembed` recommended | `openai` / `cohere` |
 | Extra service | — | `ollama` container / external | — (use SaaS) |
 | Egress required | NO (air-gap OK) | NO (in-cluster LLM) | YES (LLM API) |
 | AI features | OFF | ON | ON |

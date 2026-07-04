@@ -110,21 +110,21 @@ Every feature maps to `(required_tier, required_autonomy)`. The decorator `@requ
 
 > **Status:** capability base embeddings = **disabled** (`resolve_embeddings()` ZERO-always; the `SUITEST_EMBEDDINGS_BACKEND` env has been removed). The `semantic_search` feature flag follows this base. The embedder **runtime** (`packages/core/embeddings.py::get_embedder`) still exists + separately (ZERO-tier feature). The matrix below = target design for when embeddings are exposed as a workspace dial (not yet); until then, all rows are effectively OFF.
 
+> **Removed (2026-07-04, migration 0045):** persisted document embeddings + the RAG-to-LLM pipeline. The `document_chunks.embedding` column was dropped — the pipeline was never built and is superseded by the agent-first flow (the IDE coding agent reads repo/PRD context directly via MCP). Semantic **test-case** search stays: it embeds on demand (no persisted vectors, no re-embed step, no vector-dimension concern).
+
 Embeddings are a dial separate from the LLM tier. Matrix (target):
 
-| LLM tier | Embeddings backend | Semantic search | RAG to LLM | Typical use case |
-|----------|--------------------|-----------------|------------|------------------|
-| ZERO | `none` | OFF (FTS only) | n/a | Pure air-gap, no AI needed |
-| ZERO | `fastembed` | ON | n/a | Air-gap, needs smart search but no LLM |
-| LOCAL | `none` | OFF | OFF | Local LLM without retrieval (small workspace) |
-| LOCAL | `fastembed` | ON | ON (local-only) | **Recommended** air-gap with full AI |
-| LOCAL | `openai`/`cohere` | ON | ON (mixed) | Local LLM + SaaS embeddings (compromise) |
-| CLOUD | `none` | OFF | OFF | Cost-saving, no retrieval |
-| CLOUD | `fastembed` | ON | ON | Privacy embeddings + paid LLM |
-| CLOUD | `openai` | ON | ON | Default SaaS posture |
-| CLOUD | `cohere` | ON | ON | Multilingual emphasis |
-
-**Vector dimension** is determined when the Alembic migration first runs — the `document_chunk.embedding` column uses `Vector(dim)` matching the backend. Changing the backend post-deploy → re-embed required (admin tool `python -m packages.db.reembed --backend=...`).
+| LLM tier | Embeddings backend | Semantic search | Typical use case |
+|----------|--------------------|-----------------|------------------|
+| ZERO | `none` | OFF (FTS only) | Pure air-gap, no AI needed |
+| ZERO | `fastembed` | ON | Air-gap, needs smart search but no LLM |
+| LOCAL | `none` | OFF | Local LLM without retrieval (small workspace) |
+| LOCAL | `fastembed` | ON | **Recommended** air-gap with full AI |
+| LOCAL | `openai`/`cohere` | ON | Local LLM + SaaS embeddings (compromise) |
+| CLOUD | `none` | OFF | Cost-saving, no retrieval |
+| CLOUD | `fastembed` | ON | Privacy embeddings + paid LLM |
+| CLOUD | `openai` | ON | Default SaaS posture |
+| CLOUD | `cohere` | ON | Multilingual emphasis |
 
 ---
 

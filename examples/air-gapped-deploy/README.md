@@ -18,7 +18,7 @@ helm install suitest dist/suitest-airgapped-0.1.0/suitest-0.1.0.tgz \
   --set networkPolicy.egressCidrs={10.0.0.0/8}
 ```
 
-The `values-airgapped.yaml` overlay enables the in-cluster Ollama, a deny-egress
-NetworkPolicy (DNS + intra-release + your datastore CIDRs only), and `fastembed`
-local embeddings — so semantic search + AI features work with zero external calls.
+The `values-airgapped.yaml` overlay enables the in-cluster Ollama and a deny-egress
+NetworkPolicy (DNS + intra-release + your datastore CIDRs only) — so AI features
+work with zero external calls.
 See [docs/DEPLOYMENT.md] and [ROADMAP M4-4].

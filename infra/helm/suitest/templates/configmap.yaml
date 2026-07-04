@@ -8,7 +8,6 @@ data:
   SUITEST_LLM_PROVIDER: {{ .Values.llm.provider | quote }}
   SUITEST_LLM_MODEL: {{ .Values.llm.model | quote }}
   SUITEST_LLM_BASE_URL: {{ .Values.llm.baseUrl | quote }}
-  SUITEST_EMBEDDINGS_BACKEND: {{ .Values.embeddings.backend | quote }}
   SUITEST_S3_ENDPOINT: {{ .Values.s3.endpoint | quote }}
   SUITEST_S3_BUCKET: {{ .Values.s3.bucket | quote }}
   SUITEST_REDIS_URL: {{ .Values.redis.url | quote }}

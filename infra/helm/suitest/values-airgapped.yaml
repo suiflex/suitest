@@ -19,11 +19,6 @@ llm:
   # Resolves to the in-cluster Ollama Service.
   baseUrl: http://suitest-ollama:11434
 
-embeddings:
-  backend: fastembed
-  model: BAAI/bge-small-en-v1.5
-  dim: 384
-
 ollama:
   enabled: true
   image: registry.internal:5000/ollama/ollama:0.3.12

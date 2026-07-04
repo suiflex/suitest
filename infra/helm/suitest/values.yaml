@@ -20,11 +20,6 @@ llm:
     name: ""
     key: api-key
 
-embeddings:
-  backend: none
-  model: ""
-  dim: 384
-
 api:
   replicaCount: 2
   service:

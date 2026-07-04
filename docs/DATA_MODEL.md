@@ -47,7 +47,7 @@ Workspace ──< User (via Membership)
    ├──< EvalRun (v1.x eval harness — schema present v1.0)
    │
    ├──< Document (PRD, OpenAPI, URL crawl, …)
-   │       └──< DocumentChunk (pgvector embedding, variable dim)
+   │       └──< DocumentChunk (content chunks; embedding column dropped in 0045)
    │
    └──< AuditLog
 
@@ -979,11 +979,12 @@ class AgentToolCall(Base, TimestampMixin):
     error_msg: Mapped[str | None] = mapped_column(Text)
 ```
 
-### 3.10 Documents + DocumentChunk (variable-dim pgvector)
+### 3.10 Documents + DocumentChunk
+
+> The `embedding` pgvector column was **dropped in migration 0045** (2026-07-04) — the planned RAG-to-LLM pipeline was never built and is superseded by the agent-first flow (the IDE coding agent reads repo/PRD context directly via MCP).
 
 ```python
 # packages/db/models/document.py
-from pgvector.sqlalchemy import Vector
 from packages.shared.domain.enums import DocumentKind
 
 
@@ -1010,16 +1011,11 @@ class DocumentChunk(Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # Variable dim — actual dimension enforced per-workspace by check constraint
-    # added in a migration (see §13 vector dim matrix). Vector(None) → no fixed dim.
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(None))
-
     # `metadata` reserved on DeclarativeBase → Python attr `metadata_json`, DB column `metadata`.
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, name="metadata")
 
     __table_args__ = (
         Index("ix_document_chunks_document_id", "document_id"),
-        # HNSW index added per-workspace via raw SQL migration (see §7).
     )
 ```
 
@@ -1116,7 +1112,7 @@ class WorkspaceCapability(Base):
     __table_args__ = (Index("ix_workspace_capabilities_tier", "tier"),)
 ```
 
-> Refreshed on **any** of: LLM config change, autonomy change, MCP provider toggle, embeddings backend env update.
+> Refreshed on **any** of: LLM config change, autonomy change, MCP provider toggle. *(The former "embeddings backend env update" trigger is gone — the `SUITEST_EMBEDDINGS_BACKEND` env var no longer exists.)*
 
 ### 4.3 `mcp_providers` — per-workspace registry
 
@@ -1280,7 +1276,7 @@ class CodeExport(Base):
 | `agent_sessions` | + `provider TEXT NOT NULL` | multi-provider observability |
 | `agent_tool_calls` | + `mcp_provider TEXT NULL` | tool may be MCP-routed |
 | `integrations.kind` | enum + `MCP_API, MCP_POSTGRES, MCP_KUBERNETES, MCP_GRAPHQL, MCP_GRPC, MCP_APPIUM, MCP_MONGO, MCP_MYSQL` | (Existing: `GITHUB, GITLAB, JENKINS, JIRA, LINEAR, SLACK, MCP_BROWSER_USE, MCP_PLAYWRIGHT, MCP_CUSTOM, OPENAPI`) |
-| `document_chunks.embedding` | `Vector(1536)` → `Vector(None)` + per-workspace dim check | variable-dim, see §13 |
+| `document_chunks.embedding` | **dropped in migration 0045** (2026-07-04) | RAG design superseded by agent-first flow; see §3.10 |
 | `defects` | + `agent_diagnosis_kind ENUM diagnosis_kind NOT NULL DEFAULT 'MANUAL_TRIAGE'` | drives auto-action; `MANUAL_TRIAGE` is ZERO default |
 | `runs` | + `tier_at_runtime ENUM tier NOT NULL` | reproducibility |
 | `runs` | dedup via Redis SETNX (app-layer) — **no** Postgres partial unique index | Postgres rejects `NOW()` in partial-index predicates; see §3.6 note |
@@ -1510,37 +1506,9 @@ class McpTransport(StrEnum):
 
 > **Why not a partial unique index for `runs` dedup?** Postgres rejects partial-index `WHERE` clauses that reference non-IMMUTABLE functions such as `NOW()` / `CURRENT_TIMESTAMP`, so a TTL-style index like `WHERE created_at > NOW() - INTERVAL '60 seconds'` is invalid. Run dedup is therefore enforced at the application layer — see §3.6 note on the Redis SETNX pattern.
 
-### 7.2 Vector search (pgvector, HNSW)
+### 7.2 Vector search — removed in 0045
 
-Per-workspace HNSW index, created in a workspace-bootstrap migration:
-
-```sql
--- packages/db/alembic/versions/xxx_pgvector_hnsw.py (op.execute)
-CREATE INDEX IF NOT EXISTS ix_document_chunks_embedding_hnsw
-  ON document_chunks
-  USING hnsw (embedding vector_cosine_ops)
-  WITH (m = 16, ef_construction = 64);
-```
-
-Query (top-k similar chunks for a workspace):
-
-```python
-# packages/agent/retrieval.py
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-async def search_chunks(db: AsyncSession, workspace_id: str, query_vec: list[float], k: int = 8):
-    stmt = (
-        select(DocumentChunk, Document)
-        .join(Document, DocumentChunk.document_id == Document.id)
-        .where(Document.workspace_id == workspace_id)
-        .order_by(DocumentChunk.embedding.cosine_distance(query_vec))
-        .limit(k)
-    )
-    return (await db.execute(stmt)).all()
-```
-
-Used by the agent to retrieve PRD/OpenAPI context when generating cases (CLOUD/LOCAL only — ZERO has `embeddings=none` and short-circuits to FTS).
+> **Removed.** The planned per-workspace HNSW index on `document_chunks.embedding` (and the chunk-retrieval query for RAG) was never built; the `embedding` column itself was dropped in migration 0045 (2026-07-04). The RAG design is superseded by the agent-first flow — the IDE coding agent reads repo/PRD context directly via MCP. Semantic **test-case** search (`GET /test-cases/search`) is unaffected: it embeds on demand via `SemanticSearchService` and does not persist vectors.
 
 ### 7.3 FTS fallback (ZERO tier, no embeddings)
 
@@ -1624,7 +1592,7 @@ uv run alembic current
 1. **Additive first.** Add column → deploy → backfill → switch code → drop old column in **next** release. No same-release column drops if existing code still reads it.
 2. **No rename without shadow read.** Add new column, dual-write, migrate readers, drop old column.
 3. **Enum changes:** `ADD VALUE` only (Postgres can't remove enum values without recreate). For a remove, do a full enum recreate in a dedicated migration with `op.execute()`.
-4. **Vector dim changes:** Per-workspace check constraint dropped + recreated; reindex pgvector HNSW in `concurrently` mode.
+4. ~~**Vector dim changes.**~~ Obsolete — `document_chunks.embedding` was dropped in migration 0045; there are no persisted vectors to re-dimension.
 5. **All Alembic files reviewed manually** — autogen misses `JSONB` defaults, `check_constraint`s, enum value additions, and pgvector index types.
 6. **Deferred FKs.** FKs that span tables defined later in this document must be added via a follow-up Alembic migration **AFTER** both tables exist. Specifically: `agent_sessions.prompt_version_id` → `prompt_versions(id)` (see §3.9 ↔ §4.5) lives in migration **N+1**, not in the initial `agent_sessions` create-table migration. The doc is ordered for narrative clarity (core tenancy → run/agent core in §3, OSS-pivot additions in §4); migration ordering should be: create `prompt_versions` first → create `agent_sessions` without the FK → add FK constraint in a separate revision via `op.create_foreign_key(...)`. Same applies to `eval_runs.prompt_version_id`.
 
@@ -1734,27 +1702,9 @@ async def set_llm_config(db, workspace_id, write: LLMConfigWrite) -> LLMConfigPu
 
 ---
 
-## 13. Vector dimension matrix
+## 13. Vector dimension matrix — removed in 0045
 
-| `SUITEST_EMBEDDINGS_BACKEND` | Provider | Model | Dim | Notes |
-|------------------------------|----------|-------|-----|-------|
-| `none` | (off) | — | n/a | ZERO default. RAG disabled, agent falls back to FTS. |
-| `fastembed` | BAAI | `bge-small-en-v1.5` | **384** | Local CPU, no API key. Default for LOCAL tier. |
-| `openai` | OpenAI | `text-embedding-3-small` | **1536** | CLOUD. Lower-cost option (`-large`=3072 also supported, must match check constraint). |
-| `cohere` | Cohere | `embed-english-v3.0` | **1024** | CLOUD. |
-
-Enforcement: per-workspace check constraint, set in a migration when the workspace's embeddings backend is selected:
-
-```sql
-ALTER TABLE document_chunks
-  ADD CONSTRAINT ck_document_chunks_dim_<wsid>
-  CHECK (array_length(embedding::real[], 1) = 384)
-  NOT VALID;  -- existing rows tolerated
-```
-
-Workspaces can't switch backends without a re-index migration (drops old chunks for that workspace, re-embeds via worker job). UI surfaces this as a confirm dialog.
-
-Default in Helm: `none`. Compose dev profile flips to `fastembed` so local devs see RAG without keys.
+> **Removed.** This section described the per-workspace vector-dimension check constraints for `document_chunks.embedding`. That column was dropped in migration 0045 (2026-07-04) — the RAG design is superseded by the agent-first flow — so there is no persisted vector dimension to enforce. (Referenced historically from §7.2 and §10; both are likewise marked removed.) The `SUITEST_EMBEDDINGS_BACKEND` env var no longer exists either; semantic test-case search embeds on demand.
 
 ---
 
