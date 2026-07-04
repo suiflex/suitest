@@ -1,0 +1,131 @@
+/* Landing design tokens. Dark theme locked for the marketing page.
+   Shape system: cards/panels 16px, code blocks 12px, buttons pill. */
+
+:root {
+  --bg: #0a0a0a;
+  --surface: #101112;
+  --surface-2: #151719;
+  --border: #232629;
+  --border-strong: #2e3236;
+  --text: #ecedee;
+  --text-2: #9ba1a6;
+  --text-3: #6c7278;
+  --accent: #4ade80;
+  --accent-dim: #34d17040;
+  --accent-ink: #052e16;
+  --font-sans: "Space Grotesk Variable", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --radius-card: 16px;
+  --radius-code: 12px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* z-scale: 10 nav, 20 skip-link */
+}
+
+.landing {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+}
+
+.landing *,
+.landing *::before,
+.landing *::after {
+  box-sizing: border-box;
+}
+
+.landing ::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.landing a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.wrap {
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+/* Buttons: one primary style, one ghost style, pill radius */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1;
+  padding: 14px 26px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s var(--ease-out), background 0.2s, border-color 0.2s;
+}
+.btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+.btn svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.btn-primary:hover {
+  background: #6ee7a0;
+}
+.btn-ghost {
+  border-color: var(--border-strong);
+  color: var(--text);
+  background: transparent;
+}
+.btn-ghost:hover {
+  border-color: #4a4f55;
+  background: #ffffff08;
+}
+
+/* Scroll reveal: hidden state only when JS is running AND motion allowed */
+@media (prefers-reduced-motion: no-preference) {
+  html.js .landing [data-reveal] {
+    opacity: 0;
+    translate: 0 26px;
+    transition: opacity 0.7s var(--ease-out), translate 0.7s var(--ease-out);
+    transition-delay: var(--reveal-delay, 0s);
+  }
+  html.js .landing [data-reveal].is-in {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+.section {
+  padding-block: 112px;
+}
+@media (max-width: 768px) {
+  .section {
+    padding-block: 72px;
+  }
+}
+
+.section-title {
+  font-size: clamp(30px, 4.2vw, 44px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  margin: 0 0 14px;
+}
+.section-sub {
+  color: var(--text-2);
+  max-width: 60ch;
+  margin: 0;
+  font-size: 17px;
+}

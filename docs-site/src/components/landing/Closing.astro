@@ -1,0 +1,123 @@
+---
+import arrowIcon from "@phosphor-icons/core/assets/regular/arrow-right.svg?raw";
+import bookIcon from "@phosphor-icons/core/assets/regular/book-open.svg?raw";
+
+const year = new Date().getFullYear();
+---
+
+<section class="section closing">
+  <div class="wrap closing-inner" data-reveal>
+    <h2 class="closing-title">MIT licensed.<br />No cloud required.</h2>
+    <p class="closing-sub">
+      Your stack, your LLM, your data. Run the whole platform on a laptop or a
+      cluster.
+    </p>
+    <div class="closing-ctas">
+      <a href="/docs/guides/getting-started/" class="btn btn-primary">
+        Get started
+        <Fragment set:html={arrowIcon} />
+      </a>
+      <a href="/docs/" class="btn btn-ghost">
+        <Fragment set:html={bookIcon} />
+        Read the docs
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <div class="foot-brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true" class="foot-mark">
+        <rect width="32" height="32" rx="7" fill="#161719"></rect>
+        <rect x="8" y="9.5" width="16" height="3.4" rx="1.7" fill="#4ade80"></rect>
+        <rect x="8" y="16.4" width="7.5" height="3.4" rx="1.7" fill="#4ade80" opacity=".55"></rect>
+        <path d="M18.6 18.9l2.6 2.6 4.6-5.4" fill="none" stroke="#4ade80" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <span>Suitest</span>
+    </div>
+    <nav class="foot-links" aria-label="Footer">
+      <a href="/docs/">Docs</a>
+      <a href="https://github.com/suiflex/suitest" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/suiflex/suitest/blob/main/docs/ROADMAP.md" target="_blank" rel="noopener">Roadmap</a>
+      <a href="https://github.com/suiflex/suitest/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a>
+      <a href="https://github.com/suiflex/suitest/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+    </nav>
+    <p class="foot-copy">Copyright {year} Suitest contributors. MIT License.</p>
+  </div>
+</footer>
+
+<style>
+  .closing {
+    text-align: center;
+    padding-block: 140px;
+  }
+  .closing-title {
+    font-size: clamp(34px, 5vw, 56px);
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    line-height: 1.06;
+    margin: 0 0 18px;
+  }
+  .closing-sub {
+    color: var(--text-2);
+    font-size: 17px;
+    max-width: 46ch;
+    margin: 0 auto 36px;
+  }
+  .closing-ctas {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .foot {
+    border-top: 1px solid var(--border);
+    padding-block: 44px;
+  }
+  .foot-inner {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .foot-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+  }
+  .foot-mark {
+    width: 26px;
+    height: 26px;
+  }
+  .foot-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    font-size: 14px;
+    color: var(--text-2);
+  }
+  .foot-links a:hover {
+    color: var(--text);
+  }
+  .foot-copy {
+    margin: 0 0 0 auto;
+    font-size: 13px;
+    color: var(--text-3);
+  }
+  @media (max-width: 768px) {
+    .closing {
+      padding-block: 96px;
+    }
+    .foot-inner {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 20px;
+    }
+    .foot-copy {
+      margin-left: 0;
+    }
+  }
+</style>

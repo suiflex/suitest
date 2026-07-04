@@ -13,4 +13,4 @@ without an LLM**:
   AI generation, diagnosis, and chat — fully air-gappable.
 - **CLOUD tier** — bring your own cloud LLM key (Anthropic, OpenAI, …).
 
-Start with [Getting started](/guides/getting-started/).
+Start with [Getting started](/docs/guides/getting-started/).

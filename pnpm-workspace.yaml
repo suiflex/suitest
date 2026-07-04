@@ -1,6 +1,7 @@
 packages:
   - "apps/web"
   - "packages/mcp-npx"
+  - "docs-site"
 allowBuilds:
   esbuild: true
   msw: true
@@ -9,3 +10,6 @@ onlyBuiltDependencies:
   - esbuild
   - sharp
   - msw
+overrides:
+  # @astrojs/sitemap >=3.3 targets Astro 5; docs-site is on Astro 4.
+  "@astrojs/sitemap": "3.2.1"

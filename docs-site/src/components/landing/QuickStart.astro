@@ -1,0 +1,213 @@
+---
+import copyIcon from "@phosphor-icons/core/assets/regular/copy.svg?raw";
+
+const tabs = [
+  {
+    id: "mcp",
+    label: "MCP server",
+    note: "Node 18+ and Python 3.11+ on PATH. Runs against your Suitest API.",
+    code: `npx -y @suitest/mcp`,
+  },
+  {
+    id: "docker",
+    label: "Docker Compose",
+    note: "Full platform: postgres, redis, minio, api, web, runner.",
+    code: `git clone https://github.com/suiflex/suitest && cd suitest
+cp .env.example .env
+docker compose up -d
+open http://localhost:3000`,
+  },
+  {
+    id: "helm",
+    label: "Helm",
+    note: "Kubernetes install. Air-gapped values file available for LOCAL tier.",
+    code: `helm install suitest infra/helm/suitest \\
+  -f infra/helm/suitest/values.yaml`,
+  },
+  {
+    id: "source",
+    label: "From source",
+    note: "Dev setup with pnpm workspaces and uv.",
+    code: `git clone https://github.com/suiflex/suitest && cd suitest
+make dev`,
+  },
+];
+---
+
+<section class="section" id="install">
+  <div class="wrap qs-grid">
+    <div class="qs-head" data-reveal>
+      <h2 class="section-title">Running in one command.</h2>
+      <p class="section-sub">
+        Start with the MCP server inside Claude Code or Cursor, or bring up the
+        whole platform with Docker.
+      </p>
+    </div>
+
+    <div class="qs-panel" data-reveal style="--reveal-delay: 0.1s">
+      <div class="qs-tabs" role="tablist" aria-label="Install methods">
+        {
+          tabs.map((tab, i) => (
+            <button
+              class="qs-tab"
+              role="tab"
+              id={`tab-${tab.id}`}
+              aria-controls={`panel-${tab.id}`}
+              aria-selected={i === 0 ? "true" : "false"}
+              tabindex={i === 0 ? 0 : -1}
+            >
+              {tab.label}
+            </button>
+          ))
+        }
+      </div>
+      {
+        tabs.map((tab, i) => (
+          <div
+            class="qs-code"
+            role="tabpanel"
+            id={`panel-${tab.id}`}
+            aria-labelledby={`tab-${tab.id}`}
+            hidden={i !== 0}
+          >
+            <pre><code>{tab.code}</code></pre>
+            <button class="qs-copy" data-code={tab.code} aria-label={`Copy ${tab.label} command`}>
+              <Fragment set:html={copyIcon} />
+            </button>
+            <p class="qs-note">{tab.note}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<script>
+  // Tabs
+  const tablist = document.querySelector<HTMLElement>(".qs-tabs");
+  if (tablist) {
+    const tabs = [...tablist.querySelectorAll<HTMLButtonElement>(".qs-tab")];
+    const panels = [...document.querySelectorAll<HTMLElement>(".qs-code")];
+    const select = (idx: number) => {
+      tabs.forEach((t, i) => {
+        t.setAttribute("aria-selected", i === idx ? "true" : "false");
+        t.tabIndex = i === idx ? 0 : -1;
+      });
+      panels.forEach((p, i) => (p.hidden = i !== idx));
+      tabs[idx].focus({ preventScroll: true });
+    };
+    tabs.forEach((tab, i) => {
+      tab.addEventListener("click", () => select(i));
+      tab.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight") select((i + 1) % tabs.length);
+        if (e.key === "ArrowLeft") select((i - 1 + tabs.length) % tabs.length);
+      });
+    });
+  }
+
+  // Copy buttons
+  for (const btn of document.querySelectorAll<HTMLButtonElement>(".qs-copy")) {
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.code ?? "");
+        btn.classList.add("copied");
+        setTimeout(() => btn.classList.remove("copied"), 1600);
+      } catch {
+        /* clipboard unavailable: leave button as-is */
+      }
+    });
+  }
+</script>
+
+<style>
+  .qs-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 64px;
+    align-items: start;
+  }
+  .qs-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  .qs-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .qs-tab {
+    appearance: none;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-2);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 14px 18px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s;
+  }
+  .qs-tab:hover {
+    color: var(--text);
+  }
+  .qs-tab[aria-selected="true"] {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .qs-code {
+    position: relative;
+    padding: 22px 24px 18px;
+  }
+  .qs-code pre {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--text);
+    overflow-x: auto;
+  }
+  .qs-copy {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: inline-flex;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-2);
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s, transform 0.15s var(--ease-out);
+  }
+  .qs-copy:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .qs-copy:active {
+    transform: scale(0.94);
+  }
+  .qs-copy :global(svg) {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+  }
+  .qs-copy.copied {
+    color: var(--accent);
+    border-color: var(--accent-dim);
+  }
+  .qs-note {
+    margin: 14px 0 0;
+    font-size: 13px;
+    color: var(--text-3);
+  }
+  @media (max-width: 900px) {
+    .qs-grid {
+      grid-template-columns: 1fr;
+      gap: 36px;
+    }
+  }
+</style>

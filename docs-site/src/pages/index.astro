@@ -1,0 +1,90 @@
+---
+import "@fontsource-variable/space-grotesk";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
+import "@fontsource/jetbrains-mono/700.css";
+import "../styles/landing.css";
+
+import LandingNav from "../components/landing/LandingNav.astro";
+import Hero from "../components/landing/Hero.astro";
+import QuickStart from "../components/landing/QuickStart.astro";
+import HowItWorks from "../components/landing/HowItWorks.astro";
+import Features from "../components/landing/Features.astro";
+import Tiers from "../components/landing/Tiers.astro";
+import Closing from "../components/landing/Closing.astro";
+
+const title = "Suitest: open-source, MCP-native QA platform";
+const description =
+  "Generate, run, and publish end-to-end tests with video evidence, straight from your IDE agent. Self-hosted, MIT licensed, works with or without an LLM.";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content="https://suitest.dev/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <script>
+      // Gate reveal-hidden styles behind a js class so no-JS visitors see content.
+      document.documentElement.classList.add("js");
+    </script>
+  </head>
+  <body class="landing">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <LandingNav />
+    <main id="main">
+      <Hero />
+      <QuickStart />
+      <HowItWorks />
+      <Features />
+      <Tiers />
+      <Closing />
+    </main>
+
+    <script>
+      // Scroll reveal
+      const els = document.querySelectorAll("[data-reveal]");
+      if ("IntersectionObserver" in window) {
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("is-in");
+                io.unobserve(entry.target);
+              }
+            }
+          },
+          { threshold: 0.18, rootMargin: "0px 0px -8% 0px" }
+        );
+        for (const el of els) io.observe(el);
+      } else {
+        for (const el of els) el.classList.add("is-in");
+      }
+    </script>
+
+    <style>
+      .skip-link {
+        position: absolute;
+        left: -9999px;
+        z-index: 20;
+        padding: 10px 18px;
+        background: var(--accent);
+        color: var(--accent-ink);
+        border-radius: 0 0 8px 0;
+        font-weight: 600;
+      }
+      .skip-link:focus {
+        left: 0;
+        top: 0;
+      }
+    </style>
+  </body>
+</html>

@@ -1,0 +1,273 @@
+---
+import githubIcon from "@phosphor-icons/core/assets/regular/github-logo.svg?raw";
+import arrowIcon from "@phosphor-icons/core/assets/regular/arrow-right.svg?raw";
+---
+
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <h1 class="hero-title">
+        Your app, tested by an <span class="accent">agent you own.</span>
+      </h1>
+      <p class="hero-sub">
+        Suitest is an open-source, MCP-native QA platform. Generate, run, and
+        publish end-to-end tests with video evidence. Self-hosted.
+      </p>
+      <div class="hero-ctas">
+        <a href="/docs/guides/getting-started/" class="btn btn-primary">
+          Get started
+          <Fragment set:html={arrowIcon} />
+        </a>
+        <a
+          href="https://github.com/suiflex/suitest"
+          class="btn btn-ghost"
+          target="_blank"
+          rel="noopener"
+        >
+          <Fragment set:html={githubIcon} />
+          GitHub
+        </a>
+      </div>
+    </div>
+
+    <div class="hero-term" data-reveal>
+      <!-- Real CLI: `suitest zero blackbox`. Output below is sample data. -->
+      <div class="term" id="hero-terminal" aria-label="Example Suitest run">
+        <div class="term-bar">
+          <span class="term-title">suitest</span>
+        </div>
+        <pre class="term-body" aria-live="off"><code id="term-code"></code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Typewriter for the hero terminal. Plays once when visible.
+  // Lines mirror a real `suitest zero blackbox` session (sample output).
+  type Line = { text: string; cls?: string; typed?: boolean; delay?: number };
+
+  const LINES: Line[] = [
+    { text: "$ suitest zero blackbox --url http://localhost:3000 --prd PRD.md", cls: "cmd", typed: true },
+    { text: "connected to target", cls: "ok", delay: 350 },
+    { text: "crawled 14 routes, 3 forms, 2 auth flows", cls: "ok", delay: 500 },
+    { text: "generated 12 test cases from PRD", cls: "ok", delay: 450 },
+    { text: "running e2e suite (chromium)", cls: "head", delay: 600 },
+    { text: "  pass  auth: login with valid credentials      3.1s", cls: "pass", delay: 420 },
+    { text: "  pass  dashboard: renders project stats        2.4s", cls: "pass", delay: 380 },
+    { text: "  fail  checkout: coupon survives page reload   1.8s", cls: "fail", delay: 500 },
+    { text: "  pass  settings: profile update persists       2.0s", cls: "pass", delay: 380 },
+    { text: "recording evidence: video + traces attached", cls: "head", delay: 550 },
+    { text: "11 passed, 1 failed. report published:", cls: "sum", delay: 500 },
+    { text: "http://localhost:3000/runs/0198f2", cls: "link", delay: 250 },
+  ];
+
+  function renderLine(code: HTMLElement, line: Line): HTMLElement {
+    const el = document.createElement("span");
+    el.className = `tl ${line.cls ?? ""}`;
+    code.appendChild(el);
+    return el;
+  }
+
+  function playTerminal(code: HTMLElement, reduced: boolean) {
+    if (reduced) {
+      for (const line of LINES) {
+        renderLine(code, line).textContent = line.text + "\n";
+      }
+      return;
+    }
+    let i = 0;
+    const caret = document.createElement("span");
+    caret.className = "caret";
+
+    function nextLine() {
+      if (i >= LINES.length) {
+        caret.remove();
+        return;
+      }
+      const line = LINES[i++];
+      const el = renderLine(code, line);
+      el.after(caret);
+      if (line.typed) {
+        let c = 0;
+        const tick = () => {
+          el.textContent = line.text.slice(0, ++c);
+          if (c < line.text.length) {
+            setTimeout(tick, 18 + Math.floor(c % 3) * 9);
+          } else {
+            el.textContent += "\n";
+            setTimeout(nextLine, 500);
+          }
+        };
+        tick();
+      } else {
+        el.textContent = line.text + "\n";
+        setTimeout(nextLine, line.delay ?? 400);
+      }
+    }
+    nextLine();
+  }
+
+  const code = document.getElementById("term-code");
+  const term = document.getElementById("hero-terminal");
+  if (code && term) {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          io.disconnect();
+          playTerminal(code, reduced);
+        }
+      },
+      { threshold: 0.4 }
+    );
+    io.observe(term);
+  }
+</script>
+
+<style>
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding-block: 88px 104px;
+  }
+  /* Faint blueprint grid, masked so it fades before the fold. */
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(#ffffff07 1px, transparent 1px),
+      linear-gradient(90deg, #ffffff07 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 90% 70% at 60% 20%, #000 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 90% 70% at 60% 20%, #000 30%, transparent 75%);
+  }
+  .hero-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 6fr);
+    gap: 56px;
+    align-items: center;
+  }
+  .hero-title {
+    font-size: clamp(38px, 5vw, 62px);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+    margin: 0 0 22px;
+    max-width: 14ch;
+  }
+  .accent {
+    color: var(--accent);
+  }
+  .hero-sub {
+    color: var(--text-2);
+    font-size: 18px;
+    max-width: 46ch;
+    margin: 0 0 34px;
+  }
+  .hero-ctas {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .term {
+    background: #0d0e10;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: 0 24px 80px -32px #000000cc;
+    overflow: hidden;
+  }
+  .term-bar {
+    display: flex;
+    align-items: center;
+    height: 38px;
+    padding-inline: 16px;
+    border-bottom: 1px solid var(--border);
+    background: #101214;
+  }
+  .term-title {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .term-body {
+    margin: 0;
+    padding: 20px 22px 24px;
+    font-family: var(--font-mono);
+    font-size: 12.75px;
+    line-height: 1.75;
+    min-height: 350px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .term-body :global(.tl) {
+    color: var(--text-2);
+  }
+  .term-body :global(.cmd) {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .term-body :global(.ok)::before {
+    content: "✓ ";
+    color: var(--accent);
+  }
+  .term-body :global(.head) {
+    color: var(--text);
+  }
+  .term-body :global(.pass) {
+    color: var(--text-2);
+  }
+  .term-body :global(.pass)::first-line {
+    color: var(--text-2);
+  }
+  .term-body :global(.fail) {
+    color: #f8867b;
+  }
+  .term-body :global(.sum) {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .term-body :global(.link) {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .term-body :global(.caret) {
+    display: inline-block;
+    width: 8px;
+    height: 15px;
+    background: var(--accent);
+    vertical-align: -2px;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .term-body :global(.caret) {
+      animation: blink 1s steps(1) infinite;
+    }
+  }
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .hero {
+      padding-block: 56px 72px;
+    }
+    .hero-grid {
+      grid-template-columns: 1fr;
+      gap: 44px;
+    }
+    .hero-title {
+      max-width: none;
+    }
+    .term-body {
+      min-height: 0;
+      font-size: 11.5px;
+    }
+  }
+</style>

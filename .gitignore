@@ -93,3 +93,4 @@ packages/mcp-npx/*.tgz
 
 # internal session notes (not part of the public repo)
 SESSION_LOOP.md
+suitest-output

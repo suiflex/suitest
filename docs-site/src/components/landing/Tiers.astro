@@ -1,0 +1,106 @@
+---
+const tiers = [
+  {
+    name: "ZERO",
+    tag: "Default",
+    body: "Manual test management plus the deterministic run engine. No LLM calls are ever made.",
+  },
+  {
+    name: "LOCAL",
+    tag: "Air-gappable",
+    body: "Plug in Ollama, vLLM, or llama.cpp for generation and diagnosis on your own hardware.",
+  },
+  {
+    name: "CLOUD",
+    tag: "Bring your key",
+    body: "Anthropic, OpenAI, Gemini, or any OpenAI-compatible endpoint, configured per workspace.",
+  },
+];
+---
+
+<section class="section tiers-sec">
+  <div class="wrap">
+    <div class="tiers-head" data-reveal>
+      <h2 class="section-title">Works with an LLM. Or without one.</h2>
+      <p class="section-sub">
+        Capability tiers decide how much AI you want in the loop. Move up or
+        down at any time, per workspace.
+      </p>
+    </div>
+
+    <div class="tiers" data-reveal style="--reveal-delay: 0.1s">
+      {
+        tiers.map((tier, i) => (
+          <div class={`tier ${i === 0 ? "tier-first" : ""}`}>
+            <div class="tier-top">
+              <span class="tier-name">{tier.name}</span>
+              <span class="tier-tag">{tier.tag}</span>
+            </div>
+            <p>{tier.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .tiers-sec {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: #0c0d0e;
+  }
+  .tiers-head {
+    margin-bottom: 52px;
+  }
+  /* Widths taper: ZERO carries the message, so it gets the room */
+  .tiers {
+    display: grid;
+    grid-template-columns: 5fr 4fr 3fr;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  .tier {
+    padding: 30px 28px 34px;
+    background: var(--surface);
+  }
+  .tier + .tier {
+    border-left: 1px solid var(--border);
+  }
+  .tier-first {
+    background: linear-gradient(150deg, #11271b 0%, var(--surface) 70%);
+  }
+  .tier-top {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .tier-name {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+  }
+  .tier-tag {
+    font-size: 12.5px;
+    color: var(--text-3);
+  }
+  .tier p {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 14.5px;
+    line-height: 1.65;
+  }
+  @media (max-width: 900px) {
+    .tiers {
+      grid-template-columns: 1fr;
+    }
+    .tier + .tier {
+      border-left: none;
+      border-top: 1px solid var(--border);
+    }
+  }
+</style>

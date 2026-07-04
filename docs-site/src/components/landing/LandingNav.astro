@@ -1,0 +1,109 @@
+---
+import githubIcon from "@phosphor-icons/core/assets/regular/github-logo.svg?raw";
+---
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a href="/" class="brand" aria-label="Suitest home">
+      <svg viewBox="0 0 32 32" aria-hidden="true" class="brand-mark">
+        <rect width="32" height="32" rx="7" fill="#161719"></rect>
+        <rect x="8" y="9.5" width="16" height="3.4" rx="1.7" fill="#4ade80"></rect>
+        <rect x="8" y="16.4" width="7.5" height="3.4" rx="1.7" fill="#4ade80" opacity=".55"></rect>
+        <path d="M18.6 18.9l2.6 2.6 4.6-5.4" fill="none" stroke="#4ade80" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <span class="brand-name">Suitest</span>
+    </a>
+
+    <nav class="nav-links" aria-label="Main">
+      <a href="/docs/">Docs</a>
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+    </nav>
+
+    <div class="nav-actions">
+      <a
+        href="https://github.com/suiflex/suitest"
+        class="gh-link"
+        aria-label="Suitest on GitHub"
+        target="_blank"
+        rel="noopener"
+      >
+        <Fragment set:html={githubIcon} />
+      </a>
+      <a href="/docs/guides/getting-started/" class="btn btn-primary nav-cta">Get started</a>
+    </div>
+  </div>
+</header>
+
+<style>
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    height: 66px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+  }
+  .brand-name {
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: -0.02em;
+  }
+  .nav-links {
+    display: flex;
+    gap: 26px;
+    margin-left: 8px;
+    font-size: 14.5px;
+    color: var(--text-2);
+  }
+  .nav-links a {
+    transition: color 0.2s;
+  }
+  .nav-links a:hover {
+    color: var(--text);
+  }
+  .nav-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .gh-link {
+    display: inline-flex;
+    color: var(--text-2);
+    transition: color 0.2s;
+  }
+  .gh-link:hover {
+    color: var(--text);
+  }
+  .gh-link :global(svg) {
+    width: 21px;
+    height: 21px;
+    fill: currentColor;
+  }
+  .nav-cta {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+  @media (max-width: 640px) {
+    .nav-links {
+      display: none;
+    }
+  }
+</style>

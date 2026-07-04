@@ -1,0 +1,116 @@
+---
+import robotIcon from "@phosphor-icons/core/assets/regular/robot.svg?raw";
+import globeIcon from "@phosphor-icons/core/assets/regular/globe-simple.svg?raw";
+import videoIcon from "@phosphor-icons/core/assets/regular/video-camera.svg?raw";
+
+const steps = [
+  {
+    icon: robotIcon,
+    title: "Prompt",
+    body: 'Tell your IDE agent "test this app with Suitest". The MCP server analyzes your app or crawls a URL.',
+  },
+  {
+    icon: globeIcon,
+    title: "Execute",
+    body: "The run engine drives a real browser through every generated case. Deterministic, repeatable, CI-friendly.",
+  },
+  {
+    icon: videoIcon,
+    title: "Publish",
+    body: "Cases, runs, video recordings, and traces land in your dashboard. Failures come with evidence attached.",
+  },
+];
+---
+
+<section class="section how">
+  <div class="wrap">
+    <div class="how-head" data-reveal>
+      <h2 class="section-title">Prompt to published report.</h2>
+      <p class="section-sub">
+        One conversation in your IDE becomes a full test lifecycle.
+      </p>
+    </div>
+
+    <ol class="how-steps">
+      {
+        steps.map((step, i) => (
+          <li class="how-step" data-reveal style={`--reveal-delay: ${i * 0.12}s`}>
+            <span class="how-icon">
+              <Fragment set:html={step.icon} />
+            </span>
+            <h3>{step.title}</h3>
+            <p>{step.body}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  .how-head {
+    margin-bottom: 64px;
+  }
+  .how-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px;
+    position: relative;
+  }
+  .how-step {
+    position: relative;
+  }
+  /* Descending baseline: the cascade itself reads as progression */
+  .how-step:nth-child(2) {
+    margin-top: 40px;
+  }
+  .how-step:nth-child(3) {
+    margin-top: 80px;
+  }
+  .how-icon {
+    display: inline-flex;
+    width: 54px;
+    height: 54px;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-card);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+  }
+  .how-icon :global(svg) {
+    width: 26px;
+    height: 26px;
+    fill: var(--accent);
+  }
+  .how-step h3 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 10px;
+  }
+  .how-step p {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 15px;
+    max-width: 34ch;
+  }
+  @media (max-width: 900px) {
+    .how-steps {
+      grid-template-columns: 1fr;
+      gap: 36px;
+    }
+    .how-step:nth-child(2),
+    .how-step:nth-child(3) {
+      margin-top: 0;
+    }
+    .how-head {
+      margin-bottom: 40px;
+    }
+  }
+</style>

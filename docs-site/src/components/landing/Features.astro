@@ -1,0 +1,232 @@
+---
+import plugsIcon from "@phosphor-icons/core/assets/regular/plugs-connected.svg?raw";
+import detectiveIcon from "@phosphor-icons/core/assets/regular/detective.svg?raw";
+import videoIcon from "@phosphor-icons/core/assets/regular/video-camera.svg?raw";
+import cpuIcon from "@phosphor-icons/core/assets/regular/cpu.svg?raw";
+import squaresIcon from "@phosphor-icons/core/assets/regular/squares-four.svg?raw";
+
+const mcpConfig = `{
+  "mcpServers": {
+    "suitest": {
+      "command": "npx",
+      "args": ["-y", "@suitest/mcp"]
+    }
+  }
+}`;
+---
+
+<section class="section" id="features">
+  <div class="wrap">
+    <div class="feat-head" data-reveal>
+      <p class="eyebrow">Features</p>
+      <h2 class="section-title">Built for the way agents work now.</h2>
+    </div>
+
+    <div class="bento">
+      <article class="cell cell-mcp" data-reveal>
+        <div class="cell-body">
+          <span class="cell-icon"><Fragment set:html={plugsIcon} /></span>
+          <h3>MCP-native, IDE-first</h3>
+          <p>
+            Claude Code, Cursor, and Codex talk to Suitest through one MCP
+            server. Analyze, generate, run, and publish without leaving the
+            editor.
+          </p>
+        </div>
+        <pre class="cell-code"><code>{mcpConfig}</code></pre>
+      </article>
+
+      <article class="cell" data-reveal style="--reveal-delay: 0.08s">
+        <div class="cell-body">
+          <span class="cell-icon"><Fragment set:html={detectiveIcon} /></span>
+          <h3>Blackbox from a URL</h3>
+          <p>
+            No repo access needed. Point it at a URL plus credentials and the
+            DOM engine maps and tests the app.
+          </p>
+        </div>
+      </article>
+
+      <article class="cell cell-tint" data-reveal>
+        <div class="cell-body">
+          <span class="cell-icon"><Fragment set:html={videoIcon} /></span>
+          <h3>Evidence on every run</h3>
+          <p>
+            Each case ships with a video recording and traces. A failing test
+            is a bug report you can watch.
+          </p>
+        </div>
+      </article>
+
+      <article class="cell" data-reveal style="--reveal-delay: 0.08s">
+        <div class="cell-body">
+          <span class="cell-icon"><Fragment set:html={cpuIcon} /></span>
+          <h3>Deterministic runs</h3>
+          <p>
+            The ZERO-tier engine replays cases without any LLM in the loop.
+            Same input, same result, every time.
+          </p>
+        </div>
+      </article>
+
+      <article class="cell cell-grid-bg" data-reveal style="--reveal-delay: 0.16s">
+        <div class="cell-body">
+          <span class="cell-icon"><Fragment set:html={squaresIcon} /></span>
+          <h3>A real test-management UI</h3>
+          <p>
+            Cases, runs, steps, and history live in a dashboard your whole
+            team can read, not in one developer's terminal.
+          </p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Spotlight border follows the pointer on fine-pointer devices.
+  if (window.matchMedia("(pointer: fine)").matches) {
+    let raf = 0;
+    for (const cell of document.querySelectorAll<HTMLElement>(".bento .cell")) {
+      cell.addEventListener("pointermove", (e) => {
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          const r = cell.getBoundingClientRect();
+          cell.style.setProperty("--mx", `${e.clientX - r.left}px`);
+          cell.style.setProperty("--my", `${e.clientY - r.top}px`);
+        });
+      });
+    }
+  }
+</script>
+
+<style>
+  .feat-head {
+    margin-bottom: 56px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+
+  .bento {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 18px;
+  }
+  .cell {
+    position: relative;
+    grid-column: span 4;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .cell-mcp {
+    grid-column: span 8;
+    flex-direction: row;
+    align-items: stretch;
+  }
+  /* Spotlight border highlight */
+  .cell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    background: radial-gradient(320px circle at var(--mx, 50%) var(--my, 50%), #4ade8014, transparent 65%);
+  }
+  @media (pointer: fine) {
+    .cell:hover::after {
+      opacity: 1;
+    }
+  }
+
+  .cell-body {
+    padding: 28px;
+    flex: 1;
+  }
+  .cell-icon {
+    display: inline-flex;
+    margin-bottom: 18px;
+  }
+  .cell-icon :global(svg) {
+    width: 26px;
+    height: 26px;
+    fill: var(--accent);
+  }
+  .cell h3 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0 0 10px;
+  }
+  .cell p {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 14.5px;
+    line-height: 1.65;
+  }
+
+  .cell-code {
+    margin: 24px 0 0 auto;
+    align-self: flex-end;
+    padding: 18px 20px;
+    background: #0d0e10;
+    border-left: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+    border-top-left-radius: var(--radius-code);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text-2);
+    max-width: 46%;
+    overflow: hidden;
+  }
+
+  .cell-tint {
+    background: linear-gradient(160deg, #10241a 0%, var(--surface) 60%);
+    border-color: #1d3a2a;
+  }
+
+  .cell-grid-bg {
+    background-image:
+      linear-gradient(#ffffff05 1px, transparent 1px),
+      linear-gradient(90deg, #ffffff05 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-color: var(--surface);
+  }
+  .cell-grid-bg .cell-body {
+    max-width: 52ch;
+  }
+
+  @media (max-width: 900px) {
+    .bento {
+      grid-template-columns: 1fr;
+    }
+    .cell,
+    .cell-mcp {
+      grid-column: span 1;
+    }
+    .cell-mcp {
+      flex-direction: column;
+    }
+    .cell-code {
+      max-width: none;
+      width: 100%;
+      margin: 0;
+      align-self: stretch;
+      border-left: none;
+      border-top-left-radius: 0;
+    }
+  }
+</style>

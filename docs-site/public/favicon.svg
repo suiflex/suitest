@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Suitest">
+  <rect width="32" height="32" rx="7" fill="#0a0a0a"/>
+  <rect x="8" y="9.5" width="16" height="3.4" rx="1.7" fill="#4ade80"/>
+  <rect x="8" y="16.4" width="7.5" height="3.4" rx="1.7" fill="#4ade80" opacity=".55"/>
+  <path d="M18.6 18.9l2.6 2.6 4.6-5.4" fill="none" stroke="#4ade80" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

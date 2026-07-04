@@ -1,9 +1,9 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 
-// M4-14: Suitest documentation site (Astro Starlight).
+// M4-14: Suitest site — custom landing at `/`, Starlight docs under `/docs/*`.
 export default defineConfig({
-  site: "https://docs.suitest.dev",
+  site: "https://suitest.dev",
   integrations: [
     starlight({
       title: "Suitest",
@@ -13,17 +13,18 @@ export default defineConfig({
         dark: "./src/assets/logo-dark.svg",
         replacesTitle: true,
       },
+      favicon: "/favicon.svg",
       social: { github: "https://github.com/suiflex/suitest" },
       sidebar: [
         { label: "Start here", items: [
-          { label: "Introduction", link: "/" },
-          { label: "Getting started", link: "/guides/getting-started/" },
-          { label: "Tutorial: first run", link: "/guides/tutorial/" },
+          { label: "Introduction", link: "/docs/" },
+          { label: "Getting started", link: "/docs/guides/getting-started/" },
+          { label: "Tutorial: first run", link: "/docs/guides/tutorial/" },
         ]},
         { label: "Reference", items: [
-          { label: "Capability tiers", link: "/reference/tiers/" },
-          { label: "API reference", link: "/reference/api/" },
-          { label: "CLI", link: "/reference/cli/" },
+          { label: "Capability tiers", link: "/docs/reference/tiers/" },
+          { label: "API reference", link: "/docs/reference/api/" },
+          { label: "CLI", link: "/docs/reference/cli/" },
         ]},
       ],
     }),
