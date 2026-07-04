@@ -43,10 +43,16 @@ _DB_PKG_ROOT = _REPO_ROOT / "packages" / "db"
 
 # Last revision *before* the M1d chain — round-trip downgrade target.
 _PRE_M1D_REV = "0015_run_step_logs"
-# Head once the M1d chain is applied — used to assert linear chain integrity.
-# Advanced to the per-workspace public_id migrations (0037 test_cases, 0038 runs,
-# 0039 requirements + defects).
-_M1D_HEAD_REV = "0039_req_defect_ws_public_id"
+
+
+def _script_head(cfg: Config) -> str:
+    """Current head of the migration scripts — keeps the round-trip assertion
+    valid as new revisions land on top of the M1d chain."""
+    from alembic.script import ScriptDirectory
+
+    head = ScriptDirectory.from_config(cfg).get_current_head()
+    assert head is not None  # a branched history would return None
+    return head
 
 
 @pytest.fixture(scope="module")
@@ -230,7 +236,7 @@ def test_upgrade_all_m1d_revisions_round_trips(_m1d_database_url: str) -> None:
         try:
             with eng.connect() as c:
                 rev = c.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-                assert rev == _M1D_HEAD_REV
+                assert rev == _script_head(cfg)
                 seeds = c.execute(
                     text(
                         "SELECT COUNT(*) FROM mcp_providers "
@@ -338,8 +344,8 @@ async def test_test_cases_order_in_suite_defaults_zero(_conn: object) -> None:
     cid = _new_id()
     await _conn.execute(  # type: ignore[attr-defined]
         text(
-            "INSERT INTO test_cases (id, suite_id, workspace_id, public_id, name, source, status, priority) "
-            "VALUES (:id, :s, :ws, :pub, :n, 'MANUAL', 'ACTIVE', 'P2')"
+            "INSERT INTO test_cases (id, suite_id, workspace_id, public_id, name, title, source, status, priority) "
+            "VALUES (:id, :s, :ws, :pub, :n, :n, 'MANUAL', 'ACTIVE', 'P2')"
         ),
         {"id": cid, "s": sid, "ws": wsid, "pub": f"TC-{cid[:6]}", "n": "C"},
     )
@@ -427,8 +433,8 @@ async def test_defects_auto_dedup_partial_unique_scoped_to_system(_engine: objec
         cid = _new_id()
         await conn.execute(
             text(
-                "INSERT INTO test_cases (id, suite_id, workspace_id, public_id, name, source, status, priority) "
-                "VALUES (:id, :s, :ws, :pub, :n, 'MANUAL', 'ACTIVE', 'P2')"
+                "INSERT INTO test_cases (id, suite_id, workspace_id, public_id, name, title, source, status, priority) "
+                "VALUES (:id, :s, :ws, :pub, :n, :n, 'MANUAL', 'ACTIVE', 'P2')"
             ),
             {"id": cid, "s": sid, "ws": wsid, "pub": f"TC-{cid[:6]}", "n": "C"},
         )
@@ -497,8 +503,8 @@ async def test_defects_auto_dedup_partial_unique_scoped_to_system(_engine: objec
         cid = _new_id()
         await conn.execute(
             text(
-                "INSERT INTO test_cases (id, suite_id, workspace_id, public_id, name, source, status, priority) "
-                "VALUES (:id, :s, :ws, :pub, :n, 'MANUAL', 'ACTIVE', 'P2')"
+                "INSERT INTO test_cases (id, suite_id, workspace_id, public_id, name, title, source, status, priority) "
+                "VALUES (:id, :s, :ws, :pub, :n, :n, 'MANUAL', 'ACTIVE', 'P2')"
             ),
             {"id": cid, "s": sid, "ws": wsid, "pub": f"TC-{cid[:6]}", "n": "C"},
         )
