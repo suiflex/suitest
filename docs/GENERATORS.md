@@ -1,6 +1,6 @@
 # docs/GENERATORS.md
 
-> Specification untuk test case generation di Suitest. Generators dibagi dua keluarga: **deterministic** (jalan di semua tier, termasuk ZERO) dan **LLM-driven** (CLOUD/LOCAL only). Keduanya terhubung ke MCP routing layer ([MCP_PLUGINS.md](./MCP_PLUGINS.md)) supaya output kompatibel dengan runner.
+> Specification for test case generation in Suitest. Generators fall into two families: **deterministic** (works on every tier, including ZERO) and **LLM-driven** (CLOUD/LOCAL only). Both plug into the MCP routing layer ([MCP_PLUGINS.md](./MCP_PLUGINS.md)) so their output is compatible with the runner.
 
 > 🚧 **SPEC — partially built.** Deterministic generators (M2-1..4) live on branch `feat/m2-generators-mcp`, NOT merged to main. LLM-driven generators target M3. Nothing generator-related on current main tree. See [ROADMAP.md](./ROADMAP.md) M2/M3.
 >

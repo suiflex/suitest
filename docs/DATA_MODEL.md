@@ -1,6 +1,6 @@
 # docs/DATA_MODEL.md
 
-> SQLAlchemy 2.0 (async) schema + Pydantic v2 domain models untuk Suitest OSS. **Source of truth** — kalau menambah/mengubah model, update doc ini dalam PR yang sama.
+> SQLAlchemy 2.0 (async) schema + Pydantic v2 domain models for Suitest OSS. **Source of truth** — when adding/changing a model, update this doc in the same PR.
 
 > ℹ️ **Built today:** schema through Alembic migration `0028` (M1e), incl. `run_step_logs` and `oauth_accounts` (FastAPI-Users). **Not built (M3–M4 spec):** `llm_config`, `agent_sessions`, eval tables, `webhook_dispatch_attempts`. Verify against `packages/db/alembic/versions/`.
 >
@@ -61,7 +61,7 @@ User ──< PasswordResetRequest (pre-SMTP reset link review)
 > Domain models hidup di `packages/shared/domain/` dan dipakai oleh service layer + serialisasi API. Bersifat **DB-agnostic**: tidak meng-import SQLAlchemy. Mapping ORM ↔ domain dilakukan oleh service / repository.
 >
 > Konvensi:
-> - `BaseModel` dgn `model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True, populate_by_name=True)` agar bisa dibangun dari ORM rows.
+> - `BaseModel` with `model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True, populate_by_name=True)` so instances can be built from ORM rows.
 > - Field IDs di-tag `Annotated[str, Field(min_length=1)]`.
 > - Datetimes always UTC (`datetime`).
 > - Enums di `packages/shared/domain/enums.py` (lihat §6).

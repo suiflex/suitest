@@ -291,7 +291,7 @@ function DashboardHeader(): React.ReactElement {
           <StatusBadge status="pass" label="All systems healthy" />
         </div>
         <p className="text-[12.5px] text-fg-3">
-          Selamat siang, {firstName} — here&apos;s your test quality snapshot.
+          {t("dashboard.greeting", { name: firstName })}
         </p>
       </div>
       <div className="flex items-center gap-2">

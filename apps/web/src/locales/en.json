@@ -1,5 +1,6 @@
 {
   "dashboard.title": "Dashboard",
+  "dashboard.greeting": "Good to see you, {{name}} — here's your test quality snapshot.",
   "inbox.title": "Inbox",
   "cases.title": "Test Cases",
   "runs.title": "Test Runs",

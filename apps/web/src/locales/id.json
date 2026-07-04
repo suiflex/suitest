@@ -1,5 +1,6 @@
 {
   "dashboard.title": "Dasbor",
+  "dashboard.greeting": "Selamat datang, {{name}} — berikut ringkasan kualitas pengujian Anda.",
   "inbox.title": "Inbox",
   "cases.title": "Test Cases",
   "runs.title": "Eksekusi",

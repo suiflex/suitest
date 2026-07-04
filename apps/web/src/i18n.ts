@@ -11,9 +11,9 @@ import id from "./locales/id.json";
  *
  * Resources are bundled as flat JSON dictionaries keyed by `<screen>.title`
  * (not nested namespaces) so additions can be appended without touching
- * code. Bahasa Indonesia values follow CLAUDE.md § 3.4 (product UI in
- * English, BI allowed for greetings + empty states — we use BI for screen
- * titles here as the canonical translation target).
+ * code. Per CLAUDE.md § 3.4 the product UI is English by default; the `id`
+ * dictionary carries the Bahasa Indonesia translations, and components must
+ * never hardcode non-English strings.
  */
 export type Locale = "en" | "id";
 
