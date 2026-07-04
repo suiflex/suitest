@@ -388,15 +388,22 @@ def blackbox_publish_results(**kwargs: Any) -> dict[str, Any]:
     import os as _os
     import re as _re
 
+    from suitest_lifecycle.retest import rewrite_project_id
+
     project_id = str(kwargs.pop("project_id", "") or "")
     suite_name = str(kwargs.pop("suite_name", "") or "")
+    # EXPLICIT recreate opt-in — mirrors the lifecycle run tools. Without it a
+    # stale binding fails this publish instead of minting a fresh project.
+    recreate = bool(kwargs.pop("recreate_project", False))
     config_path = str(kwargs.get("config_path", "") or "")
     ui, paths = _resolve(**kwargs)
-    if config_path and not project_id:
+    if config_path:
         from suitest_lifecycle.config import load_config
 
         cfg = load_config(config_path)
-        project_id = cfg.publish.project_id
+        if not project_id:
+            project_id = cfg.publish.project_id
+        recreate = recreate or cfg.publish.recreate
     # No project configured → the server finds-or-creates one by a slug derived
     # from the target host. Publishing is MANDATORY in the blackbox pipeline;
     # "no project yet" is not an excuse to keep results local.
@@ -424,6 +431,66 @@ def blackbox_publish_results(**kwargs: Any) -> dict[str, Any]:
 
     try:
         with SuitestClient(api_url, token=token, timeout=180.0) as client:
+            # --- project binding gate (before any upload/insert) ----------- #
+            binding: dict[str, Any] = {"status": "first_setup", "action": "will_create_by_slug"}
+            if project_id:
+                binding = {
+                    "status": "unverified",
+                    "action": "server_unreachable",
+                    "projectId": project_id,
+                }
+                try:
+                    resolved = client.resolve_project(
+                        project_id=project_id,
+                        project_slug=project_slug,
+                        project_name=project_name,
+                    )
+                except Exception:
+                    # Resolve endpoint unreachable/older server: proceed — the
+                    # publish itself still 404s a stale id without inserting.
+                    resolved = None
+                if resolved is not None:
+                    status = str(resolved.get("status", "missing"))
+                    if status == "valid":
+                        binding = {
+                            "status": "valid",
+                            "action": "reused_existing_project",
+                            "projectId": project_id,
+                        }
+                    elif status == "repaired":
+                        project_id = str(resolved.get("projectId", ""))
+                        binding = {
+                            "status": "repaired",
+                            "action": "rebound_by_" + str(resolved.get("matchedBy", "match")),
+                            "projectId": project_id,
+                        }
+                        if config_path:
+                            rewrite_project_id(Path(config_path), project_id)
+                    elif recreate:
+                        binding = {
+                            "status": "recreate_requested",
+                            "action": "will_recreate_by_slug",
+                        }
+                        project_id = ""  # server find-or-creates by slug below
+                    else:
+                        return _envelope(
+                            False,
+                            f"stale project binding: projectId '{project_id}' not found in "
+                            "the workspace and no unambiguous project matched — nothing "
+                            "was published",
+                            data={
+                                "projectBinding": {
+                                    "status": "missing",
+                                    "action": "fail",
+                                    "projectId": project_id,
+                                    "candidates": resolved.get("candidates", []),
+                                }
+                            },
+                            errors=[
+                                "fix publish.projectId (or the project_id argument), or "
+                                "re-run with recreate_project=true to create a new project"
+                            ],
+                        )
 
             def _up(path: str, mime: str) -> str:
                 try:
@@ -505,26 +572,41 @@ def blackbox_publish_results(**kwargs: Any) -> dict[str, Any]:
                 )
             imported = client.bulk_import_cases(
                 project_id=project_id,
-                project_slug=project_slug,
-                project_name=project_name,
+                # Slug fallback ONLY when no validated id — an explicit id must
+                # never silently degrade into a find-or-create.
+                project_slug="" if project_id else project_slug,
+                project_name="" if project_id else project_name,
                 suite_name=suite,
                 mode="frontend",
                 cases=cases_payload,
+                # Current generation = the suite's alive set; an empty payload
+                # (nothing generated) must not stale the whole suite.
+                mark_stale=bool(cases_payload),
             )
+            resolved_id = str(imported.get("projectId", "") or "") or project_id
             run = client.ingest_run(
-                project_id=project_id,
-                project_slug=project_slug,
-                project_name=project_name,
+                project_id=resolved_id,
+                project_slug="" if resolved_id else project_slug,
+                project_name="" if resolved_id else project_name,
                 suite_name=suite,
                 name=f"{suite} run",
                 results=results_payload,
             )
     except SuitestAPIError as exc:
         return _envelope(False, f"publish failed: {exc}", errors=[str(exc)])
+    # Slug-based publish minted (or found) the project — pin its id so the next
+    # blackbox publish is an explicit-id retest, never a re-create.
+    if config_path and resolved_id and binding["status"] in ("first_setup", "recreate_requested"):
+        rewrite_project_id(Path(config_path), resolved_id)
     return _envelope(
         True,
         f"published: {len(imported.get('imported', []))} case(s), run {run.get('runId')}",
-        data={"imported": imported, "run": run},
+        data={
+            "imported": imported,
+            "run": run,
+            "projectBinding": {**binding, "projectId": resolved_id},
+            "staleCases": imported.get("stale", []),
+        },
     )
 
 

@@ -27,6 +27,18 @@ from suitest_lifecycle.process import ProcessManager
 from suitest_lifecycle.publish import publish_results
 from suitest_lifecycle.readiness import wait_until_ready
 from suitest_lifecycle.report import write_all_reports
+from suitest_lifecycle.retest import (
+    BindingResult,
+    build_fingerprint,
+    can_reuse_generated,
+    classify_results,
+    diff_fingerprint,
+    load_codegen_meta,
+    load_snapshot,
+    reconcile_codegen,
+    resolve_binding,
+    save_snapshot,
+)
 from suitest_lifecycle.runner import run_tests
 from suitest_lifecycle.serialize import (
     code_summary_to_json,
@@ -48,6 +60,10 @@ class LifecycleResult:
     artifacts: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     steps: list[str] = field(default_factory=list)
+    # Retest telemetry: mode, project binding, change detection, generated-code
+    # status, failure classification, next actions. Surfaced verbatim in the
+    # MCP envelope so agents can reason about WHY a retest behaved as it did.
+    retest: dict[str, object] = field(default_factory=dict)
 
 
 def _publish_step(pub: dict[str, object]) -> str:
@@ -58,9 +74,7 @@ def _publish_step(pub: dict[str, object]) -> str:
     return f"publish skipped — {pub.get('reason')}"
 
 
-def _record_publish(
-    pub: dict[str, object], steps: list[str], errors: list[str]
-) -> None:
+def _record_publish(pub: dict[str, object], steps: list[str], errors: list[str]) -> None:
     """A failed publish never fails the run, but it must be LOUD: agents only
     read the envelope's ``errors``, so a steps-only note is effectively silent."""
     msg = _publish_step(pub)
@@ -125,6 +139,67 @@ def _is_blackbox(config: Config) -> bool:
     return config.mode is Mode.FRONTEND and config.analysis_source == "blackbox"
 
 
+# Stable identity fields for a discovered element — deliberately EXCLUDES
+# volatile data (screenshot paths, dynamic visible text) so a retest against an
+# unchanged app never false-positives as a UI change.
+_ELEMENT_ID_FIELDS = (
+    "kind",
+    "testid",
+    "role",
+    "name",
+    "label",
+    "placeholder",
+    "dom_id",
+    "css",
+    "input_type",
+)
+
+
+def _crawl_elements(crawl: object | None) -> dict[str, object] | None:
+    """Per-route interactive-element identity from a live DOM crawl.
+
+    Feeds selector-level change detection (``selector_changed``). Returns None
+    when no crawl ran (repo-analysis runs have no element capture)."""
+    if crawl is None:
+        return None
+    page_elements = getattr(crawl, "page_elements", None)
+    page_testids = getattr(crawl, "page_testids", None)
+    pe = page_elements if isinstance(page_elements, dict) else {}
+    pt = page_testids if isinstance(page_testids, dict) else {}
+    if not pe and not pt:
+        return None
+    return {
+        str(route): {"elements": pe.get(route), "testids": pt.get(route)}
+        for route in sorted({*pe, *pt})
+    }
+
+
+def _discovery_elements(pages: list[object]) -> dict[str, object]:
+    """Per-route element identity from a blackbox discovery (same purpose as
+    :func:`_crawl_elements`, different source shape)."""
+
+    def _ident(e: object, *, with_text: bool = False) -> dict[str, object]:
+        d: dict[str, object] = {f: getattr(e, f, "") for f in _ELEMENT_ID_FIELDS}
+        if with_text:
+            # Button labels are part of the UI contract (button_label_changed);
+            # link/input text is too dynamic to fingerprint.
+            d["text"] = getattr(e, "text", "")
+        return d
+
+    out: dict[str, object] = {}
+    for p in pages:
+        out[str(getattr(p, "route", ""))] = {
+            "inputs": [_ident(e) for e in getattr(p, "inputs", [])],
+            "buttons": [_ident(e, with_text=True) for e in getattr(p, "buttons", [])],
+            "links": [_ident(e) for e in getattr(p, "links", [])],
+            "hasTable": getattr(p, "has_table", False),
+            "hasForm": getattr(p, "has_form", False),
+            "hasModal": getattr(p, "has_modal", False),
+            "rowLocator": getattr(p, "row_locator", ""),
+        }
+    return out
+
+
 def generate_only(
     config: Config,
     summary: CodeSummary | None = None,
@@ -156,7 +231,54 @@ def generate_only(
     from suitest_lifecycle.llm_bridge import build_dom_context
 
     dom_context = build_dom_context(crawl, summary)  # type: ignore[arg-type]
-    cases = _export(config, cases, summary, paths, llm=codegen_llm, dom_context=dom_context)
+
+    # --- retest: change detection + generated-code reuse -------------------- #
+    import hashlib
+
+    fingerprint = build_fingerprint(summary, cases, _crawl_elements(crawl))
+    change_report = diff_fingerprint(load_snapshot(paths), fingerprint)
+    dom_digest = hashlib.sha256(dom_context.encode("utf-8")).hexdigest()[:16]
+    meta_prev = load_codegen_meta(paths)
+    reuse = (
+        not change_report["first"]
+        and not change_report["changed"]
+        and can_reuse_generated(cases, paths, meta_prev, dom_digest, config.codegen)
+    )
+    export_error = ""
+    stash: dict[str, str] = {}
+    if not reuse:
+        # Stash current files so a regen never silently destroys reviewed code:
+        # changed files are archived to history/, a failed regen is rolled back.
+        for entry in meta_prev.values():
+            fname = str(entry.get("file", ""))
+            fp = paths.test_file(fname) if fname else None
+            if fp is not None and fp.is_file():
+                stash[fname] = fp.read_text(encoding="utf-8")
+        try:
+            cases = _export(config, cases, summary, paths, llm=codegen_llm, dom_context=dom_context)
+        except Exception as exc:  # regen failure → keep prior code, flag needs_review
+            export_error = f"{type(exc).__name__}: {exc}"
+            for fname, content in stash.items():
+                paths.test_file(fname).write_text(content, encoding="utf-8")
+            for c in cases:
+                prev_entry = meta_prev.get(c.title)
+                if prev_entry:
+                    c.automation_file = str(prev_entry.get("file", ""))
+    _meta, gen_counts = reconcile_codegen(
+        cases,
+        paths,
+        meta_prev,
+        stash,
+        dom_digest,
+        config.codegen,
+        reused=reuse,
+        export_error=export_error,
+    )
+    save_snapshot(paths, fingerprint)
+    (paths.tmp_dir / "change_report.json").write_text(
+        json.dumps({"changeDetection": change_report, "generatedCode": gen_counts}, indent=2),
+        encoding="utf-8",
+    )
 
     paths.code_summary_json.write_text(json.dumps(code_summary_to_json(summary), indent=2), "utf-8")
     paths.prd_json.write_text(json.dumps(prd_to_json(prd), indent=2), encoding="utf-8")
@@ -260,6 +382,19 @@ def _blackbox_generate(config: Config) -> tuple[CodeSummary, list[PlanCase], Pat
             else "No login form found."
         ),
     )
+    # Retest change detection for the blackbox path (deterministic codegen, so
+    # code reuse is just hash bookkeeping — no LLM cost to skip).
+    fingerprint = build_fingerprint(summary, cases, _discovery_elements(list(discovery.pages)))
+    change_report = diff_fingerprint(load_snapshot(paths), fingerprint)
+    _meta, gen_counts = reconcile_codegen(
+        cases, paths, load_codegen_meta(paths), {}, "", "blackbox"
+    )
+    save_snapshot(paths, fingerprint)
+    (paths.tmp_dir / "change_report.json").write_text(
+        _json.dumps({"changeDetection": change_report, "generatedCode": gen_counts}, indent=2),
+        encoding="utf-8",
+    )
+
     paths.code_summary_json.write_text(
         _json.dumps(code_summary_to_json(summary), indent=2), encoding="utf-8"
     )
@@ -268,9 +403,108 @@ def _blackbox_generate(config: Config) -> tuple[CodeSummary, list[PlanCase], Pat
     return summary, cases, paths, steps
 
 
+def _load_change_report(paths: Paths) -> dict[str, object]:
+    p = paths.tmp_dir / "change_report.json"
+    if not p.is_file():
+        return {}
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        return raw if isinstance(raw, dict) else {}
+    except ValueError:
+        return {}
+
+
+_RUN_MODE = {
+    "local_only": "local_only",
+    "first_setup": "first_test",
+    "recreate_requested": "recreate",
+    "valid": "retest",
+    "repaired": "retest",
+    "unverified": "retest",
+    "missing": "blocked",
+}
+
+
+def _build_retest(
+    binding: BindingResult,
+    report: dict[str, object],
+    classifications: dict[str, str],
+    pub: dict[str, object],
+) -> dict[str, object]:
+    cd = report.get("changeDetection")
+    gc = report.get("generatedCode")
+    cd = cd if isinstance(cd, dict) else {}
+    gc = gc if isinstance(gc, dict) else {}
+    mode = _RUN_MODE.get(binding.status, "retest")
+    if mode == "retest" and cd.get("first"):
+        mode = "first_test"  # binding valid but this host never generated before
+    kinds = sorted(set(classifications.values()))
+    stale_raw = pub.get("stale")
+    stale = stale_raw if isinstance(stale_raw, list) else []
+
+    next_actions: list[str] = []
+    if binding.status == "missing":
+        next_actions.append(
+            "Fix publish.projectId in suitest.config.json (see candidates), or set "
+            "publish.recreateProject=true / re-run with recreate_project to create a new project."
+        )
+    if stale:
+        next_actions.append(f"Review {len(stale)} STALE test case(s) in the TCM: {stale}")
+    if kinds:
+        next_actions.append("Inspect classified failures: " + ", ".join(kinds))
+    if gc.get("needs_review"):
+        next_actions.append(
+            "Code regeneration failed — prior automation kept; see codegen_meta.json (needs_review)."
+        )
+    if not next_actions:
+        next_actions.append("No action needed — binding resolved and results recorded.")
+
+    return {
+        "mode": mode,
+        "projectBinding": binding.to_json(),
+        "changeDetection": cd,
+        "generatedCode": gc,
+        "failureClassification": kinds,
+        "testCases": {
+            "created": pub.get("created", 0),
+            "reused": pub.get("reused", 0),
+            "stale": len(stale),
+        },
+        "testRun": {
+            "created": bool(pub.get("published")),
+            "runId": pub.get("runId"),
+            "status": pub.get("runStatus"),
+        },
+        "published": bool(pub.get("published")),
+        "publishReason": str(pub.get("reason", "")),
+        "nextActions": next_actions,
+    }
+
+
 def run_lifecycle(config: Config) -> LifecycleResult:
     steps: list[str] = []
     errors: list[str] = []
+
+    # Project binding FIRST: a stale, unrepairable binding must fail loudly
+    # before anything is generated, executed, or inserted server-side.
+    binding = resolve_binding(config, recreate=config.publish.recreate)
+    steps.append(f"project binding: {binding.status} ({binding.action})")
+    if binding.detail:
+        steps.append(f"binding detail: {binding.detail}")
+    if binding.blocks_publish:
+        errors.append(binding.detail)
+        pub: dict[str, object] = {"published": False, "reason": binding.detail, "blocked": True}
+        return LifecycleResult(
+            success=False,
+            summary=(
+                "FAILED — project binding is stale (projectId not found) and could not be "
+                "repaired. Nothing was generated, executed, or published."
+            ),
+            run=None,
+            errors=errors,
+            steps=steps,
+            retest=_build_retest(binding, {}, {}, pub),
+        )
 
     crawl_mode = _is_crawl(config) or _is_blackbox(config)
     summary_code: CodeSummary | None
@@ -298,10 +532,13 @@ def run_lifecycle(config: Config) -> LifecycleResult:
 
     def _finish_fail(detail: str) -> LifecycleResult:
         errors.append(f"not ready: {detail}")
+        kind = "dependency_not_ready" if detail.startswith("dependency") else "target_not_ready"
         run_failed = _empty_run(config, summary_code, server_started, False, detail, startup_tail)
         _finalize(config, cases, run_failed, paths)
+        fail_pub: dict[str, object] = {"published": False, "reason": "run aborted before tests"}
         if config.publish.enabled:
-            _record_publish(publish_results(config, run_failed, cases, paths), steps, errors)
+            fail_pub = publish_results(config, run_failed, cases, paths, binding=binding)
+            _record_publish(fail_pub, steps, errors)
         return LifecycleResult(
             success=False,
             summary=f"FAILED — {detail}",
@@ -309,6 +546,9 @@ def run_lifecycle(config: Config) -> LifecycleResult:
             artifacts=_artifact_list(paths),
             errors=errors,
             steps=steps,
+            retest=_build_retest(
+                binding, _load_change_report(paths), {"readiness": kind}, fail_pub
+            ),
         )
 
     try:
@@ -403,8 +643,23 @@ def run_lifecycle(config: Config) -> LifecycleResult:
 
     run = _build_run(config, summary_code, results, server_started, ready_detail, startup_tail)
     _finalize(config, cases, run, paths)
+
+    report = _load_change_report(paths)
+    cd = report.get("changeDetection")
+    api_changed = bool(cd.get("apiChanged")) if isinstance(cd, dict) else False
+    classifications = classify_results(run.results, config.mode, api_changed=api_changed)
+    if classifications:
+        steps.append(
+            "failure classification: "
+            + ", ".join(f"{tid}={kind}" for tid, kind in sorted(classifications.items()))
+        )
+
+    pub2: dict[str, object] = {"published": False, "reason": "publish disabled"}
     if config.publish.enabled:
-        _record_publish(publish_results(config, run, cases, paths), steps, errors)
+        pub2 = publish_results(
+            config, run, cases, paths, binding=binding, classifications=classifications
+        )
+        _record_publish(pub2, steps, errors)
 
     ok = run.failed == 0 and run.errored == 0
     verb = "PASSED" if ok else "FAILED"
@@ -418,6 +673,7 @@ def run_lifecycle(config: Config) -> LifecycleResult:
         artifacts=_artifact_list(paths),
         errors=errors,
         steps=steps,
+        retest=_build_retest(binding, report, classifications, pub2),
     )
 
 

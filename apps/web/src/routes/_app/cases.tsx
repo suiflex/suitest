@@ -538,7 +538,7 @@ function CaseTree({
                         "bg-bg-elev-2 shadow-[inset_2px_0_0_0_theme(colors.accent)]",
                     )}
                   >
-                    <SourceDot status={c.status === "DEPRECATED" ? "warn" : "pass"} />
+                    <SourceDot status={c.status === "DEPRECATED" || c.status === "STALE" ? "warn" : "pass"} />
                     <span className="shrink-0 whitespace-nowrap font-mono text-[10.5px] text-fg-5">
                       {c.public_id}
                     </span>

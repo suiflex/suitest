@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from suitest_lifecycle.config import Config
     from suitest_lifecycle.models import PlanCase, RunSummary
     from suitest_lifecycle.paths import Paths
+    from suitest_lifecycle.retest import BindingResult
 
 
 class Uploader(Protocol):
@@ -125,10 +126,14 @@ def _artifact(client: Uploader, path: str, kind: str) -> dict[str, object] | Non
 
 
 def _result_payloads(
-    client: Uploader, summary: RunSummary, cases: list[PlanCase]
+    client: Uploader,
+    summary: RunSummary,
+    cases: list[PlanCase],
+    classifications: dict[str, str] | None = None,
 ) -> list[dict[str, object]]:
     ref_by_id = {c.id: c.source_ref for c in cases}
     name_by_id = {c.id: c.title for c in cases}
+    kinds = classifications or {}
     out: list[dict[str, object]] = []
     for r in summary.results:
         # Case level carries only the VIDEO now; screenshots are per-step (each
@@ -143,6 +148,7 @@ def _result_payloads(
                 "outcome": r.status.value,
                 "durationMs": r.duration_ms,
                 "error": r.error,
+                "failureKind": kinds.get(r.test_id, ""),
                 "steps": [
                     {
                         "order": s.index,
@@ -165,16 +171,35 @@ def _result_payloads(
 
 
 def publish_results(
-    config: Config, summary: RunSummary, cases: list[PlanCase], paths: Paths
+    config: Config,
+    summary: RunSummary,
+    cases: list[PlanCase],
+    paths: Paths,
+    *,
+    binding: BindingResult | None = None,
+    classifications: dict[str, str] | None = None,
 ) -> dict[str, object]:
     if not config.publish.enabled:
-        return {"published": False, "reason": "publish disabled"}
-    if not config.publish.project_id:
+        return {"published": False, "reason": "publish disabled", "mode": "local_only"}
+    if binding is not None and binding.blocks_publish:
+        # Stale binding that could not be repaired: NOTHING may be inserted.
+        return {"published": False, "reason": binding.detail, "blocked": True}
+    # No binding info (legacy caller) + no id → refuse rather than guess.
+    if binding is None and not config.publish.project_id:
         return {"published": False, "reason": "publish.projectId not set"}
     try:
         from suitest_sdk import SuitestAPIError, SuitestClient
     except ImportError:
         return {"published": False, "reason": "suiflex-suitest-sdk not installed"}
+
+    # first_setup / explicit recreate publish by slug (server find-or-creates);
+    # valid / repaired / unverified publish by explicit id (server 404s stale ids
+    # without inserting anything).
+    by_slug = binding is not None and binding.status in ("first_setup", "recreate_requested")
+    project_id = "" if by_slug else (binding.project_id if binding else config.publish.project_id)
+    from suitest_lifecycle.retest import project_slug, rewrite_project_id
+
+    slug = project_slug(config.project_name) if by_slug else ""
 
     suite = _suite_name(config)
     # Secrets (the API key) and the endpoint can come from the environment so
@@ -193,25 +218,48 @@ def publish_results(
     try:
         with client:
             imported = client.bulk_import_cases(
-                project_id=config.publish.project_id,
+                project_id=project_id,
+                project_slug=slug,
+                project_name=config.project_name if by_slug else "",
                 suite_name=suite,
                 mode=config.mode.value,
                 cases=_case_payloads(cases, paths),
+                # The current generation is the suite's alive set — anything the
+                # generator no longer produces is flagged STALE (not deleted).
+                # An empty payload (aborted run) must NOT stale the whole suite.
+                mark_stale=bool(cases),
             )
+            resolved_id = (
+                str(imported.get("projectId", "")) if isinstance(imported, dict) else ""
+            ) or project_id
             run = client.ingest_run(
-                project_id=config.publish.project_id,
+                project_id=resolved_id,
                 suite_name=suite,
                 name=f"{config.project_name} lifecycle",
-                results=_result_payloads(client, summary, cases),
+                results=_result_payloads(client, summary, cases, classifications),
             )
     except SuitestAPIError as exc:
         return {"published": False, "reason": f"api error: {exc}"}
     except Exception as exc:  # publish must never fail the run (network/SDK errors)
         return {"published": False, "reason": f"connection error: {type(exc).__name__}: {exc}"}
+
+    # A slug-based publish minted (or found) the project — pin its id in the
+    # config so the next run is an explicit-id retest, never a re-create.
+    if by_slug and resolved_id and resolved_id != config.publish.project_id:
+        rewrite_project_id(config.config_path, resolved_id)
+
+    imported_rows = imported.get("imported", []) if isinstance(imported, dict) else []
+    created = sum(1 for r in imported_rows if isinstance(r, dict) and r.get("created"))
+    stale = imported.get("stale", []) if isinstance(imported, dict) else []
     return {
         "published": True,
+        "projectId": resolved_id,
         "runId": run.get("runId") if isinstance(run, dict) else None,
-        "imported": len(imported.get("imported", [])) if isinstance(imported, dict) else 0,
+        "runStatus": run.get("status") if isinstance(run, dict) else None,
+        "imported": len(imported_rows),
+        "created": created,
+        "reused": len(imported_rows) - created,
+        "stale": stale if isinstance(stale, list) else [],
     }
 
 

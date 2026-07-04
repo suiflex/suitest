@@ -63,6 +63,9 @@ class Priority(StrEnum):
 class CaseStatus(StrEnum):
     DRAFT = "DRAFT"
     ACTIVE = "ACTIVE"
+    # Retest change-detection: the latest MCP generation no longer produced this
+    # case (scenario disappeared from the app). Re-import flips it back to ACTIVE.
+    STALE = "STALE"
     DEPRECATED = "DEPRECATED"
     ARCHIVED = "ARCHIVED"
 

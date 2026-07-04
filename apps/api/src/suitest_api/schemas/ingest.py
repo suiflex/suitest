@@ -58,6 +58,9 @@ class BulkImportBody(_Camel):
     suite_name: str = Field(alias="suiteName")
     mode: str = "backend"  # backend | frontend -> target_kind / mcp_provider defaults
     cases: list[IngestCase] = Field(default_factory=list)
+    # Retest change-detection: mark MCP-sourced cases in this suite that the
+    # current generation no longer produced as STALE (re-import reactivates).
+    mark_stale: bool = Field(default=False, alias="markStale")
 
 
 class ImportedCase(_Camel):
@@ -69,7 +72,37 @@ class ImportedCase(_Camel):
 
 class BulkImportResult(_Camel):
     suite_id: str = Field(alias="suiteId")
+    # Resolved target project — lets a slug-publishing client persist the id
+    # into its config so the next run is an explicit-id retest.
+    project_id: str = Field(default="", alias="projectId")
     imported: list[ImportedCase] = Field(default_factory=list)
+    # Public ids of cases newly marked STALE (markStale=true only).
+    stale: list[str] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
+# project binding resolve/repair (publisher-facing, API-key auth)
+# --------------------------------------------------------------------------- #
+class ResolveProjectBody(_Camel):
+    project_id: str = Field(default="", alias="projectId")
+    project_slug: str = Field(default="", alias="projectSlug")
+    project_name: str = Field(default="", alias="projectName")
+
+
+class ProjectCandidate(_Camel):
+    id: str
+    slug: str
+    name: str
+
+
+class ResolveProjectResult(_Camel):
+    # valid    — projectId exists in the caller's workspace
+    # repaired — id missing/stale but exactly one project matched slug/name
+    # missing  — no (unambiguous) match; caller must fail or explicitly recreate
+    status: str
+    project_id: str = Field(default="", alias="projectId")
+    matched_by: str = Field(default="", alias="matchedBy")  # id | slug | name
+    candidates: list[ProjectCandidate] = Field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- #
@@ -98,6 +131,9 @@ class IngestResult(_Camel):
     outcome: str = "PASSED"
     duration_ms: int = Field(default=0, alias="durationMs")
     error: str = ""
+    # Structured failure class from the lifecycle classifier (selector_changed,
+    # endpoint_not_found, auth_failure, …). Stored in run_step.state_snapshot.
+    failure_kind: str = Field(default="", alias="failureKind")
     stdout: str = ""
     stderr: str = ""
     steps: list[IngestRunStep] = Field(default_factory=list)
@@ -118,6 +154,7 @@ class RunIngestBody(_Camel):
 
 class RunIngestResult(_Camel):
     run_id: str = Field(alias="runId")
+    project_id: str = Field(default="", alias="projectId")
     status: str
     total: int
     passed: int

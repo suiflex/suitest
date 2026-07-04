@@ -1067,3 +1067,15 @@ Build artifact `openapi.json` is committed to `packages/shared/openapi.json` on 
 4. **Write pytest** in `apps/api/tests/test_<resource>.py` (pytest-asyncio strict) — minimum: happy path + 1 error path + 1 tier-gating path where relevant
 5. **Update SDKs** (regenerate from `openapi.json` — `make sdk` at the repo root regenerates both)
 6. **PR** with the doc diff + an Alembic migration if it touches the schema
+
+---
+
+## 9. Lifecycle ingest (Phase 2, publisher-facing)
+
+API-key (or session) authenticated endpoints used by the `suitest test` lifecycle / MCP publisher. All are tenant-scoped and never enqueue ARQ.
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/v1/ingest/resolve-project` | Validate/repair a project binding. Body `{projectId?, projectSlug?, projectName?}` → `{status: valid\|repaired\|missing, projectId, matchedBy, candidates[]}`. Read-only — never creates. |
+| `POST /api/v1/test-cases/bulk-import` | Upsert generated cases (idempotent by `(suite, slug)` with `name` fallback; DB guard `uq_test_cases_suite_slug`, migration 0046). Explicit `projectId` must exist (404 otherwise — no implicit recreate); empty id + `projectSlug` find-or-creates. `markStale: true` flags MCP cases missing from the payload as `STALE`; re-importing a STALE case reactivates it. Returns `{suiteId, projectId, imported[], stale[]}`. |
+| `POST /api/v1/runs/ingest` | Record a completed run. Each call creates a NEW `test_runs` row; results carry optional `failureKind` (structured failure class, stored in `run_steps.state_snapshot`). Returns `{runId, projectId, status, total, passed, failed}`. |

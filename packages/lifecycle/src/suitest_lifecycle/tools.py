@@ -14,8 +14,8 @@ from __future__ import annotations
 from suitest_lifecycle.blackbox.mcp import BLACKBOX_TOOLS
 from suitest_lifecycle.config import ConfigError, load_config
 from suitest_lifecycle.models import Mode
-from suitest_lifecycle.orchestrator import generate_only, run_lifecycle
-from suitest_lifecycle.paths import build_paths
+from suitest_lifecycle.orchestrator import LifecycleResult, generate_only, run_lifecycle
+from suitest_lifecycle.paths import Paths, build_paths
 from suitest_lifecycle.serialize import (
     code_summary_to_json,
     plan_to_json,
@@ -69,6 +69,19 @@ def analyze_project(config_path: str) -> dict[str, object]:
     )
 
 
+def _change_report(paths: Paths) -> dict[str, object]:
+    import json
+
+    p = paths.tmp_dir / "change_report.json"
+    if not p.is_file():
+        return {}
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        return raw if isinstance(raw, dict) else {}
+    except ValueError:
+        return {}
+
+
 def generate_test_cases(config_path: str) -> dict[str, object]:
     """analyze → PRD → plan → export runnable files (no execution)."""
     cfg, err = _safe_load(config_path)
@@ -80,7 +93,7 @@ def generate_test_cases(config_path: str) -> dict[str, object]:
     return _envelope(
         True,
         f"generated {len(cases)} test case(s) for {cfg.mode.value}",  # type: ignore[union-attr]
-        data={"cases": plan_to_json(cases)},
+        data={"cases": plan_to_json(cases), **_change_report(paths)},
         artifacts=artifacts,
     )
 
@@ -106,15 +119,30 @@ def _mode_guarded_generate(config_path: str, expected: Mode) -> dict[str, object
     return generate_test_cases(config_path)
 
 
-def run_backend_tests(config_path: str) -> dict[str, object]:
-    return _run_guarded(config_path, Mode.BACKEND)
+def run_backend_tests(config_path: str, recreate_project: bool = False) -> dict[str, object]:
+    return _run_guarded(config_path, Mode.BACKEND, recreate_project)
 
 
-def run_frontend_tests(config_path: str) -> dict[str, object]:
-    return _run_guarded(config_path, Mode.FRONTEND)
+def run_frontend_tests(config_path: str, recreate_project: bool = False) -> dict[str, object]:
+    return _run_guarded(config_path, Mode.FRONTEND, recreate_project)
 
 
-def _run_guarded(config_path: str, expected: Mode) -> dict[str, object]:
+def _run_result(result: LifecycleResult) -> dict[str, object]:
+    data = summary_to_json(result.run) if result.run else {}
+    if result.retest:
+        data["retest"] = result.retest
+    return _envelope(
+        result.success,
+        result.summary,
+        data=data,
+        artifacts=result.artifacts,
+        errors=result.errors,
+    )
+
+
+def _run_guarded(
+    config_path: str, expected: Mode, recreate_project: bool = False
+) -> dict[str, object]:
     cfg, err = _safe_load(config_path)
     if err is not None:
         return err
@@ -124,29 +152,21 @@ def _run_guarded(config_path: str, expected: Mode) -> dict[str, object]:
             f"config mode is {cfg.mode.value}, expected {expected.value}",  # type: ignore[union-attr]
             errors=["mode mismatch"],
         )
+    if recreate_project:
+        cfg.publish.recreate = True  # type: ignore[union-attr]
     result = run_lifecycle(cfg)  # type: ignore[arg-type]
-    return _envelope(
-        result.success,
-        result.summary,
-        data=summary_to_json(result.run) if result.run else {},
-        artifacts=result.artifacts,
-        errors=result.errors,
-    )
+    return _run_result(result)
 
 
-def run_tests(config_path: str) -> dict[str, object]:
+def run_tests(config_path: str, recreate_project: bool = False) -> dict[str, object]:
     """Mode-agnostic full lifecycle run."""
     cfg, err = _safe_load(config_path)
     if err is not None:
         return err
+    if recreate_project:
+        cfg.publish.recreate = True  # type: ignore[union-attr]
     result = run_lifecycle(cfg)  # type: ignore[arg-type]
-    return _envelope(
-        result.success,
-        result.summary,
-        data=summary_to_json(result.run) if result.run else {},
-        artifacts=result.artifacts,
-        errors=result.errors,
-    )
+    return _run_result(result)
 
 
 def generate_report(config_path: str) -> dict[str, object]:

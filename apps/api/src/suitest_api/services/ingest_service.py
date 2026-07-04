@@ -24,6 +24,7 @@ from suitest_db.repositories.suites import SuiteCreate, SuiteRepo
 from suitest_db.repositories.test_cases import TestCaseCreate, TestCaseRepo, TestCaseUpdate
 from suitest_shared.domain.enums import (
     CaseSource,
+    CaseStatus,
     Priority,
     RunStatus,
     RunTrigger,
@@ -38,6 +39,9 @@ from suitest_api.schemas.ingest import (
     BulkImportResult,
     ImportedCase,
     IngestStep,
+    ProjectCandidate,
+    ResolveProjectBody,
+    ResolveProjectResult,
     RunIngestBody,
     RunIngestResult,
 )
@@ -139,6 +143,54 @@ async def _ensure_project(
     return row.id
 
 
+async def resolve_project(
+    session: AsyncSession, *, workspace_id: str, body: ResolveProjectBody
+) -> ResolveProjectResult:
+    """Publisher-facing binding check + repair (never creates anything).
+
+    - explicit id exists in the workspace → ``valid``
+    - id missing/stale but exactly one active project matches the slug or the
+      (case-insensitive) name → ``repaired`` with the surviving id
+    - anything else → ``missing`` (ambiguous matches are listed as candidates;
+      the client must fail loudly or recreate only on an explicit flag)
+    """
+    from sqlalchemy import func
+    from suitest_db.models.project import Project
+
+    if body.project_id:
+        stmt = select(Project).where(
+            Project.id == body.project_id,
+            Project.workspace_id == workspace_id,
+            Project.deleted_at.is_(None),
+        )
+        if (await session.scalars(stmt)).first() is not None:
+            return ResolveProjectResult(status="valid", project_id=body.project_id, matched_by="id")
+
+    for matched_by, cond in (
+        ("slug", Project.slug == body.project_slug if body.project_slug else None),
+        (
+            "name",
+            func.lower(Project.name) == body.project_name.lower() if body.project_name else None,
+        ),
+    ):
+        if cond is None:
+            continue
+        stmt = select(Project).where(
+            Project.workspace_id == workspace_id, Project.deleted_at.is_(None), cond
+        )
+        rows = list((await session.scalars(stmt)).all())
+        if len(rows) == 1:
+            return ResolveProjectResult(
+                status="repaired", project_id=rows[0].id, matched_by=matched_by
+            )
+        if rows:
+            return ResolveProjectResult(
+                status="missing",
+                candidates=[ProjectCandidate(id=r.id, slug=r.slug, name=r.name) for r in rows],
+            )
+    return ResolveProjectResult(status="missing")
+
+
 async def _ensure_suite(session: AsyncSession, project_id: str, name: str) -> str:
     repo = SuiteRepo(session)
     for suite in await repo.list_by_project(project_id):
@@ -222,6 +274,9 @@ async def bulk_import_cases(
                     source=_source(c.source),
                     automation_file_path=c.automation_file_path,
                     automation_code=c.automation_code,
+                    # A re-generated case is alive again; only STALE flips back —
+                    # human decisions (DEPRECATED/ARCHIVED) are never overridden.
+                    status=(CaseStatus.ACTIVE if existing.status is CaseStatus.STALE else None),
                 ),
             )
             await case_repo.delete_steps(existing.id)
@@ -262,7 +317,23 @@ async def bulk_import_cases(
             )
         )
 
-    return BulkImportResult(suite_id=suite_id, imported=imported)
+    stale: list[str] = []
+    if body.mark_stale:
+        imported_ids = {i.case_id for i in imported}
+        stmt = select(TestCase).where(
+            TestCase.suite_id == suite_id,
+            TestCase.deleted_at.is_(None),
+            TestCase.source == CaseSource.MCP,
+            TestCase.status.in_((CaseStatus.ACTIVE, CaseStatus.DRAFT)),
+            TestCase.id.notin_(imported_ids),
+        )
+        for missing in (await session.scalars(stmt)).all():
+            await case_repo.update(missing.id, TestCaseUpdate(status=CaseStatus.STALE))
+            stale.append(missing.public_id)
+
+    return BulkImportResult(
+        suite_id=suite_id, project_id=project_id, imported=imported, stale=stale
+    )
 
 
 def _steps(
@@ -342,7 +413,15 @@ async def ingest_run(
                     stdout=None,
                     stderr=None,
                     error_message=r.error or None if s.outcome in ("FAILED", "ERROR") else None,
-                    state_snapshot={"type": s.type, "description": s.description},
+                    state_snapshot={
+                        "type": s.type,
+                        "description": s.description,
+                        **(
+                            {"failureKind": r.failure_kind}
+                            if r.failure_kind and s.outcome in ("FAILED", "ERROR")
+                            else {}
+                        ),
+                    },
                 )
                 # Per-step screenshot → SCREENSHOT artifact on THIS run_step, so
                 # the web can show "Preview: Step N" when the step row is clicked.
@@ -370,7 +449,7 @@ async def ingest_run(
                 stdout=r.stdout or None,
                 stderr=r.stderr or None,
                 error_message=r.error or None,
-                state_snapshot=None,
+                state_snapshot={"failureKind": r.failure_kind} if r.failure_kind else None,
             )
             first_run_step_id = rs.id
 
@@ -414,5 +493,10 @@ async def ingest_run(
         ),
     )
     return RunIngestResult(
-        run_id=run.id, status=final.value, total=passed + failed, passed=passed, failed=failed
+        run_id=run.id,
+        project_id=project_id,
+        status=final.value,
+        total=passed + failed,
+        passed=passed,
+        failed=failed,
     )

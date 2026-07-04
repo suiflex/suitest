@@ -3600,7 +3600,7 @@ export interface components {
          * CaseStatus
          * @enum {string}
          */
-        CaseStatus: "DRAFT" | "ACTIVE" | "DEPRECATED" | "ARCHIVED";
+        CaseStatus: "DRAFT" | "ACTIVE" | "STALE" | "DEPRECATED" | "ARCHIVED";
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
             /** Current Password */

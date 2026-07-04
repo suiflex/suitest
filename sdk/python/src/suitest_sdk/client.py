@@ -148,6 +148,25 @@ class SuitestClient:
         return str(result.get("content", ""))
 
     # -- lifecycle ingest (Phase 2) -----------------------------------------
+    def resolve_project(
+        self,
+        *,
+        project_id: str = "",
+        project_slug: str = "",
+        project_name: str = "",
+    ) -> JSONDict:
+        """Validate/repair a project binding without creating anything.
+
+        Returns ``{"status": "valid"|"repaired"|"missing", "projectId": ...,
+        "matchedBy": ..., "candidates": [...]}``.
+        """
+        body: JSONDict = {
+            "projectId": project_id,
+            "projectSlug": project_slug,
+            "projectName": project_name,
+        }
+        return self._request("POST", "/api/v1/ingest/resolve-project", json=body)
+
     def bulk_import_cases(
         self,
         *,
@@ -157,11 +176,13 @@ class SuitestClient:
         cases: list[JSONDict],
         project_slug: str = "",
         project_name: str = "",
+        mark_stale: bool = False,
     ) -> JSONDict:
         """Upsert a suite's generated cases + steps (idempotent by sourceRef).
 
         Target project: pass ``project_id``, or ``project_slug`` (+ optional
         display name) and the server finds-or-creates it in the workspace.
+        ``mark_stale=True`` flags MCP cases missing from this generation STALE.
         """
         body: JSONDict = {
             "projectId": project_id,
@@ -170,6 +191,7 @@ class SuitestClient:
             "suiteName": suite_name,
             "mode": mode,
             "cases": cases,
+            "markStale": mark_stale,
         }
         return self._request("POST", "/api/v1/test-cases/bulk-import", json=body)
 

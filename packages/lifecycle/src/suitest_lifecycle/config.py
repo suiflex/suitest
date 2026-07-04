@@ -76,6 +76,11 @@ class PublishConfig:
     workspace_id: str = ""
     project_id: str = ""
     suite_name: str = ""
+    # EXPLICIT recreate opt-in: when the configured projectId no longer exists
+    # and repair finds no match, a fresh project is created ONLY if this is set
+    # (config keys ``recreateProject``/``resetProjectBinding``, env
+    # SUITEST_RECREATE_PROJECT=1, or the MCP tool arg ``recreate_project``).
+    recreate: bool = False
 
 
 @dataclass
@@ -264,6 +269,8 @@ def load_config(path: str | Path) -> Config:
     publish = PublishConfig()
     pub_raw = raw.get("publish", {})
     if isinstance(pub_raw, dict):
+        import os
+
         publish = PublishConfig(
             enabled=bool(pub_raw.get("enabled", False)),
             api_url=str(pub_raw.get("apiUrl", "http://localhost:4000")).rstrip("/"),
@@ -271,6 +278,11 @@ def load_config(path: str | Path) -> Config:
             workspace_id=str(pub_raw.get("workspaceId", "")),
             project_id=str(pub_raw.get("projectId", "")),
             suite_name=str(pub_raw.get("suiteName", "")),
+            recreate=bool(
+                pub_raw.get("recreateProject", False)
+                or pub_raw.get("resetProjectBinding", False)
+                or os.environ.get("SUITEST_RECREATE_PROJECT", "") in ("1", "true")
+            ),
         )
 
     ids_raw = raw.get("testIds", [])

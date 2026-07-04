@@ -1,6 +1,6 @@
 [project]
 name = "suiflex-suitest-cli"
-version = "0.1.0"
+version = "0.1.1"
 description = "Command-line interface for Suitest"
 readme = "README.md"
 requires-python = ">=3.10"

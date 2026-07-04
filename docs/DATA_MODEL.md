@@ -1329,6 +1329,7 @@ class Priority(StrEnum):
 class CaseStatus(StrEnum):
     DRAFT = "DRAFT"
     ACTIVE = "ACTIVE"
+    STALE = "STALE"        # migration 0046: MCP retest no longer generates this scenario; re-import reactivates
     DEPRECATED = "DEPRECATED"
     ARCHIVED = "ARCHIVED"
 

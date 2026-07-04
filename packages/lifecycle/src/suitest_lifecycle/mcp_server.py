@@ -22,6 +22,10 @@ if TYPE_CHECKING:
 
 PROTOCOL_VERSION = "2024-11-05"
 
+# Run tools accept the explicit recreate opt-in (goal: recreate NEVER happens
+# implicitly — only via this flag or the publish.recreateProject config key).
+RECREATE_TOOLS = frozenset({"run_tests", "run_backend_tests", "run_frontend_tests"})
+
 _TOOL_DESCRIPTIONS = {
     "analyze_project": "Static-analyze the target project; list endpoints (backend) or pages (frontend).",
     "generate_test_cases": "Analyze, build a PRD + test plan, and export runnable test files.",
@@ -74,6 +78,14 @@ _BLACKBOX_INPUT_SCHEMA: dict[str, object] = {
             "type": "string",
             "description": "Suitest project id to publish into (blackbox_publish_results)",
         },
+        "recreate_project": {
+            "type": "boolean",
+            "description": (
+                "EXPLICIT opt-in: recreate the project when the configured/passed "
+                "project id no longer exists and repair finds no match "
+                "(blackbox_publish_results). Without it a stale binding fails the publish."
+            ),
+        },
         "prd_file": {
             "type": "string",
             "description": "Markdown PRD path — PRD-driven semantic plan via the workspace LLM (blackbox_generate_playwright_tests)",
@@ -90,18 +102,29 @@ def _tool_schema(name: str) -> dict[str, object]:
             "description": _TOOL_DESCRIPTIONS.get(name, name),
             "inputSchema": _BLACKBOX_INPUT_SCHEMA,
         }
+    properties: dict[str, object] = {
+        "config_path": {
+            "type": "string",
+            "description": "Path to suitest.config.json",
+            "default": "suitest.config.json",
+        }
+    }
+    if name in RECREATE_TOOLS:
+        properties["recreate_project"] = {
+            "type": "boolean",
+            "description": (
+                "EXPLICIT opt-in: recreate the project when the configured "
+                "publish.projectId no longer exists and repair finds no match. "
+                "Without this flag a stale binding FAILS the run (nothing is inserted)."
+            ),
+            "default": False,
+        }
     return {
         "name": name,
         "description": _TOOL_DESCRIPTIONS.get(name, name),
         "inputSchema": {
             "type": "object",
-            "properties": {
-                "config_path": {
-                    "type": "string",
-                    "description": "Path to suitest.config.json",
-                    "default": "suitest.config.json",
-                }
-            },
+            "properties": properties,
             "required": ["config_path"],
         },
     }
@@ -124,7 +147,7 @@ def handle(message: dict[str, object]) -> dict[str, object] | None:
             {
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "suitest-lifecycle", "version": "0.1.0"},
+                "serverInfo": {"name": "suitest-lifecycle", "version": "0.1.1"},
             },
         )
     if method in ("notifications/initialized", "initialized"):
@@ -144,6 +167,11 @@ def handle(message: dict[str, object]) -> dict[str, object] | None:
         try:
             if str(name) in KWARG_TOOLS:
                 envelope = tool(**arguments)
+            elif str(name) in RECREATE_TOOLS:
+                envelope = tool(
+                    str(arguments.get("config_path", "suitest.config.json")),
+                    bool(arguments.get("recreate_project", False)),
+                )
             else:
                 envelope = tool(str(arguments.get("config_path", "suitest.config.json")))
         except Exception as exc:  # defensive: never crash the server on a tool bug

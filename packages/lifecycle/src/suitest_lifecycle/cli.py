@@ -92,6 +92,12 @@ def main(argv: list[str] | None = None) -> int:
 
     test = sub.add_parser("test", help="Run the full config-driven lifecycle")
     test.add_argument("--config", default="suitest.config.json")
+    test.add_argument(
+        "--recreate-project",
+        action="store_true",
+        help="EXPLICITLY recreate the Suitest project when publish.projectId is "
+        "stale and repair finds no match (otherwise a stale binding fails the run)",
+    )
 
     sub.add_parser("mcp", help="Serve the stdio MCP server")
 
@@ -109,7 +115,10 @@ def main(argv: list[str] | None = None) -> int:
         from suitest_lifecycle.config import load_config
         from suitest_lifecycle.orchestrator import run_lifecycle
 
-        res = run_lifecycle(load_config(args.config))
+        cfg = load_config(args.config)
+        if args.recreate_project:
+            cfg.publish.recreate = True
+        res = run_lifecycle(cfg)
         print(res.summary)
         for step in res.steps:
             print(f"  - {step}")
