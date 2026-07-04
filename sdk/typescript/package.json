@@ -1,6 +1,9 @@
 {
   "name": "@suiflex/suitest-sdk",
   "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Official TypeScript SDK for the Suitest API",
   "license": "Apache-2.0",
   "type": "module",
