@@ -1006,7 +1006,7 @@ Wire format: each frame is a JSON envelope `{"type": "<event>", "data": {...}}` 
 **Targeted M4:**
 
 - `suitest-py` — Python SDK, generated from OpenAPI via `openapi-python-client`. Primary SDK (matches backend language; used by CI tooling and the CLI internally).
-- `@suitest/sdk` — TypeScript SDK, generated via `openapi-typescript-codegen`. Kept for browser/Node integration users.
+- `@suiflex/suitest-sdk` — TypeScript SDK, generated via `openapi-typescript-codegen`. Kept for browser/Node integration users.
 - `suitest` — CLI, single Python entrypoint installed via [`uv`](https://github.com/astral-sh/uv): `uv tool install suitest`, then `suitest run --suite smoke --branch main`.
 
 **Python (primary):**
@@ -1029,7 +1029,7 @@ async for event in suitest.runs.watch(run.id):
 **TypeScript (browser/Node):**
 
 ```ts
-import { SuitestClient } from '@suitest/sdk';
+import { SuitestClient } from '@suiflex/suitest-sdk';
 
 const suitest = new SuitestClient({ apiKey: process.env.SUITEST_TOKEN });
 
@@ -1053,7 +1053,7 @@ FastAPI generates **OpenAPI 3.1** automatically at `GET /openapi.json` (with Swa
 SDK codegen pipeline:
 
 - Python SDK (`suitest-py`) → generated via [`openapi-python-client`](https://github.com/openapi-generators/openapi-python-client)
-- TS SDK (`@suitest/sdk`) → generated via [`openapi-typescript-codegen`](https://github.com/ferdikoomen/openapi-typescript-codegen)
+- TS SDK (`@suiflex/suitest-sdk`) → generated via [`openapi-typescript-codegen`](https://github.com/ferdikoomen/openapi-typescript-codegen)
 
 Build artifact `openapi.json` is committed to `packages/shared/openapi.json` on every release so SDK codegen is reproducible from a tag.
 

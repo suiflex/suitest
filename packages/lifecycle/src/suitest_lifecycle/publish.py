@@ -174,7 +174,7 @@ def publish_results(
     try:
         from suitest_sdk import SuitestAPIError, SuitestClient
     except ImportError:
-        return {"published": False, "reason": "suitest-sdk not installed"}
+        return {"published": False, "reason": "suiflex-suitest-sdk not installed"}
 
     suite = _suite_name(config)
     # Secrets (the API key) and the endpoint can come from the environment so

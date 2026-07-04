@@ -279,9 +279,9 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
 
   # ------------------------------------------------------------------------
-  # @suitest/mcp (npx wrapper) — prove the artifact users actually install:
+  # @suiflex/suitest-mcp (npx wrapper) — prove the artifact users actually install:
   # bundle sync, JSON-RPC boot smoke via the real bin, and a tarball dry-run.
-  # Also validates the uvx path: build the suitest-lifecycle wheel and boot
+  # Also validates the uvx path: build the suiflex-suitest-lifecycle wheel and boot
   # the same MCP handshake through its `suitest-mcp` console script.
   # ------------------------------------------------------------------------
   mcp-package:
@@ -312,7 +312,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v3
 
-      - name: Build suitest-lifecycle wheel
+      - name: Build suiflex-suitest-lifecycle wheel
         run: uv build --project packages/lifecycle -o dist-lifecycle
 
       - name: uvx boot smoke (console script from the wheel)

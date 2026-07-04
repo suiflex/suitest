@@ -1,14 +1,14 @@
-# @suitest/sdk (TypeScript)
+# @suiflex/suitest-sdk (TypeScript)
 
 Official TypeScript SDK for [Suitest](https://suitest.dev). Dependency-free,
 `fetch`-based, works in Node ≥18 and the browser.
 
 ```bash
-npm install @suitest/sdk
+npm install @suiflex/suitest-sdk
 ```
 
 ```ts
-import { SuitestClient } from "@suitest/sdk";
+import { SuitestClient } from "@suiflex/suitest-sdk";
 
 const client = new SuitestClient({
   baseUrl: "https://suitest.example",

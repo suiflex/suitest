@@ -1,5 +1,5 @@
 {
-  "name": "@suitest/mcp",
+  "name": "@suiflex/suitest-mcp",
   "version": "0.1.0",
   "description": "Suitest MCP server for IDE agents (Claude Code, Cursor, Codex) — generate, run, and publish QA tests from your editor. Includes blackbox DOM testing for any web app: no repo access required, just a URL and test credentials.",
   "license": "Apache-2.0",

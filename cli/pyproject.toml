@@ -1,19 +1,19 @@
 [project]
-name = "suitest-cli"
+name = "suiflex-suitest-cli"
 version = "0.1.0"
 description = "Command-line interface for Suitest"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Suitest contributors" }]
-dependencies = ["suitest-sdk>=0.1.0", "suitest-lifecycle>=0.1.0"]
+dependencies = ["suiflex-suitest-sdk>=0.1.0", "suiflex-suitest-lifecycle>=0.1.0"]
 
 [project.scripts]
 suitest = "suitest_cli.main:main"
 
 [project.urls]
 Homepage = "https://suitest.dev"
-Source = "https://github.com/suitest-dev/suitest"
+Source = "https://github.com/suiflex/suitest"
 
 [build-system]
 requires = ["hatchling"]

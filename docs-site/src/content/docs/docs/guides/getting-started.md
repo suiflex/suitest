@@ -10,7 +10,7 @@ description: Run Suitest locally in one command.
 ## Boot the stack
 
 ```bash
-git clone https://github.com/suitest-dev/suitest
+git clone https://github.com/suiflex/suitest
 cd suitest
 cp .env.example .env
 docker compose -f infra/docker/docker-compose.yml --profile zero up -d

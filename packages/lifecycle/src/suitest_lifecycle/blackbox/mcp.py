@@ -410,7 +410,7 @@ def blackbox_publish_results(**kwargs: Any) -> dict[str, Any]:
     try:
         from suitest_sdk import SuitestAPIError, SuitestClient
     except ImportError:
-        return _envelope(False, "suitest-sdk not installed")
+        return _envelope(False, "suiflex-suitest-sdk not installed")
 
     plan_path = paths.test_plan_json
     if not plan_path.is_file():

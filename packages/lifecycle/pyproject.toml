@@ -1,5 +1,5 @@
 [project]
-name = "suitest-lifecycle"
+name = "suiflex-suitest-lifecycle"
 version = "0.1.0"
 description = "Suitest testing lifecycle — TestSprite-parity analyze→generate→start→wait→run→report"
 requires-python = ">=3.11"
@@ -10,19 +10,19 @@ dependencies = []
 
 # Frontend execution runtime. Suitest BUNDLES the browser driver so the user
 # never installs playwright themselves (it provisions Chromium on first run).
-# Install with: pip install "suitest-lifecycle[frontend]"
+# Install with: pip install "suiflex-suitest-lifecycle[frontend]"
 [project.optional-dependencies]
 frontend = ["playwright>=1.40"]
-# NOTE: publishing run results back to a Suitest instance needs `suitest-sdk`.
+# NOTE: publishing run results back to a Suitest instance needs `suiflex-suitest-sdk`.
 # It is a LOCAL path package (not on PyPI), so it is NOT listed here as a version
 # dep — that would break `uv` workspace resolution. Install it into the same env
 # with:  uv pip install --python .venv/bin/python -e sdk/python
-# Without it, publish degrades to a no-op ("suitest-sdk not installed").
+# Without it, publish degrades to a no-op ("suiflex-suitest-sdk not installed").
 
 [project.scripts]
 suitest = "suitest_lifecycle.cli:main"
-# MCP stdio server — `uvx --from suitest-lifecycle suitest-mcp` (or the npm
-# wrapper: `npx -y @suitest/mcp`).
+# MCP stdio server — `uvx --from suiflex-suitest-lifecycle suitest-mcp` (or the npm
+# wrapper: `npx -y @suiflex/suitest-mcp`).
 suitest-mcp = "suitest_lifecycle.mcp_server:serve"
 
 [build-system]

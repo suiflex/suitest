@@ -1,5 +1,5 @@
 {
-  "name": "@suitest/sdk",
+  "name": "@suiflex/suitest-sdk",
   "version": "0.1.0",
   "description": "Official TypeScript SDK for the Suitest API",
   "license": "Apache-2.0",
@@ -19,7 +19,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "engines": { "node": ">=18" },
-  "repository": { "type": "git", "url": "https://github.com/suitest-dev/suitest" },
+  "repository": { "type": "git", "url": "https://github.com/suiflex/suitest" },
   "homepage": "https://suitest.dev",
   "keywords": ["suitest", "testing", "tcm", "mcp", "sdk"],
   "devDependencies": { "typescript": "^5.5.0" }

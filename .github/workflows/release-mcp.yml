@@ -1,8 +1,8 @@
 name: release-mcp
 
 # Publish the MCP server packages on a `mcp-v*` tag:
-#   - @suitest/mcp        → npm  (npx -y @suitest/mcp)
-#   - suitest-lifecycle   → PyPI (uvx --from suitest-lifecycle suitest-mcp)
+#   - @suiflex/suitest-mcp        → npm  (npx -y @suiflex/suitest-mcp)
+#   - suiflex-suitest-lifecycle   → PyPI (uvx --from suiflex-suitest-lifecycle suitest-mcp)
 #
 # Requires an NPM_TOKEN secret (npm automation token) and a PYPI_TOKEN secret
 # (PyPI API token). On PRs touching the packages, the build + smoke + dry-run
@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   npm:
-    name: "@suitest/mcp → npm"
+    name: "@suiflex/suitest-mcp → npm"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -52,7 +52,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   pypi:
-    name: "suitest-lifecycle → PyPI"
+    name: "suiflex-suitest-lifecycle → PyPI"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

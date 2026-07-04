@@ -21,7 +21,7 @@ Default tier for all modes = **ZERO** (runs without an LLM). Upgrade to LOCAL/CL
 ### 1.1 5-minute quickstart
 
 ```bash
-git clone https://github.com/suitest-dev/suitest.git
+git clone https://github.com/suiflex/suitest.git
 cd suitest
 cp .env.example .env                        # default ZERO tier
 docker compose --profile zero up -d
@@ -54,7 +54,7 @@ x-suitest-env: &suitest-env
 
 services:
   web:
-    image: ghcr.io/suitest-dev/suitest-web:${SUITEST_VERSION:-latest}
+    image: ghcr.io/suiflex/suitest-web:${SUITEST_VERSION:-latest}
     profiles: ["zero", "cloud", "local"]
     ports: ["8080:80"]
     depends_on:
@@ -64,7 +64,7 @@ services:
       interval: 30s
 
   api:
-    image: ghcr.io/suitest-dev/suitest-api:${SUITEST_VERSION:-latest}
+    image: ghcr.io/suiflex/suitest-api:${SUITEST_VERSION:-latest}
     profiles: ["zero", "cloud", "local"]
     environment: *suitest-env
     depends_on:
@@ -78,7 +78,7 @@ services:
       start_period: 30s
 
   runner:
-    image: ghcr.io/suitest-dev/suitest-runner:${SUITEST_VERSION:-latest}
+    image: ghcr.io/suiflex/suitest-runner:${SUITEST_VERSION:-latest}
     profiles: ["zero", "cloud", "local"]
     environment: *suitest-env
     depends_on:
@@ -200,13 +200,13 @@ docker run --rm -p 8080:80 \
   -e REDIS_URL=redis://your-redis-host:6379/0 \
   -e SUITEST_AUTH_SECRET=$(openssl rand -hex 32) \
   -e SUITEST_ENCRYPTION_KEY=$(openssl rand -base64 32) \
-  ghcr.io/suitest-dev/suitest-standalone:latest
+  ghcr.io/suiflex/suitest-standalone:latest
 ```
 
 ### 2.2 Image internals (informational)
 
 ```
-ghcr.io/suitest-dev/suitest-standalone
+ghcr.io/suiflex/suitest-standalone
 ├── /etc/supervisor/conf.d/
 │   ├── api.conf           ← uvicorn apps.api.main:app --port 8000 --workers 2
 │   ├── runner.conf        ← arq apps.runner.worker.WorkerSettings

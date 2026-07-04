@@ -1,6 +1,6 @@
 name: release-ts-sdk
 
-# M4-6: build + publish @suitest/sdk to npm on a `tssdk-v*` tag. Requires an
+# M4-6: build + publish @suiflex/suitest-sdk to npm on a `tssdk-v*` tag. Requires an
 # NPM_TOKEN secret with publish rights (npm automation token). On PRs the build
 # + typecheck run to validate the package; publish only fires on the tag.
 

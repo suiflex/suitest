@@ -2,7 +2,7 @@
 /**
  * Package smoke test — proves the published artifact actually boots.
  *
- * Spawns the real bin (exactly what `npx @suitest/mcp` runs), performs a
+ * Spawns the real bin (exactly what `npx @suiflex/suitest-mcp` runs), performs a
  * JSON-RPC `initialize` handshake plus `tools/list` over stdio, and asserts
  * the Suitest tool surface is present. No network, no target app: this is a
  * boot-process test, not an e2e run.

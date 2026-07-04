@@ -15,5 +15,5 @@ description: Author a case, run it through MCP, see the result.
 4. **Inspect** logs + per-step screenshots in the run detail view. On failure a
    defect is filed automatically (rule-based at ZERO; AI-diagnosed at LOCAL/CLOUD).
 
-See the [examples/](https://github.com/suitest-dev/suitest/tree/main/examples)
+See the [examples/](https://github.com/suiflex/suitest/tree/main/examples)
 directory for Playwright, OpenAPI-contract, and mixed-MCP starting points.

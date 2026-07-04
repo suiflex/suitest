@@ -1,9 +1,9 @@
-# @suitest/mcp
+# @suiflex/suitest-mcp
 
 Run the [Suitest](https://github.com/suiflex/suitest) MCP server with a single command:
 
 ```bash
-npx -y @suitest/mcp
+npx -y @suiflex/suitest-mcp
 ```
 
 Suitest turns your IDE agent (Claude Code, Cursor, Codex — anything that speaks
@@ -31,7 +31,7 @@ Add to your project's `.mcp.json` (Claude Code) or the equivalent MCP config:
   "mcpServers": {
     "suitest": {
       "command": "npx",
-      "args": ["-y", "@suitest/mcp"],
+      "args": ["-y", "@suiflex/suitest-mcp"],
       "env": {
         "SUITEST_API_URL": "http://localhost:4000",
         "SUITEST_API_KEY": "sk_suitest_…"
@@ -62,8 +62,8 @@ and [docs/BLACKBOX_UI_TESTING.md](https://github.com/suiflex/suitest/blob/main/d
 ## CLI
 
 ```bash
-npx -y @suitest/mcp --help      # usage + config snippet
-npx -y @suitest/mcp --version
+npx -y @suiflex/suitest-mcp --help      # usage + config snippet
+npx -y @suiflex/suitest-mcp --version
 ```
 
 ## How it works

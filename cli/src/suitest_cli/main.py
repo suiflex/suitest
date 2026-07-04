@@ -1,4 +1,4 @@
-"""``suitest`` CLI (M4-7) — thin argparse front-end over ``suitest-sdk``.
+"""``suitest`` CLI (M4-7) — thin argparse front-end over ``suiflex-suitest-sdk``.
 
 Connection is resolved from env (overridable per-flag):
 
@@ -27,7 +27,7 @@ try:  # the SDK is only needed for run/cases/mcp commands, not the lifecycle one
 except ImportError:  # pragma: no cover - SDK optional for lifecycle-only usage
 
     class SuitestAPIError(Exception):  # type: ignore[no-redef]
-        """Fallback when suitest-sdk is not installed."""
+        """Fallback when suiflex-suitest-sdk is not installed."""
 
 
 def _client(args: argparse.Namespace) -> object:

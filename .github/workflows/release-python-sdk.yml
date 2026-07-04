@@ -1,9 +1,15 @@
 name: release-python-sdk
 
-# M4-5 / M4-7: build + publish suitest-sdk and suitest-cli to PyPI on a
+# M4-5 / M4-7: build + publish suiflex-suitest-sdk and suiflex-suitest-cli to PyPI on a
 # `pysdk-v*` tag. Uses PyPI Trusted Publishing (OIDC) — no API token stored;
 # configure the publisher in the PyPI project settings. Until that is set up,
 # the build job still runs on PRs (validates the wheels) but does not publish.
+#
+# PyPI rejects two *pending* trusted publishers with an identical
+# (owner, repo, workflow, environment) tuple, so each package publishes from
+# its own job with a distinct GitHub environment:
+#   suiflex-suitest-sdk → environment `pypi`
+#   suiflex-suitest-cli → environment `pypi-cli`
 
 on:
   push:
@@ -22,7 +28,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: ["sdk/python", "cli"]
+        include:
+          - package: "sdk/python"
+            artifact: "dist-sdk"
+          - package: "cli"
+            artifact: "dist-cli"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -38,10 +48,10 @@ jobs:
         run: python -m twine check dist/*
       - uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ strategy.job-index }}
+          name: ${{ matrix.artifact }}
           path: dist/
 
-  publish:
+  publish-sdk:
     needs: build
     if: startsWith(github.ref, 'refs/tags/pysdk-v')
     runs-on: ubuntu-latest
@@ -51,9 +61,24 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: dist-*
+          name: dist-sdk
           path: dist
-          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+
+  publish-cli:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/pysdk-v')
+    runs-on: ubuntu-latest
+    environment: pypi-cli
+    permissions:
+      id-token: write # OIDC for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-cli
+          path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist

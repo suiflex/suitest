@@ -86,7 +86,7 @@ ruvector.db
 .impeccable
 .playwright-mcp
 
-# @suitest/mcp — generated at prepack (sync-python.js)
+# @suiflex/suitest-mcp — generated at prepack (sync-python.js)
 packages/mcp-npx/python/
 packages/mcp-npx/LICENSE
 packages/mcp-npx/*.tgz

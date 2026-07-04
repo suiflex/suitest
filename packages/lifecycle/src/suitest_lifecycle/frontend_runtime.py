@@ -53,7 +53,7 @@ def ensure_browser(*, auto_install: bool = True, timeout_sec: int = 600) -> Brow
         return BrowserStatus(
             False,
             "playwright not installed in the Suitest environment "
-            "(install the 'frontend' extra: pip install 'suitest-lifecycle[frontend]')",
+            "(install the 'frontend' extra: pip install 'suiflex-suitest-lifecycle[frontend]')",
         )
     if _chromium_present():
         return BrowserStatus(True, "chromium already installed")

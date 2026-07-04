@@ -8,7 +8,7 @@
  *
  * @example
  * ```ts
- * import { SuitestClient } from "@suitest/sdk";
+ * import { SuitestClient } from "@suiflex/suitest-sdk";
  * const client = new SuitestClient({ baseUrl: "https://suitest.example", token: "...", workspaceId: "ws_1" });
  * const cases = await client.listCases();
  * const run = await client.createRun({ projectId: "prj_1", name: "smoke", caseIds: [cases[0]!.id] });

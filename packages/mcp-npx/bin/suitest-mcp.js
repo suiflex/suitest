@@ -9,9 +9,9 @@
  * demand inside the target project's environment — nothing global.
  *
  * Usage:
- *   npx @suitest/mcp            # start the stdio MCP server
- *   npx @suitest/mcp mcp        # same (explicit subcommand)
- *   npx @suitest/mcp --help
+ *   npx @suiflex/suitest-mcp            # start the stdio MCP server
+ *   npx @suiflex/suitest-mcp mcp        # same (explicit subcommand)
+ *   npx @suiflex/suitest-mcp --help
  */
 
 "use strict";
@@ -50,16 +50,16 @@ function main() {
         "suitest-mcp — Suitest MCP server (stdio)",
         "",
         "Usage:",
-        "  npx @suitest/mcp            start the MCP server (default)",
-        "  npx @suitest/mcp mcp        same, explicit",
-        "  npx @suitest/mcp --version  bundled server version",
+        "  npx @suiflex/suitest-mcp            start the MCP server (default)",
+        "  npx @suiflex/suitest-mcp mcp        same, explicit",
+        "  npx @suiflex/suitest-mcp --version  bundled server version",
         "",
         "Add to your IDE agent (e.g. .mcp.json):",
         "  {",
         '    "mcpServers": {',
         '      "suitest": {',
         '        "command": "npx",',
-        '        "args": ["-y", "@suitest/mcp"],',
+        '        "args": ["-y", "@suiflex/suitest-mcp"],',
         '        "env": { "SUITEST_API_URL": "...", "SUITEST_API_KEY": "..." }',
         "      }",
         "    }",

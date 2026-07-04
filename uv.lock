@@ -4,11 +4,11 @@ requires-python = "==3.12.*"
 
 [manifest]
 members = [
+    "suiflex-suitest-lifecycle",
     "suitest-agent",
     "suitest-api",
     "suitest-core",
     "suitest-db",
-    "suitest-lifecycle",
     "suitest-mcp",
     "suitest-monorepo",
     "suitest-runner",
@@ -2610,6 +2610,20 @@ wheels = [
 ]
 
 [[package]]
+name = "suiflex-suitest-lifecycle"
+version = "0.1.0"
+source = { editable = "packages/lifecycle" }
+
+[package.optional-dependencies]
+frontend = [
+    { name = "playwright" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "playwright", marker = "extra == 'frontend'", specifier = ">=1.40" }]
+provides-extras = ["frontend"]
+
+[[package]]
 name = "suitest-agent"
 version = "0.1.0"
 source = { editable = "packages/agent" }
@@ -2760,20 +2774,6 @@ requires-dist = [
     { name = "testcontainers", extras = ["postgres"], marker = "extra == 'test'", specifier = ">=4.8.0" },
 ]
 provides-extras = ["test"]
-
-[[package]]
-name = "suitest-lifecycle"
-version = "0.1.0"
-source = { editable = "packages/lifecycle" }
-
-[package.optional-dependencies]
-frontend = [
-    { name = "playwright" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "playwright", marker = "extra == 'frontend'", specifier = ">=1.40" }]
-provides-extras = ["frontend"]
 
 [[package]]
 name = "suitest-mcp"

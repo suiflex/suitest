@@ -1,9 +1,9 @@
 # suitest (CLI)
 
-Command-line interface for [Suitest](https://suitest.dev), built on `suitest-sdk`.
+Command-line interface for [Suitest](https://suitest.dev), built on `suiflex-suitest-sdk`.
 
 ```bash
-pip install suitest-cli
+pip install suiflex-suitest-cli
 export SUITEST_API_URL=https://suitest.example
 export SUITEST_TOKEN=...           # bearer token
 export SUITEST_WORKSPACE_ID=ws_1

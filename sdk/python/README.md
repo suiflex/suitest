@@ -1,9 +1,9 @@
-# suitest-sdk (Python)
+# suiflex-suitest-sdk (Python)
 
 Official Python SDK for the [Suitest](https://suitest.dev) API.
 
 ```bash
-pip install suitest-sdk
+pip install suiflex-suitest-sdk
 ```
 
 ```python

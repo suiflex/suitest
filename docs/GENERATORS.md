@@ -661,4 +661,4 @@ class Generator(Protocol):
     ) -> AsyncIterator[TestCase]: ...
 ```
 
-Discovery via `importlib.metadata.entry_points(group="suitest.generators")`. SDK package `suitest-sdk` (Python) will expose the `Generator` protocol + test helpers + a CLI scaffold (`suitest sdk new-generator`). Until v1.x ships, additions must live in-tree under `packages/agent/suitest_agent/generators/`.
+Discovery via `importlib.metadata.entry_points(group="suitest.generators")`. SDK package `suiflex-suitest-sdk` (Python) will expose the `Generator` protocol + test helpers + a CLI scaffold (`suitest sdk new-generator`). Until v1.x ships, additions must live in-tree under `packages/agent/suitest_agent/generators/`.

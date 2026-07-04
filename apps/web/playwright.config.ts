@@ -28,7 +28,7 @@ export default defineConfig({
   // workflow) resolves, and visual-regression baselines render on one engine.
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "pnpm --filter @suitest/web dev",
+    command: "pnpm --filter @suiflex/web dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env["CI"],
     timeout: 60_000,

@@ -1,20 +1,20 @@
 # Troubleshooting
 
-> ✅ Maintained for the current `main`. Covers the MCP server (`npx @suitest/mcp` /
+> ✅ Maintained for the current `main`. Covers the MCP server (`npx @suiflex/suitest-mcp` /
 > `uvx`), the blackbox engine, and the self-hosted platform.
 
 ## MCP server
 
-**`npx -y @suitest/mcp` exits: "needs Python >= 3.11"**
+**`npx -y @suiflex/suitest-mcp` exits: "needs Python >= 3.11"**
 The npm package is a launcher; the server is bundled Python (stdlib-only).
 Install Python ≥ 3.11 or point the launcher at one:
-`SUITEST_PYTHON=/usr/local/bin/python3.12 npx -y @suitest/mcp`.
+`SUITEST_PYTHON=/usr/local/bin/python3.12 npx -y @suiflex/suitest-mcp`.
 
 **Server starts but the agent sees no tools**
 Verify the handshake by hand:
 
 ```bash
-printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n' | npx -y @suitest/mcp
+printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n' | npx -y @suiflex/suitest-mcp
 ```
 
 Expect a `serverInfo` response and a 21-tool list. If your IDE still shows

@@ -48,7 +48,7 @@ New install? Start at [Install](#install) below. The MCP server runs from a sing
 - ✅ Live run logs (WebSocket), screenshots + per-test video, MinIO artifacts, cancel/rerun
 - ✅ Rule-based defects, traceability matrix, analytics, integrations + CI webhooks (GitHub/GitLab/Jira/Slack)
 - ✅ Deterministic generators — OpenAPI, browser recorder, crawler
-- ✅ **MCP server for IDE agents** (`npx -y @suitest/mcp`) — analyze → generate → run → publish from Claude Code / Cursor / Codex, incl. a **blackbox DOM engine** that tests any web app from just a URL + credentials (no repo, no LLM key)
+- ✅ **MCP server for IDE agents** (`npx -y @suiflex/suitest-mcp`) — analyze → generate → run → publish from Claude Code / Cursor / Codex, incl. a **blackbox DOM engine** that tests any web app from just a URL + credentials (no repo, no LLM key)
 - ✅ BYO LLM per workspace (Settings → LLM: Anthropic/OpenAI/Gemini/…, local Ollama/vLLM, or any OpenAI-compatible URL) — unlocks agent chat, PRD-driven test generation, LLM codegen
 - ✅ Local auth: super-admin bootstrap + invite-only onboarding (no OAuth required)
 
@@ -65,13 +65,13 @@ Four supported paths, smallest first.
 Requirements: **Node ≥ 18** and **Python ≥ 3.11** on PATH.
 
 ```bash
-npx -y @suitest/mcp
+npx -y @suiflex/suitest-mcp
 ```
 
 Python-native route (same server, via [uv](https://docs.astral.sh/uv/)):
 
 ```bash
-uvx --from suitest-lifecycle suitest-mcp
+uvx --from suiflex-suitest-lifecycle suitest-mcp
 ```
 
 Wire it into Claude Code / Cursor (`.mcp.json`):
@@ -81,7 +81,7 @@ Wire it into Claude Code / Cursor (`.mcp.json`):
   "mcpServers": {
     "suitest": {
       "command": "npx",
-      "args": ["-y", "@suitest/mcp"],
+      "args": ["-y", "@suiflex/suitest-mcp"],
       "env": { "SUITEST_API_URL": "http://localhost:4000", "SUITEST_API_KEY": "sk_suitest_…" }
     }
   }
@@ -205,13 +205,13 @@ suitest/
 │   ├── db/                  ← SQLAlchemy 2 async + Alembic + seed
 │   ├── mcp/                 ← MCP client + registry + pool + bundled providers
 │   ├── lifecycle/           ← the MCP server: analyze→generate→run→publish + blackbox engine
-│   ├── mcp-npx/             ← @suitest/mcp — npx launcher for the MCP server
+│   ├── mcp-npx/             ← @suiflex/suitest-mcp — npx launcher for the MCP server
 │   ├── shared/              ← cross-package Pydantic schemas
 │   └── core/                ← capability resolver, autonomy, AES-GCM crypto
 │
 ├── sdk/
-│   ├── python/              ← suitest-sdk (REST client used by the lifecycle)
-│   └── typescript/          ← @suitest/sdk
+│   ├── python/              ← suiflex-suitest-sdk (REST client used by the lifecycle)
+│   └── typescript/          ← @suiflex/suitest-sdk
 │
 ├── assets/brand/            ← logo.svg + light/dark lockups + mark
 │

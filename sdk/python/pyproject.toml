@@ -1,5 +1,5 @@
 [project]
-name = "suitest-sdk"
+name = "suiflex-suitest-sdk"
 version = "0.1.0"
 description = "Official Python SDK for the Suitest API"
 readme = "README.md"
@@ -11,7 +11,7 @@ dependencies = ["httpx>=0.27"]
 
 [project.urls]
 Homepage = "https://suitest.dev"
-Source = "https://github.com/suitest-dev/suitest"
+Source = "https://github.com/suiflex/suitest"
 
 [build-system]
 requires = ["hatchling"]

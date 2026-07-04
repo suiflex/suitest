@@ -4,7 +4,7 @@ description: The suitest command-line interface.
 ---
 
 ```bash
-pip install suitest-cli
+pip install suiflex-suitest-cli
 export SUITEST_API_URL=https://suitest.example
 export SUITEST_TOKEN=...
 export SUITEST_WORKSPACE_ID=ws_1

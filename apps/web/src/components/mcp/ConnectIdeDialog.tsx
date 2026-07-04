@@ -183,7 +183,7 @@ export function ConnectIdeDialog(): React.ReactElement {
             <p className="mb-2 text-[12px] text-fg-3">
               Local stdio server exposing the lifecycle tools — ships with the{" "}
               <code className="rounded bg-bg-elev-2 px-1 font-mono text-[11px]">
-                suitest-lifecycle
+                suiflex-suitest-lifecycle
               </code>{" "}
               package.
             </p>
@@ -193,10 +193,10 @@ export function ConnectIdeDialog(): React.ReactElement {
               <span className="text-fg-2">
                 The <code className="font-mono text-[11px] text-fg-1">command</code> must be a
                 Python that has{" "}
-                <code className="font-mono text-[11px] text-fg-1">suitest-lifecycle</code>{" "}
+                <code className="font-mono text-[11px] text-fg-1">suiflex-suitest-lifecycle</code>{" "}
                 installed. Either{" "}
                 <code className="font-mono text-[11px] text-fg-1">
-                  pip install suitest-lifecycle
+                  pip install suiflex-suitest-lifecycle
                 </code>
                 , or point it at the Suitest repo&apos;s venv, e.g.{" "}
                 <code className="font-mono text-[11px] text-fg-1">

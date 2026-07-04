@@ -8,9 +8,9 @@ milestone groupings; the project follows semver-flavoured tags
 
 Public-launch readiness pass:
 
-- **`@suitest/mcp` on npm** — run the MCP server with `npx -y @suitest/mcp`
+- **`@suiflex/suitest-mcp` on npm** — run the MCP server with `npx -y @suiflex/suitest-mcp`
   (Node launcher bundling the stdlib-only Python server); `suitest-mcp`
-  console script for the `uvx --from suitest-lifecycle suitest-mcp` route.
+  console script for the `uvx --from suiflex-suitest-lifecycle suitest-mcp` route.
 - **Blackbox DOM engine** — test any web app from a URL + credentials (no
   repo, no LLM key): heuristic login detection, safe crawling, page-pattern
   classification, interaction graph, deterministic Playwright generation,
