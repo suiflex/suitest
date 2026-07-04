@@ -30,7 +30,7 @@ function SummaryBar(): React.ReactElement {
   const { data } = useRunsSummary();
   return (
     <section
-      className="grid grid-cols-6 gap-3 rounded-md border border-border bg-bg-elev-1 p-[14px]"
+      className="grid grid-cols-2 gap-x-3 gap-y-4 rounded-md border border-border bg-bg-elev-1 p-[14px] sm:grid-cols-3 xl:grid-cols-6"
       data-testid="runs-summary"
     >
       <Counter label="Active now" value={data.activeNow.toString()} accent />
@@ -113,12 +113,12 @@ function RunsList({
                 <SourceDot status={statusToBadge(r.status)} />
                 <span className="truncate text-fg-1">{r.name}</span>
               </div>
-              <div className="flex items-center justify-between font-mono text-[10.5px] text-fg-5">
-                <span>
+              <div className="flex items-center justify-between gap-2 font-mono text-[10.5px] text-fg-5">
+                <span className="truncate">
                   {r.public_id} · {r.branch ?? "—"}
                   {r.commit_sha ? `@${r.commit_sha.slice(0, 7)}` : ""}
                 </span>
-                <span>{formatDuration(r.duration_ms)}</span>
+                <span className="shrink-0">{formatDuration(r.duration_ms)}</span>
               </div>
               <ProgressBar value={pct} variant={r.status === "FAIL" ? "fail" : "default"} />
             </button>
@@ -176,14 +176,14 @@ function RunDetailPanel({
     cancelMutation.error instanceof ApiError && cancelMutation.error.status === 403;
 
   return (
-    <div className="flex flex-col gap-4" data-testid="run-detail">
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <div className="flex items-center gap-2">
+    <div className="flex min-w-0 flex-col gap-4" data-testid="run-detail">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <StatusBadge status={statusToBadge(run.status)} />
-          <span className="font-mono text-[12px] text-fg-3">{run.public_id}</span>
+          <span className="truncate font-mono text-[12px] text-fg-3">{run.public_id}</span>
           <span className="font-mono text-[11px] text-fg-5">via {run.trigger}</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Button
             type="button"
             size="sm"
@@ -229,7 +229,7 @@ function RunDetailPanel({
       ) : null}
 
       <div className="flex flex-col gap-1.5">
-        <h3 className="text-[18px] font-semibold leading-tight tracking-[-.01em] text-fg-1">
+        <h3 className="break-words text-[18px] font-semibold leading-tight tracking-[-.01em] text-fg-1">
           {run.name}
         </h3>
         <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] text-fg-4">
@@ -267,9 +267,9 @@ function RunsBody(): React.ReactElement {
   return (
     <>
       <SummaryBar />
-      <div className="grid grid-cols-[260px_1fr] gap-4">
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
         <aside
-          className="rounded-md border border-border bg-bg-elev-1 p-2"
+          className="min-w-0 rounded-md border border-border bg-bg-elev-1 p-2 lg:sticky lg:top-0 lg:max-h-[calc(100dvh-96px)] lg:self-start lg:overflow-y-auto"
           data-testid="runs-left-pane"
         >
           <RunsList
@@ -280,7 +280,7 @@ function RunsBody(): React.ReactElement {
           />
         </aside>
         <section
-          className="rounded-md border border-border bg-bg-elev-1 p-[14px]"
+          className="min-w-0 rounded-md border border-border bg-bg-elev-1 p-[14px]"
           data-testid="runs-right-pane"
         >
           <RunDetailPanel

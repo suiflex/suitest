@@ -80,15 +80,17 @@ export function RunCaseExplorer({ runId }: RunCaseExplorerProps): React.ReactEle
   }
 
   return (
-    <div className="grid grid-cols-12 gap-4">
-      <div className="col-span-12 lg:col-span-4" data-testid="run-case-master">
+    // Container query (not viewport): the explorer renders both full-page and
+    // inside the /runs side panel, so column split keys off its own width.
+    <div className="grid min-w-0 grid-cols-12 gap-4 @container">
+      <div className="col-span-12 min-w-0 @3xl:col-span-4" data-testid="run-case-master">
         <CaseList
           groups={groups}
           selectedCaseId={selectedCaseId}
           onSelectCase={setSelectedCaseId}
         />
       </div>
-      <div className="col-span-12 lg:col-span-8" data-testid="run-case-detail">
+      <div className="col-span-12 min-w-0 @3xl:col-span-8" data-testid="run-case-detail">
         {selectedGroup ? (
           <CaseDetailPanel runId={runId} group={selectedGroup} artifacts={artifacts} />
         ) : (

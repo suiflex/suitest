@@ -100,7 +100,7 @@ function AiPanelInner(): React.ReactElement {
 
   return (
     <aside
-      className="flex h-screen w-[380px] flex-col border-l border-border-subtle bg-bg-elev-1"
+      className="hidden h-full w-[380px] shrink-0 flex-col border-l border-border-subtle bg-bg-elev-1 xl:flex"
       data-testid="ai-panel"
     >
       <div className="flex h-[47px] items-center gap-2 border-b border-border-subtle px-4">

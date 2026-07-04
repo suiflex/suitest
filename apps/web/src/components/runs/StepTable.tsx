@@ -48,8 +48,11 @@ export function StepTable({
     );
   }
   return (
-    <div className="rounded-md border border-border bg-bg-elev-1" data-testid="step-table">
-      <table className="w-full text-[12px]">
+    <div
+      className="overflow-x-auto rounded-md border border-border bg-bg-elev-1"
+      data-testid="step-table"
+    >
+      <table className="w-full min-w-[480px] text-[12px]">
         <thead className="text-fg-5">
           <tr className="border-b border-border">
             <th className="px-3 py-2 text-left font-mono text-[10.5px] uppercase tracking-wide">

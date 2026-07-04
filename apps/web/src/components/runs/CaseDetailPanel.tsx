@@ -123,10 +123,10 @@ export function CaseDetailPanel({
       : `${group.passed.toString()}/${group.total.toString()} steps passed`;
 
   return (
-    <div className="flex flex-col gap-4" data-testid="case-detail">
+    <div className="flex min-w-0 flex-col gap-4" data-testid="case-detail">
       {/* Basics */}
       <div className="flex flex-col gap-2 border-b border-border pb-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={rollupToBadge(group.rollup)} label={rollupLabel(group.rollup)} />
           <span className="font-mono text-[11px] text-fg-5">{group.casePublicId}</span>
           <span
@@ -140,7 +140,7 @@ export function CaseDetailPanel({
           </span>
         </div>
         <h3
-          className="text-[15px] font-semibold leading-tight tracking-[-.01em] text-fg-1"
+          className="break-words text-[15px] font-semibold leading-tight tracking-[-.01em] text-fg-1"
           data-testid="case-detail-title"
         >
           {group.caseName}

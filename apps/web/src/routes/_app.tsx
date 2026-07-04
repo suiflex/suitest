@@ -108,19 +108,17 @@ export const Route = createFileRoute("/_app")({
 });
 
 /**
- * Three-column shell:
- *   [Sidebar 224px] [Topbar + Outlet] [AiPanel 380px]
+ * Responsive flex shell:
+ *   [Sidebar 224px | mobile drawer] [Topbar + Outlet flex-1 min-w-0] [AiPanel 380px xl+]
  *
- * The right rail collapses in ZERO tier (no LLM features) and on viewports
- * narrower than 1280px (Tailwind `xl:`). M1b ships the desktop layout only;
- * the responsive sheet/drawer fallback lands with the real agent in M3.
+ * Flexbox (not a grid with reserved tracks) so a column only takes space when
+ * its content actually renders — the AI rail self-gates (`<Gated>` → null) and
+ * previously left an empty 380px stripe when the grid reserved its track.
+ * Below `md:` the sidebar becomes an overlay drawer toggled from the Topbar.
  */
 function AppLayout(): React.ReactElement {
   const tier = useCapabilities((s) => s.capabilities?.tier);
-  const cols =
-    tier === "ZERO"
-      ? "grid-cols-[224px_1fr]"
-      : "grid-cols-[224px_1fr] xl:grid-cols-[224px_1fr_380px]";
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const { data: user } = useCurrentUser();
   const activeWorkspaceId = useActiveWorkspace((s) => s.workspaceId);
@@ -151,7 +149,7 @@ function AppLayout(): React.ReactElement {
   };
 
   return (
-    <div className={`grid ${cols} min-h-screen`} data-testid="app-shell">
+    <div className="flex h-dvh overflow-hidden" data-testid="app-shell">
       <Sidebar
         {...(workspaceName !== undefined ? { workspaceName } : {})}
         userName={userName}
@@ -163,6 +161,10 @@ function AppLayout(): React.ReactElement {
           setWorkspaceDialogOpen(true);
         }}
         isSuperuser={user.is_superuser === true}
+        mobileOpen={mobileNavOpen}
+        onMobileClose={() => {
+          setMobileNavOpen(false);
+        }}
       />
       <CreateWorkspaceDialog
         open={workspaceDialogOpen}
@@ -170,9 +172,13 @@ function AppLayout(): React.ReactElement {
           setWorkspaceDialogOpen(false);
         }}
       />
-      <div className="flex min-w-0 flex-col">
-        <Topbar />
-        <main className="flex-1 overflow-y-auto px-6 py-6">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Topbar
+          onMenuClick={() => {
+            setMobileNavOpen(true);
+          }}
+        />
+        <main className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
           <Outlet />
         </main>
       </div>

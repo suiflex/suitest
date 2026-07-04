@@ -1,9 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  RouterProvider,
-  createMemoryHistory,
-  createRouter,
-} from "@tanstack/react-router";
+import { RouterProvider, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { act } from "react";
@@ -92,12 +88,10 @@ function setCaps(caps: Capabilities): void {
 /** MSW overrides for `/capabilities` — the root layout boots a fetch on mount
  *  that would otherwise overwrite the store with the default ZERO fixture. */
 function mockCaps(caps: Capabilities): void {
-  server.use(
-    http.get("*/capabilities", () => HttpResponse.json(caps)),
-  );
+  server.use(http.get("*/capabilities", () => HttpResponse.json(caps)));
 }
 
-describe("<_app> layout grid", () => {
+describe("<_app> layout shell", () => {
   beforeEach(() => {
     vi.stubGlobal("location", {
       pathname: "/dashboard",
@@ -141,23 +135,25 @@ describe("<_app> layout grid", () => {
     });
     const shell = await screen.findByTestId("app-shell");
     await waitFor(() => {
-      expect(shell.className).toContain("grid-cols-[224px_1fr]");
-      expect(shell.className).not.toContain("xl:grid-cols-[224px_1fr_380px]");
+      // Flex shell: no reserved AI-rail track, so ZERO tier simply renders
+      // no panel — and no empty column.
+      expect(shell.className).toContain("flex");
     });
     expect(screen.queryByTestId("ai-panel")).toBeNull();
   });
 
-  it("renders the AI rail in CLOUD tier (xl: column applied)", async () => {
+  it("renders the AI rail in CLOUD tier (visible from xl: up)", async () => {
     mockCaps(CLOUD_CAPS);
     setCaps(CLOUD_CAPS);
     const { router } = renderAt("/dashboard");
     await waitFor(() => {
       expect(router.state.location.pathname).toBe("/dashboard");
     });
-    const shell = await screen.findByTestId("app-shell");
-    await waitFor(() => {
-      expect(shell.className).toContain("xl:grid-cols-[224px_1fr_380px]");
-    });
-    expect(await screen.findByTestId("ai-panel")).toBeInTheDocument();
+    await screen.findByTestId("app-shell");
+    const panel = await screen.findByTestId("ai-panel");
+    expect(panel).toBeInTheDocument();
+    // Sized by its own classes, shown only at xl+ — the shell reserves nothing.
+    expect(panel.className).toContain("xl:flex");
+    expect(panel.className).toContain("w-[380px]");
   });
 });

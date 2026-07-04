@@ -7,6 +7,7 @@ import {
   HelpCircle,
   Inbox,
   LayoutDashboard,
+  Menu,
   Network,
   Play,
   Plug,
@@ -51,6 +52,8 @@ const COMMAND_TARGETS: ReadonlyArray<CommandTarget> = [
 export interface TopbarProps {
   /** External docs link opened by the help icon. */
   helpHref?: string;
+  /** Opens the mobile sidebar drawer (< md). Hamburger hidden when omitted. */
+  onMenuClick?: () => void;
 }
 
 /**
@@ -60,6 +63,7 @@ export interface TopbarProps {
  */
 export function Topbar({
   helpHref = "https://github.com/suitest/docs",
+  onMenuClick,
 }: TopbarProps = {}): React.ReactElement {
   const [commandOpen, setCommandOpen] = useState(false);
   const navigate = useNavigate();
@@ -100,15 +104,28 @@ export function Topbar({
       className="flex h-[47px] items-center gap-3 border-b border-border-subtle bg-bg-base px-4"
       data-testid="topbar"
     >
+      {/* Mobile — sidebar drawer trigger */}
+      {onMenuClick ? (
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="Open navigation"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1 md:hidden"
+          data-testid="topbar-menu-button"
+        >
+          <Menu className="h-4 w-4" aria-hidden="true" />
+        </button>
+      ) : null}
+
       {/* Left — Breadcrumbs */}
       <Breadcrumbs segments={breadcrumbs} />
 
-      <div className="ml-auto flex items-center gap-2">
-        {/* Search palette trigger */}
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        {/* Search palette trigger — full field ≥ sm, icon-only below */}
         <button
           type="button"
           onClick={() => setCommandOpen(true)}
-          className="inline-flex h-7 w-[220px] items-center gap-2 rounded-md border border-border bg-bg-elev-1 px-2 text-left text-[12.5px] text-fg-4 hover:bg-bg-elev-2"
+          className="hidden h-7 w-[160px] items-center gap-2 rounded-md border border-border bg-bg-elev-1 px-2 text-left text-[12.5px] text-fg-4 hover:bg-bg-elev-2 sm:inline-flex lg:w-[220px]"
           data-testid="topbar-search-trigger"
         >
           <Search className="h-3.5 w-3.5" aria-hidden="true" />
@@ -116,6 +133,15 @@ export function Topbar({
           <kbd className="ml-auto inline-flex h-5 items-center gap-0.5 rounded border border-border bg-bg-elev-2 px-1 font-mono text-[10px] text-fg-3">
             <span className="text-[10px]">⌘</span>K
           </kbd>
+        </button>
+        <button
+          type="button"
+          onClick={() => setCommandOpen(true)}
+          aria-label="Search"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1 sm:hidden"
+          data-testid="topbar-search-trigger-mobile"
+        >
+          <Search className="h-4 w-4" aria-hidden="true" />
         </button>
 
         {/* Language switcher (M4-12) */}
@@ -197,20 +223,22 @@ function Breadcrumbs({ segments }: { segments: ReadonlyArray<string> }): React.R
   }
   return (
     <ol
-      className="flex items-center gap-1.5 text-[13px]"
+      className="flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap text-[13px]"
       aria-label="Breadcrumbs"
       data-testid="topbar-breadcrumbs"
     >
       {segments.map((seg, idx) => {
         const last = idx === segments.length - 1;
         return (
-          <li key={`${seg}-${idx.toString()}`} className="flex items-center gap-1.5">
+          <li key={`${seg}-${idx.toString()}`} className="flex min-w-0 items-center gap-1.5">
             {idx > 0 ? (
               <span className="text-fg-5" aria-hidden="true">
                 ›
               </span>
             ) : null}
-            <span className={cn(last ? "font-medium text-fg-1" : "text-fg-3")}>{seg}</span>
+            <span className={cn("truncate", last ? "font-medium text-fg-1" : "text-fg-3")}>
+              {seg}
+            </span>
           </li>
         );
       })}
