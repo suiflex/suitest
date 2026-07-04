@@ -30,7 +30,7 @@ from suitest_api.auth.db import get_async_session
 from suitest_api.deps.integrations import (
     PreSaveTestFactory,
     get_adapter_registry,
-    get_notifier_factory_registry,
+    get_notifier_factories,
     get_pre_save_github_factory,
     get_pre_save_jira_factory,
 )
@@ -44,8 +44,7 @@ from suitest_api.integrations.base import (
     AdapterTimeoutError,
     ConnectionTestResult,
 )
-from suitest_api.integrations.notifier_registry import NotifierFactoryRegistry
-from suitest_api.integrations.registry import AdapterRegistry
+from suitest_api.integrations.registry import AdapterRegistry, NotifierFactory
 from suitest_api.schemas.integration import (
     ConnectionTestResponse,
     GitHubTestConnectionRequest,
@@ -124,14 +123,14 @@ def _build_service(
     ctx: TenantContext,
     *,
     adapter_registry: AdapterRegistry | None = None,
-    notifier_factory_registry: NotifierFactoryRegistry | None = None,
+    notifier_factories: dict[IntegrationKind, NotifierFactory] | None = None,
     http_client: httpx.AsyncClient | None = None,
 ) -> IntegrationService:
     return IntegrationService(
         ctx,
         IntegrationRepo(session),
         adapter_registry=adapter_registry,
-        notifier_factory_registry=notifier_factory_registry,
+        notifier_factories=notifier_factories,
         http_client=http_client,
     )
 
@@ -290,7 +289,7 @@ async def test_integration(
     ctx: TenantContext = Depends(_admin_dep),
     session: AsyncSession = Depends(get_async_session),
     adapter_registry: AdapterRegistry = Depends(get_adapter_registry),
-    notifier_factory_registry: NotifierFactoryRegistry = Depends(get_notifier_factory_registry),
+    notifier_factories: dict[IntegrationKind, NotifierFactory] = Depends(get_notifier_factories),
 ) -> ConnectionTestResponse:
     """Smoke-test an existing integration's credentials. Never 500s on bad creds."""
     # Per-request httpx client is cheap and isolates Slack-style notifier
@@ -300,7 +299,7 @@ async def test_integration(
             session,
             ctx,
             adapter_registry=adapter_registry,
-            notifier_factory_registry=notifier_factory_registry,
+            notifier_factories=notifier_factories,
             http_client=http_client,
         )
         try:
@@ -343,7 +342,7 @@ async def sync_integration(
     ctx: TenantContext = Depends(_admin_dep),
     session: AsyncSession = Depends(get_async_session),
     adapter_registry: AdapterRegistry = Depends(get_adapter_registry),
-    notifier_factory_registry: NotifierFactoryRegistry = Depends(get_notifier_factory_registry),
+    notifier_factories: dict[IntegrationKind, NotifierFactory] = Depends(get_notifier_factories),
 ) -> SyncResult:
     """Refetch external statuses for every linked defect; update local status with conflict reporting."""
     async with httpx.AsyncClient() as http_client:
@@ -351,7 +350,7 @@ async def sync_integration(
             session,
             ctx,
             adapter_registry=adapter_registry,
-            notifier_factory_registry=notifier_factory_registry,
+            notifier_factories=notifier_factories,
             http_client=http_client,
         )
         try:

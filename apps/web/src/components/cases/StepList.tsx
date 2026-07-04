@@ -1,8 +1,8 @@
 import { Sparkles } from "lucide-react";
 
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import type { StatusBadgeStatus } from "@/components/shared/StatusBadge";
 import type { components } from "@/lib/api-types";
+import { outcomeToBadge } from "@/lib/badge-maps";
 import type { DerivedStep, StepType } from "@/lib/test-case-format";
 import { stepTypeLabel } from "@/lib/test-case-format";
 import { cn } from "@/lib/utils";
@@ -16,20 +16,6 @@ const TYPE_BADGE: Record<StepType, string> = {
   wait: "bg-amber/10 text-amber border-amber/20",
   api: "bg-violet/10 text-violet border-violet/20",
 };
-
-function outcomeToBadge(outcome: StepOutcome): StatusBadgeStatus {
-  switch (outcome) {
-    case "PASS":
-      return "pass";
-    case "FAIL":
-    case "ERROR":
-      return "fail";
-    case "SKIP":
-      return "warn";
-    default:
-      return "neutral";
-  }
-}
 
 export interface StepListProps {
   steps: DerivedStep[];

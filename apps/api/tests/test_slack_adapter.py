@@ -36,10 +36,7 @@ from suitest_api.integrations.base import (
     NotificationResult,
     NotifierAdapter,
 )
-from suitest_api.integrations.notifier_registry import (
-    NotifierFactoryRegistry,
-    notifier_factory_registry,
-)
+from suitest_api.integrations.registry import NotifierFactory, notifier_factories
 from suitest_api.integrations.slack_adapter import (
     DEFAULT_WEBHOOK_TIMEOUT_SECONDS,
     SEVERITY_COLOR,
@@ -112,10 +109,9 @@ def test_slack_adapter_satisfies_notifier_protocol() -> None:
 
 def test_notifier_factory_registry_round_trip() -> None:
     """Register + retrieve + invoke factory yields a configured SlackAdapter."""
-    registry = NotifierFactoryRegistry()
-    registry.register(IntegrationKind.SLACK, SlackAdapter)
+    factories: dict[IntegrationKind, NotifierFactory] = {IntegrationKind.SLACK: SlackAdapter}
 
-    factory = registry.get(IntegrationKind.SLACK)
+    factory = factories[IntegrationKind.SLACK]
     integration = _make_integration()
     client = httpx.AsyncClient()
     adapter = factory(integration, client)
@@ -124,7 +120,7 @@ def test_notifier_factory_registry_round_trip() -> None:
 
 
 def test_module_singleton_has_slack_after_lifespan() -> None:
-    """After the API lifespan runs once, the module-singleton has SLACK registered.
+    """After the API lifespan runs once, the module-level dict has SLACK registered.
 
     Smoke-tests that :mod:`suitest_api.main` actually wires the factory rather
     than just importing it.
@@ -140,8 +136,8 @@ def test_module_singleton_has_slack_after_lifespan() -> None:
     async def _go() -> None:
         app = create_app()
         async with LifespanManager(app):
-            assert IntegrationKind.SLACK in notifier_factory_registry
-            assert IntegrationKind.SLACK in app.state.notifier_factory_registry
+            assert IntegrationKind.SLACK in notifier_factories
+            assert IntegrationKind.SLACK in app.state.notifier_factories
 
     asyncio.run(_go())
 

@@ -72,6 +72,18 @@ def _now() -> datetime:
     return datetime.now(tz=UTC)
 
 
+class ProjectNotFoundError(Exception):
+    """Explicit projectId does not exist in the caller's workspace.
+
+    The router maps this to 404 (never 403) so a caller cannot probe which
+    project ids exist in other workspaces.
+    """
+
+    def __init__(self, project_id: str) -> None:
+        super().__init__(f"project not found in workspace: {project_id}")
+        self.project_id = project_id
+
+
 async def _ensure_project(
     session: AsyncSession,
     *,
@@ -90,6 +102,13 @@ async def _ensure_project(
     from suitest_db.models.project import Project
 
     if project_id:
+        stmt = select(Project).where(
+            Project.id == project_id,
+            Project.workspace_id == workspace_id,
+            Project.deleted_at.is_(None),
+        )
+        if (await session.scalars(stmt)).first() is None:
+            raise ProjectNotFoundError(project_id)
         return project_id
     if not project_slug:
         raise ValueError("either projectId or projectSlug is required")

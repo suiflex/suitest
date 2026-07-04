@@ -235,7 +235,7 @@ def test_registry_clear() -> None:
 def test_discover_plugins_happy_path() -> None:
     mock_ep = MagicMock()
     mock_ep.name = "dummy-agent"
-    mock_ep.value = "suitest_agent.plugin_sdk.examples.security_agent:SecurityAgent"
+    mock_ep.value = "security_agent:SecurityAgent"
     mock_ep.load.return_value = _DummyAgent
 
     with patch(
@@ -287,7 +287,7 @@ def test_entry_point_group_constant() -> None:
 
 
 def test_security_agent_spec() -> None:
-    from suitest_agent.plugin_sdk.examples.security_agent import SecurityAgent
+    from security_agent import SecurityAgent
 
     assert SecurityAgent.spec.name == "security-agent"
     assert SecurityAgent.spec.requires_tier == "CLOUD"
@@ -296,7 +296,7 @@ def test_security_agent_spec() -> None:
 
 
 def test_a11y_agent_spec() -> None:
-    from suitest_agent.plugin_sdk.examples.a11y_agent import A11yAgent
+    from a11y_agent import A11yAgent
 
     assert A11yAgent.spec.name == "a11y-agent"
     assert A11yAgent.spec.requires_tier == "LOCAL"
@@ -306,7 +306,7 @@ def test_a11y_agent_spec() -> None:
 
 @pytest.mark.asyncio
 async def test_security_agent_build_context() -> None:
-    from suitest_agent.plugin_sdk.examples.security_agent import SecurityAgent
+    from security_agent import SecurityAgent
 
     agent = SecurityAgent()
     ctx = await agent.build_context("case-123", 2)
@@ -317,7 +317,7 @@ async def test_security_agent_build_context() -> None:
 
 @pytest.mark.asyncio
 async def test_a11y_agent_build_context() -> None:
-    from suitest_agent.plugin_sdk.examples.a11y_agent import A11yAgent
+    from a11y_agent import A11yAgent
 
     agent = A11yAgent()
     ctx = await agent.build_context("case-456", 0)

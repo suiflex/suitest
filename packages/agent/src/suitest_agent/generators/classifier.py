@@ -36,6 +36,77 @@ _K8S_KIND_RE: Final = re.compile(
 )
 
 
+# Per-rule result constants: target kind, confidence, default MCP provider,
+# strategy, and (strategy, requires_tier) alternative pairs. Keyed by rule
+# label (NOT TargetKind — ``prd_text`` and ``custom`` both map to CUSTOM).
+_RULE_RESULTS: Final[
+    dict[
+        str,
+        tuple[
+            TargetKind, float, str, RecommendedStrategy, tuple[tuple[RecommendedStrategy, str], ...]
+        ],
+    ]
+] = {
+    "be_rest": (
+        TargetKind.BE_REST,
+        0.95,
+        "api-http-mcp",
+        RecommendedStrategy.OPENAPI_GENERATOR,
+        ((RecommendedStrategy.PRD_PARSING, "CLOUD"),),
+    ),
+    "be_graphql": (
+        TargetKind.BE_GRAPHQL,
+        0.9,
+        "graphql-mcp",
+        RecommendedStrategy.OPENAPI_GENERATOR,
+        (),
+    ),
+    "be_grpc": (TargetKind.BE_GRPC, 0.9, "grpc-mcp", RecommendedStrategy.OPENAPI_GENERATOR, ()),
+    "fe_web": (
+        TargetKind.FE_WEB,
+        0.7,
+        "playwright-mcp",
+        RecommendedStrategy.URL_CRAWLER,
+        ((RecommendedStrategy.RECORDER, "ZERO"), (RecommendedStrategy.URL_SEMANTIC, "CLOUD")),
+    ),
+    "fe_mobile": (TargetKind.FE_MOBILE, 0.95, "appium-mcp", RecommendedStrategy.URL_CRAWLER, ()),
+    "data": (TargetKind.DATA, 0.95, "postgres-mcp", RecommendedStrategy.OPENAPI_GENERATOR, ()),
+    "infra": (TargetKind.INFRA, 0.85, "kubernetes-mcp", RecommendedStrategy.OPENAPI_GENERATOR, ()),
+    # Free-form text — no canonical MIXED kind, so map to CUSTOM + PRD parsing.
+    # PRD parsing is LLM-driven (CLOUD/LOCAL); the deterministic fallback is
+    # the recorder, which works in ZERO tier.
+    "prd_text": (
+        TargetKind.CUSTOM,
+        0.6,
+        "playwright-mcp",
+        RecommendedStrategy.PRD_PARSING,
+        ((RecommendedStrategy.RECORDER, "ZERO"),),
+    ),
+    "custom": (TargetKind.CUSTOM, 0.3, "playwright-mcp", RecommendedStrategy.RECORDER, ()),
+}
+
+# DB connection URL scheme → bundled MCP provider (overrides the ``data``
+# rule's default provider).
+_DATA_SCHEME_PROVIDERS: Final[dict[str, str]] = {
+    "postgresql": "postgres-mcp",
+    "mysql": "mysql-mcp",
+    "mongodb": "mongo-mcp",
+}
+
+
+def _result(rule: str, rationale: str, *, mcp_name: str | None = None) -> ClassificationResult:
+    """Build the :class:`ClassificationResult` for one matched rule."""
+    target_kind, confidence, default_mcp, strategy, alt_pairs = _RULE_RESULTS[rule]
+    return ClassificationResult(
+        target_kind=target_kind,
+        confidence=confidence,
+        recommended_mcp=RecommendedMcp(name=mcp_name if mcp_name is not None else default_mcp),
+        recommended_strategy=strategy,
+        alternatives=[StrategyAlternative(strategy=s, requires_tier=tier) for s, tier in alt_pairs],
+        rationale=rationale,
+    )
+
+
 def classify(inp: GenerationInput) -> ClassificationResult:
     """Rule-based classifier; first match wins."""
     # URL-based signals
@@ -43,22 +114,26 @@ def classify(inp: GenerationInput) -> ClassificationResult:
         parsed = urlparse(inp.value)
         path_lower = parsed.path.lower()
         if _OPENAPI_URL_RE.search(path_lower):
-            return _be_rest("URL ends in openapi|swagger spec path")
+            return _result("be_rest", "URL ends in openapi|swagger spec path")
         if any(t in inp.value.lower() for t in _GRAPHQL_URL_TOKENS):
-            return _be_graphql("URL contains graphql token")
-        if parsed.scheme in {"postgresql", "mysql", "mongodb"}:
-            return _data(parsed.scheme, "DB connection URL scheme")
+            return _result("be_graphql", "URL contains graphql token")
+        if parsed.scheme in _DATA_SCHEME_PROVIDERS:
+            return _result(
+                "data",
+                "DB connection URL scheme",
+                mcp_name=_DATA_SCHEME_PROVIDERS[parsed.scheme],
+            )
         if parsed.scheme in {"http", "https"}:
-            return _fe_web("Generic HTTP(S) URL — assume web UI")
+            return _result("fe_web", "Generic HTTP(S) URL — assume web UI")
     # Filename signals (file content kind)
     if inp.kind == GenerationInputKind.FILE_CONTENT and inp.filename:
         low = inp.filename.lower()
         if low.endswith(".graphql"):
-            return _be_graphql("Filename ends in .graphql")
+            return _result("be_graphql", "Filename ends in .graphql")
         if low.endswith(".proto"):
-            return _be_grpc("Filename ends in .proto")
+            return _result("be_grpc", "Filename ends in .proto")
         if low.endswith((".apk", ".ipa")):
-            return _fe_mobile("Mobile binary file extension")
+            return _result("fe_mobile", "Mobile binary file extension")
     # Body content signals (file_content or raw_text)
     if inp.kind in {GenerationInputKind.FILE_CONTENT, GenerationInputKind.RAW_TEXT}:
         body = inp.value
@@ -66,130 +141,18 @@ def classify(inp: GenerationInput) -> ClassificationResult:
             j = json.loads(body)
             if isinstance(j, dict):
                 if "openapi" in j or "swagger" in j:
-                    return _be_rest("JSON body has openapi/swagger field")
+                    return _result("be_rest", "JSON body has openapi/swagger field")
                 if j.get("kind") == "Service" and "spec" in j:
-                    return _infra("JSON body kind=Service with spec")
+                    return _result("infra", "JSON body kind=Service with spec")
         except ValueError:  # json.JSONDecodeError is a ValueError subclass
             pass
         if _K8S_KIND_RE.search(body):
-            return _infra("YAML kind: Deployment/Service/...")
+            return _result("infra", "YAML kind: Deployment/Service/...")
     # Content-type signals
     if inp.content_type_hint:
         ct = inp.content_type_hint.lower()
         if ct.startswith("text/html"):
-            return _fe_web("Content-Type text/html")
+            return _result("fe_web", "Content-Type text/html")
         if ct.startswith(("text/markdown", "text/plain")):
-            return _prd_text("Free-form text — likely PRD")
-    return _custom("No rule matched")
-
-
-def _be_rest(rationale: str) -> ClassificationResult:
-    return ClassificationResult(
-        target_kind=TargetKind.BE_REST,
-        confidence=0.95,
-        recommended_mcp=RecommendedMcp(name="api-http-mcp"),
-        recommended_strategy=RecommendedStrategy.OPENAPI_GENERATOR,
-        alternatives=[
-            StrategyAlternative(strategy=RecommendedStrategy.PRD_PARSING, requires_tier="CLOUD"),
-        ],
-        rationale=rationale,
-    )
-
-
-def _be_graphql(rationale: str) -> ClassificationResult:
-    return ClassificationResult(
-        target_kind=TargetKind.BE_GRAPHQL,
-        confidence=0.9,
-        recommended_mcp=RecommendedMcp(name="graphql-mcp"),
-        recommended_strategy=RecommendedStrategy.OPENAPI_GENERATOR,
-        alternatives=[],
-        rationale=rationale,
-    )
-
-
-def _be_grpc(rationale: str) -> ClassificationResult:
-    return ClassificationResult(
-        target_kind=TargetKind.BE_GRPC,
-        confidence=0.9,
-        recommended_mcp=RecommendedMcp(name="grpc-mcp"),
-        recommended_strategy=RecommendedStrategy.OPENAPI_GENERATOR,
-        alternatives=[],
-        rationale=rationale,
-    )
-
-
-def _fe_web(rationale: str) -> ClassificationResult:
-    return ClassificationResult(
-        target_kind=TargetKind.FE_WEB,
-        confidence=0.7,
-        recommended_mcp=RecommendedMcp(name="playwright-mcp"),
-        recommended_strategy=RecommendedStrategy.URL_CRAWLER,
-        alternatives=[
-            StrategyAlternative(strategy=RecommendedStrategy.RECORDER, requires_tier="ZERO"),
-            StrategyAlternative(strategy=RecommendedStrategy.URL_SEMANTIC, requires_tier="CLOUD"),
-        ],
-        rationale=rationale,
-    )
-
-
-def _fe_mobile(rationale: str) -> ClassificationResult:
-    return ClassificationResult(
-        target_kind=TargetKind.FE_MOBILE,
-        confidence=0.95,
-        recommended_mcp=RecommendedMcp(name="appium-mcp"),
-        recommended_strategy=RecommendedStrategy.URL_CRAWLER,
-        alternatives=[],
-        rationale=rationale,
-    )
-
-
-def _data(scheme: str, rationale: str) -> ClassificationResult:
-    provider = {"postgresql": "postgres-mcp", "mysql": "mysql-mcp", "mongodb": "mongo-mcp"}[scheme]
-    return ClassificationResult(
-        target_kind=TargetKind.DATA,
-        confidence=0.95,
-        recommended_mcp=RecommendedMcp(name=provider),
-        recommended_strategy=RecommendedStrategy.OPENAPI_GENERATOR,
-        alternatives=[],
-        rationale=rationale,
-    )
-
-
-def _infra(rationale: str) -> ClassificationResult:
-    return ClassificationResult(
-        target_kind=TargetKind.INFRA,
-        confidence=0.85,
-        recommended_mcp=RecommendedMcp(name="kubernetes-mcp"),
-        recommended_strategy=RecommendedStrategy.OPENAPI_GENERATOR,
-        alternatives=[],
-        rationale=rationale,
-    )
-
-
-def _prd_text(rationale: str) -> ClassificationResult:
-    """Free-form text — no canonical MIXED kind, so map to CUSTOM + PRD parsing.
-
-    PRD parsing is LLM-driven (CLOUD/LOCAL); the deterministic fallback is the
-    recorder, which works in ZERO tier.
-    """
-    return ClassificationResult(
-        target_kind=TargetKind.CUSTOM,
-        confidence=0.6,
-        recommended_mcp=RecommendedMcp(name="playwright-mcp"),
-        recommended_strategy=RecommendedStrategy.PRD_PARSING,
-        alternatives=[
-            StrategyAlternative(strategy=RecommendedStrategy.RECORDER, requires_tier="ZERO"),
-        ],
-        rationale=rationale,
-    )
-
-
-def _custom(rationale: str) -> ClassificationResult:
-    return ClassificationResult(
-        target_kind=TargetKind.CUSTOM,
-        confidence=0.3,
-        recommended_mcp=RecommendedMcp(name="playwright-mcp"),
-        recommended_strategy=RecommendedStrategy.RECORDER,
-        alternatives=[],
-        rationale=rationale,
-    )
+            return _result("prd_text", "Free-form text — likely PRD")
+    return _result("custom", "No rule matched")

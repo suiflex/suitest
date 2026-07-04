@@ -4,10 +4,10 @@ Registers under name ``a11y-agent``.  Requires LOCAL tier (runs fine on a local
 model).  Focuses on ARIA labels, contrast ratios, keyboard navigation, and
 WCAG 2.2 compliance.
 
-To activate, install this package and declare the entry point::
+To activate, ship the class in an installed package and declare the entry point::
 
     [project.entry-points."suitest.plugins"]
-    a11y-agent = "suitest_agent.plugin_sdk.examples.a11y_agent:A11yAgent"
+    a11y-agent = "my_package.a11y_agent:A11yAgent"
 """
 
 from __future__ import annotations

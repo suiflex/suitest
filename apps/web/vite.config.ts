@@ -39,21 +39,10 @@ export default defineConfig({
         // recharts ships as a separate `recharts-*.js`.
         manualChunks: {
           recharts: ["recharts"],
-          radix: [
-            "@radix-ui/react-popover",
-            "@radix-ui/react-tooltip",
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-tabs",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-slot",
-            "@radix-ui/react-separator",
-          ],
-          tanstack: [
-            "@tanstack/react-router",
-            "@tanstack/react-query",
-            "@tanstack/router-devtools",
-            "@tanstack/react-query-devtools",
-          ],
+          // The unified `radix-ui` entry point pulls the individual
+          // @radix-ui/react-* primitives (its dependencies) into this chunk.
+          radix: ["radix-ui"],
+          tanstack: ["@tanstack/react-router", "@tanstack/react-query"],
         },
       },
     },

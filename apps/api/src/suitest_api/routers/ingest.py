@@ -7,7 +7,7 @@ audit-logged writes — they never enqueue ARQ (the lifecycle already executed).
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.audit import write_audit
 
@@ -20,7 +20,11 @@ from suitest_api.schemas.ingest import (
     RunIngestBody,
     RunIngestResult,
 )
-from suitest_api.services.ingest_service import bulk_import_cases, ingest_run
+from suitest_api.services.ingest_service import (
+    ProjectNotFoundError,
+    bulk_import_cases,
+    ingest_run,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["ingest"])
 
@@ -36,7 +40,10 @@ async def bulk_import(
     session: AsyncSession = Depends(get_async_session),
 ) -> BulkImportResult:
     """Upsert a suite's cases + steps from a lifecycle payload (idempotent by sourceRef)."""
-    result = await bulk_import_cases(session, workspace_id=ctx.workspace_id, body=body)
+    try:
+        result = await bulk_import_cases(session, workspace_id=ctx.workspace_id, body=body)
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     await write_audit(
         session,
         workspace_id=ctx.workspace_id,
@@ -61,7 +68,10 @@ async def ingest_completed_run(
     session: AsyncSession = Depends(get_async_session),
 ) -> RunIngestResult:
     """Record an already-completed run (run + run_steps + artifacts). No ARQ enqueue."""
-    result = await ingest_run(session, workspace_id=ctx.workspace_id, body=body)
+    try:
+        result = await ingest_run(session, workspace_id=ctx.workspace_id, body=body)
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     await write_audit(
         session,
         workspace_id=ctx.workspace_id,

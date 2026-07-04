@@ -939,20 +939,7 @@ Exported to OTLP endpoint (configurable). Default compose ships Jaeger.
 
 ### Langfuse (optional)
 
-If `LANGFUSE_HOST` + `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY` are set, every LiteLLM call is forwarded via LiteLLM's built-in Langfuse callback. The docker-compose stack ships an optional `langfuse` service (compose profile `observability`) for self-hosted prompt/response audit + cost dashboards.
-
-```yaml
-# docker-compose excerpt
-services:
-  langfuse:
-    profiles: ["observability"]
-    image: langfuse/langfuse:latest
-    environment:
-      DATABASE_URL: postgresql://langfuse:...@db:5432/langfuse
-      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET}
-      SALT: ${LANGFUSE_SALT}
-    ports: ["3030:3000"]
-```
+If `LANGFUSE_HOST` + `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY` are set, every LiteLLM call is forwarded via LiteLLM's built-in Langfuse callback. Langfuse is not bundled in Suitest's compose stack — run it from [Langfuse's own compose file](https://github.com/langfuse/langfuse) for self-hosted prompt/response audit + cost dashboards, and point the env vars above at it.
 
 ---
 

@@ -31,7 +31,7 @@ def discover_plugins() -> list[type[AgentPluginBase]]:
 
     Each entry point value is a dotted import path to an
     :class:`~suitest_agent.plugin_sdk.base.AgentPluginBase` subclass,
-    e.g. ``my_package.agents:SecurityAgent``.
+    e.g. ``my_package.agents:MyAgent``.
 
     Returns a list of the successfully loaded plugin classes.  Entries that
     cannot be imported, are not subclasses of :class:`AgentPluginBase`, or

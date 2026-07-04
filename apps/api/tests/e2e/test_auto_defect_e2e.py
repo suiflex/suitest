@@ -42,7 +42,7 @@ import respx
 from api_harness import ApiDb
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from suitest_api.integrations.notifier_registry import notifier_factory_registry
+from suitest_api.integrations.registry import notifier_factories
 from suitest_api.integrations.slack_adapter import SlackAdapter
 from suitest_api.services.defect_auto_filer import DefectAutoFiler, DefectCategorizer
 from suitest_db.models.case import TestCase, TestStep
@@ -308,11 +308,11 @@ def slack_factory_registered() -> Iterator[None]:
     The production ``lifespan`` does this; the test bypasses lifespan so we
     register here directly. Cleanup pops the key on teardown.
     """
-    notifier_factory_registry.register(IntegrationKind.SLACK, SlackAdapter)
+    notifier_factories[IntegrationKind.SLACK] = SlackAdapter
     try:
         yield
     finally:
-        notifier_factory_registry._by_kind.pop(IntegrationKind.SLACK, None)
+        notifier_factories.pop(IntegrationKind.SLACK, None)
 
 
 # ---------------------------------------------------------------------------

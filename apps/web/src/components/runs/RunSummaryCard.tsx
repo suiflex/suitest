@@ -1,35 +1,12 @@
-import { StatusBadge, type StatusBadgeStatus } from "@/components/shared/StatusBadge";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import type { components } from "@/lib/api-types";
+import { statusToBadge } from "@/lib/badge-maps";
+import { formatDuration } from "@/lib/test-case-format";
 
 type RunDetail = components["schemas"]["RunDetail"];
 
 interface RunSummaryCardProps {
   run: RunDetail | undefined;
-}
-
-function statusToBadge(status: RunDetail["status"]): StatusBadgeStatus {
-  switch (status) {
-    case "PASS":
-      return "pass";
-    case "FAIL":
-    case "ERROR":
-      return "fail";
-    case "RUNNING":
-      return "running";
-    case "CANCELLED":
-      return "warn";
-    default:
-      return "neutral";
-  }
-}
-
-function formatDuration(ms: number | null | undefined): string {
-  if (ms == null) return "—";
-  if (ms < 1000) return `${ms.toString()}ms`;
-  const s = ms / 1000;
-  if (s < 60) return `${s.toFixed(1)}s`;
-  const m = Math.floor(s / 60);
-  return `${m.toString()}m ${Math.round(s % 60).toString()}s`;
 }
 
 function formatTimestamp(iso: string | null | undefined): string {

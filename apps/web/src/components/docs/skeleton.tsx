@@ -1,11 +1,12 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { ListSkeleton } from "@/components/shared/ListSkeleton";
 
 export function DocsSkeleton(): React.ReactElement {
   return (
-    <div className="grid grid-cols-2 gap-3" data-testid="docs-skeleton">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Skeleton key={i} className="h-[140px] rounded-md" />
-      ))}
-    </div>
+    <ListSkeleton
+      testId="docs-skeleton"
+      count={4}
+      className="grid grid-cols-2 gap-3"
+      rowClassName="h-[140px] rounded-md"
+    />
   );
 }

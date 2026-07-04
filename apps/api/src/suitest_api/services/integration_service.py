@@ -15,7 +15,7 @@ M1d-19 adds the write surface:
 * :meth:`delete` — HARD delete (no soft delete on integrations per plan-05b
   M1d-19; the row is gone but the AuditLog history persists).
 * :meth:`test_connection` — resolve adapter from
-  :class:`AdapterRegistry` (issue trackers) or :class:`NotifierFactoryRegistry`
+  :class:`AdapterRegistry` (issue trackers) or the notifier-factory map
   (notifiers), invoke ``test_connection``, return the result.
 * :meth:`sync_external` — for issue-tracker integrations, iterate the linked
   defects, refetch the external status, and update the local
@@ -56,6 +56,7 @@ from suitest_api.integrations.base import (
 from suitest_api.integrations.registry import (
     AdapterNotRegistered,
     AdapterRegistry,
+    NotifierFactory,
 )
 from suitest_api.schemas.integration import SyncConflict, SyncResult
 
@@ -64,10 +65,6 @@ if TYPE_CHECKING:
 
     import httpx
     from sqlalchemy.ext.asyncio import AsyncSession
-
-    from suitest_api.integrations.notifier_registry import (
-        NotifierFactoryRegistry,
-    )
 
 
 # Kinds wired as :class:`IssueTrackerAdapter` (PR-12/13/14 register singletons).
@@ -163,13 +160,13 @@ class IntegrationService:
         repo: IntegrationRepo,
         *,
         adapter_registry: AdapterRegistry | None = None,
-        notifier_factory_registry: NotifierFactoryRegistry | None = None,
+        notifier_factories: dict[IntegrationKind, NotifierFactory] | None = None,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self._ctx = ctx
         self._repo = repo
         self._adapter_registry = adapter_registry
-        self._notifier_factory_registry = notifier_factory_registry
+        self._notifier_factories = notifier_factories
         self._http_client = http_client
 
     @property
@@ -423,10 +420,10 @@ class IntegrationService:
             raise IntegrationKindUnsupportedError(kind) from exc
 
     def _resolve_notifier(self, integration: Integration) -> NotifierAdapter:
-        if self._notifier_factory_registry is None or self._http_client is None:
+        if self._notifier_factories is None or self._http_client is None:
             raise IntegrationKindUnsupportedError(integration.kind)
         try:
-            factory = self._notifier_factory_registry.get(integration.kind)
+            factory = self._notifier_factories[integration.kind]
         except KeyError as exc:
             raise IntegrationKindUnsupportedError(integration.kind) from exc
         return factory(integration, self._http_client)

@@ -1,7 +1,8 @@
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { formatDuration } from "@/lib/test-case-format";
 import { cn } from "@/lib/utils";
 
-import { formatDuration, rollupLabel, rollupToBadge, type CaseGroup } from "./case-grouping";
+import { rollupLabel, rollupToBadge, type CaseGroup } from "./case-grouping";
 
 interface CaseListProps {
   groups: CaseGroup[];

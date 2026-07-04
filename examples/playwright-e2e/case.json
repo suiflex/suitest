@@ -1,9 +1,0 @@
-{
-  "name": "Login smoke (web)",
-  "targetKind": "FE_WEB",
-  "steps": [
-    {"order": 1, "action": "Navigate to /login", "expected": "Login form visible", "mcpProvider": "playwright-mcp", "code": "await page.goto('/login')"},
-    {"order": 2, "action": "Fill credentials + submit", "expected": "Redirected to /dashboard", "mcpProvider": "playwright-mcp", "code": "await page.fill('#email','demo@example.com'); await page.fill('#password','demo'); await page.click('button[type=submit]')"},
-    {"order": 3, "action": "Assert dashboard heading", "expected": "Heading reads 'Dashboard'", "mcpProvider": "playwright-mcp", "code": "await expect(page.getByRole('heading',{name:'Dashboard'})).toBeVisible()"}
-  ]
-}

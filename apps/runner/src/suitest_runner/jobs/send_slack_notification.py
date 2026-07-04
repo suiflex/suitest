@@ -35,9 +35,9 @@ from suitest_api.integrations.base import (
     DefectEvent,
     NotificationResult,
 )
-from suitest_api.integrations.notifier_registry import (
+from suitest_api.integrations.registry import (
     NotifierFactoryNotRegistered,
-    notifier_factory_registry,
+    get_notifier_factory,
 )
 from suitest_db.models.defect import Defect
 from suitest_db.models.integration import Integration
@@ -148,7 +148,7 @@ async def send_slack_notification(
         # high-volume. The ``async with`` ensures the transport is released
         # even if the adapter raises.
         async with httpx.AsyncClient() as http_client:
-            factory_callable = notifier_factory_registry.get(IntegrationKind.SLACK)
+            factory_callable = get_notifier_factory(IntegrationKind.SLACK)
             adapter = factory_callable(integration, http_client)
             result: NotificationResult = await adapter.send_notification(
                 event,

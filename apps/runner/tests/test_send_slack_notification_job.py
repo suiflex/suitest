@@ -10,7 +10,7 @@ Coverage:
 * Job exits early when integration / defect rows are missing.
 
 The job's only external collaborator is the adapter factory it resolves from
-:data:`notifier_factory_registry`; we register a fake factory per test so the
+:data:`notifier_factories`; we register a fake factory per test so the
 tests stay fast and don't need a real httpx + Slack mock.
 """
 
@@ -31,10 +31,7 @@ from suitest_api.integrations.base import (
     NotificationResult,
     NotifierAdapter,
 )
-from suitest_api.integrations.notifier_registry import (
-    NotifierFactoryRegistry,
-    notifier_factory_registry,
-)
+from suitest_api.integrations.registry import NotifierFactory, notifier_factories
 from suitest_db.models.defect import Defect
 from suitest_db.models.integration import Integration
 from suitest_runner.jobs.send_slack_notification import (
@@ -168,18 +165,18 @@ def _confirm_fake_adapter_is_protocol() -> None:
 
 
 @pytest.fixture()
-def _isolate_registry() -> Iterator[NotifierFactoryRegistry]:
+def _isolate_registry() -> Iterator[dict[IntegrationKind, NotifierFactory]]:
     """Replace the module-global registry contents for each test.
 
-    The job resolves the factory off the singleton; tests register a fake
-    factory per case. Resetting the dict on teardown so a later test doesn't
-    inherit a stale factory.
+    The job resolves the factory off the module-level dict; tests register a
+    fake factory per case. Resetting the dict on teardown so a later test
+    doesn't inherit a stale factory.
     """
-    original = dict(notifier_factory_registry._by_kind)
-    notifier_factory_registry._by_kind.clear()
-    yield notifier_factory_registry
-    notifier_factory_registry._by_kind.clear()
-    notifier_factory_registry._by_kind.update(original)
+    original = dict(notifier_factories)
+    notifier_factories.clear()
+    yield notifier_factories
+    notifier_factories.clear()
+    notifier_factories.update(original)
 
 
 # ---------------------------------------------------------------------------
@@ -189,12 +186,12 @@ def _isolate_registry() -> Iterator[NotifierFactoryRegistry]:
 
 @pytest.mark.asyncio
 async def test_happy_path_returns_sent_true(
-    _isolate_registry: NotifierFactoryRegistry,
+    _isolate_registry: dict[IntegrationKind, NotifierFactory],
 ) -> None:
     integration = _make_integration()
     defect = _make_defect()
     adapter = _FakeAdapter(outcomes=["OK"])
-    _isolate_registry.register(IntegrationKind.SLACK, lambda _i, _h: adapter)
+    _isolate_registry[IntegrationKind.SLACK] = lambda _i, _h: adapter
 
     ctx = {
         "session_factory": _session_factory(integration, defect),
@@ -216,9 +213,9 @@ async def test_happy_path_returns_sent_true(
 
 @pytest.mark.asyncio
 async def test_missing_integration_returns_not_found(
-    _isolate_registry: NotifierFactoryRegistry,
+    _isolate_registry: dict[IntegrationKind, NotifierFactory],
 ) -> None:
-    _isolate_registry.register(IntegrationKind.SLACK, lambda _i, _h: _FakeAdapter(outcomes=["OK"]))
+    _isolate_registry[IntegrationKind.SLACK] = lambda _i, _h: _FakeAdapter(outcomes=["OK"])
     ctx = {
         "session_factory": _session_factory(None, _make_defect()),
         "redis": _RecordingRedis(),
@@ -230,9 +227,9 @@ async def test_missing_integration_returns_not_found(
 
 @pytest.mark.asyncio
 async def test_missing_defect_returns_not_found(
-    _isolate_registry: NotifierFactoryRegistry,
+    _isolate_registry: dict[IntegrationKind, NotifierFactory],
 ) -> None:
-    _isolate_registry.register(IntegrationKind.SLACK, lambda _i, _h: _FakeAdapter(outcomes=["OK"]))
+    _isolate_registry[IntegrationKind.SLACK] = lambda _i, _h: _FakeAdapter(outcomes=["OK"])
     ctx = {
         "session_factory": _session_factory(_make_integration(), None),
         "redis": _RecordingRedis(),
@@ -244,11 +241,11 @@ async def test_missing_defect_returns_not_found(
 
 @pytest.mark.asyncio
 async def test_wrong_kind_returns_mismatch(
-    _isolate_registry: NotifierFactoryRegistry,
+    _isolate_registry: dict[IntegrationKind, NotifierFactory],
 ) -> None:
     integration = _make_integration()
     integration.kind = IntegrationKind.JIRA
-    _isolate_registry.register(IntegrationKind.SLACK, lambda _i, _h: _FakeAdapter(outcomes=["OK"]))
+    _isolate_registry[IntegrationKind.SLACK] = lambda _i, _h: _FakeAdapter(outcomes=["OK"])
     ctx = {
         "session_factory": _session_factory(integration, _make_defect()),
         "redis": _RecordingRedis(),
@@ -265,13 +262,12 @@ async def test_wrong_kind_returns_mismatch(
 
 @pytest.mark.asyncio
 async def test_transient_remote_error_reraises_for_arq_retry(
-    _isolate_registry: NotifierFactoryRegistry,
+    _isolate_registry: dict[IntegrationKind, NotifierFactory],
 ) -> None:
     integration = _make_integration()
     defect = _make_defect()
-    _isolate_registry.register(
-        IntegrationKind.SLACK,
-        lambda _i, _h: _FakeAdapter(outcomes=[AdapterRemoteError]),
+    _isolate_registry[IntegrationKind.SLACK] = lambda _i, _h: _FakeAdapter(
+        outcomes=[AdapterRemoteError]
     )
     ctx = {
         "session_factory": _session_factory(integration, defect),
@@ -286,11 +282,10 @@ async def test_transient_remote_error_reraises_for_arq_retry(
 
 @pytest.mark.asyncio
 async def test_transient_timeout_reraises_for_arq_retry(
-    _isolate_registry: NotifierFactoryRegistry,
+    _isolate_registry: dict[IntegrationKind, NotifierFactory],
 ) -> None:
-    _isolate_registry.register(
-        IntegrationKind.SLACK,
-        lambda _i, _h: _FakeAdapter(outcomes=[AdapterTimeoutError]),
+    _isolate_registry[IntegrationKind.SLACK] = lambda _i, _h: _FakeAdapter(
+        outcomes=[AdapterTimeoutError]
     )
     integration = _make_integration()
     defect = _make_defect()
@@ -305,12 +300,11 @@ async def test_transient_timeout_reraises_for_arq_retry(
 
 @pytest.mark.asyncio
 async def test_adapter_returned_failed_reraises_until_terminal(
-    _isolate_registry: NotifierFactoryRegistry,
+    _isolate_registry: dict[IntegrationKind, NotifierFactory],
 ) -> None:
     """Adapter returns ``sent=False`` (no raise) → treated as transient, re-raised."""
-    _isolate_registry.register(
-        IntegrationKind.SLACK,
-        lambda _i, _h: _FakeAdapter(outcomes=["RETURN_FAILED"]),
+    _isolate_registry[IntegrationKind.SLACK] = lambda _i, _h: _FakeAdapter(
+        outcomes=["RETURN_FAILED"]
     )
     integration = _make_integration()
     defect = _make_defect()
@@ -330,13 +324,12 @@ async def test_adapter_returned_failed_reraises_until_terminal(
 
 @pytest.mark.asyncio
 async def test_terminal_failure_marks_integration_error_and_broadcasts(
-    _isolate_registry: NotifierFactoryRegistry,
+    _isolate_registry: dict[IntegrationKind, NotifierFactory],
 ) -> None:
     integration = _make_integration()
     defect = _make_defect()
-    _isolate_registry.register(
-        IntegrationKind.SLACK,
-        lambda _i, _h: _FakeAdapter(outcomes=[AdapterRemoteError]),
+    _isolate_registry[IntegrationKind.SLACK] = lambda _i, _h: _FakeAdapter(
+        outcomes=[AdapterRemoteError]
     )
     redis = _RecordingRedis()
     ctx = {
@@ -362,14 +355,13 @@ async def test_terminal_failure_marks_integration_error_and_broadcasts(
 
 @pytest.mark.asyncio
 async def test_terminal_failure_for_adapter_returned_failed_marks_error(
-    _isolate_registry: NotifierFactoryRegistry,
+    _isolate_registry: dict[IntegrationKind, NotifierFactory],
 ) -> None:
     """Adapter returns ``sent=False`` on the last attempt → terminal handling kicks in."""
     integration = _make_integration()
     defect = _make_defect()
-    _isolate_registry.register(
-        IntegrationKind.SLACK,
-        lambda _i, _h: _FakeAdapter(outcomes=["RETURN_FAILED"]),
+    _isolate_registry[IntegrationKind.SLACK] = lambda _i, _h: _FakeAdapter(
+        outcomes=["RETURN_FAILED"]
     )
     redis = _RecordingRedis()
     ctx = {

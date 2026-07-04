@@ -29,6 +29,7 @@ from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
+from integrations_contract import run_adapter_contract
 from suitest_api.integrations.base import (
     AdapterAuthError,
     AdapterRateLimitError,
@@ -39,7 +40,6 @@ from suitest_api.integrations.base import (
     ExternalIssueInput,
     IssueTrackerAdapter,
 )
-from suitest_api.integrations.contract import run_adapter_contract
 from suitest_api.integrations.jira_adapter import (
     JiraAdapter,
     _IdentityCrypto,

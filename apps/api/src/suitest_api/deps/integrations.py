@@ -5,8 +5,8 @@ Two registries:
 * :func:`get_adapter_registry` — issue-tracker singletons (Jira / Linear /
   GitHub), constructed once per process and stashed on
   ``app.state.adapter_registry``.
-* :func:`get_notifier_factory_registry` — per-row notifier factories (Slack),
-  stashed on ``app.state.notifier_factory_registry``.
+* :func:`get_notifier_factories` — per-row notifier factories (Slack),
+  stashed on ``app.state.notifier_factories``.
 
 Plus a pair of OPTIONAL pre-save factories used by the M1d-19
 ``/integrations/jira|github/test-connection`` endpoints:
@@ -28,13 +28,15 @@ from __future__ import annotations
 from typing import Protocol
 
 from fastapi import Request
+from suitest_shared.domain.enums import IntegrationKind
 
 from suitest_api.integrations.base import IssueTrackerAdapter
-from suitest_api.integrations.notifier_registry import (
-    NotifierFactoryRegistry,
-    notifier_factory_registry,
+from suitest_api.integrations.registry import (
+    AdapterRegistry,
+    NotifierFactory,
+    adapter_registry,
+    notifier_factories,
 )
-from suitest_api.integrations.registry import AdapterRegistry, adapter_registry
 
 
 def get_adapter_registry(request: Request) -> AdapterRegistry:
@@ -51,17 +53,18 @@ def get_adapter_registry(request: Request) -> AdapterRegistry:
     return adapter_registry
 
 
-def get_notifier_factory_registry(request: Request) -> NotifierFactoryRegistry:
-    """Return the :class:`NotifierFactoryRegistry` stashed on app.state.
+def get_notifier_factories(request: Request) -> dict[IntegrationKind, NotifierFactory]:
+    """Return the notifier-factory map stashed on ``app.state.notifier_factories``.
 
     Mirrors :func:`get_adapter_registry` semantics — falls back to the
-    import-time singleton when the lifespan hasn't run. Slack is the only
-    notifier kind registered today (M1d-15); PR-17+ will add PagerDuty / Teams.
+    import-time module-level dict when the lifespan hasn't run. Slack is the
+    only notifier kind registered today (M1d-15); PR-17+ will add PagerDuty /
+    Teams.
     """
-    stashed = getattr(request.app.state, "notifier_factory_registry", None)
-    if isinstance(stashed, NotifierFactoryRegistry):
+    stashed = getattr(request.app.state, "notifier_factories", None)
+    if isinstance(stashed, dict):
         return stashed
-    return notifier_factory_registry
+    return notifier_factories
 
 
 class PreSaveTestFactory(Protocol):

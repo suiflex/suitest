@@ -30,7 +30,7 @@ import pytest
 from sqlalchemy import select
 from suitest_api.deps.integrations import (
     get_adapter_registry,
-    get_notifier_factory_registry,
+    get_notifier_factories,
     get_pre_save_github_factory,
     get_pre_save_jira_factory,
 )
@@ -43,8 +43,7 @@ from suitest_api.integrations.base import (
 from suitest_api.integrations.base import (
     ExternalIssue as ExternalIssueDto,
 )
-from suitest_api.integrations.notifier_registry import NotifierFactoryRegistry
-from suitest_api.integrations.registry import AdapterRegistry
+from suitest_api.integrations.registry import AdapterRegistry, NotifierFactory
 from suitest_db.models.audit import AuditLog
 from suitest_db.models.defect import Defect, ExternalIssue
 from suitest_db.models.integration import Integration
@@ -168,12 +167,13 @@ def _bind_adapter(app: Any, kind: IntegrationKind, adapter: Any) -> AdapterRegis
     return registry
 
 
-def _bind_notifier(app: Any, kind: IntegrationKind, factory: Any) -> NotifierFactoryRegistry:
-    """Build a per-test :class:`NotifierFactoryRegistry` and bind it via dep override."""
-    registry = NotifierFactoryRegistry()
-    registry.register(kind, factory)
-    app.dependency_overrides[get_notifier_factory_registry] = lambda: registry
-    return registry
+def _bind_notifier(
+    app: Any, kind: IntegrationKind, factory: Any
+) -> dict[IntegrationKind, NotifierFactory]:
+    """Build a per-test notifier-factory dict and bind it via dep override."""
+    factories: dict[IntegrationKind, NotifierFactory] = {kind: factory}
+    app.dependency_overrides[get_notifier_factories] = lambda: factories
+    return factories
 
 
 # ---------------------------------------------------------------------------

@@ -38,8 +38,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from suitest_shared.domain.enums import IntegrationKind
 
     from suitest_api.integrations.jira_adapter import _IdentityCrypto
-    from suitest_api.integrations.notifier_registry import notifier_factory_registry
-    from suitest_api.integrations.registry import adapter_registry
+    from suitest_api.integrations.registry import adapter_registry, notifier_factories
     from suitest_api.integrations.slack_adapter import SlackAdapter
     from suitest_api.ws.manager import WsConnectionManager
 
@@ -80,13 +79,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # can replace this without touching the adapter code.
     app.state.integration_crypto = _IdentityCrypto()
 
-    # Notifier-adapter factory registry (M1d-15). Notifier adapters are
-    # constructed per-integration-row (each row carries its own webhook secret),
-    # so the registry stores callables rather than singletons. The Slack factory
-    # builds a :class:`~suitest_api.integrations.slack_adapter.SlackAdapter`
-    # from the integration row plus the shared httpx client.
-    notifier_factory_registry.register(IntegrationKind.SLACK, SlackAdapter)
-    app.state.notifier_factory_registry = notifier_factory_registry
+    # Notifier-adapter factory map (M1d-15). Notifier adapters are constructed
+    # per-integration-row (each row carries its own webhook secret), so the map
+    # stores callables rather than singletons. The Slack factory builds a
+    # :class:`~suitest_api.integrations.slack_adapter.SlackAdapter` from the
+    # integration row plus the shared httpx client.
+    notifier_factories[IntegrationKind.SLACK] = SlackAdapter
+    app.state.notifier_factories = notifier_factories
 
     ws_manager: WsConnectionManager | None = None
     ws_redis = getattr(app.state, "ws_redis", None)

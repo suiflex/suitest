@@ -141,6 +141,8 @@ networks:
 
 Tip: the CLOUD tier only needs an env diff, the images are exactly the same. Restart `api` + `runner` after editing `.env`.
 
+If you want Langfuse for LLM observability, run it from [Langfuse's own compose file](https://github.com/langfuse/langfuse) and point the OTEL/Langfuse env of `api`/`runner` at it — it is not bundled in Suitest's compose stack.
+
 ### 1.4 `.env.example` excerpt (ZERO default)
 
 ```env

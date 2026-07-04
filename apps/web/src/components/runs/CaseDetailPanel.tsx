@@ -11,8 +11,9 @@ import {
   fetchTestCaseDescription,
 } from "@/lib/api-client";
 import type { components } from "@/lib/api-types";
+import { formatDuration } from "@/lib/test-case-format";
 
-import { formatDuration, rollupLabel, rollupToBadge, type CaseGroup } from "./case-grouping";
+import { rollupLabel, rollupToBadge, type CaseGroup } from "./case-grouping";
 import { StepTable } from "./StepTable";
 
 type ArtifactPublic = components["schemas"]["ArtifactPublic"];

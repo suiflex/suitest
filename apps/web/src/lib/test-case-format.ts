@@ -372,3 +372,17 @@ export function generateFallbackSteps(nameOrSlug: string): DerivedStep[] {
     },
   ]);
 }
+
+// ---------------------------------------------------------------------------
+// Duration formatting
+// ---------------------------------------------------------------------------
+
+/** Compact duration label for run/step timings: `850ms`, `4.2s`, `2m 5s`. */
+export function formatDuration(ms: number | null | undefined): string {
+  if (ms == null) return "—";
+  if (ms < 1000) return `${ms.toString()}ms`;
+  const s = ms / 1000;
+  if (s < 60) return `${s.toFixed(1)}s`;
+  const m = Math.floor(s / 60);
+  return `${m.toString()}m ${Math.round(s % 60).toString()}s`;
+}

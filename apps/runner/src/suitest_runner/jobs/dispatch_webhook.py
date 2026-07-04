@@ -34,11 +34,12 @@ from suitest_api.integrations.base import (
     DefectEvent,
     ExternalIssueInput,
 )
-from suitest_api.integrations.notifier_registry import (
+from suitest_api.integrations.registry import (
+    AdapterNotRegistered,
     NotifierFactoryNotRegistered,
-    notifier_factory_registry,
+    adapter_registry,
+    get_notifier_factory,
 )
-from suitest_api.integrations.registry import AdapterNotRegistered, adapter_registry
 from suitest_api.services.webhook_retry_queue import (
     DISPATCH_QUEUE,
     MAX_ATTEMPTS,
@@ -135,7 +136,7 @@ async def _dispatch(
     """Route to the right adapter call for ``operation``. Raises on failure."""
     if operation == "send_notification":
         async with httpx.AsyncClient() as http_client:
-            factory_callable = notifier_factory_registry.get(kind)
+            factory_callable = get_notifier_factory(kind)
             adapter = factory_callable(integration, http_client)
             event = DefectEvent.model_validate(payload)
             result = await adapter.send_notification(event, config=config, secrets=secrets)

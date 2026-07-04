@@ -15,7 +15,7 @@ Adapters land their own per-adapter tests in PR-12..15 — this module is the
 
 Usage from a test module::
 
-    from suitest_api.integrations.contract import IssueTrackerAdapterContract
+    from integrations_contract import IssueTrackerAdapterContract
 
     class TestJiraAdapter(IssueTrackerAdapterContract):
         pass  # auto-parametrized over the registry
@@ -29,8 +29,6 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from suitest_shared.domain.enums import DefectStatus, Severity
-
 from suitest_api.integrations.base import (
     ConnectionTestResult,
     ExternalIssue,
@@ -38,6 +36,7 @@ from suitest_api.integrations.base import (
     IssueTrackerAdapter,
 )
 from suitest_api.integrations.registry import adapter_registry
+from suitest_shared.domain.enums import DefectStatus, Severity
 
 
 def _sample_input(defect_id: str = "defc_test_0001") -> ExternalIssueInput:

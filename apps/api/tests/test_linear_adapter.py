@@ -36,6 +36,7 @@ import httpx
 import pytest
 import respx
 from asgi_lifespan import LifespanManager
+from integrations_contract import run_adapter_contract
 from suitest_api.integrations.base import (
     AdapterAuthError,
     AdapterRateLimitError,
@@ -46,7 +47,6 @@ from suitest_api.integrations.base import (
     ExternalIssueInput,
     IssueTrackerAdapter,
 )
-from suitest_api.integrations.contract import run_adapter_contract
 from suitest_api.integrations.linear_adapter import (
     DEFAULT_STATUS_MAP,
     LINEAR_GRAPHQL_URL,

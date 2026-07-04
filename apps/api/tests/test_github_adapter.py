@@ -34,6 +34,7 @@ import pytest_asyncio
 import respx
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from integrations_contract import run_adapter_contract
 from suitest_api.integrations.base import (
     AdapterAuthError,
     AdapterTimeoutError,
@@ -42,7 +43,6 @@ from suitest_api.integrations.base import (
     ExternalIssueInput,
     IssueTrackerAdapter,
 )
-from suitest_api.integrations.contract import run_adapter_contract
 from suitest_api.integrations.github_adapter import (
     GitHubAdapter,
     McpInvokeResult,

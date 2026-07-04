@@ -15,7 +15,7 @@ interface GatedProps {
  *
  * Usage:
  * ```tsx
- * <Gated feature="ai_generation" fallback={<DisabledPlaceholder reason="…" />}>
+ * <Gated feature="ai_generation" fallback={<span>Requires an LLM provider</span>}>
  *   <GenerateButton />
  * </Gated>
  * ```

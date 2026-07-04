@@ -34,19 +34,10 @@ import {
 } from "@/hooks/use-dashboard";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import type { components } from "@/lib/api-types";
+import { formatDuration } from "@/lib/test-case-format";
 import { cn } from "@/lib/utils";
 
 const DASHBOARD_PERIOD = "7d";
-
-function formatDuration(ms: number | null | undefined): string {
-  if (ms == null) return "—";
-  if (ms < 1000) return `${ms}ms`;
-  const seconds = ms / 1000;
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  const minutes = Math.floor(seconds / 60);
-  const rem = Math.round(seconds % 60);
-  return `${minutes}m ${rem}s`;
-}
 
 function KpiSection(): React.ReactElement {
   const { data: kpis } = useDashboardKpis(DASHBOARD_PERIOD);
@@ -124,12 +115,9 @@ function CoverageCard(): React.ReactElement {
 
 type RunListItem = components["schemas"]["RunListItem"];
 
-function runStatusToBadge(status: RunListItem["status"]):
-  | "pass"
-  | "fail"
-  | "warn"
-  | "running"
-  | "neutral" {
+function runStatusToBadge(
+  status: RunListItem["status"],
+): "pass" | "fail" | "warn" | "running" | "neutral" {
   switch (status) {
     case "PASS":
       return "pass";
@@ -287,12 +275,12 @@ function DashboardHeader(): React.ReactElement {
     <header className="flex items-start justify-between gap-4" data-testid="dashboard-header">
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2.5">
-          <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">{t("dashboard.title")}</h2>
+          <h2 className="text-[20px] font-semibold tracking-[-.01em] text-fg-1">
+            {t("dashboard.title")}
+          </h2>
           <StatusBadge status="pass" label="All systems healthy" />
         </div>
-        <p className="text-[12.5px] text-fg-3">
-          {t("dashboard.greeting", { name: firstName })}
-        </p>
+        <p className="text-[12.5px] text-fg-3">{t("dashboard.greeting", { name: firstName })}</p>
       </div>
       <div className="flex items-center gap-2">
         <button

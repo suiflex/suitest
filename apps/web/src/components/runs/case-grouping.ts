@@ -22,29 +22,6 @@ export function stepTypeLabel(type: string | null | undefined): string {
   return t && t.length > 0 ? t : "step";
 }
 
-export function outcomeToBadge(outcome: StepOutcome): StatusBadgeStatus {
-  switch (outcome) {
-    case "PASS":
-      return "pass";
-    case "FAIL":
-    case "ERROR":
-      return "fail";
-    case "SKIP":
-      return "warn";
-    default:
-      return "neutral";
-  }
-}
-
-export function formatDuration(ms: number | null | undefined): string {
-  if (ms == null) return "—";
-  if (ms < 1000) return `${ms.toString()}ms`;
-  const s = ms / 1000;
-  if (s < 60) return `${s.toFixed(1)}s`;
-  const m = Math.floor(s / 60);
-  return `${m.toString()}m ${Math.round(s % 60).toString()}s`;
-}
-
 /** One test case's rolled-up view over the run's steps + artifacts. */
 export interface CaseGroup {
   caseId: string;

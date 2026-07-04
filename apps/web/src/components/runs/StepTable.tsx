@@ -1,8 +1,10 @@
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import type { components } from "@/lib/api-types";
+import { outcomeToBadge } from "@/lib/badge-maps";
+import { formatDuration } from "@/lib/test-case-format";
 import { cn } from "@/lib/utils";
 
-import { formatDuration, outcomeToBadge, stepTitle, stepTypeLabel } from "./case-grouping";
+import { stepTitle, stepTypeLabel } from "./case-grouping";
 
 type RunStepPublic = components["schemas"]["RunStepPublic"];
 type StepOutcome = components["schemas"]["StepOutcome"];

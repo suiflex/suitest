@@ -1,11 +1,12 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { ListSkeleton } from "@/components/shared/ListSkeleton";
 
 export function InboxSkeleton(): React.ReactElement {
   return (
-    <div className="flex flex-col gap-[14px]" data-testid="inbox-skeleton">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Skeleton key={i} className="h-[96px] rounded-md" />
-      ))}
-    </div>
+    <ListSkeleton
+      testId="inbox-skeleton"
+      count={4}
+      className="flex flex-col gap-[14px]"
+      rowClassName="h-[96px] rounded-md"
+    />
   );
 }

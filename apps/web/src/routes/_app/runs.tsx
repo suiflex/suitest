@@ -16,39 +16,14 @@ import { Button } from "@/components/ui/button";
 import { useCancelRun, useRerunRun, useRun, useRunsList, useRunsSummary } from "@/hooks/use-runs";
 import { ApiError } from "@/lib/api-client";
 import type { components } from "@/lib/api-types";
+import { statusToBadge } from "@/lib/badge-maps";
+import { formatDuration } from "@/lib/test-case-format";
 import { cn } from "@/lib/utils";
 
 type RunListItem = components["schemas"]["RunListItem"];
 
 interface SearchSchema {
   run?: string;
-}
-
-function statusToBadge(
-  status: RunListItem["status"],
-): "pass" | "fail" | "warn" | "running" | "neutral" {
-  switch (status) {
-    case "PASS":
-      return "pass";
-    case "FAIL":
-    case "ERROR":
-      return "fail";
-    case "RUNNING":
-      return "running";
-    case "CANCELLED":
-      return "warn";
-    default:
-      return "neutral";
-  }
-}
-
-function formatDuration(ms: number | null | undefined): string {
-  if (ms == null) return "—";
-  if (ms < 1000) return `${ms}ms`;
-  const s = ms / 1000;
-  if (s < 60) return `${s.toFixed(1)}s`;
-  const m = Math.floor(s / 60);
-  return `${m}m ${Math.round(s % 60)}s`;
 }
 
 function SummaryBar(): React.ReactElement {

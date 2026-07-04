@@ -58,6 +58,17 @@ def _publish_step(pub: dict[str, object]) -> str:
     return f"publish skipped — {pub.get('reason')}"
 
 
+def _record_publish(
+    pub: dict[str, object], steps: list[str], errors: list[str]
+) -> None:
+    """A failed publish never fails the run, but it must be LOUD: agents only
+    read the envelope's ``errors``, so a steps-only note is effectively silent."""
+    msg = _publish_step(pub)
+    steps.append(msg)
+    if not pub.get("published"):
+        errors.append(msg)
+
+
 def _today() -> str:
     return datetime.date.today().isoformat()
 
@@ -290,7 +301,7 @@ def run_lifecycle(config: Config) -> LifecycleResult:
         run_failed = _empty_run(config, summary_code, server_started, False, detail, startup_tail)
         _finalize(config, cases, run_failed, paths)
         if config.publish.enabled:
-            steps.append(_publish_step(publish_results(config, run_failed, cases, paths)))
+            _record_publish(publish_results(config, run_failed, cases, paths), steps, errors)
         return LifecycleResult(
             success=False,
             summary=f"FAILED — {detail}",
@@ -393,7 +404,7 @@ def run_lifecycle(config: Config) -> LifecycleResult:
     run = _build_run(config, summary_code, results, server_started, ready_detail, startup_tail)
     _finalize(config, cases, run, paths)
     if config.publish.enabled:
-        steps.append(_publish_step(publish_results(config, run, cases, paths)))
+        _record_publish(publish_results(config, run, cases, paths), steps, errors)
 
     ok = run.failed == 0 and run.errored == 0
     verb = "PASSED" if ok else "FAILED"

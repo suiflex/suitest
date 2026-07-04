@@ -135,6 +135,17 @@ def test_publish_disabled_returns_reason() -> None:
     assert "disabled" in str(res["reason"])
 
 
+def test_record_publish_surfaces_failure_in_errors() -> None:
+    from suitest_lifecycle.orchestrator import _record_publish
+
+    steps: list[str] = []
+    errors: list[str] = []
+    _record_publish({"published": False, "reason": "boom"}, steps, errors)
+    assert errors == ["publish skipped — boom"]
+    _record_publish({"published": True, "runId": "r1", "imported": 2}, steps, errors)
+    assert len(steps) == 2 and len(errors) == 1  # success adds a step, no error
+
+
 # --- runner step collection -------------------------------------------------
 def test_collect_steps_reads_frontend_sidecar(tmp_path: Path) -> None:
     case = PlanCase(id="TC009", title="t", description="", category="x", priority=Priority.LOW)

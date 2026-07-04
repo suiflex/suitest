@@ -31,7 +31,7 @@ from suitest_api.auth.db import get_async_session
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext
 from suitest_api.services.custom_integration_service import (
-    custom_integration_adapter_registry,
+    CUSTOM_INTEGRATION_ADAPTERS,
 )
 from suitest_api.services.reporter_registry import reporter_registry
 
@@ -187,7 +187,7 @@ async def list_reporters() -> list[ReporterInfo]:
 )
 async def list_integration_adapters() -> list[IntegrationAdapterInfo]:
     """Return the kinds of all registered custom integration adapters."""
-    return [IntegrationAdapterInfo(kind=k) for k in custom_integration_adapter_registry.list_all()]
+    return [IntegrationAdapterInfo(kind=k) for k in sorted(CUSTOM_INTEGRATION_ADAPTERS)]
 
 
 @router.get(

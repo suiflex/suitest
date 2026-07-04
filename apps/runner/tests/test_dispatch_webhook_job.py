@@ -30,7 +30,7 @@ from suitest_api.integrations.base import (
     NotificationResult,
     NotifierAdapter,
 )
-from suitest_api.integrations.notifier_registry import notifier_factory_registry
+from suitest_api.integrations.registry import notifier_factories
 from suitest_api.services.webhook_retry_queue import BACKOFF_SECONDS, MAX_ATTEMPTS
 from suitest_db.models.integration import Integration
 from suitest_db.models.webhook_dispatch import WebhookDispatchAttempt
@@ -150,7 +150,7 @@ def register_notifier() -> Iterator[Callable[[str | type[Exception]], _Notifier]
         ) -> NotifierAdapter:
             return notifier
 
-        notifier_factory_registry.register(IntegrationKind.SLACK, _factory_callable)
+        notifier_factories[IntegrationKind.SLACK] = _factory_callable
         return notifier
 
     yield _register

@@ -4,10 +4,10 @@ Registers under name ``security-agent``.  Requires CLOUD tier because it uses
 a capable reasoning model.  Focuses on injection, auth bypass, and sensitive
 data exposure.
 
-To activate, install this package and declare the entry point::
+To activate, ship the class in an installed package and declare the entry point::
 
     [project.entry-points."suitest.plugins"]
-    security-agent = "suitest_agent.plugin_sdk.examples.security_agent:SecurityAgent"
+    security-agent = "my_package.security_agent:SecurityAgent"
 """
 
 from __future__ import annotations

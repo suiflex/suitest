@@ -4,7 +4,7 @@ All scoped via project -> workspace. ``GET /runs/:id/logs`` concatenates each
 RunStep's stdout + stderr in step_order into a flat line stream and paginates it
 with a simple integer line-offset cursor (M1a; a richer per-chunk cursor lands
 with live streaming in M3). Artifact download produces a presigned URL via
-:func:`build_signed_url` (object store) or a placeholder for ``file://`` artifacts.
+aioboto3 (object store) or a placeholder for ``file://`` artifacts.
 """
 
 from __future__ import annotations

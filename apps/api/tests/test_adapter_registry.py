@@ -27,6 +27,7 @@ import pytest
 from asgi_lifespan import LifespanManager
 from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
+from integrations_contract import run_adapter_contract
 from suitest_api.deps.integrations import get_adapter_registry
 from suitest_api.integrations import adapter_registry as singleton_registry
 from suitest_api.integrations import registry as registry_module
@@ -42,7 +43,6 @@ from suitest_api.integrations.base import (
     IssueTrackerAdapter,
     StatusMap,
 )
-from suitest_api.integrations.contract import run_adapter_contract
 from suitest_api.integrations.registry import AdapterNotRegistered, AdapterRegistry
 from suitest_api.main import create_app
 from suitest_shared.domain.enums import DefectStatus, IntegrationKind, Severity

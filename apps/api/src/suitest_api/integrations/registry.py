@@ -16,12 +16,15 @@ The registry is intentionally minimal — no DI graph, no lazy loading. M1d-19's
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    import httpx
+    from suitest_db.models.integration import Integration
     from suitest_shared.domain.enums import IntegrationKind
 
-    from suitest_api.integrations.base import IssueTrackerAdapter
+    from suitest_api.integrations.base import IssueTrackerAdapter, NotifierAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -106,3 +109,33 @@ class AdapterRegistry:
 # overwrites ``app.state.adapter_registry`` with this singleton at startup so
 # production code keeps a single canonical instance.
 adapter_registry = AdapterRegistry()
+
+
+# ---------------------------------------------------------------------------
+# Notifier factories (M1d-15)
+# ---------------------------------------------------------------------------
+
+# Callable that builds a :class:`NotifierAdapter` for one :class:`Integration`
+# row. Notifier adapters (Slack today) are constructed per-row because each
+# row carries its own secrets (webhook URL) and config, so the map below
+# stores factories rather than singleton instances.
+NotifierFactory = Callable[["Integration", "httpx.AsyncClient"], "NotifierAdapter"]
+
+
+class NotifierFactoryNotRegistered(KeyError):
+    """No notifier factory registered for the requested :class:`IntegrationKind`."""
+
+
+# Process-wide :class:`IntegrationKind` → factory map. The lifespan in
+# :mod:`suitest_api.main` registers the Slack factory (the only notifier kind
+# today) and stashes the same dict on ``app.state`` so request handlers and
+# the ARQ jobs both resolve adapters via one map.
+notifier_factories: dict[IntegrationKind, NotifierFactory] = {}
+
+
+def get_notifier_factory(kind: IntegrationKind) -> NotifierFactory:
+    """Return the factory for ``kind`` or raise :class:`NotifierFactoryNotRegistered`."""
+    try:
+        return notifier_factories[kind]
+    except KeyError as exc:
+        raise NotifierFactoryNotRegistered(kind.value) from exc

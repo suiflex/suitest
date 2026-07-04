@@ -7,23 +7,16 @@ Real implementations would call the vendor REST APIs; these stubs log the
 call and return mock data so the plugin contract is validated without
 external dependencies.
 
-Lookup is via :attr:`kind` (e.g. ``"asana"``, ``"clickup"``).  A registry
-of these adapters is exposed via
-:func:`get_custom_integration_adapter_registry` in the router.
+Lookup is via :attr:`kind` (e.g. ``"asana"``, ``"clickup"``) in the
+module-level :data:`CUSTOM_INTEGRATION_ADAPTERS` dict.
 
 Usage::
 
     from suitest_api.services.custom_integration_service import (
-        CustomIntegrationAdapterRegistry,
-        AsanaAdapter,
-        ClickUpAdapter,
+        CUSTOM_INTEGRATION_ADAPTERS,
     )
 
-    registry = CustomIntegrationAdapterRegistry()
-    registry.register(AsanaAdapter())
-    registry.register(ClickUpAdapter())
-
-    adapter = registry.get("asana")
+    adapter = CUSTOM_INTEGRATION_ADAPTERS["asana"]
     url = await adapter.create_issue(
         defect_id="...", title="...", description="...", config={...}
     )
@@ -177,32 +170,8 @@ class ClickUpAdapter:
         return True
 
 
-class CustomIntegrationAdapterRegistry:
-    """In-process registry of :class:`CustomIntegrationAdapterBase` instances."""
-
-    def __init__(self) -> None:
-        self._adapters: dict[str, CustomIntegrationAdapterBase] = {}
-
-    def register(self, adapter: CustomIntegrationAdapterBase) -> None:
-        """Register an adapter.  Overwrites any existing entry with the same kind."""
-        self._adapters[adapter.kind] = adapter
-
-    def get(self, kind: str) -> CustomIntegrationAdapterBase:
-        """Return the adapter for *kind*.
-
-        :raises KeyError: When no adapter is registered for *kind*.
-        """
-        try:
-            return self._adapters[kind]
-        except KeyError:
-            raise KeyError(f"No custom integration adapter for kind {kind!r}") from None
-
-    def list_all(self) -> list[str]:
-        """Return sorted list of registered adapter kinds."""
-        return sorted(self._adapters)
-
-
-# Module-level singleton — pre-populated with bundled adapters.
-custom_integration_adapter_registry = CustomIntegrationAdapterRegistry()
-custom_integration_adapter_registry.register(AsanaAdapter())
-custom_integration_adapter_registry.register(ClickUpAdapter())
+# Module-level adapter map — pre-populated with the bundled stub adapters,
+# keyed by :attr:`CustomIntegrationAdapterBase.kind`.
+CUSTOM_INTEGRATION_ADAPTERS: dict[str, CustomIntegrationAdapterBase] = {
+    adapter.kind: adapter for adapter in (AsanaAdapter(), ClickUpAdapter())
+}
