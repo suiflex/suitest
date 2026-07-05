@@ -111,37 +111,18 @@ def _extract_json_array(text: str) -> list[object]:
     return parsed if isinstance(parsed, list) else []
 
 
-class RemoteLlmClient:
-    """LLM client backed by the Suitest server's ``/llm/complete`` proxy."""
+class LlmClientBase:
+    """LLM capabilities built on a single ``_complete()`` seam.
 
-    def __init__(self, api_url: str, token: str, workspace_id: str | None = None) -> None:
-        self._api_url = api_url
-        self._token = token
-        self._workspace_id = workspace_id
-        self._disabled = False  # flipped on 409/tier errors → deterministic fallback
+    Every capability (edge-case proposal, PRD planning, frontend codegen) is
+    backend-agnostic — it only calls ``self._complete``. Concrete backends
+    (:class:`RemoteLlmClient`, :class:`SamplingLlmClient`) supply that one
+    method; :class:`ChainedLlmClient` composes several. The existing convention
+    (``_complete`` returns ``""`` on failure) is what powers the fallback chain.
+    """
 
-    # -- transport -----------------------------------------------------------
     def _complete(self, prompt: str, *, system: str | None = None, max_tokens: int = 4096) -> str:
-        if self._disabled:
-            return ""
-        from suitest_lifecycle.http_client import SuitestAPIError, SuitestClient
-
-        try:
-            with SuitestClient(
-                self._api_url,
-                token=self._token,
-                workspace_id=self._workspace_id or None,
-                # Plan/codegen completions run long on slow gateways — the SDK
-                # default (30s) regularly times out mid-generation.
-                timeout=180.0,
-            ) as client:
-                return client.llm_complete(prompt, system=system, max_tokens=max_tokens)
-        except SuitestAPIError as exc:  # 409 = no LLM (ZERO tier) → stop asking
-            if getattr(exc, "status_code", None) == 409:
-                self._disabled = True
-            return ""
-        except Exception:  # network hiccup — never fail the run over enrichment
-            return ""
+        raise NotImplementedError
 
     # -- enrichment (LlmClient protocol) --------------------------------------
     def propose_edge_cases(
@@ -261,6 +242,73 @@ class RemoteLlmClient:
         return code if _valid_body(code) else None
 
 
+class RemoteLlmClient(LlmClientBase):
+    """Tier 2: LLM via the Suitest server's ``/llm/complete`` proxy."""
+
+    def __init__(self, api_url: str, token: str, workspace_id: str | None = None) -> None:
+        self._api_url = api_url
+        self._token = token
+        self._workspace_id = workspace_id
+        self._disabled = False  # flipped on 409/tier errors → deterministic fallback
+
+    def _complete(self, prompt: str, *, system: str | None = None, max_tokens: int = 4096) -> str:
+        if self._disabled:
+            return ""
+        from suitest_lifecycle.http_client import SuitestAPIError, SuitestClient
+
+        try:
+            with SuitestClient(
+                self._api_url,
+                token=self._token,
+                workspace_id=self._workspace_id or None,
+                # Plan/codegen completions run long on slow gateways — the SDK
+                # default (30s) regularly times out mid-generation.
+                timeout=180.0,
+            ) as client:
+                return client.llm_complete(prompt, system=system, max_tokens=max_tokens)
+        except SuitestAPIError as exc:  # 409 = no LLM (ZERO tier) → stop asking
+            if getattr(exc, "status_code", None) == 409:
+                self._disabled = True
+            return ""
+        except Exception:  # network hiccup — never fail the run over enrichment
+            return ""
+
+
+class SamplingLlmClient(LlmClientBase):
+    """Tier 1: inference via MCP ``sampling/createMessage`` (user's model).
+
+    Requires the connected MCP client to have advertised ``sampling`` at
+    initialize. Any failure returns ``""`` so the chain falls to the next tier.
+    """
+
+    def __init__(self) -> None:
+        self.last_model: str | None = None
+
+    def _complete(self, prompt: str, *, system: str | None = None, max_tokens: int = 4096) -> str:
+        from suitest_lifecycle import sampling
+
+        try:
+            result = sampling.create_message(prompt, system=system, max_tokens=max_tokens)
+        except sampling.SamplingError:
+            return ""  # chain lanjut ke tingkat berikutnya
+        self.last_model = result.model
+        return result.text
+
+
+class ChainedLlmClient(LlmClientBase):
+    """Try each client in order; first non-empty answer wins."""
+
+    def __init__(self, clients: list[LlmClientBase]) -> None:
+        self._clients = clients
+
+    def _complete(self, prompt: str, *, system: str | None = None, max_tokens: int = 4096) -> str:
+        for client in self._clients:
+            answer = client._complete(prompt, system=system, max_tokens=max_tokens)
+            if answer:
+                return answer
+        return ""
+
+
 # Compiles fine but crashes at runtime — reject and fall back instead.
 _RUNTIME_LANDMINES = (
     re.compile(r"\bre\."),  # `re` is not in the generated file's scope
@@ -355,7 +403,10 @@ def resolve_remote(config: Config) -> RemoteLlmClient | None:
 
 
 __all__ = [
+    "ChainedLlmClient",
+    "LlmClientBase",
     "RemoteLlmClient",
+    "SamplingLlmClient",
     "build_dom_context",
     "build_dom_context_from_discovery",
     "resolve_remote",
