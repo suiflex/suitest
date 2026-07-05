@@ -216,6 +216,39 @@ def sync_tcm(config_path: str) -> dict[str, object]:
     )
 
 
+def get_failure_context(config_path: str) -> dict[str, object]:
+    """Agent-readable failure bundle from the last LOCAL run (spec P0 #4).
+
+    No re-run: reads the stored ``reports/summary.json``. No prior run -> a clear
+    error envelope. Prior run but no failures -> success with empty context.
+    """
+    from suitest_lifecycle.failure_context import build_failure_markdown, load_failed_cases
+
+    cfg, err = _safe_load(config_path)
+    if err is not None:
+        return err
+    paths = build_paths(cfg.output_dir, cfg.mode)  # type: ignore[union-attr]
+    if not (paths.reports_dir / "summary.json").is_file():
+        return _envelope(
+            False,
+            "no prior run found — run the lifecycle first",
+            errors=["summary.json missing"],
+        )
+    cases = load_failed_cases(cfg.output_dir)  # type: ignore[union-attr]
+    if not cases:
+        return _envelope(
+            True,
+            "last run has no failures — nothing to fix",
+            data={"failure_context": "", "failed_cases": 0},
+        )
+    md = build_failure_markdown(cases)
+    return _envelope(
+        True,
+        f"{len(cases)} failing case(s); context ready for repair",
+        data={"failure_context": md, "failed_cases": len(cases)},
+    )
+
+
 # Tool registry (name -> callable) used by the MCP server.
 TOOLS = {
     "analyze_project": analyze_project,
@@ -227,6 +260,7 @@ TOOLS = {
     "run_tests": run_tests,
     "sync_tcm": sync_tcm,
     "generate_report": generate_report,
+    "get_failure_context": get_failure_context,
     **BLACKBOX_TOOLS,
 }
 

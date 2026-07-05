@@ -6,11 +6,12 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from suitest_db.base import Base
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 
 class GeneratorRun(Base):
@@ -22,8 +23,12 @@ class GeneratorRun(Base):
     )
     # openapi | recorder | heuristic_crawl | prd | url_semantic | mcp_discovery
     source: Mapped[str] = mapped_column(String(64), nullable=False)
-    input_meta_json: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
-    output_case_ids_json: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+    input_meta_json: Mapped[dict[str, object]] = mapped_column(
+        PortableJSON, default=dict, nullable=False
+    )
+    output_case_ids_json: Mapped[list[str]] = mapped_column(
+        PortableJSON, default=list, nullable=False
+    )
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

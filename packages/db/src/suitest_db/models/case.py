@@ -13,13 +13,14 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, TargetKind
 from suitest_shared.text import derive_slug, derive_title
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 if TYPE_CHECKING:
     # Resolved at runtime via SQLAlchemy's registry; a runtime import would create
@@ -87,7 +88,7 @@ class TestCase(Base, TimestampMixin):
     )
     owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     generated_by: Mapped[str | None] = mapped_column(String(64))
-    generated_from: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    generated_from: Mapped[dict[str, Any] | None] = mapped_column(PortableJSON)
     estimated_ms: Mapped[int | None] = mapped_column(Integer)
     # Phase 2 (lifecycle ingest): link a case to its exported runnable test file
     # and persist the full generated source so the web Code tab works even when
@@ -149,7 +150,7 @@ class TestStep(Base):
     action: Mapped[str] = mapped_column(Text, nullable=False)
     expected: Mapped[str] = mapped_column(Text, nullable=False)
     code: Mapped[str | None] = mapped_column(Text)
-    data: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    data: Mapped[dict[str, Any] | None] = mapped_column(PortableJSON)
 
     # NEW — per-step MCP routing
     mcp_provider: Mapped[str] = mapped_column(String(64), default="playwright-mcp", nullable=False)

@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8">
+<title>Suitest — demo-shop</title>
+<style>
+ body{font-family:ui-sans-serif,system-ui,sans-serif;background:#0a0a0a;color:#fafafa;margin:0;padding:2rem}
+ h1{font-size:1.4rem} .meta{color:#a3a3a3;margin-bottom:1rem}
+ table{border-collapse:collapse;width:100%;font-size:.85rem}
+ th,td{border:1px solid #262626;padding:.4rem .6rem;text-align:left;vertical-align:top}
+ th{background:#161616} pre{margin:0;white-space:pre-wrap;color:#f87171;font-size:.75rem}
+ tr.passed td:nth-child(3){color:#4ade80} tr.failed td:nth-child(3),tr.error td:nth-child(3){color:#f87171}
+ .pill{display:inline-block;padding:.2rem .6rem;border-radius:999px;background:#161616;margin-right:.4rem}
+</style></head><body>
+<h1>Suitest Report — demo-shop (frontend)</h1>
+<div class="meta">
+ <span class="pill">Base: http://localhost:3000</span>
+ <span class="pill">Ready: yes</span>
+ <span class="pill">Pass: 1/2 (50%)</span>
+ <span class="pill">130 ms</span>
+</div>
+<table><thead><tr><th>ID</th><th>Title</th><th>Status</th><th>ms</th><th>Error</th></tr></thead>
+<tbody><tr class='passed'><td>TC001</td><td>open home page</td><td>PASSED</td><td>68</td><td><pre></pre></td></tr>
+<tr class='failed'><td>TC002</td><td>checkout submit enabled</td><td>FAILED</td><td>62</td><td><pre>Traceback (most recent call last):
+  File &quot;/var/folders/ly/wt9xzvs567z872cx9_syt9c00000gn/T/.ctx-mode-LRqvLb/tmposzw3d5d/suitest-output/frontend/TC002_checkout_submit.py&quot;, line 8, in &lt;module&gt;
+    test()
+  File &quot;/var/folders/ly/wt9xzvs567z872cx9_syt9c00000gn/T/.ctx-mode-LRqvLb/tmposzw3d5d/suitest-output/frontend/TC002_checkout_submit.py&quot;, line 6, in test
+    raise AssertionError(f'TimeoutError: waiting for selector {selector} to be enabled (30000ms exceeded)')
+AssertionError: TimeoutError: waiting for selector #submit-btn to be enabled (30000ms exceeded)</pre></td></tr></tbody></table>
+</body></html>

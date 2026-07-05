@@ -12,12 +12,12 @@ from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from suitest_shared.domain.enums import DocumentKind
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 
 class Document(Base, TimestampMixin):
@@ -34,7 +34,7 @@ class Document(Base, TimestampMixin):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    meta: Mapped[dict[str, Any] | None] = mapped_column(PortableJSON)
 
     __table_args__ = (Index("ix_documents_workspace_kind", "workspace_id", "kind"),)
 
@@ -49,6 +49,6 @@ class DocumentChunk(Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", PortableJSON)
 
     __table_args__ = (Index("ix_document_chunks_document_id", "document_id"),)

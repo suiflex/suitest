@@ -7,13 +7,13 @@ from typing import Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from suitest_core.crypto import EncryptedBytes
 from suitest_shared.domain.enums import McpTransport
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 
 class McpProvider(Base, TimestampMixin):
@@ -37,11 +37,11 @@ class McpProvider(Base, TimestampMixin):
         ),
         nullable=False,
     )
-    config_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    config_json: Mapped[dict[str, Any]] = mapped_column(PortableJSON, default=dict, nullable=False)
     secrets_json_encrypted: Mapped[str | None] = mapped_column(EncryptedBytes)
     # e.g. {"BE_REST": true} → autoroute target_kind BE_REST to this provider
     is_default_for_target: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, default=dict, nullable=False
+        PortableJSON, default=dict, nullable=False
     )
 
     # M1d: provenance / version pins per MCP_PLUGINS §13. All nullable;

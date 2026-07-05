@@ -1,0 +1,33 @@
+{
+  "steps": [
+    {
+      "index": 1,
+      "type": "action",
+      "description": "goto /checkout",
+      "status": "PASSED",
+      "screenshot": "TC002_step1.png"
+    },
+    {
+      "index": 2,
+      "type": "action",
+      "description": "fill #qty = 1",
+      "status": "PASSED",
+      "screenshot": "TC002_step2.png"
+    },
+    {
+      "index": 3,
+      "type": "action",
+      "description": "click #submit-btn",
+      "status": "FAILED",
+      "screenshot": "TC002_step3.png"
+    },
+    {
+      "index": 4,
+      "type": "assertion",
+      "description": "expect order confirmation",
+      "status": "SKIPPED"
+    }
+  ],
+  "video": "TC002.webm",
+  "screenshot": "TC002_fail.png"
+}

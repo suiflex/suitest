@@ -225,9 +225,9 @@ def generate_only(
     # remote bridge directly unless codegen is pinned deterministic.
     codegen_llm = client
     if codegen_llm is None and config.mode is Mode.FRONTEND and config.codegen != "deterministic":
-        from suitest_lifecycle.llm_bridge import resolve_remote
+        from suitest_lifecycle.llm_bridge import resolve_llm
 
-        codegen_llm = resolve_remote(config)
+        codegen_llm = resolve_llm(config)
     from suitest_lifecycle.llm_bridge import build_dom_context
 
     dom_context = build_dom_context(crawl, summary)  # type: ignore[arg-type]
@@ -275,8 +275,17 @@ def generate_only(
         export_error=export_error,
     )
     save_snapshot(paths, fingerprint)
+    from suitest_lifecycle.llm_bridge import describe_llm_source
+
     (paths.tmp_dir / "change_report.json").write_text(
-        json.dumps({"changeDetection": change_report, "generatedCode": gen_counts}, indent=2),
+        json.dumps(
+            {
+                "changeDetection": change_report,
+                "generatedCode": gen_counts,
+                **describe_llm_source(codegen_llm),
+            },
+            indent=2,
+        ),
         encoding="utf-8",
     )
 
@@ -351,14 +360,14 @@ def _blackbox_generate(config: Config) -> tuple[CodeSummary, list[PlanCase], Pat
     llm = None
     if config.prd_file:
         from suitest_lifecycle.blackbox.prd_ingest import load_prd
-        from suitest_lifecycle.llm_bridge import resolve_remote
+        from suitest_lifecycle.llm_bridge import resolve_llm
 
         prd_doc = load_prd(config.prd_file)
         (paths.tmp_dir / "prd_ingest.json").write_text(
             _json.dumps(prd_doc.to_json(), indent=2), encoding="utf-8"
         )
         prd_context = prd_doc.as_prompt_context()
-        llm = resolve_remote(config)
+        llm = resolve_llm(config)
         steps.append(
             f"prd: ingested '{prd_doc.title or config.prd_file}' "
             f"({len(prd_doc.requirements)} requirement(s)); "

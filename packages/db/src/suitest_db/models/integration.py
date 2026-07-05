@@ -7,13 +7,13 @@ from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from suitest_core.crypto import EncryptedBytes
 from suitest_shared.domain.enums import IntegrationKind
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 
 class Integration(Base, TimestampMixin):
@@ -27,7 +27,7 @@ class Integration(Base, TimestampMixin):
         SAEnum(IntegrationKind, name="integration_kind"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    config: Mapped[dict[str, Any]] = mapped_column(PortableJSON, nullable=False)
 
     # secrets stored as AES-GCM blob — see DATA_MODEL §12
     secrets_encrypted: Mapped[str | None] = mapped_column(EncryptedBytes)

@@ -79,6 +79,14 @@ const CLIENTS = {
     key: "mcpServers",
     targetPath: () => homeConfig("CURSOR_CONFIG", ".cursor/mcp.json"),
   },
+  windsurf: {
+    kind: "file",
+    label: "windsurf",
+    hint: "writes ~/.codeium/windsurf/mcp_config.json",
+    key: "mcpServers",
+    targetPath: () =>
+      homeConfig("WINDSURF_CONFIG", ".codeium/windsurf/mcp_config.json"),
+  },
   codex: {
     kind: "delegated",
     label: "codex",

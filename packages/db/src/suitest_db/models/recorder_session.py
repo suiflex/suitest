@@ -15,11 +15,12 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from suitest_db.base import Base
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 
 class RecorderSession(Base):
@@ -39,7 +40,7 @@ class RecorderSession(Base):
         String(32), nullable=False, default="active", server_default="active"
     )
     captured_events_json: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSONB, nullable=False, default=list, server_default="[]"
+        PortableJSON, nullable=False, default=list, server_default="[]"
     )
     ws_room: Mapped[str] = mapped_column(String(120), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

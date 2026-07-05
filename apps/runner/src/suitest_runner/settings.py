@@ -24,6 +24,8 @@ class RunnerSettings(BaseSettings):
         env_file=None,
         extra="ignore",
         case_sensitive=False,
+        # Allow constructing with field names (tests) alongside env aliases.
+        populate_by_name=True,
     )
 
     # Redis: ``SUITEST_RUNNER_REDIS_URL`` falls back to ``SUITEST_REDIS_URL`` so
@@ -113,6 +115,20 @@ class RunnerSettings(BaseSettings):
             "SUITEST_RUNNER_EVIDENCE_PAUSE_MS",
             "SUITEST_EVIDENCE_PAUSE_MS",
         ),
+    )
+
+    # Artifact storage backend: "s3" (default, server mode) or "local" (disk
+    # folder, local mode without MinIO/S3). Honors the unprefixed variants so
+    # the API + worker share one .env.
+    artifacts_backend: str = Field(
+        default="s3",
+        validation_alias=AliasChoices(
+            "SUITEST_RUNNER_ARTIFACTS_BACKEND", "SUITEST_ARTIFACTS_BACKEND"
+        ),
+    )
+    artifacts_dir: str = Field(
+        default=".suitest/artifacts",
+        validation_alias=AliasChoices("SUITEST_RUNNER_ARTIFACTS_DIR", "SUITEST_ARTIFACTS_DIR"),
     )
 
     # S3 / MinIO target for artifact upload. Defaults point at a local MinIO

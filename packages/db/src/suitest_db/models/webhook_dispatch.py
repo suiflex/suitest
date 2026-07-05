@@ -26,11 +26,11 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 
 class WebhookDispatchAttempt(Base, TimestampMixin):
@@ -51,7 +51,7 @@ class WebhookDispatchAttempt(Base, TimestampMixin):
     # ``send_notification`` / ``sync_status``. The worker maps this to an adapter
     # method; kept as free-form text so new operations don't need a migration.
     operation: Mapped[str] = mapped_column(String(64), nullable=False)
-    payload_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    payload_json: Mapped[dict[str, Any]] = mapped_column(PortableJSON, default=dict, nullable=False)
     payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
 
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)

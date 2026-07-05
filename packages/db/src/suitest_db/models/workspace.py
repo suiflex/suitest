@@ -6,11 +6,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, DateTime, String
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 if TYPE_CHECKING:
     # Runtime resolution happens via SQLAlchemy's class registry (string in
@@ -36,7 +36,7 @@ class Workspace(Base, TimestampMixin):
     # M1d: workspace-scoped MCP routing override map per MCP_PLUGINS §4.1.
     # Shape: {"<target_kind>": "<mcp_provider_name>"}.
     mcp_routing_overrides: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="'{}'"
+        PortableJSON, nullable=False, default=dict, server_default="'{}'"
     )
 
     # M1d-28: soft-delete tombstone for ``DELETE /workspaces/:id``. Reads

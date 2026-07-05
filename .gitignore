@@ -8,6 +8,7 @@ __pycache__/
 .venv/
 venv/
 env/
+.env
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -97,3 +98,5 @@ suitest-output
 docs/superpowers
 # Raw demo recordings + responsive screenshots (assets/demo.gif is the committed artifact)
 assets/raw/
+# Local mode scratch (SQLite DB + disk artifacts)
+.suitest/

@@ -9,9 +9,12 @@ aioboto3 (object store) or a placeholder for ``file://`` artifacts.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import aioboto3
 from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.audit import write_audit
 from suitest_db.repositories.projects import ProjectRepo
@@ -323,8 +326,19 @@ async def get_artifact_signed_url(
     repo = RunRepo(session)
     artifacts = await repo.get_artifacts(run_id)
     artifact = next((a for a in artifacts if a.id == artifact_id), None)
-    if artifact is None or not artifact.url.startswith("s3://"):
+    if artifact is None or not artifact.url.startswith(("s3://", "local://")):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="artifact not found")
+
+    if artifact.url.startswith("local://"):
+        # Local mode: no presigning — point the client at the raw streaming
+        # endpoint on this same API (workspace-membership gated).
+        return ArtifactSignedUrl(
+            url=f"/api/v1/runs/{run_id}/artifacts/{artifact_id}/raw",
+            expires_in_seconds=0,
+            kind=artifact.kind,
+            mime_type=artifact.mime_type,
+        )
+
     bucket, key = artifact.url.removeprefix("s3://").split("/", 1)
 
     settings = get_settings()
@@ -358,6 +372,29 @@ async def get_artifact_signed_url(
         kind=artifact.kind,
         mime_type=artifact.mime_type,
     )
+
+
+@router.get("/runs/{run_id}/artifacts/{artifact_id}/raw")
+async def get_artifact_raw(
+    run_id: str,
+    artifact_id: str,
+    ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
+) -> FileResponse:
+    """Stream one ``local://`` artifact from ``SUITEST_ARTIFACTS_DIR`` (local mode)."""
+    run_id = await _run_in_scope_or_404(session, run_id, ctx.workspace_id)
+    repo = RunRepo(session)
+    artifacts = await repo.get_artifacts(run_id)
+    artifact = next((a for a in artifacts if a.id == artifact_id), None)
+    if artifact is None or not artifact.url.startswith("local://"):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="artifact not found")
+
+    root = Path(get_settings().artifacts_dir).resolve()  # noqa: ASYNC240 — metadata-only, local FS
+    path = (root / artifact.url.removeprefix("local://")).resolve()
+    # Path-traversal guard: the file must live inside artifacts_dir.
+    if not path.is_relative_to(root) or not path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="artifact not found")
+    return FileResponse(path, media_type=artifact.mime_type)
 
 
 @router.get("/runs/{run_id}/network", response_model=RunNetworkResponse)

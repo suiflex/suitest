@@ -6,12 +6,12 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from suitest_core.crypto import EncryptedBytes
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 
 class LLMConfig(Base, TimestampMixin):
@@ -27,7 +27,7 @@ class LLMConfig(Base, TimestampMixin):
     # AES-GCM (DATA_MODEL §12). Nullable so ZERO tier can store a row with no key.
     api_key_encrypted: Mapped[str | None] = mapped_column(EncryptedBytes)
 
-    config_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    config_json: Mapped[dict[str, Any]] = mapped_column(PortableJSON, default=dict, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     last_validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

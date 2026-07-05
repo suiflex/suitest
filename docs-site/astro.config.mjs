@@ -3,7 +3,7 @@ import starlight from "@astrojs/starlight";
 
 // M4-14: Suitest site — custom landing at `/`, Starlight docs under `/docs/*`.
 export default defineConfig({
-  site: "https://suitest.dev",
+  site: "https://suitest.suiflex.dev",
   integrations: [
     starlight({
       title: "Suitest",
