@@ -12,11 +12,12 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from suitest_db.base import Base
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 
 class AuditLog(Base):
@@ -30,7 +31,7 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(120), nullable=False)
     resource_type: Mapped[str] = mapped_column(String(64), nullable=False)
     resource_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", PortableJSON)
     ip_address: Mapped[str | None] = mapped_column(String(64))
     user_agent: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(

@@ -6,11 +6,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 if TYPE_CHECKING:
     # Resolved at runtime via SQLAlchemy's registry; a runtime import would create
@@ -38,7 +38,7 @@ class Project(Base, TimestampMixin):
     # Shape mirrors ``Workspace.mcp_routing_overrides``:
     # ``{"<target_kind>": "<mcp_provider_name>"}``.
     default_mcp_routing: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="'{}'"
+        PortableJSON, nullable=False, default=dict, server_default="'{}'"
     )
     # M1d-5: soft-delete tombstone set by DELETE /projects/:id (cascade
     # soft-delete via confirmCascade=true) and cleared by
@@ -77,7 +77,7 @@ class Suite(Base, TimestampMixin):
     order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     # M1d: suite-scoped MCP routing override map (precedes workspace override).
     mcp_routing_overrides: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, nullable=False, default=dict, server_default="'{}'"
+        PortableJSON, nullable=False, default=dict, server_default="'{}'"
     )
     # M1d: soft-delete tombstone set by DELETE /suites/:id (cascade soft-delete
     # via confirmCascade=true) and cleared by POST /suites/:id/restore.

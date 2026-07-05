@@ -6,11 +6,11 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from suitest_db.base import Base
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 
 class EvalRun(Base):
@@ -30,6 +30,6 @@ class EvalRun(Base):
     run_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    results_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    results_json: Mapped[dict[str, Any]] = mapped_column(PortableJSON, default=dict, nullable=False)
 
     __table_args__ = (Index("ix_eval_runs_workspace_suite", "workspace_id", "eval_suite_name"),)

@@ -12,12 +12,12 @@ from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from suitest_shared.domain.enums import ArtifactKind, RunStatus, RunTrigger, StepOutcome, Tier
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 
 class Run(Base, TimestampMixin):
@@ -55,7 +55,7 @@ class Run(Base, TimestampMixin):
     total_steps: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     passed_steps: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     failed_steps: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", PortableJSON)
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "public_id", name="uq_runs_workspace_public_id"),
@@ -85,7 +85,7 @@ class RunStep(Base, TimestampMixin):
     error_stack: Mapped[str | None] = mapped_column(Text)
     # M5-1: normalized MCP output captured at this step — the application state
     # snapshot the time-travel replay diff viewer computes per-step deltas from.
-    state_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    state_snapshot: Mapped[dict[str, Any] | None] = mapped_column(PortableJSON)
 
     __table_args__ = (Index("ix_run_steps_run_outcome", "run_id", "outcome"),)
 
@@ -103,6 +103,6 @@ class Artifact(Base, TimestampMixin):
     url: Mapped[str] = mapped_column(String(1024), nullable=False)  # s3:// or file://
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     mime_type: Mapped[str] = mapped_column(String(120), nullable=False)
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", PortableJSON)
 
     __table_args__ = (Index("ix_artifacts_run_step_id", "run_step_id"),)

@@ -23,12 +23,13 @@ from typing import Any
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, Numeric, String, Text, func
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from suitest_shared.domain.enums import AgentSessionKind, MessageRole
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
+from suitest_db.types import PortableJSON
 
 
 class AgentSession(Base, TimestampMixin):
@@ -51,7 +52,7 @@ class AgentSession(Base, TimestampMixin):
     seed: Mapped[int | None] = mapped_column(Integer)  # NEW
     temperature: Mapped[float | None] = mapped_column(Float)  # NEW
     cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))  # NEW
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", PortableJSON)
     tokens_in: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     tokens_out: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     started_at: Mapped[datetime] = mapped_column(
@@ -76,7 +77,7 @@ class AgentMessage(Base, TimestampMixin):
         SAEnum(MessageRole, name="message_role"), nullable=False
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", PortableJSON)
 
     __table_args__ = (Index("ix_agent_messages_session_id", "session_id"),)
 
@@ -90,8 +91,8 @@ class AgentToolCall(Base, TimestampMixin):
     )
     tool_name: Mapped[str] = mapped_column(String(120), nullable=False)
     mcp_provider: Mapped[str | None] = mapped_column(String(64))  # NEW
-    input: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    output: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    input: Mapped[dict[str, Any]] = mapped_column(PortableJSON, nullable=False)
+    output: Mapped[dict[str, Any] | None] = mapped_column(PortableJSON)
     status: Mapped[str] = mapped_column(String(32), default="running", nullable=False)
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     error_msg: Mapped[str | None] = mapped_column(Text)
