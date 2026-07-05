@@ -88,9 +88,9 @@ def resolve_client(config: Config) -> LlmClient | None:
     """
     if not config.enrich:
         return None
-    from suitest_lifecycle.llm_bridge import resolve_remote
+    from suitest_lifecycle.llm_bridge import resolve_llm
 
-    remote = resolve_remote(config)
+    remote = resolve_llm(config)
     if remote is not None:
         return remote
     return MockLlmClient()

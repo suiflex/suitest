@@ -41,3 +41,23 @@ def test_chain_has_llm_capability_methods() -> None:
     # method capability warisan base harus ada (dipakai orchestrator/exporter)
     assert hasattr(chain, "propose_edge_cases")
     assert hasattr(chain, "generate_frontend_body")
+
+
+def test_resolve_llm_prefers_sampling_when_client_supports(monkeypatch) -> None:
+    from suitest_lifecycle import llm_bridge, mcp_server
+
+    monkeypatch.setattr(mcp_server, "client_supports_sampling", lambda: True)
+    monkeypatch.setattr(
+        llm_bridge, "resolve_remote", lambda config: llm_bridge.RemoteLlmClient("http://x", "t")
+    )
+    client = llm_bridge.resolve_llm(config=None)
+    assert isinstance(client, llm_bridge.ChainedLlmClient)
+    assert isinstance(client._clients[0], llm_bridge.SamplingLlmClient)
+
+
+def test_resolve_llm_without_sampling_or_bridge_returns_none(monkeypatch) -> None:
+    from suitest_lifecycle import llm_bridge, mcp_server
+
+    monkeypatch.setattr(mcp_server, "client_supports_sampling", lambda: False)
+    monkeypatch.setattr(llm_bridge, "resolve_remote", lambda config: None)
+    assert llm_bridge.resolve_llm(config=None) is None

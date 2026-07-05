@@ -402,6 +402,27 @@ def resolve_remote(config: Config) -> RemoteLlmClient | None:
     return RemoteLlmClient(api_url, token, config.publish.workspace_id or None)
 
 
+def resolve_llm(config: Config) -> LlmClientBase | None:
+    """Assemble the LLM chain (spec P0 #2): sampling → bridge → None.
+
+    Tier 1 is MCP sampling (the user's own model, no key) when the connected
+    client advertised it. Tier 2 is the remote ``/llm/complete`` bridge (which
+    also covers the BYO-key case server-side). When neither is available the
+    caller keeps the deterministic baseline (returns ``None``).
+    """
+    from suitest_lifecycle import mcp_server
+
+    clients: list[LlmClientBase] = []
+    if mcp_server.client_supports_sampling():
+        clients.append(SamplingLlmClient())
+    remote = resolve_remote(config)
+    if remote is not None:
+        clients.append(remote)
+    if not clients:
+        return None
+    return clients[0] if len(clients) == 1 else ChainedLlmClient(clients)
+
+
 __all__ = [
     "ChainedLlmClient",
     "LlmClientBase",
@@ -409,5 +430,6 @@ __all__ = [
     "SamplingLlmClient",
     "build_dom_context",
     "build_dom_context_from_discovery",
+    "resolve_llm",
     "resolve_remote",
 ]
