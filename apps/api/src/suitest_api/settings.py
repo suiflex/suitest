@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     s3_secret_key: str = Field(default="minioadmin")
     s3_region: str = Field(default="us-east-1")
 
+    # Local mode (no S3): root folder ``local://`` artifact keys resolve
+    # against — served by ``GET /runs/:id/artifacts/:artifact_id/raw``.
+    # Must point at the same folder the runner writes to
+    # (``SUITEST_ARTIFACTS_DIR``). env: SUITEST_ARTIFACTS_DIR
+    artifacts_dir: str = Field(default=".suitest/artifacts")
+
 
 def get_settings() -> Settings:
     """Return a fresh Settings instance (env-resolved)."""
