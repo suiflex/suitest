@@ -24,7 +24,38 @@ no LLM key required.
 
 ## IDE setup
 
-Add to your project's `.mcp.json` (Claude Code) or the equivalent MCP config:
+Fastest path — let the installer write the config for you:
+
+```bash
+npx -y @suiflex/suitest-mcp login                        # save API URL + key once (TTY)
+npx -y @suiflex/suitest-mcp install                      # pick a client (arrow keys + type to filter)
+npx -y @suiflex/suitest-mcp install --client claude-code # or target one directly
+npx -y @suiflex/suitest-mcp doctor                       # inspect every client's config target
+```
+
+`login` stores the credentials at `~/.config/suitest/credentials.json` (chmod
+600) and every `install` reuses them, writing the right `env` block into the
+chosen client. Supported targets:
+
+| `--client`        | Writes / delegates to |
+|-------------------|-----------------------|
+| `claude-code`     | `~/.claude.json` (`--scope project` → `./.mcp.json`) |
+| `claude-desktop`  | `claude_desktop_config.json` in the Claude support dir |
+| `cursor`          | `~/.cursor/mcp.json` |
+| `codex`           | delegates to `codex mcp add` |
+| `gemini-cli`      | delegates to `gemini mcp add` |
+| `vscode`          | delegates to `code --add-mcp` (GitHub Copilot in VS Code) |
+| `copilot-cli`     | `~/.copilot/mcp-config.json` |
+| `opencode`        | `opencode.jsonc` |
+| `antigravity`     | `~/.gemini/antigravity/mcp_config.json` |
+| `antigravity-cli` | `~/.gemini/config/mcp_config.json` |
+| `generic-json`    | prints a portable snippet, writes nothing |
+
+Flags: `--name` (entry name, default `suitest`), `--api-url` / `--api-key`
+(skip the saved creds), `--print`, `--dry-run`, `--force`.
+
+Prefer to wire it by hand? Add to your project's `.mcp.json` (Claude Code) or
+the equivalent MCP config:
 
 ```json
 {
