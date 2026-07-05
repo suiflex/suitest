@@ -9,10 +9,13 @@ LOCAL run's output dir into ``FailedCase`` records.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 
 _BODY_SNIPPET = 400
+_FAIL_STATES = ("FAILED", "ERROR")
 
 
 def excerpt_console(lines: list[dict], *, max_lines: int = 20) -> list[str]:
@@ -142,3 +145,117 @@ def _render_case(c: FailedCase, budget: int) -> str:
         links = " · ".join(f"[{k}]({v})" for k, v in c.evidence_links.items())
         parts.append(f"**Evidence**: {links}")
     return "\n\n".join(parts)
+
+
+# --------------------------------------------------------------------------- #
+# Loader: last LOCAL run output dir -> list[FailedCase]
+# --------------------------------------------------------------------------- #
+
+
+def _inner_error(error: str) -> str:
+    """Last non-empty traceback line = the actual message (e.g. 'TimeoutError: …')."""
+    lines = [ln.strip() for ln in (error or "").splitlines() if ln.strip()]
+    return lines[-1] if lines else (error or "").strip()
+
+
+def _failed_step(steps: list[dict], total: int) -> tuple[int, str]:
+    """First FAILED/ERROR step -> (index, description). Falls back to the last step."""
+    for s in steps:
+        if str(s.get("status", "")).upper() in _FAIL_STATES:
+            return int(s.get("index", 0)), str(s.get("description", ""))
+    if steps:
+        last = steps[-1]
+        return int(last.get("index", total)), str(last.get("description", ""))
+    return total, ""
+
+
+def _file_uri(mode_dir: Path, name: str) -> str | None:
+    """Relative evidence file name -> absolute file:// URI, or None if it's gone.
+
+    Missing evidence is skipped, never fatal — a partial bundle beats no bundle.
+    """
+    if not name:
+        return None
+    p = (mode_dir / name).resolve()
+    return p.as_uri() if p.is_file() else None
+
+
+def _evidence_links(result: dict, mode_dir: Path) -> dict[str, str]:
+    links: dict[str, str] = {}
+    shot = _file_uri(mode_dir, str(result.get("screenshot", "")))
+    if shot:
+        links["screenshot"] = shot
+    video = _file_uri(mode_dir, str(result.get("video", "")))
+    if video:
+        links["video"] = video
+    return links
+
+
+def _context_sidecar(mode_dir: Path, test_id: str) -> dict:
+    """Optional ``<TC>.context.json`` (dom/console/network/failedSelector).
+
+    Written by the frontend recorder when the evidence-recording flag is on; the
+    plain local run has none, so absence is normal — return {}.
+    """
+    p = mode_dir / f"{test_id}.context.json"
+    if not p.is_file():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def load_failed_cases(output_dir: Path) -> list[FailedCase]:
+    """Read the last LOCAL run's output dir into FailedCase records.
+
+    Source of truth: ``reports/summary.json`` (== ``summary_to_json(RunSummary)``).
+    Only FAILED/ERROR cases are returned. Evidence file names resolve to absolute
+    ``file://`` URIs; a missing file drops that link rather than raising. DOM/
+    console/network come from the optional ``<TC>.context.json`` sidecar when the
+    recorder wrote one (server-sourced context is a follow-up, same FailedCase).
+    """
+    root = Path(output_dir)
+    summary_json = root / "reports" / "summary.json"
+    if not summary_json.is_file():
+        return []
+    try:
+        summary = json.loads(summary_json.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(summary, dict):
+        return []
+
+    mode = str(summary.get("mode", "")).strip()
+    mode_dir = root / mode if mode else root
+    results = summary.get("results")
+    if not isinstance(results, list):
+        return []
+
+    cases: list[FailedCase] = []
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        if str(result.get("status", "")).upper() not in _FAIL_STATES:
+            continue
+        steps = [s for s in (result.get("steps") or []) if isinstance(s, dict)]
+        total = len(steps) or 1
+        step_index, step_desc = _failed_step(steps, total)
+        ctx = _context_sidecar(mode_dir, str(result.get("testId", "")))
+        cases.append(
+            FailedCase(
+                title=str(result.get("title") or result.get("testId") or "untitled"),
+                failed_step_index=step_index,
+                total_steps=total,
+                step_description=step_desc,
+                error_message=_inner_error(str(result.get("error", ""))),
+                error_stack=str(result.get("error", "")),
+                failed_selector=str(ctx.get("failedSelector", "")),
+                dom=str(ctx.get("dom", "")),
+                console=[c for c in (ctx.get("console") or []) if isinstance(c, dict)],
+                network=[n for n in (ctx.get("network") or []) if isinstance(n, dict)],
+                evidence_links=_evidence_links(result, mode_dir),
+            )
+        )
+    return cases

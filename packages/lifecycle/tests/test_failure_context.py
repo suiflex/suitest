@@ -6,13 +6,18 @@ fixture (Task 1). The tool wires it into the MCP envelope (Task 6).
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from suitest_lifecycle.failure_context import (
     FailedCase,
     build_failure_markdown,
     excerpt_console,
     excerpt_dom,
     excerpt_network,
+    load_failed_cases,
 )
+
+FIXTURE = Path(__file__).parent / "fixtures" / "failed_run" / "output"
 
 
 def _case() -> FailedCase:
@@ -135,4 +140,36 @@ def test_markdown_respects_total_budget() -> None:
 def test_multiple_failures_all_present_within_budget() -> None:
     md = build_failure_markdown([_case(), _case()], budget_bytes=8192)
     assert md.count("## Test:") == 2
+    assert len(md.encode()) <= 8192
+
+
+def test_load_failed_cases_from_local_output() -> None:
+    cases = load_failed_cases(FIXTURE)
+    assert len(cases) == 1  # only TC002 failed; TC001 passed
+    c = cases[0]
+    assert c.title  # case title populated
+    assert "TimeoutError" in c.error_message  # inner message, not the raw trace
+    assert c.total_steps == 4
+    assert c.failed_step_index == 3  # the FAILED step in the sidecar
+    assert "click #submit-btn" in c.step_description
+    # context sidecar wired through
+    assert c.failed_selector == "#submit-btn"
+    assert "submit-button" in c.dom
+    assert any("500" in n for n in excerpt_network(c.network))
+    assert any("error" in str(line.get("level")) for line in c.console)
+    # evidence -> absolute file:// URIs that actually resolve
+    assert "screenshot" in c.evidence_links
+    assert c.evidence_links["screenshot"].startswith("file://")
+
+
+def test_load_failed_cases_missing_output_dir() -> None:
+    # No prior run at all -> empty list, never raises.
+    assert load_failed_cases(Path("/nonexistent/suitest/output")) == []
+
+
+def test_full_bundle_from_fixture_within_budget() -> None:
+    # End-to-end: real fixture -> loader -> markdown, hard 8 KB budget holds.
+    md = build_failure_markdown(load_failed_cases(FIXTURE))
+    assert "## Test:" in md
+    assert "#submit-btn" in md or "submit-button" in md
     assert len(md.encode()) <= 8192
