@@ -7,10 +7,38 @@ fixture (Task 1). The tool wires it into the MCP envelope (Task 6).
 from __future__ import annotations
 
 from suitest_lifecycle.failure_context import (
+    FailedCase,
+    build_failure_markdown,
     excerpt_console,
     excerpt_dom,
     excerpt_network,
 )
+
+
+def _case() -> FailedCase:
+    return FailedCase(
+        title="checkout-flow",
+        failed_step_index=4,
+        total_steps=7,
+        step_description='click "#submit-btn"',
+        error_message="TimeoutError: waiting for #submit-btn (30s)",
+        error_stack="Trace: ...\n  at click ...",
+        failed_selector="#submit-btn",
+        dom="<form id='checkout'><button id='submit-button' disabled>Pay</button></form>",
+        console=[{"level": "error", "message": "POST /api/cart 500"}],
+        network=[
+            {
+                "method": "POST",
+                "url": "/api/cart",
+                "status": 500,
+                "response_body": '{"error":"inventory timeout"}',
+            }
+        ],
+        evidence_links={
+            "screenshot": "file:///tmp/shot.png",
+            "video": "file:///tmp/v.webm",
+        },
+    )
 
 _DOM = """
 <html><body>
@@ -83,3 +111,28 @@ def test_dom_excerpt_exact_match_included() -> None:
 def test_dom_excerpt_no_selector_returns_head_slice() -> None:
     out = excerpt_dom(_DOM, failed_selector="", max_chars=500)
     assert len(out) <= 500
+
+
+def test_markdown_contains_all_sections() -> None:
+    md = build_failure_markdown([_case()])
+    assert "## Test: checkout-flow" in md
+    assert "step 4/7" in md
+    assert "TimeoutError" in md
+    assert "submit-button" in md  # DOM excerpt
+    assert "POST /api/cart -> 500" in md  # network
+    assert "[error] POST /api/cart 500" in md  # console
+    assert "file:///tmp/shot.png" in md  # evidence link
+
+
+def test_markdown_respects_total_budget() -> None:
+    huge = _case()
+    huge.dom = "<div class='submit'>" + "y" * 100_000 + "</div>"
+    huge.console = [{"level": "error", "message": "e" * 500} for _ in range(500)]
+    md = build_failure_markdown([huge], budget_bytes=8192)
+    assert len(md.encode()) <= 8192
+
+
+def test_multiple_failures_all_present_within_budget() -> None:
+    md = build_failure_markdown([_case(), _case()], budget_bytes=8192)
+    assert md.count("## Test:") == 2
+    assert len(md.encode()) <= 8192

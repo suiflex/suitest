@@ -10,6 +10,7 @@ LOCAL run's output dir into ``FailedCase`` records.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 
 _BODY_SNIPPET = 400
 
@@ -83,3 +84,61 @@ def excerpt_dom(dom: str, *, failed_selector: str, max_chars: int = 2000) -> str
         out_lines.append(text)
         last = i
     return "\n".join(out_lines)[:max_chars]
+
+
+@dataclass
+class FailedCase:
+    title: str
+    failed_step_index: int
+    total_steps: int
+    step_description: str
+    error_message: str
+    error_stack: str = ""
+    failed_selector: str = ""
+    dom: str = ""
+    console: list[dict] = field(default_factory=list)
+    network: list[dict] = field(default_factory=list)
+    evidence_links: dict[str, str] = field(default_factory=dict)
+    classification: str = ""  # optional failure label (STALE/FLAKE/...) from run data
+
+
+def build_failure_markdown(cases: list[FailedCase], *, budget_bytes: int = 8192) -> str:
+    """Render failing cases to one budgeted markdown bundle (<= budget_bytes).
+
+    The byte cap is HARD: the final slice is on the encoded bytes so multibyte
+    content can never smuggle the output over budget.
+    """
+    if not cases:
+        return ""
+    per_case = max(1024, budget_bytes // max(1, len(cases)))
+    sections = [_render_case(c, per_case) for c in cases]
+    out = "\n\n---\n\n".join(sections)
+    return out.encode()[:budget_bytes].decode(errors="ignore")
+
+
+def _render_case(c: FailedCase, budget: int) -> str:
+    dom_budget = budget // 3
+    header = f"## Test: {c.title} — FAIL at step {c.failed_step_index}/{c.total_steps}"
+    if c.classification:
+        header += f" [{c.classification}]"
+    parts = [
+        header,
+        f"**Step {c.failed_step_index}/{c.total_steps}**: {c.step_description}",
+        f"**Error**: {c.error_message[:500]}",
+    ]
+    if c.dom:
+        parts.append(
+            "**DOM at failure** (excerpt):\n```html\n"
+            + excerpt_dom(c.dom, failed_selector=c.failed_selector, max_chars=dom_budget)
+            + "\n```"
+        )
+    console = excerpt_console(c.console)
+    if console:
+        parts.append("**Console** (error/warning only):\n" + "\n".join(console))
+    network = excerpt_network(c.network)
+    if network:
+        parts.append("**Network** (failures only):\n" + "\n".join(network))
+    if c.evidence_links:
+        links = " · ".join(f"[{k}]({v})" for k, v in c.evidence_links.items())
+        parts.append(f"**Evidence**: {links}")
+    return "\n\n".join(parts)
