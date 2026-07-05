@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import sys
+import threading
 import urllib.error
 import urllib.request
 from typing import TYPE_CHECKING, TextIO
@@ -24,6 +26,21 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 PROTOCOL_VERSION = "2024-11-05"
+
+# Responses to requests the SERVER sends to the client (sampling/createMessage)
+# land here, keyed by the request id. sampling.py waits on the condition.
+_client_responses: dict[object, dict[str, object]] = {}
+_client_response_event = threading.Condition()
+_stdout_lock = threading.Lock()
+_out_stream: TextIO | None = None  # set by serve()
+
+
+def _write_message(message: dict[str, object]) -> None:
+    """Thread-safe write to the client stream (handler + sampling share it)."""
+    assert _out_stream is not None
+    with _stdout_lock:
+        _out_stream.write(json.dumps(message) + "\n")
+        _out_stream.flush()
 
 # Run tools accept the explicit recreate opt-in (goal: recreate NEVER happens
 # implicitly — only via this flag or the publish.recreateProject config key).
@@ -232,24 +249,48 @@ def verify_credentials() -> str | None:
 
 
 def serve(stdin: TextIO = sys.stdin, stdout: TextIO = sys.stdout) -> None:
+    global _out_stream
+    _out_stream = stdout
     error = verify_credentials()
     if error is not None:
         sys.stderr.write(f"suitest-mcp: {error}\n")
         raise SystemExit(1)
-    for line in stdin:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            message = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(message, dict):
-            continue
+
+    # A reader thread parses stdin so a running tool (which may send a
+    # sampling/createMessage request and block on the client's reply) never
+    # starves stdin: responses to server-sent requests are routed straight to
+    # _client_responses; everything else is queued for the dispatcher below.
+    incoming: queue.Queue[dict[str, object] | None] = queue.Queue()
+
+    def _reader() -> None:
+        for line in stdin:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                message = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(message, dict):
+                continue
+            # A reply to a request the server sent: has id, no method.
+            if "method" not in message and "id" in message:
+                with _client_response_event:
+                    _client_responses[message["id"]] = message
+                    _client_response_event.notify_all()
+                continue
+            incoming.put(message)
+        incoming.put(None)  # EOF sentinel
+
+    threading.Thread(target=_reader, daemon=True).start()
+
+    while True:
+        message = incoming.get()
+        if message is None:
+            return
         response = handle(message)
         if response is not None:
-            stdout.write(json.dumps(response) + "\n")
-            stdout.flush()
+            _write_message(response)
 
 
 if __name__ == "__main__":
