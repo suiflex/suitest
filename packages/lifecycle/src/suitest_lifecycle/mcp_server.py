@@ -150,7 +150,7 @@ def handle(message: dict[str, object]) -> dict[str, object] | None:
             {
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "suitest-lifecycle", "version": "0.1.1"},
+                "serverInfo": {"name": "suitest-lifecycle", "version": "0.1.2"},
             },
         )
     if method in ("notifications/initialized", "initialized"):
