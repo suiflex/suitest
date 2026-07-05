@@ -61,3 +61,23 @@ def test_resolve_llm_without_sampling_or_bridge_returns_none(monkeypatch) -> Non
     monkeypatch.setattr(mcp_server, "client_supports_sampling", lambda: False)
     monkeypatch.setattr(llm_bridge, "resolve_remote", lambda config: None)
     assert llm_bridge.resolve_llm(config=None) is None
+
+
+def test_describe_llm_source() -> None:
+    from suitest_lifecycle.llm_bridge import (
+        ChainedLlmClient,
+        RemoteLlmClient,
+        SamplingLlmClient,
+        describe_llm_source,
+    )
+
+    sampler = SamplingLlmClient()
+    sampler.last_model = "claude-fable-5"
+    assert describe_llm_source(sampler) == {"llm_source": "sampling", "model": "claude-fable-5"}
+    assert describe_llm_source(RemoteLlmClient("http://x", "t")) == {
+        "llm_source": "bridge",
+        "model": None,
+    }
+    assert describe_llm_source(None) == {"llm_source": "deterministic", "model": None}
+    chain = ChainedLlmClient([sampler])
+    assert describe_llm_source(chain)["llm_source"] == "sampling"

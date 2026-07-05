@@ -275,8 +275,17 @@ def generate_only(
         export_error=export_error,
     )
     save_snapshot(paths, fingerprint)
+    from suitest_lifecycle.llm_bridge import describe_llm_source
+
     (paths.tmp_dir / "change_report.json").write_text(
-        json.dumps({"changeDetection": change_report, "generatedCode": gen_counts}, indent=2),
+        json.dumps(
+            {
+                "changeDetection": change_report,
+                "generatedCode": gen_counts,
+                **describe_llm_source(codegen_llm),
+            },
+            indent=2,
+        ),
         encoding="utf-8",
     )
 

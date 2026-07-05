@@ -423,6 +423,20 @@ def resolve_llm(config: Config) -> LlmClientBase | None:
     return clients[0] if len(clients) == 1 else ChainedLlmClient(clients)
 
 
+def describe_llm_source(client: object) -> dict[str, object]:
+    """Where the generation's inference came from (for the envelope + analytics)."""
+    if client is None:
+        return {"llm_source": "deterministic", "model": None}
+    if isinstance(client, ChainedLlmClient):
+        for inner in client._clients:
+            if isinstance(inner, SamplingLlmClient) and inner.last_model:
+                return {"llm_source": "sampling", "model": inner.last_model}
+        return {"llm_source": "bridge", "model": None}
+    if isinstance(client, SamplingLlmClient):
+        return {"llm_source": "sampling", "model": client.last_model}
+    return {"llm_source": "bridge", "model": None}
+
+
 __all__ = [
     "ChainedLlmClient",
     "LlmClientBase",
@@ -430,6 +444,7 @@ __all__ = [
     "SamplingLlmClient",
     "build_dom_context",
     "build_dom_context_from_discovery",
+    "describe_llm_source",
     "resolve_llm",
     "resolve_remote",
 ]
