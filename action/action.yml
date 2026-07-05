@@ -1,0 +1,36 @@
+name: "Suitest"
+description: "Run Suitest E2E/API tests and comment results on the PR"
+branding:
+  icon: "check-circle"
+  color: "green"
+
+inputs:
+  config:
+    description: "Path to suitest.config.json"
+    default: "suitest.config.json"
+  api-url:
+    description: "Suitest server URL (leave empty for pure CI without a server)"
+    default: ""
+  api-key:
+    description: "Suitest API key"
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Run Suitest
+      shell: bash
+      env:
+        SUITEST_API_URL: ${{ inputs.api-url }}
+        SUITEST_API_KEY: ${{ inputs.api-key }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        npx -y @suiflex/suitest-mcp ci --config "${{ inputs.config }}"
