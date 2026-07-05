@@ -204,7 +204,13 @@ def verify_credentials() -> str | None:
     (``GET /api/v1/api-keys/whoami`` — the key pins the workspace/project every
     tool publishes into). Any failure must abort the connection: a server that
     accepts empty or mismatched credentials silently drops all publishes.
+
+    Local mode (``SUITEST_MODE=local``) runs against on-disk SQLite + artifacts
+    with no server and no API key, so the credential gate is skipped entirely
+    (P0 items #1/#3).
     """
+    if os.environ.get("SUITEST_MODE", "").strip().lower() == "local":
+        return None
     api_url = os.environ.get("SUITEST_API_URL", "").strip().rstrip("/")
     api_key = os.environ.get("SUITEST_API_KEY", "").strip()
     if not api_url or not api_key:
