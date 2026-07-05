@@ -42,6 +42,15 @@ def _write_message(message: dict[str, object]) -> None:
         _out_stream.write(json.dumps(message) + "\n")
         _out_stream.flush()
 
+
+# Capabilities the client declared at initialize (e.g. sampling). Sampling is
+# only usable when the client advertised it.
+_client_capabilities: dict[str, object] = {}
+
+
+def client_supports_sampling() -> bool:
+    return "sampling" in _client_capabilities
+
 # Run tools accept the explicit recreate opt-in (goal: recreate NEVER happens
 # implicitly — only via this flag or the publish.recreateProject config key).
 RECREATE_TOOLS = frozenset({"run_tests", "run_backend_tests", "run_frontend_tests"})
@@ -162,6 +171,11 @@ def handle(message: dict[str, object]) -> dict[str, object] | None:
     method = message.get("method")
     req_id = message.get("id")
     if method == "initialize":
+        params = message.get("params") or {}
+        caps = params.get("capabilities") if isinstance(params, dict) else None
+        _client_capabilities.clear()
+        if isinstance(caps, dict):
+            _client_capabilities.update(caps)
         return _ok(
             req_id,
             {
