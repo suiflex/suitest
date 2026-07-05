@@ -15,6 +15,31 @@ It includes a **blackbox DOM testing engine** — test any web app with no repo
 access at all: a URL, test credentials, and a scope are enough. Deterministic,
 no LLM key required.
 
+## Quickstart
+
+```bash
+npx -y @suiflex/suitest-mcp init
+```
+
+One command: detects your IDE (Claude Code, Cursor, Windsurf) and app framework
+(Next.js, Vite, Express, Django), asks one thing — local or server — then writes
+`suitest.config.json` and merges the Suitest entry into your IDE's MCP config
+(your other MCP servers are preserved). **Local mode needs no API key.**
+
+Then restart your IDE and tell the agent: **"test my app"**.
+
+Non-interactive (CI / scripts):
+
+```bash
+npx -y @suiflex/suitest-mcp init --ide claude-code --mode local --yes
+npx -y @suiflex/suitest-mcp init --ide cursor --mode server \
+  --api-url https://suitest.example.com --api-key sk_suitest_… --yes
+```
+
+Flags: `--ide claude-code|cursor|windsurf`, `--mode local|server`, `--base-url`
+(app URL when the framework can't be auto-detected), `--api-url` / `--api-key`
+(server mode), `--yes` (accept detected defaults, no prompts).
+
 ## Requirements
 
 - Node.js ≥ 18 (to run this launcher)
