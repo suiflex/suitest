@@ -61,11 +61,7 @@ def excerpt_dom(dom: str, *, failed_selector: str, max_chars: int = 2000) -> str
     if not tokens:
         return dom[:max_chars]
 
-    hits = [
-        i
-        for i, line in enumerate(lines)
-        if any(tok.lower() in line.lower() for tok in tokens)
-    ]
+    hits = [i for i, line in enumerate(lines) if any(tok.lower() in line.lower() for tok in tokens)]
     if not hits:
         return dom[:max_chars]
 

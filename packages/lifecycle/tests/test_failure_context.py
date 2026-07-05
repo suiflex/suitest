@@ -45,6 +45,7 @@ def _case() -> FailedCase:
         },
     )
 
+
 _DOM = """
 <html><body>
 <header><nav>menu very long here {filler}</nav></header>
@@ -93,9 +94,7 @@ def test_network_keeps_only_non_2xx() -> None:
 
 
 def test_network_truncates_huge_response_body() -> None:
-    entries = [
-        {"method": "POST", "url": "/x", "status": 500, "response_body": "A" * 10_000}
-    ]
+    entries = [{"method": "POST", "url": "/x", "status": 500, "response_body": "A" * 10_000}]
     out = excerpt_network(entries, max_entries=10)
     assert len(out[0]) < 600  # body clipped, not carried whole
 
@@ -173,3 +172,93 @@ def test_full_bundle_from_fixture_within_budget() -> None:
     assert "## Test:" in md
     assert "#submit-btn" in md or "submit-button" in md
     assert len(md.encode()) <= 8192
+
+
+def test_budget_never_exceeded_with_pathological_inputs() -> None:
+    # Many failing cases, each with monster DOM + hundreds of console lines +
+    # long errors. The 8192-byte cap must hold no matter what.
+    cases = [
+        FailedCase(
+            title="t" * 300 + str(i),
+            failed_step_index=i,
+            total_steps=99,
+            step_description="click " + "z" * 2000,
+            error_message="Boom " * 400,
+            error_stack="stack " * 1000,
+            failed_selector="#target",
+            dom="<div class='target'>" + "w" * 200_000 + "</div>",
+            console=[{"level": "error", "message": "x" * 400} for _ in range(300)],
+            network=[
+                {
+                    "method": "POST",
+                    "url": "/api/" + "u" * 300,
+                    "status": 500,
+                    "response_body": "b" * 5000,
+                }
+                for _ in range(50)
+            ],
+            evidence_links={"screenshot": "file:///tmp/a.png", "video": "file:///tmp/b.webm"},
+        )
+        for i in range(25)
+    ]
+    md = build_failure_markdown(cases, budget_bytes=8192)
+    assert len(md.encode()) <= 8192
+
+
+def _write_config(tmp_path: Path, out_name: str) -> Path:
+    cfg = tmp_path / "suitest.config.json"
+    cfg.write_text(
+        '{"mode": "frontend", "projectName": "t", "projectPath": ".", '
+        '"baseUrl": "http://localhost:3000", "output": "' + out_name + '", '
+        '"server": {"autostart": false, "startCommand": ""}}',
+        encoding="utf-8",
+    )
+    return cfg
+
+
+def test_get_failure_context_tool_envelope(tmp_path: Path) -> None:
+    import shutil
+
+    from suitest_lifecycle.tools import TOOLS, get_failure_context
+
+    assert "get_failure_context" in TOOLS
+
+    shutil.copytree(FIXTURE, tmp_path / "out")
+    cfg = _write_config(tmp_path, "out")
+
+    envelope = get_failure_context(str(cfg))
+    assert envelope["success"] is True
+    ctx = envelope["data"]["failure_context"]
+    assert "## Test:" in ctx
+    assert len(ctx.encode()) <= 8192
+    assert envelope["data"]["failed_cases"] == 1
+
+
+def test_get_failure_context_without_prior_run(tmp_path: Path) -> None:
+    from suitest_lifecycle.tools import get_failure_context
+
+    cfg = _write_config(tmp_path, "out")  # no "out" dir created
+    envelope = get_failure_context(str(cfg))
+    assert envelope["success"] is False
+    assert "run" in envelope["summary"].lower()  # clear message: no prior run
+
+
+def test_get_failure_context_run_without_failures(tmp_path: Path) -> None:
+    import json as _json
+    import shutil
+
+    from suitest_lifecycle.tools import get_failure_context
+
+    shutil.copytree(FIXTURE, tmp_path / "out")
+    # Flip the one failing case to PASSED so the run has no failures.
+    sj = tmp_path / "out" / "reports" / "summary.json"
+    data = _json.loads(sj.read_text())
+    for r in data["results"]:
+        r["status"] = "PASSED"
+    sj.write_text(_json.dumps(data))
+    cfg = _write_config(tmp_path, "out")
+
+    envelope = get_failure_context(str(cfg))
+    assert envelope["success"] is True
+    assert envelope["data"]["failed_cases"] == 0
+    assert envelope["data"]["failure_context"] == ""

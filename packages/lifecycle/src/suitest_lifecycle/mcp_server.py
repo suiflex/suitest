@@ -66,6 +66,15 @@ _TOOL_DESCRIPTIONS = {
     "run_tests": "Run the full lifecycle for whatever mode the config declares.",
     "sync_tcm": "Report the TCM mirror (case/run counts + file paths).",
     "generate_report": "Re-surface the last run's report artifacts without re-running.",
+    "get_failure_context": (
+        "Call this WHENEVER a run reports failing test(s) and you intend to fix "
+        "the code. Returns a compact markdown bundle for the last run's failures "
+        "(error + failed step + DOM excerpt around the failed selector + "
+        "error/warning console + non-2xx network + evidence links), sized to fit "
+        "an agent context window (<= 8 KB) so you can diagnose and fix WITHOUT "
+        "opening screenshots/videos by hand. No prior run -> error; run with no "
+        "failures -> empty context."
+    ),
     "bootstrap_project": "Open a browser setup wizard (target URL, credentials, crawl scope, optional markdown PRD upload); writes suitest.config.json into the project and returns its path. Call this FIRST when no config exists.",
     "blackbox_discover_app": "Blackbox: open the app URL, detect+perform login, crawl routes, capture evidence, save discovery/graph/report JSON. No repo needed.",
     "blackbox_detect_login": "Blackbox: detect the login form (username/password/submit locators) on the target — heuristics, no data-testid required.",
