@@ -1,3 +1,6 @@
-name = "suitest-docs"
-pages_build_output_dir = "docs-site/dist"
-compatibility_date = "2025-07-06"
+name = "suitest-landing"
+compatibility_date = "2026-07-05"
+
+[assets]
+directory = "./docs-site/dist"
+not_found_handling = "404-page"
