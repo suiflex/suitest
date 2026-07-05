@@ -25,7 +25,7 @@ jobs:
           path-to-signatures: signatures/version1/cla.json
           path-to-document: https://github.com/suiflex/suitest/blob/main/CLA.md
           branch: cla-signatures
-          allowlist: badrus123,*[bot]
+          allowlist: badrus123,mulhamna,*[bot]
           custom-notsigned-comment: >
             Thanks for your contribution! Before we can merge, please read our
             [Contributor License Agreement](https://github.com/suiflex/suitest/blob/main/CLA.md)
