@@ -106,12 +106,17 @@ async function runInit(opts) {
   if (mode === "local") {
     serverEnv = { SUITEST_MODE: "local" };
   } else {
+    // Under --yes (CI/non-interactive) never block on stdin: flags only.
     const apiUrl = opts.apiUrl
       ? opts.apiUrl
-      : await ask("SUITEST_API_URL [http://localhost:4000]: ", "http://localhost:4000");
+      : opts.yes
+        ? "http://localhost:4000"
+        : await ask("SUITEST_API_URL [http://localhost:4000]: ", "http://localhost:4000");
     const apiKey = opts.apiKey
       ? opts.apiKey
-      : await ask("SUITEST_API_KEY (sk_suitest_…): ", "");
+      : opts.yes
+        ? ""
+        : await ask("SUITEST_API_KEY (sk_suitest_…): ", "");
     if (!apiKey) {
       throw new Error(
         "server mode needs SUITEST_API_KEY — pass --api-key or run `login` first.",

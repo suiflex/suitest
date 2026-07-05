@@ -77,6 +77,19 @@ test("init server mode requires an API key", async () => {
   assert.strictEqual(mcpCfg.mcpServers.suitest.env.SUITEST_MODE, undefined);
 });
 
+test("init server mode with --yes but no key errors, never blocks", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "suitest-init-e2e-"));
+  fs.writeFileSync(path.join(dir, ".mcp.json"), "{}");
+  fs.writeFileSync(
+    path.join(dir, "package.json"),
+    JSON.stringify({ dependencies: { next: "^15" } }),
+  );
+  await assert.rejects(
+    () => runInit({ cwd: dir, mode: "server", ide: "claude-code", yes: true }),
+    /SUITEST_API_KEY/,
+  );
+});
+
 test("init with no IDE detected and no --ide errors clearly", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "suitest-init-e2e-"));
   await assert.rejects(
