@@ -1,0 +1,15 @@
+{
+  "failedSelector": "#submit-btn",
+  "dom": "<html><body>\n<header><nav>shop menu</nav></header>\n<main>\n<form id=\"checkout\">\n  <input name=\"qty\" value=\"1\">\n  <button id=\"submit-button\" disabled>Pay now</button>\n</form>\n</main>\n<footer>copyright 2026</footer>\n</body></html>",
+  "console": [
+    {"level": "info", "message": "app booted"},
+    {"level": "error", "message": "POST /api/cart 500 (Internal Server Error)"},
+    {"level": "warning", "message": "deprecated onSubmit handler"},
+    {"level": "debug", "message": "render 12ms"}
+  ],
+  "network": [
+    {"method": "GET", "url": "/api/products", "status": 200},
+    {"method": "POST", "url": "/api/cart", "status": 500, "response_body": "{\"error\":\"inventory service timeout\"}"},
+    {"method": "GET", "url": "/favicon.ico", "status": 404}
+  ]
+}

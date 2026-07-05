@@ -1,0 +1,79 @@
+{
+  "project": "demo-shop",
+  "mode": "frontend",
+  "baseUrl": "http://localhost:3000",
+  "totals": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
+    "skipped": 0,
+    "errored": 0
+  },
+  "durationMs": 130,
+  "serverStarted": true,
+  "ready": true,
+  "readyDetail": "200 at /",
+  "results": [
+    {
+      "testId": "TC001",
+      "title": "open home page",
+      "description": "smoke",
+      "status": "PASSED",
+      "durationMs": 68,
+      "error": "",
+      "automationFile": "TC001_open_home.py",
+      "artifacts": [],
+      "video": "",
+      "screenshot": "",
+      "steps": [
+        {
+          "index": 1,
+          "type": "action",
+          "description": "goto /",
+          "status": "PASSED"
+        }
+      ]
+    },
+    {
+      "testId": "TC002",
+      "title": "checkout submit enabled",
+      "description": "submit checkout",
+      "status": "FAILED",
+      "durationMs": 62,
+      "error": "Traceback (most recent call last):\n  File \"frontend/TC002_checkout_submit.py\", line 8, in <module>\n    test()\n  File \"frontend/TC002_checkout_submit.py\", line 6, in test\n    raise AssertionError(f'TimeoutError: waiting for selector {selector} to be enabled (30000ms exceeded)')\nAssertionError: TimeoutError: waiting for selector #submit-btn to be enabled (30000ms exceeded)",
+      "automationFile": "TC002_checkout_submit.py",
+      "artifacts": [
+        "TC002.webm",
+        "TC002_fail.png"
+      ],
+      "video": "TC002.webm",
+      "screenshot": "TC002_fail.png",
+      "steps": [
+        {
+          "index": 1,
+          "type": "action",
+          "description": "goto /checkout",
+          "status": "PASSED"
+        },
+        {
+          "index": 2,
+          "type": "action",
+          "description": "fill #qty = 1",
+          "status": "PASSED"
+        },
+        {
+          "index": 3,
+          "type": "action",
+          "description": "click #submit-btn",
+          "status": "FAILED"
+        },
+        {
+          "index": 4,
+          "type": "assertion",
+          "description": "expect order confirmation",
+          "status": "SKIPPED"
+        }
+      ]
+    }
+  ]
+}
