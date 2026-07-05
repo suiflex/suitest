@@ -51,6 +51,7 @@ _client_capabilities: dict[str, object] = {}
 def client_supports_sampling() -> bool:
     return "sampling" in _client_capabilities
 
+
 # Run tools accept the explicit recreate opt-in (goal: recreate NEVER happens
 # implicitly — only via this flag or the publish.recreateProject config key).
 RECREATE_TOOLS = frozenset({"run_tests", "run_backend_tests", "run_frontend_tests"})

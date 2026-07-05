@@ -1,7 +1,6 @@
 import threading
 
 import pytest
-
 from suitest_lifecycle import mcp_server
 from suitest_lifecycle.sampling import SamplingError, create_message
 

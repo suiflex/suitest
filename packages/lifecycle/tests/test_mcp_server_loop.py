@@ -8,7 +8,7 @@ def _run_server(lines: list[dict]) -> list[dict]:
     stdin = io.StringIO("\n".join(json.dumps(m) for m in lines) + "\n")
     stdout = io.StringIO()
     serve(stdin=stdin, stdout=stdout)
-    return [json.loads(l) for l in stdout.getvalue().splitlines()]
+    return [json.loads(line) for line in stdout.getvalue().splitlines()]
 
 
 def test_initialize_and_tools_list(monkeypatch) -> None:
