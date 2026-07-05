@@ -414,10 +414,7 @@ def blackbox_publish_results(**kwargs: Any) -> dict[str, Any]:
     token = _os.environ.get("SUITEST_API_KEY", "")
     if not api_url or not token:
         return _envelope(False, "SUITEST_API_URL / SUITEST_API_KEY not set")
-    try:
-        from suitest_sdk import SuitestAPIError, SuitestClient
-    except ImportError:
-        return _envelope(False, "suiflex-suitest-sdk not installed")
+    from suitest_lifecycle.http_client import SuitestAPIError, SuitestClient
 
     plan_path = paths.test_plan_json
     if not plan_path.is_file():

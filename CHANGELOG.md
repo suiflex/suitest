@@ -4,6 +4,19 @@ All notable Suitest milestone tags are listed here. Format: keepachangelog +
 milestone groupings; the project follows semver-flavoured tags
 ``vMAJOR.MINOR.PATCH-<milestone>`` until 1.0.
 
+## Unreleased — zero-install npx + run logs (2026-07-05)
+
+- **`npx` fully self-contained (`@suiflex/suitest-mcp` 0.1.3)** — the lifecycle
+  now ships its own stdlib HTTP client (`suitest_lifecycle/http_client.py`);
+  publish/binding/LLM-proxy no longer import `suiflex-suitest-sdk`, so a fresh
+  host needs only Node + Python ≥ 3.11. No more silent
+  "suiflex-suitest-sdk not installed" publish skips.
+- **Run logs land in the web Logs tab** — the runner captures stdout/stderr
+  tails (pass, fail, and timeout), the publisher sends them, and
+  `POST /runs/ingest` persists them as `run_step_logs` (per-case headers,
+  stdout→info, stderr→error). MCP-published runs previously always showed
+  "No logs recorded".
+
 ## Unreleased — open-source launch prep (2026-07-03)
 
 Public-launch readiness pass:

@@ -62,7 +62,15 @@ def _as_outcome(value: str) -> TestOutcome:
         return TestOutcome.PASSED
 
 
-def _run_one(file_path: Path, python: str, timeout_sec: int) -> tuple[TestOutcome, int, str]:
+def _tail(text: str | None, lines: int = 500) -> str:
+    # ponytail: 500-line tail bound keeps the ingest payload sane for chatty tests.
+    return "\n".join((text or "").strip().splitlines()[-lines:])
+
+
+def _run_one(
+    file_path: Path, python: str, timeout_sec: int
+) -> tuple[TestOutcome, int, str, str, str]:
+    """Returns (outcome, duration_ms, error, stdout_tail, stderr_tail)."""
     start = time.monotonic()
     try:
         proc = subprocess.run(
@@ -72,19 +80,25 @@ def _run_one(file_path: Path, python: str, timeout_sec: int) -> tuple[TestOutcom
             timeout=timeout_sec,
             cwd=str(file_path.parent),
         )
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
+        out = exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+        err = exc.stderr.decode() if isinstance(exc.stderr, bytes) else (exc.stderr or "")
         return (
             TestOutcome.ERROR,
             int((time.monotonic() - start) * 1000),
             f"timeout after {timeout_sec}s",
+            _tail(out),
+            _tail(err),
         )
     duration_ms = int((time.monotonic() - start) * 1000)
+    out_tail = _tail(proc.stdout)
+    err_tail_full = _tail(proc.stderr)
     if proc.returncode == 0:
-        return TestOutcome.PASSED, duration_ms, ""
+        return TestOutcome.PASSED, duration_ms, "", out_tail, err_tail_full
     err = (proc.stderr or "").strip() or (proc.stdout or "").strip() or f"exit {proc.returncode}"
     # Keep the last ~30 lines — enough to see the assertion without flooding the report.
     err_tail = "\n".join(err.splitlines()[-30:])
-    return TestOutcome.FAILED, duration_ms, err_tail
+    return TestOutcome.FAILED, duration_ms, err_tail, out_tail, err_tail_full
 
 
 def run_tests(
@@ -114,7 +128,9 @@ def run_tests(
             )
             continue
         file_path = test_dir / case.automation_file
-        outcome, duration_ms, error = _run_one(file_path, interpreter, timeout_sec)
+        outcome, duration_ms, error, out_tail, err_tail = _run_one(
+            file_path, interpreter, timeout_sec
+        )
         steps, video, screenshot = _collect_steps(case, test_dir, outcome)
         artifacts = [p for p in (video, screenshot) if p]
         results.append(
@@ -126,6 +142,8 @@ def run_tests(
                 duration_ms=duration_ms,
                 error=error,
                 automation_file=case.automation_file,
+                stdout=out_tail,
+                stderr=err_tail,
                 steps=steps,
                 video_path=video,
                 screenshot_path=screenshot,

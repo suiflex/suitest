@@ -2,9 +2,10 @@
 
 Builds the bulk-import (cases + steps + source code) and run-ingest (completed
 run + per-step outcomes + video/screenshot artifacts) payloads, then sends them
-via the Suitest SDK. The SDK is imported lazily so the lifecycle core stays
-stdlib-only; if it (or the server) is unavailable, publishing degrades to a
-clean ``{"published": False, "reason": ...}`` instead of failing the run.
+via the bundled stdlib client (:mod:`suitest_lifecycle.http_client`) — no pip
+install needed on the host, so ``npx @suiflex/suitest-mcp`` publishes out of
+the box. If the server is unavailable, publishing degrades to a clean
+``{"published": False, "reason": ...}`` instead of failing the run.
 """
 
 from __future__ import annotations
@@ -149,6 +150,8 @@ def _result_payloads(
                 "durationMs": r.duration_ms,
                 "error": r.error,
                 "failureKind": kinds.get(r.test_id, ""),
+                "stdout": r.stdout,
+                "stderr": r.stderr,
                 "steps": [
                     {
                         "order": s.index,
@@ -187,10 +190,9 @@ def publish_results(
     # No binding info (legacy caller) + no id → refuse rather than guess.
     if binding is None and not config.publish.project_id:
         return {"published": False, "reason": "publish.projectId not set"}
-    try:
-        from suitest_sdk import SuitestAPIError, SuitestClient
-    except ImportError:
-        return {"published": False, "reason": "suiflex-suitest-sdk not installed"}
+    # Bundled stdlib client — publish works out of the box under
+    # `npx @suiflex/suitest-mcp`, no pip install required on the host.
+    from suitest_lifecycle.http_client import SuitestAPIError, SuitestClient
 
     # first_setup / explicit recreate publish by slug (server find-or-creates);
     # valid / repaired / unverified publish by explicit id (server 404s stale ids

@@ -159,3 +159,53 @@ async def test_ingest_retest_matrix(api_db: ApiDb) -> None:
             await session.scalars(select(TestCase).where(TestCase.slug == "create_product"))
         ).one()
         assert case.last_run_id == run2.run_id  # TestResult points at the newest run
+
+
+@pytest.mark.asyncio
+async def test_ingest_run_writes_log_stream(api_db: ApiDb) -> None:
+    """stdout/stderr from the lifecycle land in run_step_logs (Logs tab source)."""
+    from suitest_db.models.run_step_log import RunStepLog
+
+    ws = await api_db.seed_workspace(slug="ws-logs", name="WS Logs")
+    async with api_db.maker() as session:
+        imported = await bulk_import_cases(session, workspace_id=ws.id, body=_import_body())
+        await session.commit()
+        body = RunIngestBody(
+            project_id=imported.project_id,
+            suite_name="Demo suite",
+            name="log run",
+            results=[
+                IngestResult(
+                    slug="create_product",
+                    outcome="PASSED",
+                    duration_ms=10,
+                    stdout="GET /api/products 401\nassert ok",
+                ),
+                IngestResult(
+                    slug="list_products",
+                    outcome="FAILED",
+                    duration_ms=20,
+                    error="AssertionError: boom",
+                    stderr="Traceback ...\nAssertionError: boom",
+                ),
+            ],
+        )
+        res = await ingest_run(session, workspace_id=ws.id, body=body)
+        await session.commit()
+
+        rows = (
+            await session.scalars(
+                select(RunStepLog)
+                .where(RunStepLog.run_id == res.run_id)
+                .order_by(RunStepLog.seq.asc())
+            )
+        ).all()
+        messages = [r.message for r in rows]
+        assert any("GET /api/products 401" in m for m in messages)
+        assert any("AssertionError: boom" in m for m in messages)
+        # per-case header lines + monotonic seq + level mapping
+        assert sum(m.startswith("===") for m in messages) == 2
+        assert [r.seq for r in rows] == list(range(1, len(rows) + 1))
+        assert {r.level for r in rows} == {"info", "error"}
+        # every row is attached to a run_step of this run
+        assert all(r.run_step_id for r in rows)

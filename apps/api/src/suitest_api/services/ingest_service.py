@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.models.case import TestCase, TestStep
+from suitest_db.repositories.run_step_logs import RunStepLogRepo
 from suitest_db.repositories.runs import (
     ArtifactRepo,
     RunCreate,
@@ -368,6 +369,8 @@ async def ingest_run(
     step_repo = RunStepRepo(session)
     artifact_repo = ArtifactRepo(session)
     case_repo = TestCaseRepo(session)
+    log_repo = RunStepLogRepo(session)
+    log_seq = 0  # single-shot ingest — a local counter is monotonic enough
 
     run = await run_repo.create(
         RunCreate(
@@ -452,6 +455,34 @@ async def ingest_run(
                 state_snapshot={"failureKind": r.failure_kind} if r.failure_kind else None,
             )
             first_run_step_id = rs.id
+
+        # Persist captured output as the run's log stream (feeds the Logs tab —
+        # GET /runs/:id/logs reads run_step_logs, which only the ARQ orchestrator
+        # wrote before; ingested runs were always "No logs recorded").
+        log_lines: list[tuple[str, str]] = [
+            *[("info", line) for line in (r.stdout or "").splitlines() if line.strip()],
+            *[("error", line) for line in (r.stderr or "").splitlines() if line.strip()],
+        ]
+        if r.error and not r.stderr:
+            log_lines.extend(("error", line) for line in r.error.splitlines() if line.strip())
+        if log_lines:
+            log_seq += 1
+            await log_repo.append(
+                run_id=run.id,
+                run_step_id=first_run_step_id,
+                level="info",
+                message=f"=== {case.public_id} {r.slug or r.name} ({r.outcome}) ===",
+                seq=log_seq,
+            )
+            for level, message in log_lines:
+                log_seq += 1
+                await log_repo.append(
+                    run_id=run.id,
+                    run_step_id=first_run_step_id,
+                    level=level,
+                    message=message,
+                    seq=log_seq,
+                )
 
         # Attach the case's video/screenshot to its first run step.
         for a in r.artifacts:

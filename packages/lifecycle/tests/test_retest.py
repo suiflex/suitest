@@ -11,8 +11,6 @@ Run: PYTHONPATH=src python -m pytest tests/test_retest.py -q
 from __future__ import annotations
 
 import json
-import sys
-import types
 from pathlib import Path
 from typing import ClassVar
 
@@ -428,10 +426,12 @@ class _FakeSdkClient:
 
 @pytest.fixture()
 def fake_sdk(monkeypatch: pytest.MonkeyPatch) -> type[_FakeSdkClient]:
-    module = types.ModuleType("suitest_sdk")
-    module.SuitestClient = _FakeSdkClient  # type: ignore[attr-defined]
-    module.SuitestAPIError = type("SuitestAPIError", (RuntimeError,), {})  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "suitest_sdk", module)
+    from suitest_lifecycle import http_client
+
+    monkeypatch.setattr(http_client, "SuitestClient", _FakeSdkClient)
+    monkeypatch.setattr(
+        http_client, "SuitestAPIError", type("SuitestAPIError", (RuntimeError,), {})
+    )
     return _FakeSdkClient
 
 
@@ -680,10 +680,12 @@ class _FakeBlackboxSdk:
 
 @pytest.fixture()
 def blackbox_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    module = types.ModuleType("suitest_sdk")
-    module.SuitestClient = _FakeBlackboxSdk  # type: ignore[attr-defined]
-    module.SuitestAPIError = type("SuitestAPIError", (RuntimeError,), {})  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "suitest_sdk", module)
+    from suitest_lifecycle import http_client
+
+    monkeypatch.setattr(http_client, "SuitestClient", _FakeBlackboxSdk)
+    monkeypatch.setattr(
+        http_client, "SuitestAPIError", type("SuitestAPIError", (RuntimeError,), {})
+    )
     monkeypatch.setenv("SUITEST_API_URL", "http://localhost:4000")
     monkeypatch.setenv("SUITEST_API_KEY", "sk-test")
 

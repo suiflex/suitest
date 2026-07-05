@@ -95,16 +95,14 @@ def rewrite_project_id(config_path: Path, project_id: str) -> bool:
         return False
 
 
-def _make_client(config: Config) -> BindingClient | None:
+def _make_client(config: Config) -> BindingClient:
     import os
 
-    try:
-        from suitest_sdk import SuitestClient
-    except ImportError:
-        return None
+    from suitest_lifecycle.http_client import SuitestClient
+
     api_url = config.publish.api_url or os.environ.get("SUITEST_API_URL", "")
     token = config.publish.token or os.environ.get("SUITEST_API_KEY") or None
-    return SuitestClient(  # type: ignore[no-any-return]
+    return SuitestClient(
         api_url, token=token, workspace_id=config.publish.workspace_id or None, timeout=30.0
     )
 
@@ -117,10 +115,6 @@ def resolve_binding(
         return BindingResult("local_only", "publish_disabled")
     if client is None:
         client = _make_client(config)
-    if client is None:
-        return BindingResult(
-            "local_only", "sdk_not_installed", detail="suiflex-suitest-sdk not installed"
-        )
 
     slug = project_slug(config.project_name)
     if not config.publish.project_id:

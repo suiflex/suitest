@@ -142,6 +142,9 @@ class TestResult:
     error: str = ""
     automation_file: str = ""
     artifacts: list[str] = field(default_factory=list)
+    # Captured subprocess output (tail-bounded) — published as run log lines.
+    stdout: str = ""
+    stderr: str = ""
     # Phase 2 — rich recording (collected from each test's sidecar JSON).
     steps: list[StepResult] = field(default_factory=list)
     video_path: str = ""

@@ -124,11 +124,8 @@ class RemoteLlmClient:
     def _complete(self, prompt: str, *, system: str | None = None, max_tokens: int = 4096) -> str:
         if self._disabled:
             return ""
-        try:
-            from suitest_sdk import SuitestAPIError, SuitestClient
-        except ImportError:
-            self._disabled = True
-            return ""
+        from suitest_lifecycle.http_client import SuitestAPIError, SuitestClient
+
         try:
             with SuitestClient(
                 self._api_url,
