@@ -43,6 +43,7 @@ function printHelp() {
       "  npx @suiflex/suitest-mcp install --client <target>",
       "  npx @suiflex/suitest-mcp login              save API URL + key once",
       "  npx @suiflex/suitest-mcp doctor             check client config targets",
+      "  npx @suiflex/suitest-mcp ci                 run tests in CI, comment on the PR, exit-code gate",
       "  npx @suiflex/suitest-mcp --version          bundled server version",
       "",
       "Init flags:    --ide claude-code|cursor|windsurf, --mode local|server,",
@@ -95,13 +96,15 @@ function printVersion() {
   process.stdout.write(`${pkg.name} ${pkg.version}\n`);
 }
 
-function startServer() {
+// Resolve the bundled python + PYTHONPATH-augmented env, or emit the same
+// diagnostics the server path uses. Returns null on any precondition failure.
+function preparePython() {
   if (!fs.existsSync(path.join(PYTHON_DIR, "suitest_lifecycle"))) {
     process.stderr.write(
       "bundled python sources missing — this is a packaging bug; " +
         "run `npm run sync-python` in a checkout, or reinstall the package.\n",
     );
-    return 1;
+    return null;
   }
   const py = findPython();
   if (!py) {
@@ -109,17 +112,22 @@ function startServer() {
       "suitest-mcp needs Python >= 3.11 on PATH (or set SUITEST_PYTHON " +
         "to an interpreter). Install from https://python.org and retry.\n",
     );
-    return 1;
+    return null;
   }
-
   const env = { ...process.env };
   env.PYTHONPATH = env.PYTHONPATH
     ? `${PYTHON_DIR}${path.delimiter}${env.PYTHONPATH}`
     : PYTHON_DIR;
+  return { py, env };
+}
 
-  const child = spawn(py.cmd, ["-m", "suitest_lifecycle.mcp_server"], {
+function startServer() {
+  const prepared = preparePython();
+  if (!prepared) return 1;
+
+  const child = spawn(prepared.py.cmd, ["-m", "suitest_lifecycle.mcp_server"], {
     stdio: "inherit",
-    env,
+    env: prepared.env,
   });
   child.on("exit", (code, signal) => {
     process.exit(signal ? 1 : (code ?? 0));
@@ -131,8 +139,35 @@ function startServer() {
   return undefined;
 }
 
+// `ci` runs the lifecycle in CI, renders + upserts a PR comment, and exits with
+// the merge-gate code (0 pass / 1 test failure / 2 infra). All args after `ci`
+// pass straight through to `python -m suitest_lifecycle.ci` (argparse there).
+function runCi(rest) {
+  const prepared = preparePython();
+  if (!prepared) return 2; // packaging/interpreter problem = infra error
+
+  const child = spawn(
+    prepared.py.cmd,
+    ["-m", "suitest_lifecycle.ci", ...rest],
+    { stdio: "inherit", env: prepared.env },
+  );
+  child.on("exit", (code, signal) => {
+    process.exit(signal ? 2 : (code ?? 2));
+  });
+  child.on("error", (err) => {
+    process.stderr.write(`failed to start python: ${err.message}\n`);
+    process.exit(2);
+  });
+  return undefined;
+}
+
 async function main() {
   const args = process.argv.slice(2);
+  // `ci` forwards ALL remaining args (incl. --help/--config) to python argparse,
+  // so it must be handled before the global --help/--version short-circuit.
+  if (args[0] === "ci") {
+    return runCi(args.slice(1));
+  }
   if (args.includes("--help") || args.includes("-h")) {
     printHelp();
     return 0;
