@@ -11,6 +11,7 @@
  * Usage:
  *   npx @suiflex/suitest-mcp                    # start the stdio MCP server
  *   npx @suiflex/suitest-mcp mcp                # same (explicit subcommand)
+ *   npx @suiflex/suitest-mcp init               # zero-config: detect IDE + framework, write config
  *   npx @suiflex/suitest-mcp install            # interactive: pick a client (TTY)
  *   npx @suiflex/suitest-mcp install --client claude-code
  *   npx @suiflex/suitest-mcp login              # save API URL + key once
@@ -37,12 +38,15 @@ function printHelp() {
       "Usage:",
       "  npx @suiflex/suitest-mcp                    start the MCP server (default)",
       "  npx @suiflex/suitest-mcp mcp                same, explicit",
+      "  npx @suiflex/suitest-mcp init               zero-config onboarding (detect IDE + framework)",
       "  npx @suiflex/suitest-mcp install            interactive picker (TTY)",
       "  npx @suiflex/suitest-mcp install --client <target>",
       "  npx @suiflex/suitest-mcp login              save API URL + key once",
       "  npx @suiflex/suitest-mcp doctor             check client config targets",
       "  npx @suiflex/suitest-mcp --version          bundled server version",
       "",
+      "Init flags:    --ide claude-code|cursor|windsurf, --mode local|server,",
+      "               --base-url, --api-url, --api-key, --yes",
       "Install flags: --client, --name, --scope global|project, --api-url,",
       "               --api-key, --print, --dry-run, --force",
       "",
@@ -51,6 +55,37 @@ function printHelp() {
       "",
     ].join("\n"),
   );
+}
+
+function parseInitFlags(argv) {
+  const out = { yes: false };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    switch (a) {
+      case "--ide":
+        out.ide = argv[++i];
+        break;
+      case "--mode":
+        out.mode = argv[++i];
+        break;
+      case "--base-url":
+        out.baseUrl = argv[++i];
+        break;
+      case "--api-url":
+        out.apiUrl = argv[++i];
+        break;
+      case "--api-key":
+        out.apiKey = argv[++i];
+        break;
+      case "--yes":
+      case "-y":
+        out.yes = true;
+        break;
+      default:
+        throw new Error(`unknown flag: ${a}`);
+    }
+  }
+  return out;
 }
 
 function printVersion() {
@@ -109,6 +144,24 @@ async function main() {
 
   const sub = args[0];
   const rest = args.slice(1);
+
+  if (sub === "init") {
+    const { runInit } = require("../lib/init.js");
+    const flags = parseInitFlags(rest);
+    try {
+      const r = await runInit({ cwd: process.cwd(), ...flags });
+      process.stdout.write(
+        `\n✔ Done — ${r.ide}, ${r.mode} mode, ${r.framework} app.\n` +
+          `  wrote ${r.mcpConfigPath}\n` +
+          `  ${r.configCreated ? "wrote" : "kept existing"} ${r.suitestConfigPath}\n` +
+          `Restart your IDE, then tell the agent: "test my app".\n`,
+      );
+      return 0;
+    } catch (err) {
+      process.stderr.write(`init failed: ${err.message}\n`);
+      return 1;
+    }
+  }
 
   if (sub === "install" || sub === "doctor" || sub === "login") {
     const installer = require("../lib/install.js");
