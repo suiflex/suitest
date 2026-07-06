@@ -56,6 +56,9 @@ async def serve() -> None:
     """
     ctx: dict[str, object] = {}
     await build_local_ctx(ctx)
+    # One startup line so .suitest/logs/supervisor.log proves liveness — the
+    # loop is otherwise silent unless a poll/run errors.
+    log.info("supervisor.started", poll_interval_seconds=_POLL_INTERVAL_SECONDS)
     try:
         while True:
             await drain_once(ctx)

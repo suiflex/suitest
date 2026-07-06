@@ -35,6 +35,9 @@ function buildEnv(cwd, { port, webDist, creds }) {
   const dirs = projectDirs(cwd);
   return {
     ...process.env,
+    // stdout is redirected to .suitest/logs/*.log; without this Python
+    // block-buffers and log lines are delayed or lost on SIGTERM.
+    PYTHONUNBUFFERED: "1",
     SUITEST_MODE: "local",
     SUITEST_DATABASE_URL: dbUrl(cwd),
     SUITEST_ARTIFACTS_BACKEND: "local",
