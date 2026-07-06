@@ -6,6 +6,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-$ROOT/dist/bundle}"
+case "$OUT" in
+  "$ROOT"/*) ;;
+  *) echo "OUT must be inside the repo root (got: $OUT)" >&2; exit 1 ;;
+esac
 
 rm -rf "$OUT"
 mkdir -p "$OUT/web" "$OUT/wheels"
@@ -16,6 +20,8 @@ cp -R "$ROOT/apps/web/dist/." "$OUT/web/"
 
 echo "==> python wheels"
 (cd "$ROOT" && uv build --all-packages --wheel -o "$OUT/wheels")
+
+rm -f "$OUT/wheels/.gitignore"
 
 echo "==> tarballs"
 tar -czf "$OUT/web.tar.gz" -C "$OUT/web" .
