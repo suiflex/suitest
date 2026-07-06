@@ -33,6 +33,18 @@ def test_module_cli_creates_sqlite_schema(tmp_path: Path) -> None:
     assert len(tables) > 30
 
 
+def test_module_cli_fails_cleanly_without_env() -> None:
+    env = {k: v for k, v in os.environ.items() if k != "SUITEST_DATABASE_URL"}
+    result = subprocess.run(
+        [sys.executable, "-m", "suitest_db.bootstrap"],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "SUITEST_DATABASE_URL" in result.stderr
+
+
 def test_module_cli_is_idempotent(tmp_path: Path) -> None:
     db_path = tmp_path / "suitest.db"
     env = {**os.environ, "SUITEST_DATABASE_URL": f"sqlite+aiosqlite:///{db_path}"}

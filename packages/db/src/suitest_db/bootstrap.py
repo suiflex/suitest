@@ -24,8 +24,12 @@ def _main() -> None:
 
     from sqlalchemy.ext.asyncio import create_async_engine
 
+    url = os.environ.get("SUITEST_DATABASE_URL")
+    if not url:
+        raise SystemExit("SUITEST_DATABASE_URL is not set")
+
     async def _run() -> None:
-        engine = create_async_engine(os.environ["SUITEST_DATABASE_URL"])
+        engine = create_async_engine(url)
         try:
             await create_local_schema(engine)
         finally:
