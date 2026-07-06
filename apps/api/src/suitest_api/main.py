@@ -270,6 +270,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Local bundle: serve the built web dashboard as SPA. Mounted LAST so every
+    # /api/* + /auth/* router is matched first; the catch-all only handles the
+    # frontend routes. No-op in server mode (web served separately). env:
+    # SUITEST_WEB_DIST -> folder containing index.html.
+    import os
+    from pathlib import Path
+
+    web_dist = os.environ.get("SUITEST_WEB_DIST", "").strip()
+    if web_dist and (Path(web_dist) / "index.html").is_file():
+        from fastapi.staticfiles import StaticFiles
+
+        app.mount("/", StaticFiles(directory=web_dist, html=True), name="web")
+
     return app
 
 
