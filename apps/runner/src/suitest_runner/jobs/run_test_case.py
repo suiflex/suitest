@@ -160,6 +160,8 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
             workspace_id = project.workspace_id if project is not None else None
             if workspace_id is None:
                 log.warning("runner.job.missing_project", run_id=run_id)
+                await run_repo.update_status(run_id, RunStatus.FAIL)
+                await session.commit()
                 return {"error": "RUN_PROJECT_MISSING", "run_id": run_id}
 
             if workspace_id not in registry._by_workspace:
