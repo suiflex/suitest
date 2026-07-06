@@ -15,7 +15,9 @@ export default defineConfig({
         replacesTitle: true,
       },
       favicon: "/favicon.svg",
-      social: { github: "https://github.com/suiflex/suitest" },
+      social: [
+        { icon: "github", label: "GitHub", href: "https://github.com/suiflex/suitest" },
+      ],
       editLink: {
         baseUrl: "https://github.com/suiflex/suitest/edit/main/docs-site/",
       },
