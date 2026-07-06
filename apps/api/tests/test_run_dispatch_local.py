@@ -6,7 +6,7 @@ mode, without any DB or network involvement.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import pytest
 
@@ -15,16 +15,18 @@ from suitest_api.deps.run_dispatch import dispatch_run
 
 @dataclass
 class _FakeJob:
-    job_id: str = "fake-job-id"
+    job_id: str
 
 
 class _SpyArq:
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str]] = []
+        self.calls: list[tuple[str, object]] = []
 
-    async def enqueue_job(self, name: str, run_id: str, _queue_name: str) -> object:
-        self.calls.append((name, run_id))
-        return _FakeJob(job_id=f"job-{run_id}")
+    async def enqueue_job(
+        self, name: str, *args: object, _queue_name: str | None = None
+    ) -> object:
+        self.calls.append((name, args[0]))
+        return _FakeJob(job_id=f"job-{args[0]}")
 
 
 @pytest.mark.asyncio

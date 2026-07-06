@@ -15,7 +15,9 @@ from typing import Protocol
 
 
 class _Enqueuer(Protocol):
-    async def enqueue_job(self, name: str, run_id: str, _queue_name: str) -> object: ...
+    async def enqueue_job(
+        self, name: str, /, *args: object, _queue_name: str | None = None
+    ) -> object: ...
 
 
 async def dispatch_run(
@@ -31,10 +33,9 @@ async def dispatch_run(
     when ARQ returns ``None`` for a duplicate job).
     """
     if mode == "local":
-        # ponytail: supervisor drains QUEUED runs; nothing to enqueue
-        return None
+        return None  # ponytail: supervisor drains QUEUED runs; nothing to enqueue
     job = await arq.enqueue_job("run_test_case", run_id, _queue_name=queue_name)
     if job is None:
         return None
-    job_id: str = job.job_id  # type: ignore[union-attr]
-    return job_id
+    job_id = getattr(job, "job_id", None)
+    return job_id if isinstance(job_id, str) else None
