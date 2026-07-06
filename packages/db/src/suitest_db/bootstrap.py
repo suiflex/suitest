@@ -15,3 +15,24 @@ async def create_local_schema(engine: AsyncEngine) -> None:
     """Create all tables for a fresh local database."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+def _main() -> None:
+    """CLI: create the local schema at ``SUITEST_DATABASE_URL``. Idempotent."""
+    import asyncio
+    import os
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    async def _run() -> None:
+        engine = create_async_engine(os.environ["SUITEST_DATABASE_URL"])
+        try:
+            await create_local_schema(engine)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(_run())
+
+
+if __name__ == "__main__":
+    _main()
