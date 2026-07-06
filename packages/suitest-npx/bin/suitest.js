@@ -49,13 +49,37 @@ async function main() {
   // Note: both opts["base-url"] and opts.baseUrl stay set on opts — handlers should read baseUrl.
   opts.baseUrl = opts["base-url"];
 
+  const cwd = process.cwd();
   switch (cmd) {
-    case "onboard":
-    case "up":
-    case "down":
-    case "init":
-      fail(`${cmd}: not implemented yet`); // diisi Task 8
+    case "onboard": {
+      const { onboard } = require("../lib/onboard.js");
+      await onboard(cwd, opts);
       break;
+    }
+    case "up": {
+      const { prepare } = require("../lib/onboard.js");
+      const { up } = require("../lib/stack.js");
+      const { webDist, python } = await prepare(cwd);
+      await up(cwd, { webDist, python, port: opts.port });
+      break;
+    }
+    case "down": {
+      const { down } = require("../lib/stack.js");
+      down(cwd);
+      break;
+    }
+    case "init": {
+      const { loadMcpLib } = require("../lib/onboard.js");
+      const { runInit } = loadMcpLib("init.js");
+      const result = await runInit({
+        cwd,
+        ide: opts.ide,
+        yes: Boolean(opts.yes),
+        baseUrl: opts.baseUrl,
+      });
+      console.log(`MCP config written: ${result.mcpConfigPath}`);
+      break;
+    }
     default:
       fail(USAGE);
   }
