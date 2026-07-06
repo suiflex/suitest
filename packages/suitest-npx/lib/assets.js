@@ -2,20 +2,13 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
 
-const { cacheDir } = require("./project.js");
-const pkg = require("../package.json");
-
-// Assets are pinned to the package version: release tag bundle-v<version> on suiflex/suitest.
-function releaseBase() {
-  return (
-    process.env.SUITEST_BUNDLE_BASE_URL ||
-    `https://github.com/suiflex/suitest/releases/download/bundle-v${pkg.version}`
-  );
-}
-
-async function ensureAsset(name, overrideEnv) {
+// Assets (web dist + wheels) ship INSIDE the npm package under assets/,
+// copied from the repo's dist/bundle at pack time (scripts/sync-assets.js,
+// prepack). Total ~3 MB — small enough that download-on-first-run from
+// GitHub Releases was dropped (the repo is private; release assets 404
+// for anonymous users). Env overrides remain for monorepo dev/tests.
+function ensureAsset(name, overrideEnv) {
   const override = process.env[overrideEnv];
   if (override) {
     if (!fs.existsSync(override)) {
@@ -23,29 +16,19 @@ async function ensureAsset(name, overrideEnv) {
     }
     return override;
   }
-  const dest = path.join(cacheDir(pkg.version), name);
-  if (fs.existsSync(path.join(dest, ".complete"))) return dest;
-
-  const url = `${releaseBase()}/${name}.tar.gz`;
-  const res = await fetch(url, { redirect: "follow" });
-  if (!res.ok) {
+  const bundled = path.join(__dirname, "..", "assets", name);
+  if (!fs.existsSync(bundled)) {
     throw new Error(
-      `Download failed: ${url} (HTTP ${res.status}).\n` +
-        `Bundle assets for v${pkg.version} may not be published yet.\n` +
-        `Workaround: set ${overrideEnv}=<local dir> to skip the download.`,
+      `Bundled asset missing: ${bundled}.\n` +
+        `Packaging bug (scripts/sync-assets.js did not run before publish), ` +
+        `or a monorepo checkout — run scripts/build-bundle-assets.sh and set ` +
+        `${overrideEnv}=<repo>/dist/bundle/${name}.`,
     );
   }
-  fs.rmSync(dest, { recursive: true, force: true });
-  fs.mkdirSync(dest, { recursive: true });
-  const tarball = path.join(dest, `${name}.tar.gz`);
-  fs.writeFileSync(tarball, Buffer.from(await res.arrayBuffer()));
-  execFileSync("tar", ["-xzf", tarball, "-C", dest]);
-  fs.rmSync(tarball);
-  fs.writeFileSync(path.join(dest, ".complete"), "");
-  return dest;
+  return bundled;
 }
 
 const ensureWebDist = () => ensureAsset("web", "SUITEST_BUNDLE_WEB_DIST");
 const ensureWheels = () => ensureAsset("wheels", "SUITEST_BUNDLE_WHEELS_DIR");
 
-module.exports = { ensureWebDist, ensureWheels, releaseBase };
+module.exports = { ensureWebDist, ensureWheels };
