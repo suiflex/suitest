@@ -1,8 +1,10 @@
 """FastAPI application factory."""
 
+import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -275,9 +277,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # /api/* + /auth/* router is matched first; the catch-all only handles the
     # frontend routes. No-op in server mode (web served separately). env:
     # SUITEST_WEB_DIST -> folder containing index.html.
-    import os
-    from pathlib import Path
-
     web_dist = os.environ.get("SUITEST_WEB_DIST", "").strip()
     if web_dist and (Path(web_dist) / "index.html").is_file():
         from fastapi.staticfiles import StaticFiles

@@ -49,6 +49,11 @@ async def drain_once(ctx: dict[str, object]) -> None:
 
 
 async def serve() -> None:
+    """Start the LOCAL-mode polling loop.
+
+    Never run this alongside ARQ workers on the same database — both drain
+    QUEUED runs and there is no claim-fencing; a run could execute twice.
+    """
     ctx: dict[str, object] = {}
     await build_local_ctx(ctx)
     try:

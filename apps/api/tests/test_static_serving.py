@@ -31,5 +31,5 @@ def test_api_routes_still_work_under_static_mount(tmp_path, monkeypatch) -> None
     client = TestClient(app)
     # /health is the inline liveness probe — registered before the SPA mount
     resp = client.get("/health")
-    assert resp.status_code in (200, 401, 404)  # exists / auth / route — NOT the SPA html
+    assert resp.status_code in (200, 401)  # route exists (ok/auth) — NOT the SPA html
     assert "<!doctype html>" not in resp.text
