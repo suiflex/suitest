@@ -23,6 +23,17 @@ function fail(msg) {
 }
 
 async function main() {
+  // Pre-parse: strict parseArgs would throw on unknown --help/--version (mcp-npx convention).
+  const rawArgs = process.argv.slice(2);
+  if (rawArgs.includes("--help")) {
+    process.stdout.write(USAGE);
+    process.exit(0);
+  }
+  if (rawArgs.includes("--version")) {
+    process.stdout.write(require("../package.json").version + "\n");
+    process.exit(0);
+  }
+
   const cmd = process.argv[2];
   const { values: opts } = parseArgs({
     args: process.argv.slice(3),
@@ -35,6 +46,7 @@ async function main() {
     strict: true,
   });
   if (opts.port) opts.port = Number(opts.port);
+  // Note: both opts["base-url"] and opts.baseUrl stay set on opts — handlers should read baseUrl.
   opts.baseUrl = opts["base-url"];
 
   switch (cmd) {
