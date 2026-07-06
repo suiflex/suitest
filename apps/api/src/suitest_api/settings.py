@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     api_port: int = Field(default=4000)
     web_url: str = Field(default="http://localhost:3000")
     api_url: str = Field(default="http://localhost:4000")
+
+    # Deployment mode. "server" = ARQ/Redis + Postgres/S3 (default). "local" =
+    # SQLite + disk + in-process supervisor (no Redis). env: SUITEST_MODE
+    mode: str = Field(default="server")
     log_level: str = Field(default="INFO")
 
     # Auth / OAuth — required for FastAPI-Users + Google OAuth
