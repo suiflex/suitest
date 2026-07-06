@@ -1,8 +1,10 @@
 """FastAPI application factory."""
 
+import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -270,6 +272,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Local bundle: serve the built web dashboard as SPA. Mounted LAST so every
+    # /api/* + /auth/* router is matched first; the catch-all only handles the
+    # frontend routes. No-op in server mode (web served separately). env:
+    # SUITEST_WEB_DIST -> folder containing index.html.
+    web_dist = os.environ.get("SUITEST_WEB_DIST", "").strip()
+    if web_dist and (Path(web_dist) / "index.html").is_file():
+        from fastapi.staticfiles import StaticFiles
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        from starlette.types import Scope
+
+        class _SpaStaticFiles(StaticFiles):
+            """StaticFiles that falls back to index.html for unknown paths (SPA deep links)."""
+
+            async def get_response(self, path: str, scope: Scope) -> Response:
+                try:
+                    return await super().get_response(path, scope)
+                except StarletteHTTPException as exc:
+                    if exc.status_code == 404:
+                        return await super().get_response("index.html", scope)
+                    raise
+
+        app.mount("/", _SpaStaticFiles(directory=web_dist, html=True), name="web")
+
     return app
 
 

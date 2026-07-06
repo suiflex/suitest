@@ -25,6 +25,7 @@ from suitest_shared.schemas.pagination import Page, PageMeta
 
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.arq import get_arq
+from suitest_api.deps.run_dispatch import dispatch_run
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
 from suitest_api.routers._pagination import decode_cursor_or_400, encode_next
 from suitest_api.schemas.run import (
@@ -454,9 +455,11 @@ async def create_run(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    job = await arq.enqueue_job("run_test_case", run.id, _queue_name=_RUNS_QUEUE)
-    if job is not None:
-        await svc.attach_arq_job_id(run.id, job.job_id)
+    job_id = await dispatch_run(
+        mode=get_settings().mode, arq=arq, run_id=run.id, queue_name=_RUNS_QUEUE
+    )
+    if job_id is not None:
+        await svc.attach_arq_job_id(run.id, job_id)
     await session.commit()
     await session.refresh(run)
     return RunPublic.model_validate(run)
@@ -494,9 +497,11 @@ async def create_suite_run(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    job = await arq.enqueue_job("run_test_case", run.id, _queue_name=_RUNS_QUEUE)
-    if job is not None:
-        await svc.attach_arq_job_id(run.id, job.job_id)
+    job_id = await dispatch_run(
+        mode=get_settings().mode, arq=arq, run_id=run.id, queue_name=_RUNS_QUEUE
+    )
+    if job_id is not None:
+        await svc.attach_arq_job_id(run.id, job_id)
     await session.commit()
     await session.refresh(run)
     return RunPublic.model_validate(run)
@@ -565,9 +570,11 @@ async def rerun_run(
         new_run = await svc.clone_for_rerun(src, user_id=ctx.user_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    job = await arq.enqueue_job("run_test_case", new_run.id, _queue_name=_RUNS_QUEUE)
-    if job is not None:
-        await svc.attach_arq_job_id(new_run.id, job.job_id)
+    job_id = await dispatch_run(
+        mode=get_settings().mode, arq=arq, run_id=new_run.id, queue_name=_RUNS_QUEUE
+    )
+    if job_id is not None:
+        await svc.attach_arq_job_id(new_run.id, job_id)
     await session.commit()
     await session.refresh(new_run)
     return RunPublic.model_validate(new_run)

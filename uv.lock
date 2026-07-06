@@ -2597,11 +2597,15 @@ dependencies = [
     { name = "faker" },
     { name = "httpx" },
     { name = "jsonschema" },
-    { name = "langgraph" },
-    { name = "litellm" },
     { name = "openapi-pydantic" },
     { name = "pyyaml" },
     { name = "suitest-shared" },
+]
+
+[package.optional-dependencies]
+cloud = [
+    { name = "langgraph" },
+    { name = "litellm" },
 ]
 
 [package.metadata]
@@ -2609,12 +2613,13 @@ requires-dist = [
     { name = "faker", specifier = ">=25.0" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "jsonschema", specifier = ">=4.21" },
-    { name = "langgraph", specifier = ">=0.2.40" },
-    { name = "litellm", specifier = ">=1.51" },
+    { name = "langgraph", marker = "extra == 'cloud'", specifier = ">=0.2.40" },
+    { name = "litellm", marker = "extra == 'cloud'", specifier = ">=1.51" },
     { name = "openapi-pydantic", specifier = ">=0.4.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "suitest-shared", editable = "packages/shared" },
 ]
+provides-extras = ["cloud"]
 
 [[package]]
 name = "suitest-api"
@@ -2814,6 +2819,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "respx" },
     { name = "ruff" },
+    { name = "suitest-agent", extra = ["cloud"] },
     { name = "types-pyyaml" },
 ]
 
@@ -2833,6 +2839,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=5.0.0" },
     { name = "respx", specifier = ">=0.21.0" },
     { name = "ruff", specifier = ">=0.7.0" },
+    { name = "suitest-agent", extras = ["cloud"], editable = "packages/agent" },
     { name = "types-pyyaml", specifier = ">=6.0" },
 ]
 

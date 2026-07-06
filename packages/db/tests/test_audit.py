@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from suitest_db.audit import write_audit
 from suitest_db.ids import new_id
 from suitest_db.models.audit import AuditLog
 from suitest_db.models.workspace import Workspace
@@ -37,3 +40,35 @@ async def test_audit_log_metadata_json_optional(session: AsyncSession) -> None:
     assert fetched is not None
     assert fetched.metadata_json is None
     assert fetched.created_at is not None
+
+
+@pytest.mark.asyncio
+async def test_write_audit_coerces_user_id_str_to_uuid() -> None:
+    """user_id str must land as uuid.UUID — SQLite's Uuid bind crashes on str (DB-free)."""
+    captured: list[AuditLog] = []
+
+    class _StubSession:
+        def add(self, instance: object) -> None:
+            assert isinstance(instance, AuditLog)
+            captured.append(instance)
+
+    uid = uuid.uuid4()
+    await write_audit(
+        _StubSession(),
+        workspace_id="ws-1",
+        user_id=str(uid),
+        action="api_key.create",
+        resource_type="api_key",
+        resource_id="k-1",
+    )
+    await write_audit(
+        _StubSession(),
+        workspace_id="ws-1",
+        user_id=None,
+        action="api_key.create",
+        resource_type="api_key",
+        resource_id="k-2",
+    )
+    assert isinstance(captured[0].user_id, uuid.UUID)
+    assert captured[0].user_id == uid
+    assert captured[1].user_id is None

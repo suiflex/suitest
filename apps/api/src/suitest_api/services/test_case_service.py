@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, NamedTuple, cast
 
 from sqlalchemy import select
 from suitest_core.capabilities import TierFlag
-from suitest_db.audit import write_audit
+from suitest_db.audit import coerce_user_id, write_audit
 from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.run import Run as RunRow
 from suitest_db.public_id import set_workspace_id
@@ -950,7 +950,7 @@ class TestCaseService:
             audit_row = AuditLog(
                 id=new_id(),
                 workspace_id=self._ctx.workspace_id,
-                user_id=self._ctx.user_id,
+                user_id=coerce_user_id(self._ctx.user_id),
                 action=audit_action,
                 resource_type="test_case",
                 resource_id=case.id,
