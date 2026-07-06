@@ -1,6 +1,6 @@
 {
   "name": "@suiflex/suitest-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publishConfig": {
     "access": "public"
   },
@@ -16,14 +16,30 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "engines": { "node": ">=18" },
-  "repository": { "type": "git", "url": "https://github.com/suiflex/suitest" },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/suiflex/suitest"
+  },
   "homepage": "https://suitest.dev",
-  "keywords": ["suitest", "testing", "tcm", "mcp", "sdk"],
-  "devDependencies": { "typescript": "^5.5.0" }
+  "keywords": [
+    "suitest",
+    "testing",
+    "tcm",
+    "mcp",
+    "sdk"
+  ],
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
 }
