@@ -1,12 +1,14 @@
 """Dual-dialect: schema & types must work on SQLite (local mode) and PG."""
 
+from pathlib import Path
+
 import pytest
 from sqlalchemy import Column, MetaData, String, Table, insert, select
 from sqlalchemy.ext.asyncio import create_async_engine
 
 
 @pytest.mark.asyncio
-async def test_portable_json_roundtrip_sqlite(tmp_path) -> None:
+async def test_portable_json_roundtrip_sqlite(tmp_path: Path) -> None:
     from suitest_db.types import PortableJSON
 
     metadata = MetaData()
@@ -26,7 +28,7 @@ async def test_portable_json_roundtrip_sqlite(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_make_engine_sqlite_enforces_foreign_keys(tmp_path) -> None:
+async def test_make_engine_sqlite_enforces_foreign_keys(tmp_path: Path) -> None:
     from sqlalchemy import text
     from suitest_db.engine import make_engine
     from suitest_db.settings import DbSettings
@@ -40,7 +42,7 @@ async def test_make_engine_sqlite_enforces_foreign_keys(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_local_schema_builds_full_schema(tmp_path) -> None:
+async def test_create_local_schema_builds_full_schema(tmp_path: Path) -> None:
     from sqlalchemy import inspect
     from suitest_db.bootstrap import create_local_schema
     from suitest_db.engine import make_engine

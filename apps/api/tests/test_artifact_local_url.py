@@ -14,6 +14,8 @@ import pytest
 from suitest_db.models.case import TestCase
 from suitest_db.models.project import Project, Suite
 from suitest_db.models.run import Artifact, Run, RunStep
+from suitest_db.models.user import User
+from suitest_db.models.workspace import Workspace
 from suitest_shared.domain.enums import (
     ArtifactKind,
     CaseSource,
@@ -30,7 +32,7 @@ if TYPE_CHECKING:
 
 async def _seed_run_with_artifact(
     api_db: ApiDb, *, email: str, slug: str, artifact_url: str
-) -> tuple[object, object, Run, Artifact]:
+) -> tuple[User, Workspace, Run, Artifact]:
     """Seed user → workspace → project → suite → case → run → step → artifact."""
     user = await api_db.seed_user(email=email)
     ws = await api_db.member_workspace(user, slug=slug)

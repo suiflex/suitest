@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 from suitest_api.main import create_app
 
 
-def test_serves_index_when_web_dist_set(tmp_path, monkeypatch) -> None:
+def test_serves_index_when_web_dist_set(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     dist = tmp_path / "web"
     dist.mkdir()
     (dist / "index.html").write_text("<!doctype html><title>suitest</title>", encoding="utf-8")
@@ -19,7 +22,7 @@ def test_serves_index_when_web_dist_set(tmp_path, monkeypatch) -> None:
     assert "suitest" in resp.text
 
 
-def test_spa_deep_link_falls_back_to_index(tmp_path, monkeypatch) -> None:
+def test_spa_deep_link_falls_back_to_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     dist = tmp_path / "web"
     dist.mkdir()
     (dist / "index.html").write_text("<!doctype html><title>suitest</title>", encoding="utf-8")
@@ -32,7 +35,9 @@ def test_spa_deep_link_falls_back_to_index(tmp_path, monkeypatch) -> None:
     assert "suitest" in resp.text
 
 
-def test_api_routes_still_work_under_static_mount(tmp_path, monkeypatch) -> None:
+def test_api_routes_still_work_under_static_mount(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     dist = tmp_path / "web"
     dist.mkdir()
     (dist / "index.html").write_text("<!doctype html>", encoding="utf-8")

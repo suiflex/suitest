@@ -3,7 +3,7 @@ from suitest_runner import local_supervisor
 
 
 @pytest.mark.asyncio
-async def test_drain_once_runs_each_queued_run(monkeypatch) -> None:
+async def test_drain_once_runs_each_queued_run(monkeypatch: pytest.MonkeyPatch) -> None:
     executed: list[str] = []
 
     async def fake_run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object]:
@@ -23,7 +23,7 @@ async def test_drain_once_runs_each_queued_run(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_drain_once_poll_error_does_not_propagate(monkeypatch) -> None:
+async def test_drain_once_poll_error_does_not_propagate(monkeypatch: pytest.MonkeyPatch) -> None:
     """_next_queued_run_ids raising must not crash the loop."""
 
     async def fake_next_queued(session_factory: object) -> list[str]:
@@ -37,7 +37,7 @@ async def test_drain_once_poll_error_does_not_propagate(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_drain_once_run_error_continues_remaining(monkeypatch) -> None:
+async def test_drain_once_run_error_continues_remaining(monkeypatch: pytest.MonkeyPatch) -> None:
     """run_test_case raising for one run_id must not block subsequent ones."""
     executed: list[str] = []
 

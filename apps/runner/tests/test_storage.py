@@ -1,10 +1,12 @@
 """Storage backend selection + local disk writes (local mode)."""
 
+from pathlib import Path
+
 import pytest
 
 
 @pytest.mark.asyncio
-async def test_local_storage_writes_file_and_returns_local_url(tmp_path) -> None:
+async def test_local_storage_writes_file_and_returns_local_url(tmp_path: Path) -> None:
     from suitest_runner.storage import LocalStorage
 
     storage = LocalStorage(root=tmp_path)
@@ -18,7 +20,7 @@ async def test_local_storage_writes_file_and_returns_local_url(tmp_path) -> None
     assert written.read_bytes() == b"\x89PNG-fake"
 
 
-def test_make_storage_selects_backend(tmp_path) -> None:
+def test_make_storage_selects_backend(tmp_path: Path) -> None:
     from suitest_runner.settings import RunnerSettings
     from suitest_runner.storage import LocalStorage, S3Storage, make_storage
 
