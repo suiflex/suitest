@@ -1,5 +1,4 @@
 import pytest
-
 from suitest_runner.local_ctx import build_local_ctx
 
 

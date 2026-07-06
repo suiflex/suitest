@@ -16924,6 +16924,80 @@
         ]
       }
     },
+    "/api/v1/runs/{run_id}/artifacts/{artifact_id}/raw": {
+      "get": {
+        "description": "Stream one ``local://`` artifact from ``SUITEST_ARTIFACTS_DIR`` (local mode).",
+        "operationId": "get_artifact_raw_api_v1_runs__run_id__artifacts__artifact_id__raw_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Artifact Raw",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/v1/runs/{run_id}/cancel": {
       "post": {
         "description": "Transition a QUEUED / RUNNING run to CANCELLED and best-effort abort the ARQ job.\n\nThe DB transition is authoritative \u2014 even if ARQ is unreachable, the run\nrow flips to CANCELLED so the UI no longer shows it as live. We then try\nto abort the in-flight job (no-op if the job already completed / never\nstarted). Returns 409 when the run is already in a terminal state.",

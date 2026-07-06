@@ -9,7 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pytest
-
 from suitest_api.deps.run_dispatch import dispatch_run
 
 

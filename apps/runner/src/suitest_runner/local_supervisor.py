@@ -11,16 +11,18 @@ ponytail: single-concurrency polling loop; upgrade path is the ARQ worker
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 
 import structlog
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
 from suitest_db.models.run import Run
 from suitest_shared.domain.enums import RunStatus
 
 from suitest_runner.jobs.run_test_case import run_test_case
 from suitest_runner.local_ctx import build_local_ctx
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 log = structlog.get_logger(__name__)
 

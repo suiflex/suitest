@@ -1,6 +1,5 @@
-from fastapi.testclient import TestClient
-
 from app import app, reset_state
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 

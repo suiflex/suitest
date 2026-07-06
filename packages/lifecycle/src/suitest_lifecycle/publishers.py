@@ -43,7 +43,7 @@ def _default_http(token: str):
                 "Content-Type": "application/json",
             },
         )
-        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 (github REST only)
+        with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read().decode() or "null")
 
     return _request
@@ -69,7 +69,7 @@ class GitHubPublisher:
         self._http("POST", self._base, {"body": markdown})
 
     @classmethod
-    def from_env(cls) -> "GitHubPublisher | None":
+    def from_env(cls) -> GitHubPublisher | None:
         token = os.environ.get("GITHUB_TOKEN", "")
         repo = os.environ.get("GITHUB_REPOSITORY", "")
         pr = _pr_number_from_env()

@@ -1,5 +1,4 @@
 import pytest
-
 from suitest_runner.null_publisher import NullPublisher
 
 

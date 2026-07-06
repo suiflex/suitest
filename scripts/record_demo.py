@@ -1,6 +1,6 @@
 """Record the 30-second launch demo against a live `make demo` stack.
 
-Drives the real web UI with Playwright (chromium, 1280×800) and captures a
+Drives the real web UI with Playwright (chromium, 1280x800) and captures a
 video: title card → login → Test Cases (Brewly suite, AI badges) → case detail
 → suite run → run detail landing green. Convert the .webm with ffmpeg:
 
