@@ -1,0 +1,226 @@
+---
+// The closed fix loop: the reason to stay, not just try. Panel shows a real
+// (sample-data) get_failure_context payload; shape mirrors failure_context.py.
+const loopSteps = [
+  {
+    title: "A test fails",
+    body: "run_tests comes back 9/10. Most tools stop here and hand you a red X.",
+  },
+  {
+    title: "The agent asks why",
+    body: "get_failure_context returns a budgeted markdown bundle: the failed step, a DOM excerpt around the selector, console errors, and non-2xx requests. Under 8 KB, built for a context window.",
+  },
+  {
+    title: "The agent fixes your code",
+    body: "Wrong selector and a 500 from the cart API, both visible in one payload. The agent edits the app, not just the test.",
+  },
+  {
+    title: "Re-run until green",
+    body: "Deterministic replay confirms the fix. The run, video, and history publish to the dashboard.",
+  },
+];
+---
+
+<section class="section loop" id="fix-loop">
+  <div class="wrap">
+    <div class="loop-head" data-reveal>
+      <h2 class="section-title">Failures your agent can actually fix.</h2>
+      <p class="section-sub">
+        Evidence is recorded for humans. <code>get_failure_context</code> serializes
+        it for the model that is going to repair the code.
+      </p>
+    </div>
+
+    <div class="loop-grid">
+      <div class="loop-panel" data-reveal>
+        <div class="loop-panel-bar">
+          <span>get_failure_context</span>
+          <span class="loop-panel-size">3.1 KB of 8 KB budget</span>
+        </div>
+        <pre
+          class="loop-code"><code><span class="md-h">## checkout-flow: FAIL at step 4/7</span>
+
+<span class="md-b">**Step 4**</span>: click <span class="md-s">"#submit-btn"</span>
+<span class="md-b">**Error**</span>: TimeoutError: locator not visible after 30s
+
+<span class="md-b">**DOM at failure**</span> (excerpt around selector):
+<span class="md-code">&lt;form id="checkout"&gt;
+  &lt;button id="submit-button" disabled&gt;Pay now&lt;/button&gt;
+&lt;/form&gt;</span>
+
+<span class="md-b">**Console**</span> (errors and warnings only):
+<span class="md-err">[error] POST /api/cart 500 (Internal Server Error)</span>
+
+<span class="md-b">**Network**</span> (non-2xx only):
+<span class="md-err">POST /api/cart returned 500</span>
+
+<span class="md-b">**Evidence**</span>: <span class="md-link">video</span>, <span class="md-link">screenshot</span>, <span class="md-link">trace</span></code></pre>
+        <p class="loop-note">
+          Sample payload. Two bugs in one read: the id is
+          <code>submit-button</code>, not <code>submit-btn</code>, and the cart
+          API is returning 500.
+        </p>
+      </div>
+
+      <ol class="loop-steps">
+        {
+          loopSteps.map((step, i) => (
+            <li class="loop-step" data-reveal style={`--reveal-delay: ${i * 0.09}s`}>
+              <h3>{step.title}</h3>
+              <p>{step.body}</p>
+            </li>
+          ))
+        }
+        <li class="loop-cta" data-reveal style="--reveal-delay: 0.36s">
+          <a href="/docs/guides/failure-context/">How the failure bundle works</a>
+        </li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<style>
+  .loop {
+    border-top: 1px solid var(--border);
+  }
+  .loop-head {
+    margin-bottom: 56px;
+  }
+  .loop-head code {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    color: var(--accent);
+  }
+  .loop-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 56px;
+    align-items: start;
+  }
+
+  .loop-panel {
+    background: #0d0e10;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  .loop-panel-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    background: #101214;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .loop-panel-size {
+    color: var(--accent);
+  }
+  .loop-code {
+    margin: 0;
+    padding: 20px 22px;
+    font-family: var(--font-mono);
+    font-size: 12.75px;
+    line-height: 1.75;
+    color: var(--text-2);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .loop-code .md-h {
+    color: var(--text);
+    font-weight: 700;
+  }
+  .loop-code .md-b {
+    color: var(--text);
+  }
+  .loop-code .md-s {
+    color: #e8c07a;
+  }
+  .loop-code .md-code {
+    color: #9fc6e8;
+  }
+  .loop-code .md-err {
+    color: #f8867b;
+  }
+  .loop-code .md-link {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .loop-note {
+    margin: 0;
+    padding: 14px 22px 18px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-3);
+  }
+  .loop-note code {
+    font-family: var(--font-mono);
+    font-size: 0.95em;
+    color: var(--text-2);
+  }
+
+  .loop-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .loop-step {
+    position: relative;
+    padding: 0 0 28px 26px;
+    border-left: 1px solid var(--border-strong);
+  }
+  .loop-step:last-of-type {
+    padding-bottom: 20px;
+  }
+  .loop-step::before {
+    content: "";
+    position: absolute;
+    left: -5.5px;
+    top: 7px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .loop-step h3 {
+    margin: 0 0 8px;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+  .loop-step p {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 14.5px;
+    line-height: 1.65;
+    max-width: 44ch;
+  }
+  .loop-cta {
+    padding-left: 26px;
+  }
+  .loop-cta a {
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 15px;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  @media (max-width: 900px) {
+    .loop-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+    .loop-panel {
+      order: 2;
+    }
+    .loop-steps {
+      order: 1;
+    }
+  }
+</style>

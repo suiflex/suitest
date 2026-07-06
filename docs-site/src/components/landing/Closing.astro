@@ -3,11 +3,46 @@ import arrowIcon from "@phosphor-icons/core/assets/regular/arrow-right.svg?raw";
 import bookIcon from "@phosphor-icons/core/assets/regular/book-open.svg?raw";
 
 const year = new Date().getFullYear();
+
+const footCols = [
+  {
+    title: "Product",
+    links: [
+      { label: "Features", href: "/#features" },
+      { label: "MCP tools", href: "/#mcp-tools" },
+      { label: "Deployment", href: "/#deploy" },
+      { label: "CI Action", href: "/#ci" },
+      { label: "Comparison", href: "/#compare" },
+    ],
+  },
+  {
+    title: "Documentation",
+    links: [
+      { label: "Getting started", href: "/docs/guides/getting-started/" },
+      { label: "Install the MCP server", href: "/docs/install/mcp-server/" },
+      { label: "Agent workflow", href: "/docs/guides/agent-workflow/" },
+      { label: "CLI reference", href: "/docs/reference/cli/" },
+      { label: "Self-hosting", href: "/docs/guides/self-hosting/" },
+      { label: "Troubleshooting", href: "/docs/help/troubleshooting/" },
+    ],
+  },
+  {
+    title: "Project",
+    links: [
+      { label: "GitHub", href: "https://github.com/suiflex/suitest", ext: true },
+      { label: "Roadmap", href: "https://github.com/suiflex/suitest/blob/main/docs/ROADMAP.md", ext: true },
+      { label: "Contributing", href: "https://github.com/suiflex/suitest/blob/main/CONTRIBUTING.md", ext: true },
+      { label: "Changelog", href: "https://github.com/suiflex/suitest/blob/main/CHANGELOG.md", ext: true },
+      { label: "Security policy", href: "https://github.com/suiflex/suitest/blob/main/SECURITY.md", ext: true },
+      { label: "License (Apache-2.0)", href: "https://github.com/suiflex/suitest/blob/main/LICENSE", ext: true },
+    ],
+  },
+];
 ---
 
 <section class="section closing">
   <div class="wrap closing-inner" data-reveal>
-    <h2 class="closing-title">MIT licensed.<br />No cloud required.</h2>
+    <h2 class="closing-title">Apache-2.0 licensed.<br />No cloud required.</h2>
     <p class="closing-sub">
       Your stack, your LLM, your data. Run the whole platform on a laptop or a
       cluster.
@@ -26,24 +61,47 @@ const year = new Date().getFullYear();
 </section>
 
 <footer class="foot">
-  <div class="wrap foot-inner">
-    <div class="foot-brand">
-      <svg viewBox="0 0 32 32" aria-hidden="true" class="foot-mark">
-        <rect width="32" height="32" rx="7" fill="#161719"></rect>
-        <rect x="8" y="9.5" width="16" height="3.4" rx="1.7" fill="#4ade80"></rect>
-        <rect x="8" y="16.4" width="7.5" height="3.4" rx="1.7" fill="#4ade80" opacity=".55"></rect>
-        <path d="M18.6 18.9l2.6 2.6 4.6-5.4" fill="none" stroke="#4ade80" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
-      </svg>
-      <span>Suitest</span>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand-col">
+        <div class="foot-brand">
+          <svg viewBox="0 0 32 32" aria-hidden="true" class="foot-mark">
+            <rect width="32" height="32" rx="7" fill="#161719"></rect>
+            <rect x="8" y="9.5" width="16" height="3.4" rx="1.7" fill="#4ade80"></rect>
+            <rect x="8" y="16.4" width="7.5" height="3.4" rx="1.7" fill="#4ade80" opacity=".55"></rect>
+            <path d="M18.6 18.9l2.6 2.6 4.6-5.4" fill="none" stroke="#4ade80" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+          <span>Suitest</span>
+        </div>
+        <p class="foot-tag">
+          Open-source, MCP-native testing platform. Manual test management,
+          deterministic runs, optional AI.
+        </p>
+      </div>
+
+      {
+        footCols.map((col) => (
+          <nav class="foot-col" aria-label={col.title}>
+            <h3>{col.title}</h3>
+            <ul>
+              {col.links.map((link) => (
+                <li>
+                  <a
+                    href={link.href}
+                    target={link.ext ? "_blank" : undefined}
+                    rel={link.ext ? "noopener" : undefined}
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))
+      }
     </div>
-    <nav class="foot-links" aria-label="Footer">
-      <a href="/docs/">Docs</a>
-      <a href="https://github.com/suiflex/suitest" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://github.com/suiflex/suitest/blob/main/docs/ROADMAP.md" target="_blank" rel="noopener">Roadmap</a>
-      <a href="https://github.com/suiflex/suitest/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a>
-      <a href="https://github.com/suiflex/suitest/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
-    </nav>
-    <p class="foot-copy">Copyright {year} Suitest contributors. MIT License.</p>
+
+    <p class="foot-copy">Copyright {year} Suitest contributors. Apache-2.0 License.</p>
   </div>
 </footer>
 
@@ -74,50 +132,77 @@ const year = new Date().getFullYear();
 
   .foot {
     border-top: 1px solid var(--border);
-    padding-block: 44px;
+    padding-block: 56px 40px;
   }
-  .foot-inner {
-    display: flex;
-    align-items: center;
-    gap: 32px;
-    flex-wrap: wrap;
+  .foot-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) repeat(3, minmax(0, 3fr));
+    gap: 40px;
+    margin-bottom: 44px;
   }
   .foot-brand {
     display: flex;
     align-items: center;
     gap: 10px;
     font-weight: 600;
+    margin-bottom: 14px;
   }
   .foot-mark {
     width: 26px;
     height: 26px;
   }
-  .foot-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px 24px;
-    font-size: 14px;
-    color: var(--text-2);
+  .foot-tag {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--text-3);
+    max-width: 34ch;
   }
-  .foot-links a:hover {
+  .foot-col h3 {
+    margin: 0 0 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .foot-col ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .foot-col a {
+    font-size: 13.5px;
+    color: var(--text-2);
+    transition: color 0.2s;
+  }
+  .foot-col a:hover {
     color: var(--text);
   }
   .foot-copy {
-    margin: 0 0 0 auto;
+    margin: 0;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
     font-size: 13px;
     color: var(--text-3);
   }
-  @media (max-width: 768px) {
+
+  @media (max-width: 900px) {
     .closing {
       padding-block: 96px;
     }
-    .foot-inner {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 20px;
+    .foot-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
     }
-    .foot-copy {
-      margin-left: 0;
+    .foot-brand-col {
+      grid-column: 1 / -1;
+    }
+  }
+  @media (max-width: 540px) {
+    .foot-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>

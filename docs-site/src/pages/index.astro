@@ -9,13 +9,36 @@ import LandingNav from "../components/landing/LandingNav.astro";
 import Hero from "../components/landing/Hero.astro";
 import QuickStart from "../components/landing/QuickStart.astro";
 import HowItWorks from "../components/landing/HowItWorks.astro";
+import ClosedLoop from "../components/landing/ClosedLoop.astro";
+import DemoReel from "../components/landing/DemoReel.astro";
 import Features from "../components/landing/Features.astro";
+import AgentTools from "../components/landing/AgentTools.astro";
+import DeployModes from "../components/landing/DeployModes.astro";
 import Tiers from "../components/landing/Tiers.astro";
+import CiAction from "../components/landing/CiAction.astro";
+import Comparison from "../components/landing/Comparison.astro";
+import Faq from "../components/landing/Faq.astro";
 import Closing from "../components/landing/Closing.astro";
 
-const title = "Suitest: open-source, MCP-native QA platform";
+const siteUrl = "https://suitest.suiflex.dev";
+const title = "Suitest: Open-Source, MCP-Native Testing Platform";
 const description =
-  "Generate, run, and publish end-to-end tests with video evidence, straight from your IDE agent. Self-hosted, MIT licensed, works with or without an LLM.";
+  "Self-hosted QA platform for IDE agents: generate, run, and publish E2E tests with video evidence from Claude Code or Cursor. Works with or without an LLM.";
+const ogImage = `${siteUrl}/og.png`;
+
+const softwareLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Suitest",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Linux, macOS, Windows",
+  url: siteUrl,
+  description,
+  license: "https://www.apache.org/licenses/LICENSE-2.0",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  softwareHelp: `${siteUrl}/docs/`,
+  sameAs: ["https://github.com/suiflex/suitest"],
+});
 ---
 
 <!doctype html>
@@ -25,13 +48,28 @@ const description =
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={`${siteUrl}/`} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <meta
+      name="keywords"
+      content="open source testing platform, MCP testing, E2E testing, test automation, Claude Code testing, Cursor testing, self-hosted QA, Playwright, test case management, AI test generation"
+    />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Suitest" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:url" content="https://suitest.dev/" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:url" content={`${siteUrl}/`} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Suitest: open-source, MCP-native testing platform" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
     <meta name="theme-color" content="#0a0a0a" />
+    <script type="application/ld+json" set:html={softwareLd} />
     <script>
       // Gate reveal-hidden styles behind a js class so no-JS visitors see content.
       document.documentElement.classList.add("js");
@@ -44,8 +82,15 @@ const description =
       <Hero />
       <QuickStart />
       <HowItWorks />
+      <ClosedLoop />
+      <DemoReel />
       <Features />
+      <AgentTools />
+      <DeployModes />
       <Tiers />
+      <CiAction />
+      <Comparison />
+      <Faq />
       <Closing />
     </main>
 

@@ -1,0 +1,134 @@
+---
+// Three real deployment shapes that exist today. Rows, not cards: the command
+// is the content, so each mode reads like a runbook entry.
+const modes = [
+  {
+    name: "Docker Compose",
+    who: "A team on its own server",
+    body: "The whole platform: Postgres, Redis, MinIO, API, web dashboard, and runner. Your data never leaves your infrastructure.",
+    code: "git clone https://github.com/suiflex/suitest && cd suitest\ncp .env.example .env && docker compose up -d",
+    link: "/docs/install/docker/",
+    linkLabel: "Docker guide",
+  },
+  {
+    name: "Kubernetes",
+    who: "Platform teams, air-gapped environments",
+    body: "Helm chart with values for the LOCAL tier, so generation and diagnosis can run on cluster-hosted models with zero egress.",
+    code: "helm install suitest infra/helm/suitest \\\n  -f infra/helm/suitest/values.yaml",
+    link: "/docs/install/kubernetes/",
+    linkLabel: "Kubernetes guide",
+  },
+  {
+    name: "CI only, no server",
+    who: "Projects that just want a merge gate",
+    body: "The GitHub Action runs the lifecycle inside the workflow and reports to the PR. No Suitest server required at all.",
+    code: "- uses: suiflex/suitest/action@main\n  with:\n    config: suitest.config.json",
+    link: "/docs/guides/ci-github-action/",
+    linkLabel: "CI guide",
+  },
+];
+---
+
+<section class="section deploy" id="deploy">
+  <div class="wrap">
+    <div class="deploy-head" data-reveal>
+      <h2 class="section-title">Runs where your code runs.</h2>
+      <p class="section-sub">
+        Laptop, server, cluster, or nothing but a CI runner. Same engine, same
+        config file.
+      </p>
+    </div>
+
+    <div class="deploy-rows">
+      {
+        modes.map((mode, i) => (
+          <div class="deploy-row" data-reveal style={`--reveal-delay: ${i * 0.08}s`}>
+            <div class="deploy-name">
+              <h3>{mode.name}</h3>
+              <p class="deploy-who">{mode.who}</p>
+            </div>
+            <p class="deploy-body">{mode.body}</p>
+            <div class="deploy-code-wrap">
+              <pre class="deploy-code"><code>{mode.code}</code></pre>
+              <a href={mode.link} class="deploy-link">{mode.linkLabel}</a>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .deploy {
+    border-top: 1px solid var(--border);
+  }
+  .deploy-head {
+    margin-bottom: 48px;
+  }
+  .deploy-rows {
+    display: flex;
+    flex-direction: column;
+  }
+  .deploy-row {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 4fr) minmax(0, 5fr);
+    gap: 32px;
+    padding-block: 30px;
+    align-items: start;
+  }
+  .deploy-row + .deploy-row {
+    border-top: 1px solid var(--border);
+  }
+  .deploy-name h3 {
+    margin: 0 0 6px;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+  .deploy-who {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-3);
+  }
+  .deploy-body {
+    margin: 2px 0 0;
+    color: var(--text-2);
+    font-size: 14.5px;
+    line-height: 1.65;
+    max-width: 44ch;
+  }
+  .deploy-code-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .deploy-code {
+    margin: 0;
+    padding: 16px 18px;
+    background: #0d0e10;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-code);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--text-2);
+    overflow-x: auto;
+  }
+  .deploy-link {
+    align-self: flex-start;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  @media (max-width: 900px) {
+    .deploy-row {
+      grid-template-columns: 1fr;
+      gap: 14px;
+      padding-block: 26px;
+    }
+  }
+</style>

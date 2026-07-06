@@ -1,0 +1,143 @@
+---
+// FAQ doubles as SEO surface: FAQPage JSON-LD is generated from the same data.
+const faqs = [
+  {
+    q: "Do I need an OpenAI or Anthropic API key?",
+    a: "No. The ZERO tier runs manual test management and deterministic tests with no LLM at all. When your MCP client supports sampling (Claude Code does), generation runs on the model subscription you already pay for. A provider API key is a third option, configured per workspace, never a requirement.",
+  },
+  {
+    q: "What does Suitest cost?",
+    a: "Nothing. Suitest is Apache-2.0 licensed and self-hosted. There is no hosted service to subscribe to and no feature gate tied to payment.",
+  },
+  {
+    q: "Which IDEs and agents does it work with?",
+    a: "Any MCP client. Claude Code, Cursor, and Codex are tested first-class: one npx command registers the server, and npx @suiflex/suitest-mcp init writes the config for your IDE automatically.",
+  },
+  {
+    q: "Can it test an app I don't have the source for?",
+    a: "Yes. The blackbox engine needs a URL and test credentials. It discovers routes, detects and performs login, builds an interaction graph, generates Playwright tests, and runs them, all without repo access.",
+  },
+  {
+    q: "What evidence is recorded for each run?",
+    a: "Per-test video, screenshots, DOM snapshots, console logs, network HAR, and execution traces. Failures also produce an agent-readable failure bundle so your coding agent can fix the underlying bug.",
+  },
+  {
+    q: "Does it replace TestRail or Playwright?",
+    a: "It covers both roles: a test management UI with cases, suites, runs, and traceability, plus a deterministic runner that drives Playwright, HTTP APIs, and Postgres through MCP providers. You can adopt either half first.",
+  },
+  {
+    q: "What data leaves my machine?",
+    a: "In a self-hosted deployment, nothing. LLM calls only go to the provider you explicitly configure for the workspace, or nowhere at all in the ZERO tier.",
+  },
+  {
+    q: "How does it run in CI?",
+    a: "A composite GitHub Action runs the suite, updates a single PR comment with results and failure excerpts, and fails the check when tests fail: exit code 0 for pass, 1 for test failures, 2 for infrastructure errors.",
+  },
+];
+
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: f.a },
+  })),
+});
+---
+
+<section class="section faq" id="faq">
+  <div class="wrap faq-grid">
+    <div class="faq-head" data-reveal>
+      <h2 class="section-title">Questions, answered.</h2>
+      <p class="section-sub">
+        Longer answers live in the <a href="/docs/help/faq/">docs FAQ</a>.
+      </p>
+    </div>
+
+    <div class="faq-list" data-reveal style="--reveal-delay: 0.08s">
+      {
+        faqs.map((faq, i) => (
+          <details class="faq-item" open={i === 0}>
+            <summary>
+              <span>{faq.q}</span>
+              <svg class="faq-chev" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </summary>
+            <p>{faq.a}</p>
+          </details>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<script type="application/ld+json" set:html={jsonLd} />
+
+<style>
+  .faq {
+    border-top: 1px solid var(--border);
+  }
+  .faq-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+    gap: 64px;
+    align-items: start;
+  }
+  .faq-head .section-sub a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  .faq-list {
+    display: flex;
+    flex-direction: column;
+  }
+  .faq-item {
+    border-bottom: 1px solid var(--border);
+  }
+  .faq-item summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px 2px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+    list-style: none;
+  }
+  .faq-item summary::-webkit-details-marker {
+    display: none;
+  }
+  .faq-item summary:hover {
+    color: var(--accent);
+  }
+  .faq-chev {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    color: var(--text-3);
+    transition: rotate 0.25s var(--ease-out);
+  }
+  .faq-item[open] .faq-chev {
+    rotate: 180deg;
+  }
+  .faq-item p {
+    margin: 0;
+    padding: 0 2px 20px;
+    color: var(--text-2);
+    font-size: 14.5px;
+    line-height: 1.7;
+    max-width: 68ch;
+  }
+
+  @media (max-width: 900px) {
+    .faq-grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+</style>

@@ -1,0 +1,162 @@
+---
+// Category comparison against the tools people actually shortlist.
+// Coarse capability rows only; based on public docs as of July 2026.
+import checkIcon from "@phosphor-icons/core/assets/bold/check-bold.svg?raw";
+import minusIcon from "@phosphor-icons/core/assets/regular/minus.svg?raw";
+
+type Mark = "yes" | "no" | "partial";
+
+const rows: { label: string; suitest: Mark; testsprite: Mark; playwright: Mark; testrail: Mark }[] = [
+  { label: "Open source, self-hosted", suitest: "yes", testsprite: "no", playwright: "yes", testrail: "no" },
+  { label: "Works with zero LLM key", suitest: "yes", testsprite: "no", playwright: "yes", testrail: "yes" },
+  { label: "Test management UI (cases, suites, history)", suitest: "yes", testsprite: "partial", playwright: "no", testrail: "yes" },
+  { label: "Deterministic, replayable runs", suitest: "yes", testsprite: "partial", playwright: "yes", testrail: "no" },
+  { label: "Agent generates and runs tests from the IDE", suitest: "yes", testsprite: "yes", playwright: "partial", testrail: "no" },
+  { label: "Agent-readable failure context for auto-fix", suitest: "yes", testsprite: "no", playwright: "no", testrail: "no" },
+  { label: "Video and trace evidence per run", suitest: "yes", testsprite: "yes", playwright: "partial", testrail: "no" },
+];
+
+const markLabel: Record<Mark, string> = {
+  yes: "Yes",
+  no: "No",
+  partial: "Partial",
+};
+---
+
+<section class="section compare" id="compare">
+  <div class="wrap">
+    <div class="compare-head" data-reveal>
+      <h2 class="section-title">One tool instead of three.</h2>
+      <p class="section-sub">
+        Teams usually stitch together a case manager, a runner, and an AI
+        testing service. Suitest is the union of those roles, and you host it.
+      </p>
+    </div>
+
+    <div class="compare-scroll" data-reveal style="--reveal-delay: 0.08s">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th scope="col"><span class="visually-hidden">Capability</span></th>
+            <th scope="col" class="col-suitest">Suitest</th>
+            <th scope="col">TestSprite</th>
+            <th scope="col">Playwright MCP</th>
+            <th scope="col">TestRail</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            rows.map((row) => (
+              <tr>
+                <th scope="row">{row.label}</th>
+                {[row.suitest, row.testsprite, row.playwright, row.testrail].map((mark, i) => (
+                  <td class={`mark mark-${mark} ${i === 0 ? "col-suitest" : ""}`}>
+                    {mark === "yes" ? (
+                      <span class="mark-icon"><Fragment set:html={checkIcon} /></span>
+                    ) : mark === "no" ? (
+                      <span class="mark-icon dim"><Fragment set:html={minusIcon} /></span>
+                    ) : (
+                      <span class="mark-text">{markLabel[mark]}</span>
+                    )}
+                    <span class="visually-hidden">{markLabel[mark]}</span>
+                  </td>
+                ))}
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="compare-note" data-reveal>
+      Capability summary based on public documentation, July 2026. Details and
+      caveats in the <a href="/docs/help/faq/">FAQ</a>.
+    </p>
+  </div>
+</section>
+
+<style>
+  .compare {
+    border-top: 1px solid var(--border);
+    background: #0c0d0e;
+  }
+  .compare-head {
+    margin-bottom: 48px;
+  }
+  .compare-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+  }
+  .compare-table {
+    width: 100%;
+    min-width: 680px;
+    border-collapse: collapse;
+    background: var(--surface);
+    font-size: 14px;
+  }
+  .compare-table thead th {
+    text-align: center;
+    padding: 16px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+    border-bottom: 1px solid var(--border-strong);
+  }
+  .compare-table thead th:first-child {
+    text-align: left;
+  }
+  .compare-table tbody th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--text);
+    padding: 14px 18px;
+    max-width: 340px;
+  }
+  .compare-table tbody tr + tr th,
+  .compare-table tbody tr + tr td {
+    border-top: 1px solid var(--border);
+  }
+  .compare-table td {
+    text-align: center;
+    padding: 14px 18px;
+  }
+  .col-suitest {
+    background: #4ade8009;
+  }
+  thead .col-suitest {
+    color: var(--accent);
+  }
+  .mark-icon {
+    display: inline-flex;
+  }
+  .mark-icon :global(svg) {
+    width: 16px;
+    height: 16px;
+    fill: var(--accent);
+  }
+  .mark-icon.dim :global(svg) {
+    fill: var(--text-3);
+  }
+  .mark-text {
+    font-size: 12.5px;
+    color: var(--text-2);
+  }
+  .compare-note {
+    margin: 18px 0 0;
+    font-size: 12.5px;
+    color: var(--text-3);
+  }
+  .compare-note a {
+    color: var(--text-2);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+</style>

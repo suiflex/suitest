@@ -3,10 +3,16 @@ import copyIcon from "@phosphor-icons/core/assets/regular/copy.svg?raw";
 
 const tabs = [
   {
+    id: "bundle",
+    label: "One command",
+    note: "Full local platform: web dashboard + SQLite + IDE MCP wiring. No Docker, no cloud, no LLM key. Node 18+ and uv.",
+    code: `npx @suiflex/suitest onboard`,
+  },
+  {
     id: "mcp",
-    label: "MCP server",
-    note: "Node 18+ and Python 3.11+ on PATH. Runs against your Suitest API.",
-    code: `npx -y @suiflex/suitest-mcp`,
+    label: "MCP server only",
+    note: "Detects your IDE and framework, writes suitest.config.json, and registers the MCP server. Restart the IDE and prompt the agent. Node 18+, Python 3.11+.",
+    code: `npx @suiflex/suitest-mcp init`,
   },
   {
     id: "docker",
@@ -39,8 +45,9 @@ make dev`,
     <div class="qs-head" data-reveal>
       <h2 class="section-title">Running in one command.</h2>
       <p class="section-sub">
-        Start with the MCP server inside Claude Code or Cursor, or bring up the
-        whole platform with Docker.
+        One command boots the whole platform on your laptop — dashboard,
+        SQLite, and your IDE agent wired in. Scale up to Docker or Helm when
+        the team does.
       </p>
     </div>
 

@@ -1,0 +1,61 @@
+---
+// Real product footage: the repo's 30-second demo (PRD-generated suite running
+// green against the bundled demo app). Lazy-loaded, it sits below the fold.
+---
+
+<section class="section demo" id="demo">
+  <div class="wrap">
+    <div class="demo-head" data-reveal>
+      <h2 class="section-title">Watch a real run.</h2>
+      <p class="section-sub">
+        A PRD-generated suite executing against the bundled demo app: API and
+        browser steps, screenshots included, no LLM key involved.
+      </p>
+    </div>
+
+    <figure class="demo-frame" data-reveal style="--reveal-delay: 0.08s">
+      <img
+        src="/demo.gif"
+        alt="Suitest demo: a PRD-generated test suite runs green against the Brewly demo app, showing live logs, API steps, and browser steps with screenshots"
+        width="1200"
+        height="675"
+        loading="lazy"
+        decoding="async"
+      />
+      <figcaption>
+        Replay it locally: <code>make demo</code>, then open
+        <code>localhost:3000</code>.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<style>
+  .demo {
+    border-top: 1px solid var(--border);
+  }
+  .demo-head {
+    margin-bottom: 44px;
+  }
+  .demo-frame {
+    margin: 0;
+  }
+  .demo-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-card);
+    box-shadow: 0 32px 90px -40px #000000e0;
+  }
+  .demo-frame figcaption {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--text-3);
+  }
+  .demo-frame code {
+    font-family: var(--font-mono);
+    font-size: 0.95em;
+    color: var(--text-2);
+  }
+</style>

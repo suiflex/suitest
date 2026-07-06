@@ -1,0 +1,178 @@
+---
+// GitHub Action: workflow in, PR verdict out. Comment shape mirrors ci_report.py.
+const workflowYaml = `name: e2e
+on: pull_request
+
+jobs:
+  suitest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm run start & npx wait-on http://localhost:3000
+      - uses: suiflex/suitest/action@main
+        with:
+          config: suitest.config.json`;
+---
+
+<section class="section ci" id="ci">
+  <div class="wrap">
+    <div class="ci-head" data-reveal>
+      <h2 class="section-title">Every pull request gets a verdict.</h2>
+      <p class="section-sub">
+        One composite action runs the suite, upserts a single PR comment with
+        per-failure excerpts, and gates the merge with its exit code.
+      </p>
+    </div>
+
+    <div class="ci-grid">
+      <div class="ci-panel" data-reveal>
+        <div class="ci-bar">.github/workflows/e2e.yml</div>
+        <pre class="ci-code"><code>{workflowYaml}</code></pre>
+      </div>
+
+      <div class="ci-panel" data-reveal style="--reveal-delay: 0.1s">
+        <div class="ci-bar">PR comment (updated in place, example)</div>
+        <div class="ci-comment">
+          <p class="cc-title">Suitest: 9/10 passed</p>
+          <table class="cc-table">
+            <tbody>
+              <tr>
+                <td class="cc-pass">pass</td>
+                <td>auth: login with valid credentials</td>
+              </tr>
+              <tr>
+                <td class="cc-pass">pass</td>
+                <td>dashboard: renders project stats</td>
+              </tr>
+              <tr>
+                <td class="cc-fail">fail</td>
+                <td>checkout: timeout at step 4, excerpt attached</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="cc-foot">Evidence and full failure detail in the run report.</p>
+        </div>
+        <ul class="ci-facts">
+          <li><code>0</code> all passed</li>
+          <li><code>1</code> test failure, PR check goes red</li>
+          <li><code>2</code> infra error, no false verdict</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="ci-more" data-reveal>
+      Setup, exit codes, and local preview with <code>--dry-run</code> in the
+      <a href="/docs/guides/ci-github-action/">CI guide</a>.
+    </p>
+  </div>
+</section>
+
+<style>
+  .ci {
+    border-top: 1px solid var(--border);
+  }
+  .ci-head {
+    margin-bottom: 48px;
+  }
+  .ci-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  .ci-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  .ci-bar {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    background: #101214;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .ci-code {
+    margin: 0;
+    padding: 20px 22px;
+    font-family: var(--font-mono);
+    font-size: 12.75px;
+    line-height: 1.75;
+    color: var(--text-2);
+    overflow-x: auto;
+  }
+
+  .ci-comment {
+    padding: 20px 22px 16px;
+  }
+  .cc-title {
+    margin: 0 0 14px;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .cc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  .cc-table td {
+    padding: 8px 12px 8px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-2);
+  }
+  .cc-table td:first-child {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    width: 52px;
+  }
+  .cc-pass {
+    color: var(--accent);
+  }
+  .cc-fail {
+    color: #f8867b;
+  }
+  .cc-foot {
+    margin: 14px 0 0;
+    font-size: 12.5px;
+    color: var(--text-3);
+  }
+  .ci-facts {
+    list-style: none;
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 14px 22px 18px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-2);
+  }
+  .ci-facts code {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    margin-right: 6px;
+  }
+  .ci-more {
+    margin: 28px 0 0;
+    font-size: 14.5px;
+    color: var(--text-2);
+  }
+  .ci-more a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  .ci-more code {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+  }
+
+  @media (max-width: 900px) {
+    .ci-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

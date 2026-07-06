@@ -1,0 +1,139 @@
+---
+// Full tool surface, straight from mcp_server.py's registry. Names are the API.
+const lifecycleTools = [
+  "bootstrap_project",
+  "analyze_project",
+  "generate_test_cases",
+  "generate_backend_tests",
+  "generate_frontend_tests",
+  "run_tests",
+  "run_backend_tests",
+  "run_frontend_tests",
+  "get_failure_context",
+  "generate_report",
+  "sync_tcm",
+];
+
+const blackboxTools = [
+  "blackbox_discover_app",
+  "blackbox_detect_login",
+  "blackbox_perform_login",
+  "blackbox_crawl_routes",
+  "blackbox_analyze_page",
+  "blackbox_build_interaction_graph",
+  "blackbox_generate_playwright_tests",
+  "blackbox_run_playwright_tests",
+  "blackbox_collect_evidence",
+  "blackbox_publish_results",
+  "blackbox_summarize_findings",
+];
+
+const highlight = new Set(["run_tests", "get_failure_context", "generate_test_cases"]);
+---
+
+<section class="section tools" id="mcp-tools">
+  <div class="wrap">
+    <div class="tools-head" data-reveal>
+      <h2 class="section-title">22 tools. One MCP server.</h2>
+      <p class="section-sub">
+        Everything the agent needs to take a test suite from first crawl to
+        published report, exposed as plain MCP tools.
+      </p>
+    </div>
+
+    <div class="tools-groups" data-reveal style="--reveal-delay: 0.08s">
+      <div class="tools-group">
+        <h3>Lifecycle</h3>
+        <p>Analyze a repo, generate cases, run them, read failures, publish.</p>
+        <ul class="tools-list">
+          {
+            lifecycleTools.map((tool) => (
+              <li class={highlight.has(tool) ? "hl" : ""}>{tool}</li>
+            ))
+          }
+        </ul>
+      </div>
+      <div class="tools-group">
+        <h3>Blackbox</h3>
+        <p>Test any web app from a URL and credentials. No repo access needed.</p>
+        <ul class="tools-list">
+          {blackboxTools.map((tool) => <li>{tool}</li>)}
+        </ul>
+      </div>
+    </div>
+
+    <p class="tools-more" data-reveal>
+      Arguments, return envelopes, and examples for every tool live in the
+      <a href="/docs/reference/mcp-tools/">MCP tool reference</a>.
+    </p>
+  </div>
+</section>
+
+<style>
+  .tools {
+    border-top: 1px solid var(--border);
+    background: #0c0d0e;
+  }
+  .tools-head {
+    margin-bottom: 48px;
+  }
+  .tools-groups {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .tools-group {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface);
+    padding: 26px 28px 28px;
+  }
+  .tools-group h3 {
+    margin: 0 0 6px;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+  .tools-group > p {
+    margin: 0 0 20px;
+    color: var(--text-2);
+    font-size: 14px;
+  }
+  .tools-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 20px;
+    font-family: var(--font-mono);
+    font-size: 12.75px;
+    color: var(--text-2);
+  }
+  .tools-list li::before {
+    content: "▸ ";
+    color: var(--text-3);
+  }
+  .tools-list li.hl {
+    color: var(--accent);
+  }
+  .tools-more {
+    margin: 28px 0 0;
+    font-size: 14.5px;
+    color: var(--text-2);
+  }
+  .tools-more a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  @media (max-width: 900px) {
+    .tools-groups {
+      grid-template-columns: 1fr;
+    }
+    .tools-list {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

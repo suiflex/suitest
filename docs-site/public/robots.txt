@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://suitest.suiflex.dev/sitemap-index.xml
