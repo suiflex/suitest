@@ -30,13 +30,22 @@ function cacheDir(version) {
 }
 
 // Superadmin bootstrap credentials for local API; apiKey is filled after mint (api-key.js).
+// encryptionKey feeds SUITEST_ENCRYPTION_KEY (urlsafe-b64, 32 bytes) — api_keys are
+// AES-GCM encrypted at rest, so minting 500s without it. Backfilled on load for
+// credential files created before this field existed.
 function loadOrCreateCredentials(credPath) {
   if (fs.existsSync(credPath)) {
-    return JSON.parse(fs.readFileSync(credPath, "utf8"));
+    const creds = JSON.parse(fs.readFileSync(credPath, "utf8"));
+    if (!creds.encryptionKey) {
+      creds.encryptionKey = crypto.randomBytes(32).toString("base64");
+      saveCredentials(credPath, creds);
+    }
+    return creds;
   }
   const creds = {
     email: "admin@suitest.local",
     password: crypto.randomBytes(24).toString("base64url"),
+    encryptionKey: crypto.randomBytes(32).toString("base64"),
     apiKey: null,
   };
   saveCredentials(credPath, creds);

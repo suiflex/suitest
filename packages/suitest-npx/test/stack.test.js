@@ -28,8 +28,9 @@ test("pickPort skips an occupied port", async () => {
 
 test("buildEnv composes the full local env for both processes", () => {
   const cwd = tmp();
-  const creds = { email: "admin@suitest.local", password: "pw", apiKey: null };
+  const creds = { email: "admin@suitest.local", password: "pw", encryptionKey: "a2V5", apiKey: null };
   const env = buildEnv(cwd, { port: 4321, webDist: "/cache/web", creds });
+  assert.strictEqual(env.SUITEST_ENCRYPTION_KEY, "a2V5");
   assert.strictEqual(env.SUITEST_MODE, "local");
   assert.ok(env.SUITEST_DATABASE_URL.startsWith("sqlite+aiosqlite:///"));
   assert.strictEqual(env.SUITEST_ARTIFACTS_BACKEND, "local");

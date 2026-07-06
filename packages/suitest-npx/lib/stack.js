@@ -43,6 +43,7 @@ function buildEnv(cwd, { port, webDist, creds }) {
     SUITEST_OTEL_DISABLED: "1",
     SUITEST_SUPERADMIN_EMAIL: creds.email,
     SUITEST_SUPERADMIN_PASSWORD: creds.password,
+    SUITEST_ENCRYPTION_KEY: creds.encryptionKey,
     SUITEST_API_URL: `http://127.0.0.1:${port}`,
   };
 }
