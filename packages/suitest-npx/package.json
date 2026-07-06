@@ -1,0 +1,23 @@
+{
+  "name": "@suiflex/suitest",
+  "version": "0.1.0",
+  "description": "Suitest local bundle — one command runs the full local stack (dashboard + SQLite + MCP).",
+  "license": "MIT",
+  "bin": {
+    "suitest": "bin/suitest.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@suiflex/suitest-mcp": "^0.1.4"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  }
+}
