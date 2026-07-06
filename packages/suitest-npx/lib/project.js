@@ -45,6 +45,7 @@ function loadOrCreateCredentials(credPath) {
 
 function saveCredentials(credPath, creds) {
   fs.writeFileSync(credPath, JSON.stringify(creds, null, 2) + "\n", { mode: 0o600 });
+  fs.chmodSync(credPath, 0o600); // writeFileSync mode only applies at creation
 }
 
 // sqlite absolute path = sqlite+aiosqlite:////abs/path (path already starts with /)
