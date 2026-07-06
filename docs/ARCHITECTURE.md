@@ -277,22 +277,21 @@ SUITEST_OTLP_ENDPOINT=
 uv sync                                # install Python deps for all workspace packages
 pnpm install                           # install JS deps for apps/web
 cp .env.example .env                   # default ZERO tier
-docker compose up -d postgres redis minio
-uv run alembic -c packages/db/alembic.ini upgrade head
-uv run python -m packages.db.seed
+docker compose -f infra/docker/docker-compose.yml up -d postgres redis minio
+make migrate                           # alembic upgrade head
+make seed                              # python -m suitest_db.seed
 
 # Every day
-uv run uvicorn apps.api.main:app --reload --port 8000 &
-uv run arq apps.runner.worker.WorkerSettings &
-pnpm --filter web dev                  # http://localhost:5173
+make dev                               # API (:4000) + web (:3000) + runner together
+# or individually: make dev-api / dev-web / dev-runner
 ```
 
 Port mapping default:
 
 | Service | Port |
 |---------|------|
-| web (Vite dev) | 5173 |
-| api (Uvicorn) | 8000 |
+| web (Vite dev) | 3000 |
+| api (Uvicorn) | 4000 |
 | Postgres | 5432 |
 | Redis | 6379 |
 | MinIO API | 9000 |

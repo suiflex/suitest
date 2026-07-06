@@ -35,7 +35,7 @@ Backend: Python 3.12 + FastAPI · Frontend: Vite + React 19 · DB: Postgres 16 +
 
 [Docs](./docs) · [Getting started](#install) · [MCP server](./docs/MCP_PLUGINS.md) · [Blackbox testing](./docs/BLACKBOX_UI_TESTING.md) · [Deployment](./docs/DEPLOYMENT.md) · [Architecture](./docs/ARCHITECTURE.md) · [Troubleshooting](./docs/TROUBLESHOOTING.md) · [Contributing](./CONTRIBUTING.md)
 
-New install? Start at [Install](#install) below. The MCP server runs from a single `npx` command; the full platform is one `docker compose up`.
+New install? Start at [Install](#install) below. `npx @suiflex/suitest onboard` boots the full platform locally in one command; the MCP server alone runs from a single `npx` command; the team server is one `make docker-up`.
 
 ---
 
@@ -58,9 +58,19 @@ See [docs/ROADMAP.md](./docs/ROADMAP.md) — the single source of truth for buil
 
 ## Install
 
-Four supported paths, smallest first.
+Five supported paths.
 
-### 1. MCP server only (no install required)
+### 1. Local bundle — one command (recommended quickstart)
+
+Requirements: **Node ≥ 18** and [uv](https://docs.astral.sh/uv/).
+
+```bash
+npx @suiflex/suitest onboard
+```
+
+Boots the full platform locally — web dashboard + API on SQLite + run supervisor (port 4000, falls back to 4001–4009, binds `127.0.0.1`) — and wires your IDE's MCP config in the same step. No Docker, no Postgres, no LLM key (generation uses MCP sampling through your IDE agent). Data lives in `./.suitest/`; the dashboard and Suitest wheels ship inside the npm package (~3 MB). `suitest up` / `suitest down` manage the stack; `--port`, `--ide`, `--base-url` override defaults. Details: [packages/suitest-npx](./packages/suitest-npx/README.md).
+
+### 2. MCP server only (no install required)
 
 Requirements: **Node ≥ 18** and **Python ≥ 3.11** on PATH.
 
@@ -88,9 +98,9 @@ Wire it into Claude Code / Cursor (`.mcp.json`):
 }
 ```
 
-The agent gets 21 tools: repo-based lifecycle (analyze → generate → run → report), the **blackbox engine** for apps you have no repo for (browser setup wizard, login detection, safe crawling, deterministic Playwright generation, evidence), and PRD-driven planning. `SUITEST_API_URL`/`KEY` are optional — with them, cases/runs/evidence publish into the web TCM; without them results stay local under `suitest-output/`.
+The agent gets 22 tools: repo-based lifecycle (analyze → generate → run → report), the **blackbox engine** for apps you have no repo for (browser setup wizard, login detection, safe crawling, deterministic Playwright generation, evidence), and PRD-driven planning. `SUITEST_API_URL`/`KEY` are optional — with them, cases/runs/evidence publish into the web TCM; without them results stay local under `suitest-output/`.
 
-### 2. Full platform — Docker Compose
+### 3. Full platform — Docker Compose
 
 Requirements: **Docker + Docker Compose**.
 
@@ -118,9 +128,9 @@ from source instead with `make docker-up-prod`.
 
 Log in with the super-admin email/password. From **Settings → invite** others by link — onboarding is invite-only by default. Default tier is **ZERO** — no LLM calls are ever made. Optional profiles: `--profile local` adds an Ollama service for air-gapped LOCAL-tier inference.
 
-Demo data: `make seed` (or `docker compose exec api python -m suitest_db.seed`).
+Demo data: `make seed` (or `docker compose -f infra/docker/docker-compose.yml exec api python -m suitest_db.seed`).
 
-### 3. Kubernetes — Helm
+### 4. Kubernetes — Helm
 
 Requirements: a cluster + [Helm](https://helm.sh); Postgres/Redis/object storage as external services (URLs in `values.yaml`).
 
@@ -132,9 +142,9 @@ helm install suitest infra/helm/suitest -f infra/helm/suitest/values-airgapped.y
 
 The chart deploys `api`, `web`, and `runner` separately with a PodDisruptionBudget. Full guide (env vars, TLS, backups, air-gapped checklist): [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) · chart notes: [infra/README.md](./infra/README.md).
 
-### 4. Local development (no Docker for the app)
+### 5. Local development (no Docker for the app)
 
-Requirements: **Python 3.12 + [uv](https://docs.astral.sh/uv/)**, **Node 20 + [pnpm](https://pnpm.io/)**, and Postgres/Redis/MinIO (easiest: `docker compose up -d postgres redis minio`).
+Requirements: **Python 3.12 + [uv](https://docs.astral.sh/uv/)**, **Node 20 + [pnpm](https://pnpm.io/)**, and Postgres/Redis/MinIO (easiest: `docker compose -f infra/docker/docker-compose.yml up -d postgres redis minio`).
 
 ```bash
 make setup     # cp .env → install deps → run migrations → seed DB
@@ -173,7 +183,7 @@ This whole journey is locked by a no-mock, real-backend Playwright suite — `ma
 LLM providers are configured **per workspace from the web UI** — `Settings → LLM` — not via env vars. Keys are AES-GCM encrypted at rest and never shown again. Setting a provider upgrades the workspace tier (ZERO → CLOUD/LOCAL) and unlocks agent chat, PRD-driven generation, and LLM codegen.
 
 - **CLOUD** — bring your own key: Anthropic, OpenAI, Gemini, Groq, OpenRouter, DeepSeek, … (100+ providers via [LiteLLM](https://docs.litellm.ai)), or **`custom`** — any OpenAI-compatible base URL (gateways, routers, proxies).
-- **LOCAL** — privacy-first / air-gapped: Ollama, llama.cpp, vLLM, LM Studio (`docker compose --profile local up -d` ships an Ollama service).
+- **LOCAL** — privacy-first / air-gapped: Ollama, llama.cpp, vLLM, LM Studio (`make docker-up-local` ships an Ollama service).
 
 The default is always **ZERO**: no LLM call is ever made until a workspace explicitly configures one.
 
@@ -210,6 +220,7 @@ suitest/
 │   ├── mcp/                 ← MCP client + registry + pool + bundled providers
 │   ├── lifecycle/           ← the MCP server: analyze→generate→run→publish + blackbox engine
 │   ├── mcp-npx/             ← @suiflex/suitest-mcp — npx launcher for the MCP server
+│   ├── suitest-npx/         ← @suiflex/suitest — one-command local platform launcher
 │   ├── shared/              ← cross-package Pydantic schemas
 │   └── core/                ← capability resolver, autonomy, AES-GCM crypto
 │

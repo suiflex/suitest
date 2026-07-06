@@ -25,7 +25,7 @@ infra/
 
 ```bash
 cp .env.example .env      # set SUITEST_AUTH_SECRET + super-admin credentials
-docker compose up -d      # postgres + redis + minio + api + web + runner
+make docker-up            # pulls prebuilt ghcr images; = docker compose -f infra/docker/docker-compose.yml --profile zero up -d
 open http://localhost:3000
 ```
 
@@ -37,7 +37,7 @@ Profiles:
 Infra-only mode (run the app processes on the host — the day-to-day dev loop):
 
 ```bash
-docker compose up -d postgres redis minio
+docker compose -f infra/docker/docker-compose.yml up -d postgres redis minio
 make dev                  # api :4000 + web :3000 + runner
 ```
 
@@ -56,7 +56,12 @@ URLs in `values.yaml`).
 ## CI images
 
 `.github/workflows/ci.yml` (`build-images` job) builds every Dockerfile on
-each push — no publish, cache via GHA. Publishing is a release-time concern.
+each push — no publish, cache via GHA. Publishing happens on `images-v*` tags:
+`.github/workflows/release-images.yml` pushes
+`ghcr.io/suiflex/{suitest-api,suitest-runner,suitest-web,suitest}` with both
+the version tag and `latest`. The compose file pulls these prebuilt images;
+`SUITEST_IMAGE_TAG` pins a version and `make docker-up-prod` builds locally
+instead.
 
 Full deployment guide (env vars, TLS, backups, air-gapped checklist):
 [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).

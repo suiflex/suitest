@@ -19,9 +19,20 @@ Suitest is a self-hostable, open-source QA platform (Apache-2.0, pre-v1.0). It w
 
 ## Choose your path
 
-### I want to test from my IDE
+### I want everything on my laptop (one command)
 
-Connect your coding agent to Suitest in one command. No platform install required.
+The recommended solo-dev quickstart: web dashboard, API on SQLite, run supervisor, and your IDE's MCP config — no Docker, no LLM key.
+
+```bash
+npx @suiflex/suitest onboard
+```
+
+- [Local bundle install](/docs/install/local-bundle/)
+- [Getting started](/docs/guides/getting-started/)
+
+### I want to test from my IDE (MCP server only)
+
+The lightest route: connect your coding agent to Suitest in one command. No platform install, results stay on disk.
 
 ```bash
 npx -y @suiflex/suitest-mcp init
@@ -32,12 +43,12 @@ npx -y @suiflex/suitest-mcp init
 - [Blackbox testing from a URL](/docs/guides/blackbox-testing/)
 - [MCP tool reference](/docs/reference/mcp-tools/)
 
-### I want the full platform
+### I want the full platform on a server
 
-Run the web TCM, API, runner, and storage yourself.
+Run the web TCM, API, runner, and storage yourself, on Postgres and object storage.
 
 ```bash
-docker compose up -d
+docker compose -f infra/docker/docker-compose.yml --profile zero up -d
 ```
 
 - [Getting started](/docs/guides/getting-started/)

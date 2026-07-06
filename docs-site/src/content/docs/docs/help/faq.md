@@ -7,6 +7,10 @@ description: Frequently asked questions about Suitest licensing, LLM requirement
 
 Yes. Suitest is open source under the Apache-2.0 license and designed to be self-hosted. There is no hosted billing, no per-seat pricing, and the ZERO tier costs nothing to run: no LLM bill, ever.
 
+## What is the fastest way to try Suitest?
+
+`npx @suiflex/suitest onboard` — one command boots the full platform on your laptop (web dashboard, API on SQLite, run supervisor) and wires your IDE's MCP config. No Docker, no LLM key. See [Local bundle](/docs/install/local-bundle/). If you only want agent-generated tests without a dashboard, `npx -y @suiflex/suitest-mcp init` is lighter; for a team server use [Docker Compose](/docs/install/docker/).
+
 ## Do I need an LLM API key?
 
 No. The entire deterministic core works with no LLM at all: manual test case management, the MCP-driven runner, deterministic generators (OpenAPI, browser recorder, crawler), the blackbox engine, rule-based defects, traceability, and analytics. AI features are an optional layer on top. See [Capability tiers](/docs/reference/tiers/).

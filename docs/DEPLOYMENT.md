@@ -1,6 +1,10 @@
 # docs/DEPLOYMENT.md
 
 > How to deploy Suitest OSS in 3 modes: single-host docker-compose, standalone all-in-one container, and Helm chart for k8s production. For architecture context read [ARCHITECTURE.md](./ARCHITECTURE.md). For capability tiers (ZERO/LOCAL/CLOUD) read [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md).
+>
+> ℹ️ **Built today:** the §1.1 quickstart, the compose stack (`infra/docker/docker-compose.yml` — the authoritative file; web on **3000**, API on **4000**, tag pinned via `SUITEST_IMAGE_TAG`), the all-in-one image `ghcr.io/suiflex/suitest`, and the in-repo chart `infra/helm/suitest` (no migration hook — see the docs-site Kubernetes guide). The annotated YAML/env excerpts and the OCI-chart/HPA sections below are the M3–M4 **target spec** and diverge from the shipped files in places (port numbers, `SUITEST_VERSION`, `SUITEST_LLM_*`). Note: the shipped platform has **no `SUITEST_LLM_*` env vars** — the LLM is configured per workspace in the web UI.
+>
+> The fastest local install is not compose at all: `npx @suiflex/suitest onboard` boots the whole platform on SQLite in one command (see `packages/suitest-npx/README.md`).
 
 ---
 
@@ -12,7 +16,7 @@
 | **Standalone** | Demo / hobby / "try in 1 command" | 1 minute | 1 container, ≤10 users | yes |
 | **Helm (k8s)** | Production, multi-tenant, multi-region | 30 minutes | horizontal autoscale | yes |
 
-Default tier for all modes = **ZERO** (runs without an LLM). Upgrade to LOCAL/CLOUD by setting env vars. See [§5 tier matrix](#5-tier-specific-environment-matrix).
+Default tier for all modes = **ZERO** (runs without an LLM). Upgrade to LOCAL/CLOUD by configuring an LLM provider per workspace in the web UI (Settings → LLM) — not via env vars. The [§5 tier matrix](#5-tier-specific-environment-matrix) describes the older env-based dial (spec only).
 
 ---
 
@@ -136,11 +140,11 @@ networks:
 
 | Tier | Command | Container set |
 |------|---------|---------------|
-| ZERO | `docker compose --profile zero up -d` | web, api, runner, postgres, redis, minio |
-| CLOUD | `docker compose --profile cloud up -d` | same as ZERO + LLM provider env set (no extra container) |
-| LOCAL | `docker compose --profile local up -d` | + `ollama` container |
+| ZERO | `make docker-up` (= `docker compose -f infra/docker/docker-compose.yml --profile zero up -d`) | web, api, runner, postgres, redis, minio |
+| CLOUD | `make docker-up-cloud` | same as ZERO (no extra container; configure the provider in the web UI) |
+| LOCAL | `make docker-up-local` | + `ollama` container |
 
-Tip: the CLOUD tier only needs an env diff, the images are exactly the same. Restart `api` + `runner` after editing `.env`.
+Tip: the container set is (almost) the same across tiers — the tier is raised per workspace from the web UI (Settings → LLM), not by editing `.env`.
 
 If you want Langfuse for LLM observability, run it from [Langfuse's own compose file](https://github.com/langfuse/langfuse) and point the OTEL/Langfuse env of `api`/`runner` at it — it is not bundled in Suitest's compose stack.
 
@@ -148,25 +152,18 @@ If you want Langfuse for LLM observability, run it from [Langfuse's own compose 
 
 ```env
 # === Required ===
-POSTGRES_PASSWORD=changeme
-SUITEST_AUTH_SECRET=replace-with-32-char-random
+POSTGRES_PASSWORD=suitest
+SUITEST_AUTH_SECRET=replace-with-32-char-random-hex
 SUITEST_ENCRYPTION_KEY=replace-with-base64-32-byte-key
 
-# === Tier dial (ZERO default) ===
-SUITEST_LLM_PROVIDER=none
-SUITEST_LLM_API_KEY=
-SUITEST_LLM_MODEL=
-
-# === To upgrade to CLOUD (uncomment) ===
-# SUITEST_LLM_PROVIDER=anthropic
-# SUITEST_LLM_API_KEY=sk-ant-...
-# SUITEST_LLM_MODEL=claude-sonnet-4-5
-
-# === To upgrade to LOCAL (uncomment + use --profile local) ===
-# SUITEST_LLM_PROVIDER=ollama
-# SUITEST_LLM_BASE_URL=http://ollama:11434
-# SUITEST_LLM_MODEL=ollama/llama3.1
+# === Super-admin bootstrap (first-install login) ===
+SUITEST_SUPERADMIN_EMAIL=
+SUITEST_SUPERADMIN_PASSWORD=
+SUITEST_SUPERADMIN_WORKSPACE_NAME=Default Workspace
 ```
+
+There is no LLM env dial: the tier is upgraded per workspace from the web UI
+(Settings → LLM), and the key is stored AES-GCM encrypted in the database.
 
 ### 1.5 Reverse proxy & TLS
 
@@ -174,9 +171,9 @@ Production compose: add `traefik` or `caddy` in front as the TLS terminator. Exa
 
 ```caddy
 suitest.example.com {
-  reverse_proxy /api/* api:8000
-  reverse_proxy /ws/*  api:8000
-  reverse_proxy /sse/* api:8000
+  reverse_proxy /api/* api:4000
+  reverse_proxy /ws/*  api:4000
+  reverse_proxy /sse/* api:4000
   reverse_proxy        web:80
 }
 ```
@@ -192,24 +189,23 @@ For hobbyists / demos. A single image runs `api` + `runner` + nginx serving `web
 ### 2.1 One-command try
 
 ```bash
-docker run --rm -p 8080:80 \
-  -e DATABASE_URL=postgresql+asyncpg://u:p@your-pg-host/suitest \
-  -e REDIS_URL=redis://your-redis-host:6379/0 \
+docker run --rm -p 3000:80 \
+  -e SUITEST_DATABASE_URL=postgresql+asyncpg://u:p@your-pg-host/suitest \
+  -e SUITEST_REDIS_URL=redis://your-redis-host:6379/0 \
   -e SUITEST_AUTH_SECRET=$(openssl rand -hex 32) \
   -e SUITEST_ENCRYPTION_KEY=$(openssl rand -base64 32) \
-  ghcr.io/suiflex/suitest-standalone:latest
+  ghcr.io/suiflex/suitest:latest
 ```
 
 ### 2.2 Image internals (informational)
 
 ```
-ghcr.io/suiflex/suitest-standalone
-├── /etc/supervisor/conf.d/
-│   ├── api.conf           ← uvicorn apps.api.main:app --port 8000 --workers 2
-│   ├── runner.conf        ← arq apps.runner.worker.WorkerSettings
-│   └── nginx.conf         ← serve /var/www/web on :80, proxy /api → :8000
-├── /opt/suitest/          ← installed Python wheel
-└── /var/www/web/          ← built SPA dist
+ghcr.io/suiflex/suitest        (infra/docker/Dockerfile.suitest)
+├── supervisord.suitest.conf
+│   ├── api      ← uvicorn --factory suitest_api.main:create_app --port 4000
+│   ├── runner   ← arq suitest_runner.worker.WorkerSettings
+│   └── nginx    ← serve the web dist on :80, proxy /api → :4000
+└── (EXPOSE 80 4000)
 ```
 
 ### 2.3 Use cases & caveats
@@ -365,25 +361,25 @@ observability:
   prometheusScrape: true
 
 migrations:
-  runAsJob: true                      # alembic upgrade head via pre-upgrade hook
+  runAsJob: true                      # (spec) migration Job — the shipped chart has no hook; run alembic manually
 ```
 
 ### 3.3 Install
 
+The chart ships in-repo (no published OCI/chart repo yet):
+
 ```bash
-helm repo add suitest oci://ghcr.io/suitest-dev/charts
-helm install suitest suitest/suitest \
-  --version 1.0.0 \
-  --namespace suitest --create-namespace \
-  -f values-cloud.yaml \
-  --set llm.apiKeySecretRef.name=my-llm-secret
+helm install suitest infra/helm/suitest -f infra/helm/suitest/values.yaml
+# air-gapped (LOCAL tier via in-cluster Ollama):
+helm install suitest infra/helm/suitest -f infra/helm/suitest/values-airgapped.yaml
 ```
 
 Upgrade:
 
 ```bash
-helm upgrade suitest suitest/suitest --version 1.1.0 -f values-cloud.yaml
-# pre-upgrade Job runs `alembic upgrade head` automatically
+helm upgrade suitest infra/helm/suitest -f infra/helm/suitest/values.yaml
+# the chart has no migration hook: run `alembic upgrade head` against the
+# database first, using the same API image the chart deploys
 ```
 
 ### 3.4 HPA detail
@@ -490,7 +486,7 @@ The drill is **mandatory quarterly** for production.
 |------|------|
 | 1 | Read CHANGELOG, check breaking changes (data model, env var renames) |
 | 2 | `helm diff upgrade` for a preview |
-| 3 | Migrations: pre-upgrade Job runs `alembic upgrade head` (auto via Helm hook) |
+| 3 | Migrations: run `alembic upgrade head` before the upgrade (the shipped chart has no Helm hook) |
 | 4 | Blue/green for `api`: new ReplicaSet rolling, old drains |
 | 5 | `runner` rolling — long-running jobs are drained via `SIGTERM` with `90s` grace |
 | 6 | Verify `/capabilities` for a tier mismatch (in case a provider was swapped unintentionally) |

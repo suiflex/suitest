@@ -21,10 +21,15 @@ versions: read the changelog before every upgrade and keep backups current.
 | `postgres` | `pgvector/pgvector:pg16` | primary database (Postgres 16 with the pgvector extension) |
 | `redis` | `redis:7-alpine` | run queue and cache, append-only persistence enabled |
 | `minio` + `minio-init` | `minio/minio` | S3-compatible artifact storage; the init job creates the bucket |
-| `migrate` | built from source | one-shot `alembic upgrade head`, runs before the API starts |
-| `api` | built from source | REST API on port 4000, health at `/health` |
-| `runner` | built from source | executes test runs from the queue |
-| `web` | built from source | the web UI, served on port 3000 |
+| `migrate` | `ghcr.io/suiflex/suitest-api` (prebuilt) | one-shot `alembic upgrade head`, runs before the API starts |
+| `api` | `ghcr.io/suiflex/suitest-api` (prebuilt) | REST API on port 4000, health at `/health` |
+| `runner` | `ghcr.io/suiflex/suitest-runner` (prebuilt) | executes test runs from the queue |
+| `web` | `ghcr.io/suiflex/suitest-web` (prebuilt) | the web UI, served on port 3000 |
+
+App images are published per `images-v*` release; pin one with
+`SUITEST_IMAGE_TAG=<version>`, or build from source with
+`docker compose ... up -d --build` (each service also carries a `build:`
+section).
 
 An external Postgres, Redis, or S3 endpoint works too: point the
 `SUITEST_DATABASE_URL`, `SUITEST_REDIS_URL`, and `SUITEST_S3_*` variables at
@@ -165,8 +170,10 @@ Restore drill (run it quarterly, not just when disaster strikes):
 ## Upgrading
 
 1. Read the changelog for breaking changes (data model, renamed variables).
-2. Pull the new version and rebuild:
-   `docker compose -f infra/docker/docker-compose.yml --profile zero up -d --build`.
+2. Pull the new images and restart:
+   `docker compose -f infra/docker/docker-compose.yml --profile zero pull`
+   then `docker compose -f infra/docker/docker-compose.yml --profile zero up -d`
+   (pin with `SUITEST_IMAGE_TAG`; add `--build` instead to build from source).
 3. The `migrate` service runs `alembic upgrade head` before the API starts,
    so schema migrations are automatic on boot.
 4. Verify `/health` on the API and log in.

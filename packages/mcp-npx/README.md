@@ -28,6 +28,11 @@ One command: detects your IDE (Claude Code, Cursor, Windsurf) and app framework
 
 Then restart your IDE and tell the agent: **"test my app"**.
 
+Want the full platform (web dashboard included) on your laptop too?
+`npx @suiflex/suitest onboard` boots it in one command and wires the same MCP
+config for you — see [`@suiflex/suitest`](https://www.npmjs.com/package/@suiflex/suitest).
+This package is the MCP-server-only route.
+
 Non-interactive (CI / scripts):
 
 ```bash
@@ -104,7 +109,7 @@ them the tools still work — results stay local under `suitest-output/`.
 
 ## What the agent gets
 
-21 tools, three workflows:
+22 tools, three workflows:
 
 | Workflow | Tools | Needs |
 |---|---|---|

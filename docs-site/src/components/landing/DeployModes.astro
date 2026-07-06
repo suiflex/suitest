@@ -1,12 +1,20 @@
 ---
-// Three real deployment shapes that exist today. Rows, not cards: the command
+// Four real deployment shapes that exist today. Rows, not cards: the command
 // is the content, so each mode reads like a runbook entry.
 const modes = [
   {
+    name: "Local bundle",
+    who: "A solo developer, one laptop",
+    body: "The full platform in one command: web dashboard, API on SQLite, run supervisor, and your IDE's MCP config. No Docker, no LLM key.",
+    code: "npx @suiflex/suitest onboard",
+    link: "/docs/install/local-bundle/",
+    linkLabel: "Local bundle guide",
+  },
+  {
     name: "Docker Compose",
     who: "A team on its own server",
-    body: "The whole platform: Postgres, Redis, MinIO, API, web dashboard, and runner. Your data never leaves your infrastructure.",
-    code: "git clone https://github.com/suiflex/suitest && cd suitest\ncp .env.example .env && docker compose up -d",
+    body: "The whole platform: Postgres, Redis, MinIO, API, web dashboard, and runner. Prebuilt images are pulled from ghcr.io. Your data never leaves your infrastructure.",
+    code: "git clone https://github.com/suiflex/suitest && cd suitest\ncp .env.example .env && make docker-up",
     link: "/docs/install/docker/",
     linkLabel: "Docker guide",
   },

@@ -64,7 +64,7 @@ deploys (the compose stack runs it as
 |-------|---------|---------|
 | `suitest.tier` | `zero` | Deployment tier label (`zero`, `local`) |
 | `suitest.autonomyDefault` | `manual` | Default autonomy level |
-| `image.registry` | `ghcr.io/suitest-dev` | Image registry |
+| `image.registry` | `ghcr.io/suitest-dev` | Image registry. The published images live at `ghcr.io/suiflex` (pushed on `images-v*` releases), so set `image.registry: ghcr.io/suiflex` to pull them |
 | `image.apiRepository` / `webRepository` / `runnerRepository` | `suitest-api` / `suitest-web` / `suitest-runner` | Per-component image names |
 | `image.tag` | `0.1.0` | Image tag |
 | `image.pullSecrets` | `[]` | For private or mirrored registries |

@@ -11,6 +11,13 @@ results to a Suitest server.
 Command output in this tutorial is illustrative. Your paths, counts, and case
 names will differ; the shapes will not.
 
+:::tip
+Want the web dashboard too? `npx @suiflex/suitest onboard` boots the full
+platform locally and wires your IDE in one command — see the
+[local bundle](/docs/install/local-bundle/). This tutorial uses the
+MCP-server-only route, which needs no platform at all.
+:::
+
 ## Prerequisites
 
 - A Next.js app you can run locally (any web app works; Next.js, Vite,

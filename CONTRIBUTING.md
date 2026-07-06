@@ -22,10 +22,10 @@ while guaranteeing your contributions always remain available under the
 ## Getting started
 
 ```bash
-git clone https://github.com/suitest/suitest
+git clone https://github.com/suiflex/suitest
 cd suitest
 cp .env.example .env
-docker compose -f infra/docker/docker-compose.yml up -d   # pg + redis + minio + api + web + runner
+docker compose -f infra/docker/docker-compose.yml --profile zero up -d   # pg + redis + minio + api + web + runner
 ```
 
 Python deps are managed with [`uv`](https://docs.astral.sh/uv/), frontend deps with

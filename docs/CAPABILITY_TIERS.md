@@ -395,7 +395,7 @@ Cost is computed via `litellm.completion_cost()` → accumulated into `AgentSess
 | Auto-file defect with root-cause prose | LOCAL or CLOUD + autonomy ≥ `assist` | rule-based still works in ZERO |
 | Air-gapped, no egress, full AI | LOCAL + `fastembed` | enterprise privacy recommendation |
 | Air-gapped, no egress, no AI | ZERO | "TestRail+Playwright in 1 product" mode |
-| Try Suitest in 5 minutes | ZERO | docker compose up |
+| Try Suitest in 5 minutes | ZERO | `npx @suiflex/suitest onboard` (or `make docker-up`) |
 | Production multi-tenant SaaS posture | CLOUD | Helm + budget guard |
 
 ---
