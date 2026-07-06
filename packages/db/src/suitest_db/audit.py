@@ -19,6 +19,7 @@ Listener placement:
 
 from __future__ import annotations
 
+import uuid
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -54,6 +55,16 @@ class AuditContext:
 
 
 audit_ctx: ContextVar[AuditContext | None] = ContextVar("audit_ctx", default=None)
+
+
+def _coerce_user_id(value: str | None) -> uuid.UUID | None:
+    """``AuditLog.user_id`` is ``UUID(as_uuid=True)``; callers hold strings.
+
+    Postgres drivers coerce str→uuid at bind time, but SQLite's Uuid bind
+    processor calls ``.hex`` on the value and crashes on str — so we coerce
+    once here for every AuditLog construction site.
+    """
+    return uuid.UUID(value) if value else None
 
 
 # Explicit allowlist of mutable domain tables. ``audit_logs`` is intentionally
@@ -151,7 +162,7 @@ def _record(session: Session, target: object, action: str) -> None:
     )
     row = AuditLog(
         workspace_id=ctx.workspace_id,
-        user_id=ctx.user_id,
+        user_id=_coerce_user_id(ctx.user_id),
         action=action,
         resource_type=tablename,
         resource_id=str(resource_id),
@@ -202,7 +213,7 @@ async def write_audit(
 
     row = AuditLog(
         workspace_id=workspace_id,
-        user_id=user_id,
+        user_id=_coerce_user_id(user_id),
         action=action,
         resource_type=resource_type,
         resource_id=resource_id,
