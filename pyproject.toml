@@ -43,6 +43,9 @@ dev-dependencies = [
   "httpx-ws>=0.7.0",
   # M2 Task 2 — mypy stubs for the OpenAPI generator's YAML spec fallback.
   "types-PyYAML>=6.0",
+  # Task 6 — litellm+langgraph moved to suitest-agent[cloud] optional extra;
+  # dev env opts in so test_providers.py + test_graphs.py keep working.
+  "suitest-agent[cloud]",
 ]
 
 [tool.uv.sources]
