@@ -21,6 +21,19 @@ def test_serves_index_when_web_dist_set(tmp_path, monkeypatch) -> None:
     assert "suitest" in resp.text
 
 
+def test_spa_deep_link_falls_back_to_index(tmp_path, monkeypatch) -> None:
+    dist = tmp_path / "web"
+    dist.mkdir()
+    (dist / "index.html").write_text("<!doctype html><title>suitest</title>", encoding="utf-8")
+    monkeypatch.setenv("SUITEST_WEB_DIST", str(dist))
+
+    app = create_app()
+    client = TestClient(app)
+    resp = client.get("/cases/123")  # client-side route, no such file
+    assert resp.status_code == 200
+    assert "suitest" in resp.text
+
+
 def test_api_routes_still_work_under_static_mount(tmp_path, monkeypatch) -> None:
     dist = tmp_path / "web"
     dist.mkdir()

@@ -280,8 +280,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     web_dist = os.environ.get("SUITEST_WEB_DIST", "").strip()
     if web_dist and (Path(web_dist) / "index.html").is_file():
         from fastapi.staticfiles import StaticFiles
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        from starlette.types import Scope
 
-        app.mount("/", StaticFiles(directory=web_dist, html=True), name="web")
+        class _SpaStaticFiles(StaticFiles):
+            """StaticFiles that falls back to index.html for unknown paths (SPA deep links)."""
+
+            async def get_response(self, path: str, scope: Scope) -> Response:
+                try:
+                    return await super().get_response(path, scope)
+                except StarletteHTTPException as exc:
+                    if exc.status_code == 404:
+                        return await super().get_response("index.html", scope)
+                    raise
+
+        app.mount("/", _SpaStaticFiles(directory=web_dist, html=True), name="web")
 
     return app
 
