@@ -69,6 +69,15 @@ async def test_write_audit_coerces_user_id_str_to_uuid() -> None:
         resource_type="api_key",
         resource_id="k-2",
     )
+    await write_audit(
+        _StubSession(),
+        workspace_id="ws-1",
+        user_id="mcp-system-actor",  # symbolic (non-UUID) actor → dropped, row still lands
+        action="api_key.create",
+        resource_type="api_key",
+        resource_id="k-3",
+    )
     assert isinstance(captured[0].user_id, uuid.UUID)
     assert captured[0].user_id == uid
     assert captured[1].user_id is None
+    assert captured[2].user_id is None

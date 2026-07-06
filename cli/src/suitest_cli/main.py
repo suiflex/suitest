@@ -86,7 +86,9 @@ def _cmd_generate(args: argparse.Namespace) -> int:
 
     config = load_config(args.config)
     summary, cases, paths = generate_only(config)
-    print(f"analyzed {config.mode.value}: {len(summary.endpoints)} endpoint(s), {len(summary.pages)} page(s)")
+    print(
+        f"analyzed {config.mode.value}: {len(summary.endpoints)} endpoint(s), {len(summary.pages)} page(s)"
+    )
     print(f"generated {len(cases)} test case(s) -> {paths.mode_dir}")
     for c in cases:
         print(f"  {c.id}  {c.title}")
@@ -162,13 +164,19 @@ def _build_parser() -> argparse.ArgumentParser:
     gen.set_defaults(func=_cmd_generate)
 
     test = sub.add_parser("test", help="Full lifecycle: generate, start, wait, run, report.")
-    test.add_argument("--config", default="suitest.config.json", help="Path to suitest.config.json.")
+    test.add_argument(
+        "--config", default="suitest.config.json", help="Path to suitest.config.json."
+    )
     test.add_argument("--json", action="store_true", help="Emit a structured JSON result.")
     test.add_argument(
-        "--no-autostart", action="store_true", help="Don't spawn the target; only wait for readiness."
+        "--no-autostart",
+        action="store_true",
+        help="Don't spawn the target; only wait for readiness.",
     )
     test.add_argument(
-        "--publish", action="store_true", help="Publish results into a running Suitest (REST ingest)."
+        "--publish",
+        action="store_true",
+        help="Publish results into a running Suitest (REST ingest).",
     )
     test.add_argument(
         "--enrich", action="store_true", help="Add LLM edge-case enrichment (deterministic mock)."

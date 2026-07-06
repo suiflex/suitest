@@ -49,13 +49,17 @@ from __future__ import annotations
 
 import hashlib
 import os
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from slowapi import Limiter
+from starlette.middleware.base import BaseHTTPMiddleware
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from starlette.requests import Request
+    from starlette.responses import Response
 
 # slowapi types `default_limits` as ``list[str | Callable[..., str]]`` (invariant
 # list, see PEP 484), so the alias here keeps callers honest without `list[Any]`.
@@ -114,3 +118,85 @@ def build_limiter(
         headers_enabled=True,
         enabled=enabled,
     )
+
+
+def iter_flattened_routes(routes: object) -> Iterator[object]:
+    """Yield every route, descending into fastapi >= 0.139 ``_IncludedRouter``s.
+
+    ``app.routes`` no longer flattens ``include_router`` results; the real
+    APIRoutes hang off each entry's ``original_router``. Callers that used to
+    scan ``app.routes`` for endpoints must walk this instead.
+    """
+    for route in routes:  # type: ignore[attr-defined]
+        yield route
+        sub = getattr(route, "routes", None) or getattr(
+            getattr(route, "original_router", None), "routes", None
+        )
+        if sub:
+            yield from iter_flattened_routes(sub)
+
+
+def _resolve_endpoint(routes: object, scope: dict[str, object]) -> Callable[..., object] | None:
+    """Recursively resolve the endpoint function for ``scope``.
+
+    fastapi >= 0.139 registers each ``include_router`` as a nested
+    ``_IncludedRouter`` entry in ``app.routes`` instead of flattening the
+    APIRoutes. slowapi's flat ``_find_route_handler`` then resolves every
+    included route to ``None``, and its middleware treats ``None`` as exempt —
+    silently disabling the limiter for the whole /api/v1 surface. This walker
+    descends into anything that exposes ``.routes``.
+    """
+    from starlette.routing import Match
+
+    for route in routes:  # type: ignore[attr-defined]
+        endpoint = getattr(route, "endpoint", None)
+        matcher = getattr(route, "matches", None)
+        child_scope: dict[str, object] = {}
+        if matcher is not None:
+            match, child_scope = matcher(scope)
+            if match == Match.NONE:
+                continue
+            if match == Match.FULL and endpoint is not None:
+                return endpoint  # type: ignore[no-any-return]
+        # fastapi's _IncludedRouter exposes no ``.routes``; the real APIRoutes
+        # hang off ``original_router`` (their paths already carry the prefix).
+        sub_routes = getattr(route, "routes", None) or getattr(
+            getattr(route, "original_router", None), "routes", None
+        )
+        if sub_routes:
+            found = _resolve_endpoint(sub_routes, {**scope, **child_scope})
+            if found is not None:
+                return found
+    return None
+
+
+class RouterAwareSlowAPIMiddleware(BaseHTTPMiddleware):
+    """slowapi's middleware with nested-router endpoint resolution.
+
+    Same contract as :class:`slowapi.middleware.SlowAPIMiddleware`, but the
+    handler lookup uses :func:`_resolve_endpoint` (see its docstring for the
+    fastapi 0.139 ``_IncludedRouter`` gap this closes).
+    """
+
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        from slowapi.middleware import _should_exempt, sync_check_limits
+
+        app = request.app
+        limiter: Limiter = app.state.limiter
+        if not limiter.enabled:
+            return await call_next(request)
+
+        handler = _resolve_endpoint(app.routes, dict(request.scope))
+        if _should_exempt(limiter, handler):
+            return await call_next(request)
+
+        error_response, should_inject_headers = sync_check_limits(limiter, request, handler, app)
+        if error_response is not None:
+            return error_response
+
+        response = await call_next(request)
+        if should_inject_headers:
+            response = limiter._inject_headers(response, request.state.view_rate_limit)
+        return response

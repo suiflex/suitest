@@ -47,8 +47,11 @@ class _FakeHttp:
 
 def _publisher(http) -> GitHubPublisher:
     return GitHubPublisher(
-        token="ghs_x", repo="acme/shop", pr_number=42,
-        api_base="https://api.github.com", http=http,
+        token="ghs_x",
+        repo="acme/shop",
+        pr_number=42,
+        api_base="https://api.github.com",
+        http=http,
     )
 
 
@@ -61,12 +64,17 @@ def test_creates_new_comment_when_no_marker_found() -> None:
 
 
 def test_updates_existing_marker_comment() -> None:
-    http = _FakeHttp(existing_comments=[
-        {"id": 7, "body": "<!-- suitest-report -->\nlama"},
-    ])
+    http = _FakeHttp(
+        existing_comments=[
+            {"id": 7, "body": "<!-- suitest-report -->\nlama"},
+        ]
+    )
     _publisher(http).publish("<!-- suitest-report -->\nbaru")
-    assert ("PATCH", "https://api.github.com/repos/acme/shop/issues/comments/7",
-            {"body": "<!-- suitest-report -->\nbaru"}) in http.requests
+    assert (
+        "PATCH",
+        "https://api.github.com/repos/acme/shop/issues/comments/7",
+        {"body": "<!-- suitest-report -->\nbaru"},
+    ) in http.requests
     # TIDAK membuat comment baru (anti-spam)
     assert not any(m == "POST" for m, _, _ in http.requests)
 

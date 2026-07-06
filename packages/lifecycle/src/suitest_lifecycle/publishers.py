@@ -36,7 +36,9 @@ def _default_http(token: str):
     def _request(method: str, url: str, body: dict | None = None) -> object:
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(
-            url, data=data, method=method,
+            url,
+            data=data,
+            method=method,
             headers={
                 "Authorization": f"Bearer {token}",
                 "Accept": "application/vnd.github+json",
@@ -52,8 +54,15 @@ def _default_http(token: str):
 class GitHubPublisher:
     """Upsert PR comment. GitLab/Bitbucket/Gitea: class serupa, endpoint beda."""
 
-    def __init__(self, *, token: str, repo: str, pr_number: int,
-                 api_base: str = "https://api.github.com", http=None) -> None:
+    def __init__(
+        self,
+        *,
+        token: str,
+        repo: str,
+        pr_number: int,
+        api_base: str = "https://api.github.com",
+        http=None,
+    ) -> None:
         self._base = f"{api_base}/repos/{repo}/issues/{pr_number}/comments"
         self._http = http or _default_http(token)
         self._api_base = api_base

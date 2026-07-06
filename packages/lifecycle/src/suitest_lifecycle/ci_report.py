@@ -36,8 +36,13 @@ def render_pr_comment(
     if failures:
         lines += ["", "<details><summary>Failure detail</summary>", ""]
         for c in failures:
-            lines += [f"### {c['title']}", "```",
-                      str(c["failure_excerpt"])[:_EXCERPT_LIMIT], "```", ""]
+            lines += [
+                f"### {c['title']}",
+                "```",
+                str(c["failure_excerpt"])[:_EXCERPT_LIMIT],
+                "```",
+                "",
+            ]
         lines.append("</details>")
 
     if dashboard_url:

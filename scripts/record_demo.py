@@ -53,9 +53,7 @@ async def _trigger_suite_run(page: Page) -> str:
     project_items = projects["items"] if isinstance(projects, dict) else projects
     project_id = next(p["id"] for p in project_items if p["slug"] == "brewly")
     suites = await (
-        await req.get(
-            f"{WEB}/api/v1/suites", headers=headers, params={"projectId": project_id}
-        )
+        await req.get(f"{WEB}/api/v1/suites", headers=headers, params={"projectId": project_id})
     ).json()
     suite_id = next(s["id"] for s in suites if s["name"].startswith("Brewly"))
     run = await (

@@ -90,8 +90,9 @@ def _failure_excerpts(config_path: str) -> dict[str, str]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="suitest-ci")
     parser.add_argument("--config", default="suitest.config.json")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="print markdown, jangan publish (debug lokal)")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="print markdown, jangan publish (debug lokal)"
+    )
     args = parser.parse_args(argv)
 
     # 1. RUN — jalur yang sama dgn MCP tool run_tests

@@ -17,6 +17,7 @@ sleep argument) and :class:`McpToolFailed` (via the mock's ``boom`` tool).
 from __future__ import annotations
 
 import json
+import uuid
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
@@ -102,13 +103,18 @@ def _mock_cfg(command: list[str], **overrides: Any) -> McpProviderConfig:
     )
 
 
+# AuditLog.user_id is UUID(as_uuid=True): only UUID-shaped actors persist
+# (coerce_user_id drops symbolic ids to None), so the fixture actor is a UUID.
+_ACTOR_ID = uuid.UUID("00000000-0000-0000-0000-0000000000a1")
+
+
 def _ctx(*, run_id: str | None = "r1", step_id: str | None = "s1") -> InvokeContext:
     return InvokeContext(
         workspace_id="ws",
         target_kind=TargetKind.CUSTOM,
         run_id=run_id,
         step_id=step_id,
-        actor_user_id="u1",
+        actor_user_id=str(_ACTOR_ID),
     )
 
 
@@ -218,7 +224,7 @@ async def test_invoker_records_audit_row_on_success(
     row = audit.rows[0]
     assert isinstance(row, AuditLog)
     assert row.workspace_id == "ws"
-    assert row.user_id == "u1"
+    assert row.user_id == _ACTOR_ID
     assert row.action == "mcp.invoke"
     assert row.resource_type == "mcp_provider"
     assert row.resource_id == "mock"

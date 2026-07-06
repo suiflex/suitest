@@ -24,8 +24,7 @@ def test_module_cli_creates_sqlite_schema(tmp_path: Path) -> None:
     conn = sqlite3.connect(db_path)
     try:
         tables = {
-            row[0]
-            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
     finally:
         conn.close()

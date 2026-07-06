@@ -65,8 +65,18 @@ def coerce_user_id(value: str | None) -> uuid.UUID | None:
     ``AuditLog`` construction site must coerce through this helper. Public
     because services that build ``AuditLog`` rows directly (bulk test-case
     path) need it too.
+
+    Non-UUID actors (the MCP invoker's ``actor_user_id`` is documented as
+    "human-or-system" and may be a symbolic id) can never live in a UUID
+    column: they are dropped to ``None`` so the audit row still lands instead
+    of failing the whole mutation.
     """
-    return uuid.UUID(value) if value else None
+    if not value:
+        return None
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        return None
 
 
 # Explicit allowlist of mutable domain tables. ``audit_logs`` is intentionally

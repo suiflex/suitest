@@ -3,8 +3,8 @@ from suitest_lifecycle.ci import build_comment_from_run, exit_code_for
 
 def test_exit_codes() -> None:
     assert exit_code_for(failed=0, infra_error=False) == 0
-    assert exit_code_for(failed=2, infra_error=False) == 1   # test gagal -> merge gate
-    assert exit_code_for(failed=0, infra_error=True) == 2    # infra != test failure
+    assert exit_code_for(failed=2, infra_error=False) == 1  # test gagal -> merge gate
+    assert exit_code_for(failed=0, infra_error=True) == 2  # infra != test failure
 
 
 def test_build_comment_from_run_summary() -> None:

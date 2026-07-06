@@ -10,13 +10,16 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
 
 from suitest_api import __version__
 from suitest_api.capabilities import build_base_capabilities
 from suitest_api.middleware.audit import AuditContextMiddleware
 from suitest_api.middleware.observability import SpanAttributesMiddleware
-from suitest_api.middleware.ratelimit import build_limiter
+from suitest_api.middleware.ratelimit import (
+    RouterAwareSlowAPIMiddleware,
+    build_limiter,
+    iter_flattened_routes,
+)
 from suitest_api.observability import setup_observability
 from suitest_api.settings import Settings, get_settings
 
@@ -191,7 +194,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # routes (``/health``, ``/metrics``, ``/openapi.json``, ``/docs``,
     # ``/capabilities/health``) are wired via :func:`_exempt_anonymous_routes`
     # below — see :mod:`suitest_api.middleware.ratelimit` for the contract.
-    app.add_middleware(SlowAPIMiddleware)
+    app.add_middleware(RouterAwareSlowAPIMiddleware)
 
     @app.get("/health", tags=["meta"])
     async def health() -> dict[str, str]:
@@ -322,7 +325,9 @@ def _exempt_anonymous_routes(app: FastAPI) -> None:
     """
     exempt_paths = {"/openapi.json", "/docs", "/metrics", "/capabilities/health"}
     limiter = app.state.limiter
-    for route in app.routes:
+    # fastapi >= 0.139 nests include_router entries; walk them (same gap as the
+    # middleware's endpoint resolution — see iter_flattened_routes).
+    for route in iter_flattened_routes(app.routes):
         path = getattr(route, "path", None)
         if path not in exempt_paths:
             continue
