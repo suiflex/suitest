@@ -2,7 +2,9 @@
 
 FROM node:20-bookworm-slim AS web-builder
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@9 --activate
+# pnpm 11 matches the committed lockfile (overrides live in pnpm-workspace.yaml,
+# which pnpm 9 does not read — frozen install fails with LOCKFILE_CONFIG_MISMATCH).
+RUN corepack enable && corepack prepare pnpm@11 --activate
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json* ./
 COPY apps/web/package.json apps/web/
 RUN pnpm install --frozen-lockfile --filter @suiflex/web...
