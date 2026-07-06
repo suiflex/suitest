@@ -23,14 +23,15 @@ Default tier for all modes = **ZERO** (runs without an LLM). Upgrade to LOCAL/CL
 ```bash
 git clone https://github.com/suiflex/suitest.git
 cd suitest
-cp .env.example .env                        # default ZERO tier
-docker compose --profile zero up -d
-docker compose exec api alembic upgrade head
-docker compose exec api python -m packages.db.seed
-open http://localhost:8080
+cp .env.example .env                        # default ZERO tier; set secrets + superadmin
+make docker-up                              # pulls prebuilt ghcr.io/suiflex/suitest-* images + boots
+open http://localhost:3000
 ```
 
-Log in as `admin@example.com` / `changeme`. Change the password immediately.
+Migrations run automatically (the one-shot `migrate` service). App images are
+prebuilt on GHCR per `images-v*` release; `SUITEST_IMAGE_TAG=<version>` pins
+one, `make docker-up-prod` builds from source instead. Log in with the
+`SUITEST_SUPERADMIN_EMAIL` / `SUITEST_SUPERADMIN_PASSWORD` you set in `.env`.
 
 ### 1.2 `docker-compose.yml` (annotated)
 

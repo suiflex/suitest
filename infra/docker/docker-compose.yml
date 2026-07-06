@@ -86,7 +86,10 @@ services:
       "
     restart: "no"
 
+  # App services carry both image: (prebuilt, ghcr.io — `docker compose pull`
+  # or `make up`) and build: (local fallback / development, `make up-build`).
   migrate:
+    image: ghcr.io/suiflex/suitest-api:${SUITEST_IMAGE_TAG:-latest}
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.api
@@ -100,6 +103,7 @@ services:
     restart: "no"
 
   api:
+    image: ghcr.io/suiflex/suitest-api:${SUITEST_IMAGE_TAG:-latest}
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.api
@@ -124,6 +128,7 @@ services:
       retries: 5
 
   runner:
+    image: ghcr.io/suiflex/suitest-runner:${SUITEST_IMAGE_TAG:-latest}
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.runner
@@ -136,6 +141,7 @@ services:
         condition: service_started
 
   web:
+    image: ghcr.io/suiflex/suitest-web:${SUITEST_IMAGE_TAG:-latest}
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.web
@@ -172,6 +178,7 @@ services:
   # generation-output fixture examples/demo-app/suite.json so the demo replays
   # green at ZERO tier. Same image as the API.
   demo-seed:
+    image: ghcr.io/suiflex/suitest-api:${SUITEST_IMAGE_TAG:-latest}
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.api

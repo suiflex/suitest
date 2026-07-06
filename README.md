@@ -108,9 +108,13 @@ SUITEST_SUPERADMIN_PASSWORD=<strong-password>
 ```
 
 ```bash
-docker compose up -d      # postgres + redis + minio + api + web + runner
+make docker-up            # pulls prebuilt ghcr.io/suiflex/suitest-* images + boots the stack
 open http://localhost:3000
 ```
+
+The app images (`api`, `web`, `runner`) are prebuilt on GHCR per `images-v*`
+release — no local build. Pin one with `SUITEST_IMAGE_TAG=<version>`; build
+from source instead with `make docker-up-prod`.
 
 Log in with the super-admin email/password. From **Settings → invite** others by link — onboarding is invite-only by default. Default tier is **ZERO** — no LLM calls are ever made. Optional profiles: `--profile local` adds an Ollama service for air-gapped LOCAL-tier inference.
 

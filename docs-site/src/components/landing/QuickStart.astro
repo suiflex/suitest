@@ -17,10 +17,10 @@ const tabs = [
   {
     id: "docker",
     label: "Docker Compose",
-    note: "Full platform: postgres, redis, minio, api, web, runner.",
+    note: "Full platform: postgres, redis, minio, api, web, runner. App images are prebuilt on ghcr.io — make docker-up pulls them, no local build.",
     code: `git clone https://github.com/suiflex/suitest && cd suitest
 cp .env.example .env
-docker compose up -d
+make docker-up
 open http://localhost:3000`,
   },
   {

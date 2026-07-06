@@ -14,9 +14,13 @@ backing services.
 | `postgres` | `pgvector/pgvector:pg16` | 5432 | Primary database |
 | `redis` | `redis:7-alpine` | 6379 | Run queue (ARQ) |
 | `minio` | `minio/minio` | 9000, 9001 | Artifact storage (screenshots, video) |
-| `api` | built from `infra/docker/Dockerfile.api` | 4000 | FastAPI backend |
-| `web` | built from `infra/docker/Dockerfile.web` | 3000 | Web UI (nginx) |
-| `runner` | built from `infra/docker/Dockerfile.runner` | none | ARQ worker, dispatches steps through MCP |
+| `api` | `ghcr.io/suiflex/suitest-api` | 4000 | FastAPI backend |
+| `web` | `ghcr.io/suiflex/suitest-web` | 3000 | Web UI (nginx) |
+| `runner` | `ghcr.io/suiflex/suitest-runner` | none | ARQ worker, dispatches steps through MCP |
+
+The app images are prebuilt and published to GHCR on every `images-v*`
+release, so a normal install **pulls** them — no local build. Building from
+source (`infra/docker/Dockerfile.*`) remains available for development.
 
 A one-shot `migrate` service runs `alembic upgrade head` before the API starts,
 and a `minio-init` service creates the artifact bucket. You do not run
@@ -47,14 +51,22 @@ SUITEST_SUPERADMIN_EMAIL=admin@example.com
 SUITEST_SUPERADMIN_PASSWORD=<strong-password>
 ```
 
-Then boot the stack (the compose file lives under `infra/docker/`, and every
-service is behind a profile, so pass both flags):
+Then pull the prebuilt images and boot the stack (the compose file lives under
+`infra/docker/`, and every service is behind a profile, so pass both flags):
 
 ```bash
+docker compose -f infra/docker/docker-compose.yml --profile zero pull
 docker compose -f infra/docker/docker-compose.yml --profile zero up -d
 ```
 
-Or use the shortcut:
+While the repository is private, `docker pull` from GHCR needs a login first:
+`docker login ghcr.io -u <github-user>` with a token that has `read:packages`.
+
+Pin a specific image release with `SUITEST_IMAGE_TAG` (defaults to `latest`),
+e.g. `SUITEST_IMAGE_TAG=0.1.0`. To build from source instead of pulling, use
+`make docker-up-prod` (adds `--build`).
+
+Or use the shortcut (pull + up):
 
 ```bash
 make docker-up

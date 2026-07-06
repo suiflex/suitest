@@ -114,16 +114,19 @@ dev: ## Start API + web + runner together (Ctrl-C stops all)
 
 ##@ Docker Compose
 
-docker-up: ## Boot all services (ZERO tier default)
+docker-up: ## Boot all services (ZERO tier default; pulls prebuilt ghcr images, builds only as fallback)
+	-docker compose -f infra/docker/docker-compose.yml --profile zero pull --ignore-pull-failures
 	docker compose -f infra/docker/docker-compose.yml --profile zero up -d
 
-docker-up-prod: ## Boot services with build
+docker-up-prod: ## Boot services with a local image build (skip ghcr)
 	docker compose -f infra/docker/docker-compose.yml --profile zero up -d --build
 
 docker-up-local: ## Boot with LOCAL tier profile (+Ollama)
+	-docker compose -f infra/docker/docker-compose.yml --profile local pull --ignore-pull-failures
 	docker compose -f infra/docker/docker-compose.yml --profile local up -d
 
 docker-up-cloud: ## Boot with CLOUD tier profile
+	-docker compose -f infra/docker/docker-compose.yml --profile cloud pull --ignore-pull-failures
 	docker compose -f infra/docker/docker-compose.yml --profile cloud up -d
 
 docker-down: ## Stop all services
