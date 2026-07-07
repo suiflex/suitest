@@ -20,7 +20,7 @@ on:
       - ".github/workflows/release-launcher.yml"
 
 permissions:
-  contents: read
+  contents: write  # create GitHub Release on tag
 
 jobs:
   npm:
@@ -72,3 +72,9 @@ jobs:
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: GitHub Release
+        if: startsWith(github.ref, 'refs/tags/launcher-v')
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
