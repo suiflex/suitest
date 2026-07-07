@@ -12124,6 +12124,89 @@
         ]
       }
     },
+    "/api/v1/files/raw": {
+      "get": {
+        "description": "Stream one owned object from disk (local mode \u2014 the signed-url target).",
+        "operationId": "get_file_raw_api_v1_files_raw_get",
+        "parameters": [
+          {
+            "description": "Workspace-scoped object key returned by the upload.",
+            "in": "query",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "description": "Workspace-scoped object key returned by the upload.",
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get File Raw",
+        "tags": [
+          "files"
+        ]
+      }
+    },
     "/api/v1/files/signed-url": {
       "get": {
         "description": "Return a presigned GET URL for an object the caller owns (404 otherwise).",
