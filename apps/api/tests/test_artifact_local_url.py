@@ -84,12 +84,20 @@ async def test_local_artifact_resolves_to_raw_endpoint_and_streams(
         )
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert body["url"] == f"/api/v1/runs/{run.id}/artifacts/{art.id}/raw"
+        base = f"/api/v1/runs/{run.id}/artifacts/{art.id}/raw"
+        # The raw URL carries the workspace as a query param so a browser
+        # <img>/<video> src (which cannot send X-Workspace-Id) still resolves.
+        assert body["url"] == f"{base}?workspaceId={ws.id}"
 
-        raw = await c.get(body["url"], headers={"X-Workspace-Id": ws.id})
+        # Fetch exactly as the browser does: no X-Workspace-Id header.
+        raw = await c.get(body["url"])
         assert raw.status_code == 200
         assert raw.content == b"\x89PNG-local"
         assert raw.headers["content-type"].startswith("image/png")
+
+        # Without the header AND without the query param → still 400.
+        missing = await c.get(base)
+        assert missing.status_code == 400
 
 
 @pytest.mark.asyncio

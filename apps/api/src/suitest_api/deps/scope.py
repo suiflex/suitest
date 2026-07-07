@@ -37,14 +37,23 @@ class TenantContext:
     role: Role
 
 
-def _resolve_workspace_id(header_ws: str | None, path_ws: str | None) -> str:
-    """Apply header-wins precedence + the M1a 400 rules; return the workspace id."""
+def _resolve_workspace_id(
+    header_ws: str | None, path_ws: str | None, query_ws: str | None = None
+) -> str:
+    """Apply header-wins precedence + the M1a 400 rules; return the workspace id.
+
+    ``query_ws`` is the lowest-precedence fallback: it exists so browser resource
+    loads (``<img>``/``<video>`` src on the raw-artifact route) can carry the
+    workspace via ``?workspaceId=`` — they cannot send the ``X-Workspace-Id``
+    custom header. Membership is still enforced downstream, so this is not a
+    weakening of the tenant boundary.
+    """
     if header_ws is not None and path_ws is not None and header_ws != path_ws:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="X-Workspace-Id header does not match workspaceId path parameter",
         )
-    resolved = header_ws or path_ws
+    resolved = header_ws or path_ws or query_ws
     if resolved is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -69,7 +78,8 @@ async def get_tenant_context(
     """
     path_ws = request.path_params.get("workspaceId")
     workspace_id_path = path_ws if isinstance(path_ws, str) else None
-    workspace_id = _resolve_workspace_id(x_workspace_id, workspace_id_path)
+    query_ws = request.query_params.get("workspaceId")
+    workspace_id = _resolve_workspace_id(x_workspace_id, workspace_id_path, query_ws)
     user_id: uuid.UUID = user.id
     membership = await session.scalar(
         select(Membership).where(

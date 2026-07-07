@@ -332,9 +332,11 @@ async def get_artifact_signed_url(
 
     if artifact.url.startswith("local://"):
         # Local mode: no presigning — point the client at the raw streaming
-        # endpoint on this same API (workspace-membership gated).
+        # endpoint on this same API. The workspace rides as a query param
+        # because the raw URL is loaded as a browser <img>/<video> src, which
+        # cannot send the X-Workspace-Id header (membership is still enforced).
         return ArtifactSignedUrl(
-            url=f"/api/v1/runs/{run_id}/artifacts/{artifact_id}/raw",
+            url=f"/api/v1/runs/{run_id}/artifacts/{artifact_id}/raw?workspaceId={ctx.workspace_id}",
             expires_in_seconds=0,
             kind=artifact.kind,
             mime_type=artifact.mime_type,
