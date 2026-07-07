@@ -57,6 +57,29 @@ _DEFECT_PREFIX = "SUIT"
 _WS_ATTR = "_workspace_id_for_pubid"
 
 
+# --- SQLite fallback (local mode) ----------------------------------------------
+#
+# SQLite has no plpgsql / sequences, so local mode keeps one counter row per
+# (workspace, prefix) and bumps it atomically with UPSERT..RETURNING. Same
+# visible behaviour as the Postgres function: first value 1000, then +1. The
+# table is created lazily, mirroring the function's CREATE SEQUENCE IF NOT
+# EXISTS (bootstrap.create_local_schema doesn't know about it).
+
+_SQLITE_COUNTER_DDL = text(
+    "CREATE TABLE IF NOT EXISTS pubid_counters ("
+    " workspace_id TEXT NOT NULL,"
+    " prefix TEXT NOT NULL,"
+    " n BIGINT NOT NULL,"
+    " PRIMARY KEY (workspace_id, prefix))"
+)
+
+_SQLITE_NEXT = text(
+    "INSERT INTO pubid_counters (workspace_id, prefix, n) VALUES (:w, :p, 1000) "
+    "ON CONFLICT (workspace_id, prefix) DO UPDATE SET n = pubid_counters.n + 1 "
+    "RETURNING n"
+)
+
+
 # --- transient-attr helpers ---------------------------------------------------
 
 
@@ -84,6 +107,11 @@ async def generate_public_id(db: AsyncSession, prefix: str, workspace_id: str) -
     public ID outside of an ``INSERT`` (e.g. preview UI). For inserts the
     per-model ``before_insert`` listeners below handle it transparently.
     """
+    bind = db.get_bind()
+    if bind.dialect.name == "sqlite":
+        await db.execute(_SQLITE_COUNTER_DDL)
+        n = (await db.execute(_SQLITE_NEXT, {"w": workspace_id, "p": prefix})).scalar_one()
+        return f"{prefix}-{n}"
     row = await db.execute(
         text("SELECT generate_public_id(:p, :w) AS pid"),
         {"p": prefix, "w": workspace_id},
@@ -115,10 +143,15 @@ def _assign_public_id(target: object, conn: Connection, prefix: str) -> None:
             "suitest_db.public_id.set_workspace_id(target, workspace_id) "
             "before flush."
         )
-    new_pid = conn.execute(
-        text("SELECT generate_public_id(:p, :w)"),
-        {"p": prefix, "w": ws_id},
-    ).scalar_one()
+    if conn.dialect.name == "sqlite":
+        conn.execute(_SQLITE_COUNTER_DDL)
+        n = conn.execute(_SQLITE_NEXT, {"w": ws_id, "p": prefix}).scalar_one()
+        new_pid = f"{prefix}-{n}"
+    else:
+        new_pid = conn.execute(
+            text("SELECT generate_public_id(:p, :w)"),
+            {"p": prefix, "w": ws_id},
+        ).scalar_one()
     object.__setattr__(target, "public_id", new_pid)
 
 

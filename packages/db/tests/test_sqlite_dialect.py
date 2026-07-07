@@ -59,3 +59,46 @@ async def test_create_local_schema_builds_full_schema(tmp_path: Path) -> None:
     # core lifecycle tables — if these exist, create_all succeeded end to end
     for expected in ("runs", "run_steps", "artifacts"):
         assert expected in tables, f"table {expected} missing; leftover PG-only DDL?"
+
+
+@pytest.mark.asyncio
+async def test_public_id_generated_on_sqlite(tmp_path: Path) -> None:
+    """Local mode: the before_insert listener must not need the PG plpgsql function.
+
+    Regression for the local-bundle publish 500 — ``sqlite3.OperationalError:
+    no such function: generate_public_id`` on the first case insert.
+    """
+    from factories import make_project, make_suite, make_workspace
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from suitest_db.bootstrap import create_local_schema
+    from suitest_db.engine import make_engine
+    from suitest_db.models.case import TestCase
+    from suitest_db.public_id import generate_public_id, set_workspace_id
+    from suitest_db.settings import DbSettings
+    from suitest_shared.domain.enums import CaseSource
+
+    settings = DbSettings(database_url=f"sqlite+aiosqlite:///{tmp_path / 'pubid.db'}")
+    engine = make_engine(settings)
+    await create_local_schema(engine)
+
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with maker() as session:
+        ws = await make_workspace(session)
+        project = await make_project(session, workspace=ws)
+        suite = await make_suite(session, project=project)
+
+        pids = []
+        for i in range(2):
+            case = TestCase(
+                suite_id=suite.id, workspace_id=ws.id, name=f"case-{i}", source=CaseSource.MANUAL
+            )
+            set_workspace_id(case, ws.id)
+            session.add(case)
+            await session.flush()
+            pids.append(case.public_id)
+        assert pids == ["TC-1000", "TC-1001"]
+
+        # async service-layer wrapper takes the same SQLite branch
+        assert await generate_public_id(session, "R", ws.id) == "R-1000"
+        await session.commit()
+    await engine.dispose()
