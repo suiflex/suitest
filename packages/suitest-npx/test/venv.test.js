@@ -46,3 +46,12 @@ test("ensureVenv with empty wheels dir throws", () => {
   // uv is installed on dev machines; if not, requireUv throws first — both throw
   assert.throws(() => ensureVenv(venvDir, wheels), /No wheels|astral\.sh/);
 });
+
+test("uvInstallHint is platform-specific and says to reopen the terminal", () => {
+  const { uvInstallHint } = require("../lib/venv.js");
+  assert.match(uvInstallHint("win32"), /powershell/);
+  assert.match(uvInstallHint("win32"), /install\.ps1/);
+  assert.match(uvInstallHint("darwin"), /curl/);
+  assert.match(uvInstallHint("linux"), /install\.sh/);
+  assert.match(uvInstallHint("darwin"), /new one/i);
+});

@@ -98,7 +98,8 @@ Suitest local ready:
   login     : ${creds.email} (password you set; stored in ${dirs.credentials})
   MCP config: ${mcpConfigPath || "(not wired)"}
   data      : ${dirs.root}
-  stop      : suitest down`);
+  stop      : suitest down
+  start again (after reboot): suitest up`);
   return { ...running, apiUrl, mcpConfigPath };
 }
 

@@ -6,13 +6,23 @@ const { execFileSync, spawnSync } = require("node:child_process");
 
 const pkg = require("../package.json");
 
+function uvInstallHint(platform = process.platform) {
+  const cmd =
+    platform === "win32"
+      ? '  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"'
+      : "  curl -LsSf https://astral.sh/uv/install.sh | sh";
+  return (
+    "`uv` not found. Install it first:\n" +
+    cmd +
+    "\nThen close this terminal, open a new one, and run the command again\n" +
+    "(a fresh terminal picks up the updated PATH)."
+  );
+}
+
 function requireUv() {
   const probe = spawnSync("uv", ["--version"], { stdio: "ignore" });
   if (probe.error || probe.status !== 0) {
-    throw new Error(
-      "`uv` not found. Install it first:\n" +
-        "  curl -LsSf https://astral.sh/uv/install.sh | sh",
-    );
+    throw new Error(uvInstallHint());
   }
 }
 
@@ -43,6 +53,9 @@ function ensureVenv(venvDir, wheelsDir) {
   if (wheels.length === 0) {
     throw new Error(`No wheels (*.whl) found in ${wheelsDir}`);
   }
+  console.log(
+    "Setting up the Python runtime (first run or new version — may download Python 3.12, ~1 min)...",
+  );
   execFileSync("uv", ["venv", venvDir, "--python", "3.12"], { stdio: "inherit" });
   execFileSync("uv", ["pip", "install", "--python", python, ...wheels], {
     stdio: "inherit",
@@ -51,4 +64,4 @@ function ensureVenv(venvDir, wheelsDir) {
   return python;
 }
 
-module.exports = { requireUv, ensureVenv, venvPython };
+module.exports = { requireUv, uvInstallHint, ensureVenv, venvPython };

@@ -9,6 +9,8 @@ Commands:
   onboard   provision runtime + boot local stack + wire IDE MCP config
   up        boot local stack (API + supervisor + dashboard)
   down      stop local stack
+  status    is the local stack running? (URL, version, health)
+  upgrade   check for a newer version and how to switch to it
   init      wire MCP config only (delegates to @suiflex/suitest-mcp)
 
 Options:
@@ -22,6 +24,13 @@ Options:
 function fail(msg) {
   process.stderr.write(msg + "\n");
   process.exit(1);
+}
+
+// Passive update nudge after successful commands; silent offline, cached 24h.
+async function printUpdateNotice() {
+  const { checkForUpdate, updateNotice } = require("../lib/update-check.js");
+  const latest = await checkForUpdate();
+  if (latest) console.log(updateNotice(latest));
 }
 
 async function main() {
@@ -58,6 +67,7 @@ async function main() {
     case "onboard": {
       const { onboard } = require("../lib/onboard.js");
       await onboard(cwd, opts);
+      await printUpdateNotice();
       break;
     }
     case "up": {
@@ -65,11 +75,45 @@ async function main() {
       const { up } = require("../lib/stack.js");
       const { webDist, python } = await prepare(cwd);
       await up(cwd, { webDist, python, port: opts.port });
+      await printUpdateNotice();
       break;
     }
     case "down": {
       const { down } = require("../lib/stack.js");
       down(cwd);
+      break;
+    }
+    case "status": {
+      const { status } = require("../lib/stack.js");
+      const s = await status(cwd);
+      const line = {
+        "not-onboarded": 'Not set up here — run "suitest onboard" in your project folder.',
+        stopped: 'Stopped — run "suitest up" to start.',
+        stale: `Not responding (was ${s.url}) — run "suitest down" then "suitest up".`,
+        running: `Running: ${s.url} (version ${s.version || "unknown"})`,
+      }[s.state];
+      console.log(line);
+      await printUpdateNotice();
+      break;
+    }
+    case "upgrade": {
+      const { fetchLatest, isNewer, updateNotice } = require("../lib/update-check.js");
+      const current = require("../package.json").version;
+      let latest;
+      try {
+        latest = await fetchLatest(5000);
+      } catch (err) {
+        fail(`Could not reach the npm registry (${err.message}) — are you online?`);
+      }
+      if (!isNewer(latest, current)) {
+        console.log(`Already on the latest version (${current}).`);
+        break;
+      }
+      // npx pins the version per invocation — "upgrading" = stop the old
+      // server so the next @latest invocation actually takes over.
+      const { down } = require("../lib/stack.js");
+      down(cwd);
+      console.log(updateNotice(latest));
       break;
     }
     case "init": {

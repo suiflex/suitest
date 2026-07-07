@@ -15,7 +15,23 @@ function projectDirs(cwd) {
     venv: path.join(root, ".venv"),
     credentials: path.join(root, "credentials.json"),
     pids: path.join(root, "pids.json"),
+    config: path.join(root, "config.json"),
   };
+}
+
+// Per-project settings that must survive restarts (unlike pids.json, which is
+// deleted on `down`). Today: the chosen port, so `suitest up` after a reboot
+// boots on the SAME port the IDE MCP config was wired to.
+function loadConfig(configPath) {
+  try {
+    return JSON.parse(fs.readFileSync(configPath, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function saveConfig(configPath, config) {
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
 }
 
 function ensureProjectDirs(cwd) {
@@ -73,5 +89,7 @@ module.exports = {
   cacheDir,
   loadOrCreateCredentials,
   saveCredentials,
+  loadConfig,
+  saveConfig,
   dbUrl,
 };

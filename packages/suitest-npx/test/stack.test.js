@@ -13,17 +13,23 @@ function tmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "suitest-stack-"));
 }
 
-test("pickPort skips an occupied port", async () => {
+test("pickPort fails loudly on an occupied port (no silent fallback)", async () => {
   const blocker = net.createServer();
   await new Promise((r) => blocker.listen(0, "127.0.0.1", r));
   const busy = blocker.address().port;
   try {
-    const port = await pickPort(busy);
-    assert.notStrictEqual(port, busy);
-    assert.ok(port > busy && port < busy + 10);
+    await assert.rejects(() => pickPort(busy), new RegExp(`Port ${busy} is already in use`));
   } finally {
     blocker.close();
   }
+});
+
+test("pickPort returns the preferred port when free", async () => {
+  const srv = net.createServer();
+  await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+  const free = srv.address().port;
+  await new Promise((r) => srv.close(r));
+  assert.strictEqual(await pickPort(free), free);
 });
 
 test("buildEnv composes the full local env for both processes", () => {
@@ -58,4 +64,19 @@ test("down without pidfile returns false", () => {
 test("isAlive: own pid true, bogus pid false", () => {
   assert.strictEqual(isAlive(process.pid), true);
   assert.strictEqual(isAlive(99999999), false);
+});
+
+test("status reports not-onboarded / stopped / stale", async () => {
+  const { status } = require("../lib/stack.js");
+  const { saveCredentials } = require("../lib/project.js");
+  const cwd = tmp();
+  assert.strictEqual((await status(cwd)).state, "not-onboarded");
+
+  const dirs = ensureProjectDirs(cwd);
+  saveCredentials(dirs.credentials, { email: "a@b.c", password: "x", encryptionKey: "k", apiKey: null });
+  assert.strictEqual((await status(cwd)).state, "stopped");
+
+  // dead PID + nothing listening on the port → stale
+  fs.writeFileSync(dirs.pids, JSON.stringify({ api: 99999999, supervisor: 99999999, port: 1 }));
+  assert.strictEqual((await status(cwd)).state, "stale");
 });

@@ -79,3 +79,12 @@ test("dbUrl is absolute sqlite+aiosqlite (4 slashes)", () => {
 test("cacheDir is versioned under home", () => {
   assert.ok(cacheDir("1.2.3").includes(path.join(".suitest", "cache", "1.2.3")));
 });
+
+test("config persists the chosen port across restarts", () => {
+  const cwd = tmp();
+  const dirs = ensureProjectDirs(cwd);
+  const { loadConfig, saveConfig } = require("../lib/project.js");
+  assert.deepStrictEqual(loadConfig(dirs.config), {}); // missing file = empty
+  saveConfig(dirs.config, { port: 4005 });
+  assert.strictEqual(loadConfig(dirs.config).port, 4005);
+});

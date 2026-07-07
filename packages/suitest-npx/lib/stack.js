@@ -10,9 +10,13 @@ const {
   ensureProjectDirs,
   loadOrCreateCredentials,
   saveCredentials,
+  loadConfig,
+  saveConfig,
   dbUrl,
 } = require("./project.js");
 const { ensureApiKey } = require("./api-key.js");
+
+const pkg = require("../package.json");
 
 function isFree(port) {
   return new Promise((resolve) => {
@@ -22,11 +26,16 @@ function isFree(port) {
   });
 }
 
+// No silent fallback to preferred+1: the IDE MCP config and the user's muscle
+// memory both point at ONE port — booting somewhere else just hides the problem.
 async function pickPort(preferred = 4000) {
-  for (let p = preferred; p < preferred + 10; p += 1) {
-    if (await isFree(p)) return p;
-  }
-  throw new Error(`No free port in ${preferred}-${preferred + 9}`);
+  if (await isFree(preferred)) return preferred;
+  throw new Error(
+    `Port ${preferred} is already in use.\n` +
+      `Stop the app using it first, then run again.\n` +
+      `(Another Suitest project? Run "suitest down" in that project.)\n` +
+      `Or pick a different port: suitest up --port ${preferred + 1}`,
+  );
 }
 
 // One env for API + supervisor: both MUST point at the same sqlite/artifacts
@@ -72,7 +81,17 @@ function spawnLogged(cmd, args, { env, logFile }) {
   return child.pid;
 }
 
-async function waitHealthy(base, timeoutMs = 30_000) {
+function tailFile(file, lines = 15) {
+  try {
+    const content = fs.readFileSync(file, "utf8").trimEnd().split("\n");
+    return content.slice(-lines).join("\n");
+  } catch {
+    return "(no log file yet)";
+  }
+}
+
+// 60s: slow disks + antivirus scans on first boot blow past 30s regularly.
+async function waitHealthy(base, timeoutMs = 60_000, logFile = null) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
@@ -83,24 +102,43 @@ async function waitHealthy(base, timeoutMs = 30_000) {
     }
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw new Error(
-    `API not healthy after ${timeoutMs / 1000}s — see .suitest/logs/api.log`,
-  );
+  const tail = logFile ? `\n\nLast lines of ${logFile}:\n${tailFile(logFile)}` : "";
+  throw new Error(`API not healthy after ${timeoutMs / 1000}s.${tail}`);
+}
+
+async function isHealthy(base) {
+  try {
+    const res = await fetch(base + "/health", { signal: AbortSignal.timeout(2000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 async function up(cwd, { webDist, python, port: preferred }) {
   const dirs = ensureProjectDirs(cwd);
+  const config = loadConfig(dirs.config);
 
   if (fs.existsSync(dirs.pids)) {
     const prev = JSON.parse(fs.readFileSync(dirs.pids, "utf8"));
-    if (isAlive(prev.api)) {
-      console.log(`Already running: http://127.0.0.1:${prev.port}`);
+    // PID alone lies after a reboot (PIDs get reused) — the health probe decides.
+    if (isAlive(prev.api) && (await isHealthy(`http://127.0.0.1:${prev.port}`))) {
+      if (prev.version && prev.version !== pkg.version) {
+        console.log(
+          `Already running: http://127.0.0.1:${prev.port}\n` +
+            `But it's version ${prev.version} and you invoked ${pkg.version} — ` +
+            `run "suitest down" then "suitest up" to switch.`,
+        );
+      } else {
+        console.log(`Already running: http://127.0.0.1:${prev.port}`);
+      }
       return prev;
     }
     fs.rmSync(dirs.pids);
   }
 
-  const port = await pickPort(preferred || 4000);
+  // Priority: explicit --port > port this project used before > 4000.
+  const port = await pickPort(preferred || config.port || 4000);
   const creds = loadOrCreateCredentials(dirs.credentials);
   const env = buildEnv(cwd, { port, webDist, creds });
   const base = `http://127.0.0.1:${port}`;
@@ -120,7 +158,7 @@ async function up(cwd, { webDist, python, port: preferred }) {
   );
 
   try {
-    await waitHealthy(base);
+    await waitHealthy(base, 60_000, path.join(dirs.logs, "api.log"));
     creds.apiKey = await ensureApiKey(base, creds);
     saveCredentials(dirs.credentials, creds);
   } catch (err) {
@@ -134,10 +172,26 @@ async function up(cwd, { webDist, python, port: preferred }) {
     { env, logFile: path.join(dirs.logs, "supervisor.log") },
   );
 
-  const state = { api, supervisor, port };
+  const state = { api, supervisor, port, version: pkg.version };
   fs.writeFileSync(dirs.pids, JSON.stringify(state, null, 2) + "\n");
+  saveConfig(dirs.config, { ...config, port });
   console.log(`Suitest local up: ${base}`);
   return state;
+}
+
+// For `suitest status`: never boots anything, just reports.
+async function status(cwd) {
+  const dirs = projectDirs(cwd);
+  if (!fs.existsSync(dirs.credentials)) {
+    return { state: "not-onboarded" };
+  }
+  if (!fs.existsSync(dirs.pids)) {
+    return { state: "stopped" };
+  }
+  const pids = JSON.parse(fs.readFileSync(dirs.pids, "utf8"));
+  const url = `http://127.0.0.1:${pids.port}`;
+  const healthy = isAlive(pids.api) && (await isHealthy(url));
+  return { state: healthy ? "running" : "stale", url, ...pids };
 }
 
 function down(cwd) {
@@ -161,4 +215,4 @@ function down(cwd) {
   return true;
 }
 
-module.exports = { pickPort, buildEnv, up, down, isAlive, waitHealthy };
+module.exports = { pickPort, buildEnv, up, down, status, isAlive, isHealthy, waitHealthy };
