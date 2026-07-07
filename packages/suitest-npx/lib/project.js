@@ -33,7 +33,9 @@ function cacheDir(version) {
 // encryptionKey feeds SUITEST_ENCRYPTION_KEY (urlsafe-b64, 32 bytes) — api_keys are
 // AES-GCM encrypted at rest, so minting 500s without it. Backfilled on load for
 // credential files created before this field existed.
-function loadOrCreateCredentials(credPath) {
+// Password is NEVER auto-generated: the superadmin must set one they can remember,
+// so account creation happens in `suitest onboard` (prompt or --email/--password).
+function loadOrCreateCredentials(credPath, defaults = {}) {
   if (fs.existsSync(credPath)) {
     const creds = JSON.parse(fs.readFileSync(credPath, "utf8"));
     if (!creds.encryptionKey) {
@@ -42,9 +44,12 @@ function loadOrCreateCredentials(credPath) {
     }
     return creds;
   }
+  if (!defaults.password) {
+    throw new Error('No admin account yet — run "suitest onboard" to create one.');
+  }
   const creds = {
-    email: "admin@suitest.local",
-    password: crypto.randomBytes(24).toString("base64url"),
+    email: defaults.email || "admin@suitest.local",
+    password: defaults.password,
     encryptionKey: crypto.randomBytes(32).toString("base64"),
     apiKey: null,
   };

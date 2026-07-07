@@ -26,12 +26,22 @@ test("ensureProjectDirs creates .suitest layout", () => {
   assert.strictEqual(dirs.root, path.join(cwd, ".suitest"));
 });
 
-test("credentials are generated once, persisted with mode 600", () => {
+test("credentials require a user-set password (no auto-generate)", () => {
   const cwd = tmp();
   const dirs = ensureProjectDirs(cwd);
-  const first = loadOrCreateCredentials(dirs.credentials);
-  assert.strictEqual(first.email, "admin@suitest.local");
-  assert.ok(first.password.length >= 24);
+  assert.throws(() => loadOrCreateCredentials(dirs.credentials), /suitest onboard/);
+  assert.ok(!fs.existsSync(dirs.credentials));
+});
+
+test("credentials are created once from user input, persisted with mode 600", () => {
+  const cwd = tmp();
+  const dirs = ensureProjectDirs(cwd);
+  const first = loadOrCreateCredentials(dirs.credentials, {
+    email: "me@example.com",
+    password: "hunter2hunter2",
+  });
+  assert.strictEqual(first.email, "me@example.com");
+  assert.strictEqual(first.password, "hunter2hunter2");
   assert.strictEqual(first.apiKey, null);
   // 32 bytes base64 = 44 chars, decodes back to 32 (crypto.py urlsafe_b64decode)
   assert.strictEqual(Buffer.from(first.encryptionKey, "base64").length, 32);

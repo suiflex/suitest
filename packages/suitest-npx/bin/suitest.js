@@ -15,6 +15,8 @@ Options:
   --port <n>       preferred dashboard port (default 4000)
   --ide <id>       claude-code | cursor | windsurf
   --base-url <u>   app-under-test base URL (init/onboard)
+  --email <e>      admin account email (onboard, non-interactive)
+  --password <p>   admin account password (onboard, non-interactive)
 `;
 
 function fail(msg) {
@@ -41,6 +43,8 @@ async function main() {
       port: { type: "string" },
       ide: { type: "string" },
       "base-url": { type: "string" },
+      email: { type: "string" },
+      password: { type: "string" },
       yes: { type: "boolean" },
     },
     strict: true,
