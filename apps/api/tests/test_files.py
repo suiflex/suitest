@@ -13,6 +13,7 @@ point is the router contract + the workspace-isolation guard, not aioboto3.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -65,6 +66,53 @@ async def test_upload_stores_and_returns_url(
     assert body["key"] == key
     assert body["sizeBytes"] == len(b"hello-bytes")
     assert body["mimeType"] == "video/webm"
+
+
+@pytest.mark.asyncio
+async def test_local_mode_upload_sign_raw_delete(
+    api_db: ApiDb, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Local mode (npx bundle, no MinIO): the full lifecycle works against disk.
+
+    Regression for the publish 500 — ``POST /files`` used to hit S3 even with
+    ``SUITEST_MODE=local`` and die on ``localhost:9000`` connection refused.
+    """
+    monkeypatch.setenv("SUITEST_MODE", "local")
+    monkeypatch.setenv("SUITEST_ARTIFACTS_DIR", str(tmp_path))
+    ws, auth = await _key_for(api_db, email="files-local@example.com", slug="files-local")
+
+    async with api_db.client(None) as c:
+        up = await c.post(
+            "/api/v1/files",
+            headers=auth,
+            files={"file": ("step.png", b"png-bytes", "image/png")},
+        )
+        assert up.status_code == 201, up.text
+        body = up.json()
+        key = body["key"]
+        assert body["url"] == f"local://{key}"
+        assert key.startswith(f"uploads/{ws.id}/")
+        assert (tmp_path / key).read_bytes() == b"png-bytes"
+
+        signed = await c.get("/api/v1/files/signed-url", headers=auth, params={"key": key})
+        assert signed.status_code == 200, signed.text
+        raw_url = signed.json()["url"]
+        assert raw_url.startswith("/api/v1/files/raw?key=")
+
+        raw = await c.get(raw_url, headers=auth)
+        assert raw.status_code == 200, raw.text
+        assert raw.content == b"png-bytes"
+
+        cross = await c.get(
+            "/api/v1/files/raw",
+            headers=auth,
+            params={"key": "uploads/other-ws/abc/step.png"},
+        )
+        assert cross.status_code == 404
+
+        gone = await c.request("DELETE", "/api/v1/files", headers=auth, params={"key": key})
+        assert gone.status_code == 204
+        assert not (tmp_path / key).exists()
 
 
 @pytest.mark.asyncio

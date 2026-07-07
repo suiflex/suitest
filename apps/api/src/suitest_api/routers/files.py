@@ -9,7 +9,10 @@ its own uploads. Authenticated by API key OR session (same as the ingest path).
 
 from __future__ import annotations
 
+import mimetypes
+
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.audit import write_audit
 
@@ -73,6 +76,21 @@ async def sign_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="file not found")
     url = await file_storage.presign_get(key)
     return FileSignedUrl(url=url, expires_in_seconds=file_storage.SIGNED_URL_TTL_SECONDS)
+
+
+@router.get("/files/raw")
+async def get_file_raw(
+    key: str = Query(description="Workspace-scoped object key returned by the upload."),
+    ctx: TenantContext = Depends(tenant_via_api_key_or_session),
+) -> FileResponse:
+    """Stream one owned object from disk (local mode — the signed-url target)."""
+    if not file_storage.key_in_workspace(key, ctx.workspace_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="file not found")
+    path = file_storage.local_path(key)
+    if not path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="file not found")
+    mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    return FileResponse(path, media_type=mime)
 
 
 @router.delete("/files", status_code=status.HTTP_204_NO_CONTENT)

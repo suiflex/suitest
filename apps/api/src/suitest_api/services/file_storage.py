@@ -14,6 +14,8 @@ uploads — the read/delete paths reject any key outside that prefix.
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
+from urllib.parse import quote
 
 import aioboto3
 
@@ -21,6 +23,15 @@ from suitest_api.settings import get_settings
 
 SIGNED_URL_TTL_SECONDS = 3600
 UPLOAD_ROOT = "uploads"
+
+
+def local_path(key: str) -> Path:
+    """Absolute path a workspace-scoped key resolves to under ``artifacts_dir``.
+
+    Uploads share the runner's artifacts root so the existing ``local://``
+    read paths (``GET /runs/:id/artifacts/:id/raw``) serve them unchanged.
+    """
+    return Path(get_settings().artifacts_dir).resolve() / key
 
 
 def workspace_prefix(workspace_id: str) -> str:
@@ -49,9 +60,19 @@ def _safe_name(name: str) -> str:
 async def upload(
     *, workspace_id: str, filename: str, data: bytes, content_type: str
 ) -> tuple[str, str, int]:
-    """Store bytes under the workspace prefix; return ``(s3_url, key, size)``."""
+    """Store bytes under the workspace prefix; return ``(url, key, size)``.
+
+    ``server`` mode puts the object in S3 and returns an ``s3://`` URL. ``local``
+    mode (npx bundle — no MinIO) writes under ``artifacts_dir`` and returns a
+    ``local://`` URL, which the runs artifact routes already know how to serve.
+    """
     settings = get_settings()
     key = f"{workspace_prefix(workspace_id)}{uuid.uuid4().hex}/{_safe_name(filename)}"
+    if settings.mode == "local":
+        path = local_path(key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        return f"local://{key}", key, len(data)
     async with aioboto3.Session().client(
         "s3",
         endpoint_url=settings.s3_endpoint,
@@ -66,8 +87,14 @@ async def upload(
 
 
 async def presign_get(key: str) -> str:
-    """Time-limited presigned GET URL for an object the caller already owns."""
+    """GET URL for an object the caller already owns.
+
+    ``server`` mode presigns against S3; ``local`` mode has no presigning, so it
+    returns the raw streaming route on this same API (auth-gated there).
+    """
     settings = get_settings()
+    if settings.mode == "local":
+        return f"/api/v1/files/raw?key={quote(key, safe='')}"
     async with aioboto3.Session().client(
         "s3",
         endpoint_url=settings.s3_endpoint,
@@ -86,6 +113,9 @@ async def presign_get(key: str) -> str:
 async def delete(key: str) -> None:
     """Delete one owned object."""
     settings = get_settings()
+    if settings.mode == "local":
+        local_path(key).unlink(missing_ok=True)
+        return
     async with aioboto3.Session().client(
         "s3",
         endpoint_url=settings.s3_endpoint,
