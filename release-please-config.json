@@ -8,6 +8,16 @@
       "component": "mcp",
       "package-name": "@suiflex/suitest-mcp",
       "extra-files": ["VERSION"]
+    },
+    "sdk/typescript": {
+      "release-type": "node",
+      "component": "tssdk",
+      "package-name": "@suiflex/suitest-sdk"
+    },
+    "packages/suitest-npx": {
+      "release-type": "node",
+      "component": "launcher",
+      "package-name": "@suiflex/suitest"
     }
   }
 }
