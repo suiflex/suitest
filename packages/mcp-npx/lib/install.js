@@ -311,7 +311,10 @@ function installClient(clientId, { name, scope, env, print, dryRun, force }) {
       return;
     }
     for (const s of steps) {
-      const res = spawnSync(client.program, s, { stdio: "inherit" });
+      const res = spawnSync(client.program, s, {
+        stdio: "inherit",
+        windowsHide: true,
+      });
       if (res.error && res.error.code === "ENOENT") {
         throw new Error(
           `${client.program} CLI not found on PATH — install it, then retry.`,
@@ -319,7 +322,13 @@ function installClient(clientId, { name, scope, env, print, dryRun, force }) {
       }
       // `force` remove may fail if the entry is absent; ignore that one.
       if (res.status !== 0 && !(force && s[1] === "remove")) {
-        throw new Error(`${client.program} exited with status ${res.status}`);
+        throw new Error(
+          `${client.program} exited with status ${res.status}. ` +
+            "On Windows this can be an npm/child-tool job-object error " +
+            "(AssignProcessToJobObject 87) — try updating npm, or install a " +
+            "file-based client instead (claude-code / cursor / windsurf), which " +
+            "writes config directly without spawning a child CLI.",
+        );
       }
     }
     process.stdout.write(`Installed MCP entry '${name}' via ${client.label}\n`);
