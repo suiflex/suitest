@@ -37,6 +37,7 @@
     "bin/",
     "lib/",
     "python/",
+    "VERSION",
     "README.md",
     "LICENSE"
   ],

@@ -1,0 +1,29 @@
+name: release-please
+
+# Version + changelog automation, scoped to packages/mcp-npx for now.
+# On every push to main, release-please opens/updates a release PR that bumps
+# packages/mcp-npx/package.json + VERSION from the conventional commits since the
+# last release. Merging that PR tags `mcp-v<version>`, which triggers the publish
+# job in release-mcp.yml.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          # A PAT is required for the release tag to trigger release-mcp.yml:
+          # tags pushed with the default GITHUB_TOKEN do NOT re-trigger other
+          # workflows. Set RELEASE_PLEASE_TOKEN (repo/workflow scope) to enable
+          # auto-publish; without it the tag is still created but the npm/PyPI
+          # publish must be started manually (re-push the tag or run the workflow).
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

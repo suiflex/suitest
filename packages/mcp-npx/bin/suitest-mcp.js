@@ -89,11 +89,27 @@ function parseInitFlags(argv) {
   return out;
 }
 
+// VERSION is the release-please-maintained source of truth (package.json is kept
+// in sync for npm). The bare version is the first whitespace-delimited token; the
+// trailing `# x-release-please-version` marker is what lets release-please bump it.
+function readVersion() {
+  try {
+    const raw = fs.readFileSync(path.join(PKG_ROOT, "VERSION"), "utf8");
+    const v = raw.split(/\s+/)[0].trim();
+    if (v) return v;
+  } catch {
+    // VERSION absent (e.g. dev checkout mid-edit) — fall back to package.json.
+  }
+  return JSON.parse(
+    fs.readFileSync(path.join(PKG_ROOT, "package.json"), "utf8"),
+  ).version;
+}
+
 function printVersion() {
   const pkg = JSON.parse(
     fs.readFileSync(path.join(PKG_ROOT, "package.json"), "utf8"),
   );
-  process.stdout.write(`${pkg.name} ${pkg.version}\n`);
+  process.stdout.write(`${pkg.name} ${readVersion()}\n`);
 }
 
 // Resolve the bundled python + PYTHONPATH-augmented env, or emit the same
