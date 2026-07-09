@@ -41,7 +41,33 @@ _ZERO_MODEL_ID = "deterministic-zero"
 
 
 def _fixtures_dir() -> Path:
-    return Path(os.environ.get("SUITEST_EVAL_FIXTURES_DIR", "eval/fixtures"))
+    """Resolve the golden eval fixtures dir independent of the process cwd.
+
+    The packaged deployment runs uvicorn with an arbitrary cwd, so the old
+    cwd-relative ``eval/fixtures`` default 400'd ("fixtures dir not found").
+    Resolve in order: explicit env override → cwd-relative → bundled package
+    data → repo checkout (walking up from this file). Falls back to the
+    cwd-relative default so the 400 message stays actionable.
+    """
+    env = os.environ.get("SUITEST_EVAL_FIXTURES_DIR")
+    if env:
+        return Path(env)
+
+    candidates = [Path("eval/fixtures").resolve()]
+    # Bundled as package data — real deployments ship fixtures inside the wheel.
+    try:
+        from importlib.resources import files
+
+        candidates.append(Path(str(files("suitest_api"))) / "eval_fixtures")
+    except (ModuleNotFoundError, TypeError, OSError):
+        pass
+    # Dev checkout: walk up from this module to a repo root holding eval/fixtures.
+    candidates.extend(parent / "eval" / "fixtures" for parent in Path(__file__).resolve().parents)
+
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    return Path("eval/fixtures")
 
 
 def _to_public(row: EvalRun) -> EvalRunPublic:
