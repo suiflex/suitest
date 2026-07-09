@@ -198,6 +198,19 @@ def handle(message: dict[str, object]) -> dict[str, object] | None:
         return None  # notification, no response
     if method == "tools/list":
         return _ok(req_id, {"tools": [_tool_schema(n) for n in TOOLS]})
+    # Standard utility/discovery methods that strict clients (Codex, GitHub
+    # Copilot CLI) send on connect and as health checks. We expose no
+    # resources/prompts, but MUST answer these instead of returning -32601:
+    # a JSON-RPC error to ``ping`` makes those clients mark the server broken
+    # (works in Cursor/Claude Code/Antigravity only because they never ping).
+    if method == "ping":
+        return _ok(req_id, {})
+    if method == "resources/list":
+        return _ok(req_id, {"resources": []})
+    if method == "resources/templates/list":
+        return _ok(req_id, {"resourceTemplates": []})
+    if method == "prompts/list":
+        return _ok(req_id, {"prompts": []})
     if method == "tools/call":
         params = message.get("params") or {}
         if not isinstance(params, dict):

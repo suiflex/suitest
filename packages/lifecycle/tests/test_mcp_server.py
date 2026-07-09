@@ -80,3 +80,27 @@ def test_serve_starts_with_valid_key(monkeypatch: pytest.MonkeyPatch) -> None:
     mcp_server.serve(stdin=io.StringIO(line), stdout=out)
     assert seen == ["http://localhost:4000/api/v1/api-keys/whoami"]
     assert '"protocolVersion"' in out.getvalue()
+
+
+def test_handle_answers_standard_probes() -> None:
+    """Codex + GitHub Copilot CLI probe ping/resources/prompts on connect and
+    health-check via ``ping``. Answering these (not -32601) is what keeps those
+    clients from marking the server broken — the regression this guards."""
+    cases = [
+        ("ping", None),
+        ("resources/list", "resources"),
+        ("resources/templates/list", "resourceTemplates"),
+        ("prompts/list", "prompts"),
+    ]
+    for method, empty_key in cases:
+        resp = mcp_server.handle({"jsonrpc": "2.0", "id": 1, "method": method})
+        assert resp is not None
+        assert "error" not in resp, f"{method} returned {resp.get('error')}"
+        if empty_key is not None:
+            assert resp["result"][empty_key] == []
+
+
+def test_handle_unknown_method_still_errors() -> None:
+    resp = mcp_server.handle({"jsonrpc": "2.0", "id": 9, "method": "does/not/exist"})
+    assert resp is not None
+    assert resp["error"]["code"] == -32601
