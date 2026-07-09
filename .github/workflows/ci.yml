@@ -16,8 +16,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Compute which areas a PR touches so downstream jobs only run when relevant.
+  # On push to main / tags the filter is bypassed (see each job's `if:`) — main is
+  # the integration point and always gets the full matrix.
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      web: ${{ steps.filter.outputs.web }}
+      mcp: ${{ steps.filter.outputs.mcp }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            python:
+              - 'apps/api/**'
+              - 'apps/runner/**'
+              - 'packages/agent/**'
+              - 'packages/core/**'
+              - 'packages/db/**'
+              - 'packages/mcp/**'
+              - 'packages/shared/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - '.github/workflows/ci.yml'
+            web:
+              - 'apps/web/**'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/ci.yml'
+            mcp:
+              - 'packages/mcp-npx/**'
+              - 'packages/lifecycle/**'
+              - '.github/workflows/ci.yml'
+
   python-lint:
     name: Python lint (ruff + mypy)
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -58,6 +98,8 @@ jobs:
 
   python-test:
     name: Python tests (pytest)
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -120,6 +162,8 @@ jobs:
 
   ts-lint:
     name: TypeScript lint (tsc + eslint)
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -152,6 +196,8 @@ jobs:
 
   ts-test:
     name: TypeScript tests (vitest)
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -185,7 +231,8 @@ jobs:
     # `vite preview`, and runs Lighthouse against the three primary screens.
     # Assertions live in apps/web/lighthouserc.json.
     name: Web Lighthouse (soft fail)
-    if: github.event_name == 'pull_request'
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.web == 'true'
     continue-on-error: true
     runs-on: ubuntu-latest
     defaults:
@@ -286,6 +333,8 @@ jobs:
   # ------------------------------------------------------------------------
   mcp-package:
     name: MCP package (npx + uvx smoke)
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.mcp == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
