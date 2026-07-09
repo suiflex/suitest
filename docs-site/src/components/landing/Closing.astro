@@ -4,6 +4,9 @@ import bookIcon from "@phosphor-icons/core/assets/regular/book-open.svg?raw";
 
 const year = new Date().getFullYear();
 
+// Product Hunt launch badge (official embed markup — kept verbatim, self-contained inline styles).
+const productHuntBadge = `<div style="font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, sans-serif; border: 1px solid rgb(224, 224, 224); border-radius: 12px; padding: 20px; max-width: 500px; background: rgb(255, 255, 255); box-shadow: rgba(0, 0, 0, 0.05) 0px 2px 8px;"><div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;"><img alt="Suitest" src="https://ph-files.imgix.net/db5194df-355f-4728-8d3c-bc73d46f109e.svg?auto=compress,format&amp;codec=mozjpeg&amp;cs=strip&amp;fit=crop&amp;h=80&amp;w=80" style="width: 64px; height: 64px; border-radius: 8px; object-fit: cover; flex-shrink: 0;"><div style="flex: 1 1 0%; min-width: 0px;"><h3 style="margin: 0px; font-size: 18px; font-weight: 600; color: rgb(26, 26, 26); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Suitest</h3><p style="margin: 4px 0px 0px; font-size: 14px; color: rgb(102, 102, 102); line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">Free E2E AI testing &amp; MCP server. A TestSprite alternative.</p></div></div><a href="https://www.producthunt.com/products/suitest?embed=true&amp;utm_source=embed&amp;utm_medium=post_embed" target="_blank" rel="noopener" style="display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; padding: 8px 16px; background: rgb(255, 97, 84); color: rgb(255, 255, 255); text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 600;">Check it out on Product Hunt →</a></div>`;
+
 const footCols = [
   {
     title: "Product",
@@ -77,6 +80,7 @@ const footCols = [
           Open-source, MCP-native testing platform. Manual test management,
           deterministic runs, optional AI.
         </p>
+        <div class="ph-badge" set:html={productHuntBadge} />
       </div>
 
       {
@@ -157,6 +161,9 @@ const footCols = [
     line-height: 1.65;
     color: var(--text-3);
     max-width: 34ch;
+  }
+  .ph-badge {
+    margin-top: 20px;
   }
   .foot-col h3 {
     margin: 0 0 14px;
