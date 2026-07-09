@@ -13,13 +13,18 @@ enough for the no-config quick path.
 
 from __future__ import annotations
 
+import functools
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from suitest_lifecycle.blackbox.models import BlackboxUiConfig, DiscoveryResult
+from suitest_lifecycle.frontend_runtime import ensure_browser
 from suitest_lifecycle.models import Mode
 from suitest_lifecycle.paths import Paths, build_paths
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def _envelope(
@@ -607,7 +612,42 @@ def blackbox_publish_results(**kwargs: Any) -> dict[str, Any]:
     )
 
 
-BLACKBOX_TOOLS = {
+# Tools that drive a real browser (need the Playwright package + Chromium).
+# bootstrap_project opens a local HTTP wizard in the user's own browser, and the
+# graph/generate/publish/summarize tools only read saved JSON — none need
+# Playwright, so they are NOT gated.
+_BROWSER_DRIVING = frozenset(
+    {
+        "blackbox_discover_app",
+        "blackbox_detect_login",
+        "blackbox_perform_login",
+        "blackbox_crawl_routes",
+        "blackbox_analyze_page",
+        "blackbox_run_playwright_tests",
+    }
+)
+
+
+def _guard_browser(fn: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
+    """Provision Playwright + Chromium before a browser tool runs; on failure
+    return a clear envelope instead of letting a raw ImportError crash the tool
+    (the "sometimes produces no output" symptom)."""
+
+    @functools.wraps(fn)
+    def wrapper(**kwargs: Any) -> dict[str, Any]:
+        status = ensure_browser()
+        if not status.ready:
+            return _envelope(
+                False,
+                f"browser runtime unavailable: {status.detail}",
+                errors=[status.detail],
+            )
+        return fn(**kwargs)
+
+    return wrapper
+
+
+_RAW_BLACKBOX_TOOLS = {
     "blackbox_publish_results": blackbox_publish_results,
     "bootstrap_project": bootstrap_project,
     "blackbox_discover_app": blackbox_discover_app,
@@ -622,4 +662,9 @@ BLACKBOX_TOOLS = {
     "blackbox_summarize_findings": blackbox_summarize_findings,
 }
 
-__all__ = ["BLACKBOX_TOOLS", *BLACKBOX_TOOLS.keys()]
+BLACKBOX_TOOLS = {
+    name: (_guard_browser(fn) if name in _BROWSER_DRIVING else fn)
+    for name, fn in _RAW_BLACKBOX_TOOLS.items()
+}
+
+__all__ = ["BLACKBOX_TOOLS", *_RAW_BLACKBOX_TOOLS.keys()]
