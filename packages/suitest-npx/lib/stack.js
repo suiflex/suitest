@@ -73,8 +73,13 @@ function spawnLogged(cmd, args, { env, logFile }) {
   const out = fs.openSync(logFile, "a");
   const child = spawn(cmd, args, {
     env,
-    detached: true,
+    // ponytail: detached only off-Windows — detached:true forces a job-object
+    // assign that fails with AssignProcessToJobObject (87) when the parent is
+    // already in a no-breakaway job (VS Code terminal / CI). unref() alone keeps
+    // the child alive after the parent exits.
+    detached: process.platform !== "win32",
     stdio: ["ignore", out, out],
+    windowsHide: true,
   });
   child.unref();
   fs.closeSync(out);

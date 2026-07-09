@@ -1,0 +1,3 @@
+# Default owner for everything in the repo.
+# Ordered by specificity: later matches win, so add narrower rules below.
+* @suiflex

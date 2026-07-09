@@ -311,7 +311,10 @@ function installClient(clientId, { name, scope, env, print, dryRun, force }) {
       return;
     }
     for (const s of steps) {
-      const res = spawnSync(client.program, s, { stdio: "inherit" });
+      const res = spawnSync(client.program, s, {
+        stdio: "inherit",
+        windowsHide: true,
+      });
       if (res.error && res.error.code === "ENOENT") {
         throw new Error(
           `${client.program} CLI not found on PATH — install it, then retry.`,
@@ -319,7 +322,13 @@ function installClient(clientId, { name, scope, env, print, dryRun, force }) {
       }
       // `force` remove may fail if the entry is absent; ignore that one.
       if (res.status !== 0 && !(force && s[1] === "remove")) {
-        throw new Error(`${client.program} exited with status ${res.status}`);
+        throw new Error(
+          `${client.program} exited with status ${res.status}. ` +
+            "On Windows this can be an npm/child-tool job-object error " +
+            "(AssignProcessToJobObject 87) — try updating npm, or install a " +
+            "file-based client instead (claude-code / cursor / windsurf), which " +
+            "writes config directly without spawning a child CLI.",
+        );
       }
     }
     process.stdout.write(`Installed MCP entry '${name}' via ${client.label}\n`);
@@ -432,14 +441,8 @@ async function runInteractive(opts) {
     );
   }
 
-  const items = CLIENT_ORDER.map((id) => ({
-    value: id,
-    label: CLIENTS[id].label,
-    hint: CLIENTS[id].hint,
-  }));
-  const clientId = await picker.select("Pick the MCP client to install into:", items);
-
-  const resolved = await creds.resolveCreds(opts);
+  // Login first, client last: (a) log in or not → (b) existing or new → (c) client.
+  const resolved = await interactiveLogin(opts);
   const env = {
     SUITEST_API_URL: resolved.apiUrl,
     SUITEST_API_KEY: resolved.apiKey,
@@ -449,7 +452,61 @@ async function runInteractive(opts) {
       "[warn] Using placeholder credentials — edit the config or run `suitest-mcp login`.\n",
     );
   }
+
+  const items = CLIENT_ORDER.map((id) => ({
+    value: id,
+    label: CLIENTS[id].label,
+    hint: CLIENTS[id].hint,
+  }));
+  const clientId = await picker.select("Pick the MCP client to install into:", items);
+
   installClient(clientId, { ...opts, env });
+}
+
+// Interactive credential step for `install`. Order: honor flags/env first (no
+// prompt), else ask "log in now?"; on yes, offer saved-vs-new; on skip, placeholder.
+// Returns the same shape as creds.resolveCreds ({apiUrl, apiKey, warn}).
+async function interactiveLogin(opts) {
+  // Non-interactive override: explicit flags or env win, no questions asked.
+  if (opts.apiUrl && opts.apiKey) {
+    return { apiUrl: opts.apiUrl, apiKey: opts.apiKey, warn: false };
+  }
+  if (process.env.SUITEST_API_URL && process.env.SUITEST_API_KEY) {
+    return {
+      apiUrl: process.env.SUITEST_API_URL,
+      apiKey: process.env.SUITEST_API_KEY,
+      warn: false,
+    };
+  }
+
+  const want = await picker.select("Set up Suitest login now?", [
+    { value: "yes", label: "Yes, log in", hint: "enter or reuse API URL + key" },
+    { value: "skip", label: "Skip", hint: "write placeholder, edit later" },
+  ]);
+  if (want === "skip") {
+    return { ...creds.PLACEHOLDER, warn: true };
+  }
+
+  const saved = creds.loadCreds();
+  let useExisting = false;
+  if (saved) {
+    const pick = await picker.select("Saved credentials found — use them?", [
+      { value: "existing", label: "Use existing", hint: saved.apiUrl },
+      { value: "new", label: "Enter new credentials" },
+    ]);
+    useExisting = pick === "existing";
+  }
+  if (useExisting) {
+    return { ...saved, warn: false };
+  }
+
+  const entered = await creds.promptCreds(saved || {});
+  if (!entered) {
+    throw new Error("login cancelled — both URL and key are required.");
+  }
+  creds.saveCreds(entered);
+  process.stdout.write(`Saved credentials to ${creds.credsPath()} (chmod 600).\n\n`);
+  return { ...entered, warn: false };
 }
 
 // --- arg parsing + entrypoints -------------------------------------------
