@@ -12,6 +12,7 @@
 const path = require("node:path");
 const readline = require("node:readline/promises");
 
+const { askSecret } = require("./prompt.js");
 const { detectIdes, IDE_TARGETS } = require("./detect-ide.js");
 const { detectFramework } = require("./detect-framework.js");
 const { scaffoldConfig } = require("./scaffold-config.js");
@@ -116,7 +117,7 @@ async function runInit(opts) {
       ? opts.apiKey
       : opts.yes
         ? ""
-        : await ask("SUITEST_API_KEY (sk_suitest_…): ", "");
+        : await askSecret("SUITEST_API_KEY (sk_suitest_…): ");
     if (!apiKey) {
       throw new Error(
         "server mode needs SUITEST_API_KEY — pass --api-key or run `login` first.",
