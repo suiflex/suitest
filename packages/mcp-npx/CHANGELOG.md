@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/suiflex/suitest/compare/mcp-v0.2.0...mcp-v0.2.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* local-runtime + MCP client compatibility (heatmap, eval, Playwright, Codex/Copilot) ([d6a2e8e](https://github.com/suiflex/suitest/commit/d6a2e8ec7fd581018e4e8c0d185444a3ef7127dd))
+* **mcp:** auto-provision Playwright on demand for blackbox tools ([5a32d09](https://github.com/suiflex/suitest/commit/5a32d0919715e2f0344bab846dfe87028024f487))
+
 ## [0.2.0](https://github.com/suiflex/suitest/compare/mcp-v0.1.5...mcp-v0.2.0) (2026-07-09)
 
 
