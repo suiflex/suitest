@@ -184,13 +184,19 @@ async def analytics_flaky(
 @router.get("/analytics/heatmap", response_model=list[HeatmapCell])
 async def analytics_heatmap(
     project_id: str = Query(alias="projectId"),
+    days: int | None = Query(default=None, ge=1, le=365),
     period: str = Query(default="14d"),
     ctx: TenantContext = Depends(require_workspace_membership),
     session: AsyncSession = Depends(get_async_session),
 ) -> list[HeatmapCell]:
-    """Run-count grid (day x hour) over the window (docs/API.md §3.8)."""
+    """Run-count grid (day x hour) over the window (docs/API.md §3.8).
+
+    Accepts ``days=<n>`` (what the web client sends) or ``period=<n>d``; ``days``
+    wins when both are present.
+    """
     await _project_or_404(session, project_id, ctx.workspace_id)
-    since = datetime.now(tz=UTC) - _parse_period(period)
+    window = timedelta(days=days) if days is not None else _parse_period(period)
+    since = datetime.now(tz=UTC) - window
     cells = await RunRepo(session).heatmap_cells(project_id, since)
     return [HeatmapCell(day=day, hour=hour, count=count) for day, hour, count in cells]
 

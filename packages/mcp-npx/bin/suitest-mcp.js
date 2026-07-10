@@ -125,8 +125,12 @@ function preparePython() {
   const py = findPython();
   if (!py) {
     process.stderr.write(
-      "suitest-mcp needs Python >= 3.11 on PATH (or set SUITEST_PYTHON " +
-        "to an interpreter). Install from https://python.org and retry.\n",
+      "suitest-mcp needs Python >= 3.11 and could not find or provision one.\n" +
+        "Fix any one of:\n" +
+        "  • install uv (https://docs.astral.sh/uv/) — suitest auto-provisions " +
+        "Python through it, no manual Python install needed;\n" +
+        "  • install Python >= 3.11 from https://python.org so `python3` is on PATH;\n" +
+        "  • set SUITEST_PYTHON to an existing interpreter path.\n",
     );
     return null;
   }

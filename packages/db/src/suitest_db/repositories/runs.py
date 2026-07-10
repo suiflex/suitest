@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from sqlalchemy import extract, func, select
+from sqlalchemy import func, select
 from suitest_db.models.case import TestCase, TestStep
 from suitest_db.models.project import Project, Suite
 from suitest_db.models.run import Artifact, Run, RunStep
@@ -163,19 +163,22 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
     ) -> Sequence[tuple[datetime, int, int]]:
         """Run counts grouped by ``(day, hour)`` since ``since`` (docs/API.md §3.8).
 
-        Returns rows of ``(day_truncated, hour_of_day, count)``; the day is the
-        ``date_trunc('day', created_at)`` timestamp and hour is 0-23.
+        Returns rows of ``(day_truncated, hour_of_day, count)`` ascending. Buckets
+        in Python so the query stays engine-agnostic: ``date_trunc`` is
+        Postgres-only and raised ``no such function`` (500) on SQLite, the
+        LOCAL/ZERO default backend.
         """
-        day = func.date_trunc("day", Run.created_at).label("day")
-        hour = extract("hour", Run.created_at).label("hour")
-        stmt = (
-            select(day, hour, func.count(Run.id))
-            .where(Run.project_id == project_id, Run.created_at >= since)
-            .group_by(day, hour)
-            .order_by(day.asc(), hour.asc())
+        stmt = select(Run.created_at).where(Run.project_id == project_id, Run.created_at >= since)
+        created_ats = (await self.session.execute(stmt)).scalars().all()
+        counts: dict[tuple[datetime, int], int] = {}
+        for created in created_ats:
+            day = created.replace(hour=0, minute=0, second=0, microsecond=0)
+            key = (day, created.hour)
+            counts[key] = counts.get(key, 0) + 1
+        return sorted(
+            ((day, hour, count) for (day, hour), count in counts.items()),
+            key=lambda row: (row[0], row[1]),
         )
-        rows = (await self.session.execute(stmt)).all()
-        return [(d, int(h), int(count)) for d, h, count in rows]
 
     async def get_steps(self, run_id: str) -> Sequence[RunStep]:
         stmt = select(RunStep).where(RunStep.run_id == run_id).order_by(RunStep.step_order.asc())

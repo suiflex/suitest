@@ -150,11 +150,17 @@ async def seeded_case(database_url: str, nginx_test_page_url: str) -> dict[str, 
             "{}",
         )
         await conn.execute(
-            "INSERT INTO test_cases (id, suite_id, public_id, name, source, status, priority, order_in_suite) "
-            "VALUES ($1, $2, $3, $4, 'MANUAL', 'ACTIVE', 'P2', 0)",
+            # workspace_id + title are NOT NULL columns filled by ORM defaults /
+            # a before_insert listener; this raw seed bypasses the ORM, so both
+            # must be supplied explicitly (title's default is Python-side, not a
+            # DB server_default).
+            "INSERT INTO test_cases (id, suite_id, workspace_id, public_id, name, title, source, "
+            "status, priority, order_in_suite) VALUES ($1, $2, $3, $4, $5, $6, 'MANUAL', 'ACTIVE', 'P2', 0)",
             case_id,
             suite_id,
+            workspace_id,
             f"TC-E2E-{suffix.upper()}",
+            "Smoke flow",
             "Smoke flow",
         )
         for idx, step in enumerate(steps_payload, start=1):

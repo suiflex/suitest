@@ -10349,7 +10349,7 @@
     },
     "/api/v1/analytics/heatmap": {
       "get": {
-        "description": "Run-count grid (day x hour) over the window (docs/API.md \u00a73.8).",
+        "description": "Run-count grid (day x hour) over the window (docs/API.md \u00a73.8).\n\nAccepts ``days=<n>`` (what the web client sends) or ``period=<n>d``; ``days``\nwins when both are present.",
         "operationId": "analytics_heatmap_api_v1_analytics_heatmap_get",
         "parameters": [
           {
@@ -10359,6 +10359,24 @@
             "schema": {
               "title": "Projectid",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 365,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Days"
             }
           },
           {
