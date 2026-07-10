@@ -27,6 +27,12 @@ export default defineConfig({
     },
   },
   preview: { port: 3000 },
+  // Pin the dep pre-bundler to the same modern target as the build. Vite's
+  // default optimizer target ("chrome87"/"es2020"…) can trip esbuild into a
+  // spurious "Transforming destructuring … is not supported yet" on some deps
+  // (e.g. sonner), which crashes the dev server. es2022 supports destructuring
+  // natively, so nothing is down-transformed.
+  optimizeDeps: { esbuildOptions: { target: "es2022" } },
   build: {
     outDir: "dist",
     sourcemap: true,
