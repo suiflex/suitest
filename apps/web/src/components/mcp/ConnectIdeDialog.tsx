@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, Cpu, KeyRound } from "lucide-react";
+import { AlertTriangle, Cpu, KeyRound, Zap } from "lucide-react";
 import { useState } from "react";
 
 import { CopyButton } from "@/components/shared/CopyButton";
@@ -13,6 +13,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  IDE_CLIENTS,
+  KEY_PLACEHOLDER,
+  NPM_PKG,
+  SERVER_CMD,
+  START_PROMPT,
+  apiUrl,
+  claudeCmd,
+  installCmd,
+  mcpJson,
+  type IdeTab,
+} from "@/components/mcp/connect-ide-commands";
 
 /**
  * "Connect Suitest to your AI IDE" — the outward MCP setup flow (Cursor /
@@ -20,10 +32,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
  * Keys (a key is a persistent, workspace-scoped credential); this dialog is a
  * copy-paste wiring guide that references the key by placeholder.
  */
-
-const SERVER_CMD = "python -m suitest_lifecycle.mcp_server";
-const START_PROMPT = "Hey, generate and run tests for this project with Suitest.";
-const KEY_PLACEHOLDER = "<your-api-key>";
 
 /** The lifecycle tools the connected agent can call. */
 const TOOLS = [
@@ -38,35 +46,6 @@ const TOOLS = [
   "runs",
 ] as const;
 
-function apiUrl(): string {
-  if (typeof window !== "undefined" && window.location?.origin) return window.location.origin;
-  return "http://localhost:4000";
-}
-
-function claudeCmd(): string {
-  return [
-    "claude mcp add suitest \\",
-    `  --env SUITEST_API_KEY=${KEY_PLACEHOLDER} \\`,
-    `  --env SUITEST_API_URL=${apiUrl()} \\`,
-    "  -- python -m suitest_lifecycle.mcp_server",
-  ].join("\n");
-}
-
-function mcpJson(): string {
-  return `{
-  "mcpServers": {
-    "suitest": {
-      "command": "python",
-      "args": ["-m", "suitest_lifecycle.mcp_server"],
-      "env": {
-        "SUITEST_API_KEY": "${KEY_PLACEHOLDER}",
-        "SUITEST_API_URL": "${apiUrl()}"
-      }
-    }
-  }
-}`;
-}
-
 function CodeBlock({ code }: { code: string }): React.ReactElement {
   return (
     <div className="relative">
@@ -77,6 +56,49 @@ function CodeBlock({ code }: { code: string }): React.ReactElement {
         <CopyButton value={code} label="Copy to clipboard" />
       </div>
     </div>
+  );
+}
+
+/** The recommended one-command path: the installer writes the IDE config. */
+function FastestBlock({
+  command,
+  picker,
+}: {
+  command: string;
+  picker?: boolean;
+}): React.ReactElement {
+  return (
+    <div className="mb-3">
+      <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-accent uppercase">
+        <Zap className="h-3 w-3" aria-hidden="true" />
+        Fastest — one command
+      </p>
+      <CodeBlock code={command} />
+      <p className="mt-1.5 text-[11px] text-fg-4">
+        {picker
+          ? "Interactive picker — choose your client; it writes the config."
+          : "Writes the IDE's MCP config for you."}{" "}
+        Run{" "}
+        <code className="rounded bg-bg-elev-2 px-1 font-mono text-[10.5px]">
+          npx -y {NPM_PKG} login
+        </code>{" "}
+        first to save your key.
+      </p>
+    </div>
+  );
+}
+
+/** Secondary manual path for users who prefer to edit config by hand. */
+function ManualBlock({ code, label }: { code: string; label?: string }): React.ReactElement {
+  return (
+    <details className="group">
+      <summary className="cursor-pointer list-none text-[11px] font-medium text-fg-4 hover:text-fg-2">
+        {label ?? "Prefer to wire it manually?"}
+      </summary>
+      <div className="mt-2">
+        <CodeBlock code={code} />
+      </div>
+    </details>
   );
 }
 
@@ -181,28 +203,20 @@ export function ConnectIdeDialog(): React.ReactElement {
 
           <StepShell n={2} title="Run the Suitest MCP server">
             <p className="mb-2 text-[12px] text-fg-3">
-              Local stdio server exposing the lifecycle tools — ships with the{" "}
-              <code className="rounded bg-bg-elev-2 px-1 font-mono text-[11px]">
-                suiflex-suitest-lifecycle
-              </code>{" "}
-              package.
+              Local stdio server exposing the lifecycle tools — runs straight from the{" "}
+              <code className="rounded bg-bg-elev-2 px-1 font-mono text-[11px]">{NPM_PKG}</code>{" "}
+              npm package, nothing to install. Most IDEs run this for you (step 3); this is the
+              raw command.
             </p>
             <CodeBlock code={SERVER_CMD} />
             <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber/25 bg-amber/[0.06] px-2.5 py-2 text-[11.5px] text-amber">
               <AlertTriangle className="mt-[1px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               <span className="text-fg-2">
-                The <code className="font-mono text-[11px] text-fg-1">command</code> must be a
-                Python that has{" "}
-                <code className="font-mono text-[11px] text-fg-1">suiflex-suitest-lifecycle</code>{" "}
-                installed. Either{" "}
-                <code className="font-mono text-[11px] text-fg-1">
-                  pip install suiflex-suitest-lifecycle
-                </code>
-                , or point it at the Suitest repo&apos;s venv, e.g.{" "}
-                <code className="font-mono text-[11px] text-fg-1">
-                  /path/to/suitest/.venv/bin/python
-                </code>{" "}
-                — not bare <code className="font-mono text-[11px] text-fg-1">python</code>.
+                Requires <code className="font-mono text-[11px] text-fg-1">Node ≥ 18</code>. Python
+                is auto-provisioned via{" "}
+                <code className="font-mono text-[11px] text-fg-1">uv</code> — or point{" "}
+                <code className="font-mono text-[11px] text-fg-1">SUITEST_PYTHON</code> at an
+                existing interpreter.
               </span>
             </div>
           </StepShell>
@@ -225,38 +239,33 @@ export function ConnectIdeDialog(): React.ReactElement {
                   Claude Code
                 </TabsTrigger>
                 <TabsTrigger value="cursor">Cursor</TabsTrigger>
+                <TabsTrigger value="windsurf">Windsurf</TabsTrigger>
                 <TabsTrigger value="other">Other IDEs</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="claude">
-                <p className="mb-2 text-[12px] text-fg-3">From your project directory, run:</p>
-                <CodeBlock code={claudeCmd()} />
-              </TabsContent>
-
-              <TabsContent value="cursor">
-                <p className="mb-2 text-[12px] text-fg-3">
-                  Add to{" "}
-                  <code className="rounded bg-bg-elev-2 px-1 font-mono text-[11px]">
-                    ~/.cursor/mcp.json
-                  </code>
-                  :
-                </p>
-                <CodeBlock code={mcpJson()} />
-              </TabsContent>
+              {(["claude", "cursor", "windsurf"] as IdeTab[]).map((tab) => (
+                <TabsContent key={tab} value={tab}>
+                  <FastestBlock command={installCmd(IDE_CLIENTS[tab])} />
+                  <ManualBlock code={tab === "claude" ? claudeCmd() : mcpJson()} />
+                </TabsContent>
+              ))}
 
               <TabsContent value="other">
-                <p className="mb-2 text-[12px] text-fg-3">
-                  Any MCP client accepts this server block:
-                </p>
-                <CodeBlock code={mcpJson()} />
+                <FastestBlock command={`npx -y ${NPM_PKG} install`} picker />
+                <ManualBlock code={mcpJson()} label="Or paste this server block into any MCP client:" />
               </TabsContent>
             </Tabs>
             <p className="mt-2 text-[11px] text-fg-4">
-              Replace{" "}
+              Manual configs use{" "}
               <code className="rounded bg-bg-elev-2 px-1 font-mono text-[10.5px]">
                 {KEY_PLACEHOLDER}
               </code>{" "}
-              with a key from Settings → API Keys.
+              — replace it with a key from Settings → API Keys. The one-command install prompts
+              for the key (or reuses{" "}
+              <code className="rounded bg-bg-elev-2 px-1 font-mono text-[10.5px]">
+                npx -y {NPM_PKG} login
+              </code>
+              ).
             </p>
           </StepShell>
 
