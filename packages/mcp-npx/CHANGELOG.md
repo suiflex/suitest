@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/suiflex/suitest/compare/mcp-v0.2.1...mcp-v0.3.0) (2026-07-10)
+
+
+### Features
+
+* CLI onboard hardening — cross-OS transport, secret masking, settings TUI ([6bad9f5](https://github.com/suiflex/suitest/commit/6bad9f52f5e87a6d63bc78a8f0cb9b10cf37b909))
+* **mcp-npx:** mask secret input in CLI prompts ([714eb3e](https://github.com/suiflex/suitest/commit/714eb3e38c0a304b787a2eaf00a1cd71a69fca37))
+
 ## [0.2.1](https://github.com/suiflex/suitest/compare/mcp-v0.2.0...mcp-v0.2.1) (2026-07-10)
 
 
