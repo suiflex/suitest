@@ -106,6 +106,47 @@
   background-attachment: fixed;
 }
 
+/* ----------------------------------------------------------------------------
+   Light theme — overrides the same primitive color tokens under `html.light`.
+   Utilities compile to `var(--color-*)` and the shadcn aliases are `var()`
+   references, so re-pointing the primitives here re-themes the whole app with
+   zero component changes. `html.light` (0,1,1) outranks `:root` (0,1,0).
+   The theme class is set by src/lib/theme.ts + the inline boot script in
+   index.html. Dark stays the default (the @theme / :root values above).
+   -------------------------------------------------------------------------- */
+html.light {
+  color-scheme: light;
+  background-image: none;
+
+  --color-bg-base: #ffffff;
+  --color-bg-elev-1: #f7f8fa;
+  --color-bg-elev-2: #eef0f3;
+  --color-bg-elev-3: #e6e9ed;
+  --color-bg-hover: #eaecef;
+  --color-bg-code: #f3f4f6;
+
+  --color-border-subtle: #eceef1;
+  --color-border: #dce0e5;
+  --color-border-strong: #c3c8d0;
+
+  --color-fg-1: #14171c;
+  --color-fg-2: #2f343b;
+  --color-fg-3: #5b616b;
+  --color-fg-4: #838a94;
+  --color-fg-5: #aab0b8;
+
+  --color-accent: #1f9d57;
+  --color-accent-hover: #18884a;
+  --color-accent-fg: #ffffff;
+
+  --color-red: #d64535;
+  --color-amber: #b5750a;
+  --color-blue: #2f6fd0;
+  --color-violet: #6f52c9;
+
+  --color-destructive-foreground: #ffffff;
+}
+
 html {
   scroll-behavior: smooth;
 }
