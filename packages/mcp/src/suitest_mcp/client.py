@@ -42,8 +42,8 @@ from opentelemetry import trace
 
 from mcp import ClientSession, StdioServerParameters
 from suitest_mcp.errors import McpHandshakeFailed, McpToolFailed, McpToolTimeout
-from suitest_mcp.proc import resolve_command
 from suitest_mcp.models import McpArtifact, McpProviderConfig, McpToolResult, McpTransport
+from suitest_mcp.proc import resolve_command
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
