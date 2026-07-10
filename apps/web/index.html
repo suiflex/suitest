@@ -6,19 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0a0a0a" />
     <title>Suitest</title>
-    <script>
-      // Apply the persisted theme before paint to avoid a flash. Keep in sync
-      // with src/lib/theme.ts (localStorage key + class names).
-      (function () {
-        try {
-          var t = localStorage.getItem("suitest.theme");
-          if (t !== "dark" && t !== "light") t = "dark";
-          var r = document.documentElement;
-          r.classList.remove("dark", "light");
-          r.classList.add(t);
-        } catch (e) {}
-      })();
-    </script>
   </head>
   <body class="bg-base text-fg-1 antialiased">
     <div id="root"></div>
