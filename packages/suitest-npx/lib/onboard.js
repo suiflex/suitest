@@ -72,10 +72,34 @@ async function prepare(cwd) {
   return { dirs, webDist, python };
 }
 
+// Resolve the dashboard port for onboard: an explicit --port wins; otherwise,
+// interactively, offer the previously-used port (or 4000) as the default.
+async function resolvePort(dirs, opts) {
+  if (opts.port) return opts.port;
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return undefined;
+  const { loadConfig } = require("./project.js");
+  const current = loadConfig(dirs.config).port || 4000;
+  const readline = require("node:readline/promises");
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await rl.question(`Dashboard port [${current}]: `)).trim();
+    if (!answer) return current;
+    if (/^\d+$/.test(answer)) {
+      const n = Number(answer);
+      if (n >= 1024 && n <= 65535) return n;
+    }
+    console.log(`  Ignoring invalid port "${answer}" — using ${current}.`);
+    return current;
+  } finally {
+    rl.close();
+  }
+}
+
 async function onboard(cwd, opts = {}) {
   const { dirs, webDist, python } = await prepare(cwd);
   await promptAccount(dirs.credentials, opts);
-  const running = await up(cwd, { webDist, python, port: opts.port });
+  const port = await resolvePort(dirs, opts);
+  const running = await up(cwd, { webDist, python, port });
   const creds = JSON.parse(fs.readFileSync(dirs.credentials, "utf8"));
   const apiUrl = `http://127.0.0.1:${running.port}`;
 
