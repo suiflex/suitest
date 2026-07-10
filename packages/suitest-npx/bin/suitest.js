@@ -10,6 +10,7 @@ Commands:
   up        boot local stack (API + supervisor + dashboard)
   down      stop local stack
   status    is the local stack running? (URL, version, health)
+  settings  terminal panel: generate/refresh API key, show config (no browser)
   upgrade   check for a newer version and how to switch to it
   init      wire MCP config only (delegates to @suiflex/suitest-mcp)
 
@@ -94,6 +95,11 @@ async function main() {
       }[s.state];
       console.log(line);
       await printUpdateNotice();
+      break;
+    }
+    case "settings": {
+      const { runSettings } = require("../lib/settings.js");
+      await runSettings(cwd);
       break;
     }
     case "upgrade": {

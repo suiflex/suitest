@@ -43,6 +43,7 @@ from opentelemetry import trace
 from mcp import ClientSession, StdioServerParameters
 from suitest_mcp.errors import McpHandshakeFailed, McpToolFailed, McpToolTimeout
 from suitest_mcp.models import McpArtifact, McpProviderConfig, McpToolResult, McpTransport
+from suitest_mcp.proc import resolve_command
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -168,7 +169,7 @@ def _transport_context(provider: McpProviderConfig) -> Any:
         if not provider.command:
             raise McpHandshakeFailed(f"stdio provider {provider.name} has no command configured")
         params = StdioServerParameters(
-            command=provider.command[0],
+            command=resolve_command(provider.command[0]),
             args=list(provider.command[1:]),
             env={**provider.env} if provider.env else None,
         )

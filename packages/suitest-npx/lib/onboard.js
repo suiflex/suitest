@@ -25,25 +25,31 @@ async function promptAccount(credPath, opts = {}) {
     );
   }
   const readline = require("node:readline/promises");
+  const { askSecret } = loadMcpLib("prompt.js");
+  console.log("Create the admin account for your local Suitest (you'll log in with this):");
+
+  // Email over a plain interface, closed before we prompt for secrets so the
+  // masked-secret interface owns stdin without two readers competing.
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  let email = "";
   try {
-    console.log("Create the admin account for your local Suitest (you'll log in with this):");
-    let email = "";
     while (!email.includes("@")) {
       email = (await rl.question("  email: ")).trim();
     }
-    let password = "";
-    for (;;) {
-      password = (await rl.question("  password (min 8 chars): ")).trim();
-      if (password.length < 8) continue;
-      const confirm = (await rl.question("  confirm password: ")).trim();
-      if (confirm === password) break;
-      console.log("  Passwords don't match, try again.");
-    }
-    return loadOrCreateCredentials(credPath, { email, password });
   } finally {
     rl.close();
   }
+
+  // Password typed twice, masked (`askSecret` echoes `*`, never the chars).
+  let password = "";
+  for (;;) {
+    password = await askSecret("  password (min 8 chars): ");
+    if (password.length < 8) continue;
+    const confirm = await askSecret("  confirm password: ");
+    if (confirm === password) break;
+    console.log("  Passwords don't match, try again.");
+  }
+  return loadOrCreateCredentials(credPath, { email, password });
 }
 
 // ponytail: published dependency first; relative fallback for monorepo dev

@@ -18,6 +18,8 @@ const os = require("node:os");
 const path = require("node:path");
 const readline = require("node:readline");
 
+const { askSecret } = require("./prompt.js");
+
 const PLACEHOLDER = {
   apiUrl: "http://localhost:4000",
   apiKey: "sk_suitest_…",
@@ -70,32 +72,36 @@ function saveCreds({ apiUrl, apiKey }) {
   return p;
 }
 
-function ask(rl, question) {
-  return new Promise((resolve) => rl.question(question, (a) => resolve(a.trim())));
+// One-shot text prompt: owns and closes its own interface so it never overlaps
+// with the masked-secret interface on stdin.
+function ask(question) {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question(question, (a) => {
+      rl.close();
+      resolve(a.trim());
+    });
+  });
 }
 
 /**
  * Interactive prompt for URL + key. Prefills from `defaults` so the user can
  * just hit enter to keep an existing value. Returns null if aborted (empty
- * required field).
+ * required field). The key is masked (`askSecret`); the URL is plain text.
  */
 async function promptCreds(defaults = {}) {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-  try {
-    const urlHint = defaults.apiUrl ? ` [${defaults.apiUrl}]` : "";
-    const keyHint = defaults.apiKey ? " [keep existing]" : "";
-    const apiUrl =
-      (await ask(rl, `SUITEST_API_URL${urlHint}: `)) || defaults.apiUrl || "";
-    const apiKey =
-      (await ask(rl, `SUITEST_API_KEY${keyHint}: `)) || defaults.apiKey || "";
-    if (!apiUrl || !apiKey) return null;
-    return { apiUrl, apiKey };
-  } finally {
-    rl.close();
-  }
+  const urlHint = defaults.apiUrl ? ` [${defaults.apiUrl}]` : "";
+  const keyHint = defaults.apiKey ? " [keep existing]" : "";
+  const apiUrl =
+    (await ask(`SUITEST_API_URL${urlHint}: `)) || defaults.apiUrl || "";
+  // Secret: mask so the key never echoes to the terminal / screen-share.
+  const apiKey =
+    (await askSecret(`SUITEST_API_KEY${keyHint}: `)) || defaults.apiKey || "";
+  if (!apiUrl || !apiKey) return null;
+  return { apiUrl, apiKey };
 }
 
 /**

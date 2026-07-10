@@ -23,6 +23,8 @@ demand); `onboard` prints the install one-liner when it's missing.
 | `suitest onboard` | provision runtime (per-project uv venv from bundled wheels), boot the stack, mint a local API key, wire your IDE's MCP config |
 | `suitest up` | boot the local stack (idempotent) |
 | `suitest down` | stop it |
+| `suitest status` | is the stack running? (URL, version, health) |
+| `suitest settings` | terminal panel: generate/refresh the API key + show config, no browser |
 | `suitest init` | wire MCP config only |
 
 Data lives in `./.suitest/` (SQLite DB, artifacts, logs, venv, credentials).

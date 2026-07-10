@@ -68,7 +68,7 @@ Requirements: **Node ≥ 18** and [uv](https://docs.astral.sh/uv/).
 npx @suiflex/suitest onboard
 ```
 
-Boots the full platform locally — web dashboard + API on SQLite + run supervisor (port 4000, falls back to 4001–4009, binds `127.0.0.1`) — and wires your IDE's MCP config in the same step. No Docker, no Postgres, no LLM key (generation uses MCP sampling through your IDE agent). Data lives in `./.suitest/`; the dashboard and Suitest wheels ship inside the npm package (~3 MB). `suitest up` / `suitest down` manage the stack; `--port`, `--ide`, `--base-url` override defaults. Details: [packages/suitest-npx](./packages/suitest-npx/README.md).
+Boots the full platform locally — web dashboard + API on SQLite + run supervisor (port 4000, falls back to 4001–4009, binds `127.0.0.1`) — and wires your IDE's MCP config in the same step. No Docker, no Postgres, no LLM key (generation uses MCP sampling through your IDE agent). Data lives in `./.suitest/`; the dashboard and Suitest wheels ship inside the npm package (~3 MB). `suitest up` / `suitest down` manage the stack; `suitest settings` generates/refreshes the API key from the terminal (no browser); `--port`, `--ide`, `--base-url` override defaults. Details: [packages/suitest-npx](./packages/suitest-npx/README.md).
 
 ### 2. MCP server only (no install required)
 
