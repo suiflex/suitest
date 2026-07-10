@@ -75,6 +75,21 @@ const RUNS_SUMMARY = {
 const EMPTY_PAGE = { items: [], meta: { nextCursor: null, limit: 20 } };
 const EMPTY_ITEMS = { items: [] };
 
+// A workspace must have at least one project or `_app` beforeLoad can't seed an
+// active project, and /cases short-circuits to the NoProjectBootstrap empty
+// state (no "Test Cases" heading). Mirror ME's workspace (ws_1).
+const PROJECT = {
+  id: "prj_demo",
+  name: "Demo",
+  slug: "demo",
+  workspace_id: "ws_1",
+  description: null,
+  gating_suite_id: null,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+};
+const PROJECTS_PAGE = { items: [PROJECT], meta: { nextCursor: null, limit: 20 } };
+
 /** The new case returned by POST /test-cases (mocked). */
 const CREATED_CASE = {
   id: "case_new",
@@ -209,7 +224,10 @@ function buildBaseRouteTable(overrides: RouteEntry[] = []): RouteEntry[] {
     { match: (u) => u.includes("/api/v1/integrations"), handler: (r) => fulfillJson(r, EMPTY_ITEMS) },
     { match: (u) => u.includes("/api/v1/traceability"), handler: (r) => fulfillJson(r, { items: [] }) },
     { match: (u) => u.includes("/api/v1/requirements"), handler: (r) => fulfillJson(r, EMPTY_ITEMS) },
-    { match: (u) => u.includes("/api/v1/projects"), handler: (r) => fulfillJson(r, EMPTY_ITEMS) },
+    // Single-project detail (useProject) before the list; the list must be
+    // non-empty so beforeLoad seeds an active project (see PROJECT above).
+    { match: (u) => /\/api\/v1\/projects\/[^/]+/.test(u), handler: (r) => fulfillJson(r, PROJECT) },
+    { match: (u) => u.includes("/api/v1/projects"), handler: (r) => fulfillJson(r, PROJECTS_PAGE) },
     { match: (u) => u.includes("/api/v1/workspaces"), handler: (r) => fulfillJson(r, EMPTY_ITEMS) },
   ];
 }
@@ -265,9 +283,10 @@ test("test_login_and_create_manual_case_then_run_pass", async ({ page }) => {
         await fulfillJson(route, QUEUED_RUN, 202);
       },
     },
-    // GET /runs/RUN-GP1 → PASS run (the detail page fetches this)
+    // GET /runs/run_gp → PASS run. The detail page fetches by internal id
+    // (run_gp), not the public_id (RUN-GP1) — see cases.tsx navigate().
     {
-      match: (u, m) => u.includes("/api/v1/runs/RUN-GP1") && m === "GET",
+      match: (u, m) => u.includes("/api/v1/runs/run_gp") && m === "GET",
       handler: (r) => fulfillJson(r, PASS_RUN),
     },
     // GET /test-cases/TC-101 → existing case with one step
@@ -305,6 +324,13 @@ test("test_login_and_create_manual_case_then_run_pass", async ({ page }) => {
   // The right pane should load the case detail panel
   await expect(page.getByTestId("case-detail")).toBeVisible({ timeout: 10_000 });
 
+  // The case detail is tabbed; the step editor lives under the "Steps" tab
+  // (Radix unmounts inactive tab content), so open it before asserting.
+  await page.getByTestId("case-tab-steps").click();
+
+  // The editor sits inside a collapsed "Edit steps" <details>; expand it.
+  await page.getByText("Edit steps").click();
+
   // Verify the step editor is visible
   await expect(page.getByTestId("step-editor")).toBeVisible({ timeout: 8_000 });
 
@@ -326,13 +352,14 @@ test("test_login_and_create_manual_case_then_run_pass", async ({ page }) => {
   await expect(saveBtn).toBeVisible();
   await saveBtn.click();
 
-  // Click "Run now" — this fires POST /runs and navigates to /runs/RUN-GP1
+  // Click "Run now" — this fires POST /runs and navigates to /runs/run_gp
+  // (the app navigates by internal run id, not the public_id).
   const runNowBtn = page.getByTestId("case-run-now");
   await expect(runNowBtn).toBeEnabled({ timeout: 8_000 });
   await runNowBtn.click();
 
   // Should land on the run detail page
-  await page.waitForURL(/\/runs\/RUN-GP1/, { timeout: 15_000 });
+  await page.waitForURL(/\/runs\/run_gp/, { timeout: 15_000 });
 
   // The run summary card should render with PASS status
   await expect(page.getByTestId("run-summary-card")).toBeVisible({ timeout: 10_000 });

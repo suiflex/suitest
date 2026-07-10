@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 // component mounts (the <RouterProvider /> below renders title-translated
 // pages on first paint). Must precede the routeTree import.
 import "./i18n";
+import { applyTheme, getTheme } from "./lib/theme";
 import { routeTree } from "./routeTree.gen";
 import "@fontsource/geist-sans/400.css";
 import "@fontsource/geist-sans/500.css";
@@ -31,6 +32,11 @@ declare module "@tanstack/react-router" {
     router: typeof router;
   }
 }
+
+// Apply the persisted theme before the first render (index.html defaults to
+// `dark`; correct it here for a stored `light`). Runs as a module so it doesn't
+// affect Vite's page build target the way an inline classic script would.
+applyTheme(getTheme());
 
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("#root element missing in index.html");

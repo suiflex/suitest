@@ -18,6 +18,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 
 import { LanguageSwitcher } from "@/components/shell/LanguageSwitcher";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { TierBadge } from "@/components/shared/TierBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -146,6 +147,9 @@ export function Topbar({
 
         {/* Language switcher (M4-12) */}
         <LanguageSwitcher />
+
+        {/* Dark / light theme toggle */}
+        <ThemeToggle />
 
         {/* Help icon */}
         <a
