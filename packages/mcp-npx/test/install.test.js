@@ -54,7 +54,48 @@ function silence(fn) {
   assert.ok(snippet.mcp.suitest, "snippet has mcp.suitest");
 }
 
-// 3. write into an empty claude-code config, then idempotency + conflict
+// 3. Codex delegates the exact stdio command and env expected by its CLI.
+{
+  const steps = install.CLIENTS.codex.steps("suitest", ENV, false);
+  assert.deepStrictEqual(steps, [
+    [
+      "mcp",
+      "add",
+      "suitest",
+      "--env",
+      "SUITEST_API_URL=http://localhost:4000",
+      "--env",
+      "SUITEST_API_KEY=sk_test",
+      "--",
+      "npx",
+      "-y",
+      "@suiflex/suitest-mcp",
+    ],
+  ]);
+}
+
+// 4. Antigravity uses the same portable mcpServers stdio shape as Claude.
+{
+  const antigravity = install.serverSpec("antigravity", ENV);
+  const claude = install.serverSpec("claude-code", ENV);
+  assert.deepStrictEqual(antigravity, claude);
+
+  const target = tmp("antigravity.json");
+  process.env.ANTIGRAVITY_CONFIG = target;
+  silence(() => install.installClient("antigravity", {
+    name: "suitest",
+    scope: "global",
+    env: ENV,
+    print: false,
+    dryRun: false,
+    force: false,
+  }));
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(target, "utf8")), antigravity.snippet);
+  fs.rmSync(target, { force: true });
+  delete process.env.ANTIGRAVITY_CONFIG;
+}
+
+// 5. write into an empty claude-code config, then idempotency + conflict
 {
   const target = tmp("claude.json");
   process.env.CLAUDE_CODE_CONFIG = target;
@@ -93,7 +134,7 @@ function silence(fn) {
   delete process.env.CLAUDE_CODE_CONFIG;
 }
 
-// 4. stripJsonComments handles JSONC (opencode config)
+// 6. stripJsonComments handles JSONC (opencode config)
 {
   const parsed = install.loadJsonObject; // ensure export present
   assert.strictEqual(typeof parsed, "function");
@@ -102,7 +143,7 @@ function silence(fn) {
   assert.deepStrictEqual(JSON.parse(stripped), { mcp: { a: 1 } });
 }
 
-// 5. credsPath honours XDG_CONFIG_HOME
+// 7. credsPath honours XDG_CONFIG_HOME
 {
   const prev = process.env.XDG_CONFIG_HOME;
   const prevDir = process.env.SUITEST_CONFIG_DIR;

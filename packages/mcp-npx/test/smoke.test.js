@@ -3,9 +3,9 @@
  * Package smoke test — proves the published artifact actually boots.
  *
  * Spawns the real bin (exactly what `npx @suiflex/suitest-mcp` runs), performs a
- * JSON-RPC `initialize` handshake plus `tools/list` over stdio, and asserts
- * the Suitest tool surface is present. No network, no target app: this is a
- * boot-process test, not an e2e run.
+ * JSON-RPC `initialize` handshake, the discovery probes used by strict MCP
+ * clients (including Codex), and `tools/list` over stdio. No network, no
+ * target app: this is a boot-process test, not an e2e run.
  */
 
 "use strict";
@@ -58,6 +58,12 @@ function boot(apiUrl) {
 
   let buffer = "";
   const responses = [];
+  const probes = [
+    [2, "ping", null],
+    [3, "resources/list", "resources"],
+    [4, "resources/templates/list", "resourceTemplates"],
+    [5, "prompts/list", "prompts"],
+  ];
 
   child.stdout.on("data", (chunk) => {
     buffer += chunk.toString();
@@ -97,10 +103,24 @@ function boot(apiUrl) {
         child.kill();
         fail(`initialize: unexpected serverInfo: ${JSON.stringify(msg).slice(0, 200)}`);
       }
-      send({ jsonrpc: "2.0", id: 2, method: "tools/list" });
+      send({ jsonrpc: "2.0", method: "notifications/initialized" });
+      send({ jsonrpc: "2.0", id: probes[0][0], method: probes[0][1] });
       return;
     }
-    if (msg.id === 2) {
+    const probeIndex = probes.findIndex(([id]) => id === msg.id);
+    if (probeIndex >= 0) {
+      const [, method, emptyKey] = probes[probeIndex];
+      if (msg.error || (emptyKey && !Array.isArray(msg.result && msg.result[emptyKey]))) {
+        clearTimeout(timer);
+        child.kill();
+        fail(`${method}: unexpected response: ${JSON.stringify(msg).slice(0, 200)}`);
+      }
+      const next = probes[probeIndex + 1];
+      if (next) send({ jsonrpc: "2.0", id: next[0], method: next[1] });
+      else send({ jsonrpc: "2.0", id: 6, method: "tools/list" });
+      return;
+    }
+    if (msg.id === 6) {
       clearTimeout(timer);
       const tools = ((msg.result && msg.result.tools) || []).map((t) => t.name);
       const missing = EXPECTED_TOOLS.filter((t) => !tools.includes(t));
@@ -109,7 +129,7 @@ function boot(apiUrl) {
         fail(`tools/list missing: ${missing.join(", ")} (got ${tools.length} tools)`);
       }
       process.stdout.write(
-        `SMOKE OK: initialize + tools/list (${tools.length} tools, ` +
+        `SMOKE OK: initialize + client probes + tools/list (${tools.length} tools, ` +
           `incl. ${EXPECTED_TOOLS.length} checked)\n`,
       );
       process.exit(0);

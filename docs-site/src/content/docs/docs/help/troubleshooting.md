@@ -20,6 +20,19 @@ printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n{"jsonrpc":"
 
 You should see a `serverInfo` response followed by the tool list. If this works but the IDE shows nothing, the problem is the IDE config, not the server.
 
+### Codex shows `Auth: Unsupported`
+
+This is expected for Suitest. Codex uses the `Auth` column for authentication
+handled by remote HTTP/OAuth MCP transports; Suitest runs locally over stdio
+and receives `SUITEST_API_KEY` through its process environment. If the Suitest
+row is `enabled` and its tools are listed, the connection is working. Use
+`codex mcp get suitest` to confirm the transport, command, and masked env names.
+
+Claude Code can show a project-scoped server as `Pending approval` until you
+approve the project's `.mcp.json`. Antigravity needs a refresh from Settings,
+Customizations after its `mcp_config.json` changes. Neither state indicates a
+Suitest protocol error.
+
 ### "needs Python >= 3.11" or "failed to start python"
 
 The npm package is only a launcher; the server is bundled Python. Install Python 3.11+ or point the launcher at a specific interpreter:
