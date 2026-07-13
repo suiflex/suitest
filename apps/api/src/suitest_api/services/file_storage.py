@@ -14,10 +14,13 @@ uploads — the read/delete paths reject any key outside that prefix.
 from __future__ import annotations
 
 import uuid
+from io import BytesIO
 from pathlib import Path
+from typing import BinaryIO
 from urllib.parse import quote
 
 import aioboto3
+import anyio
 
 from suitest_api.settings import get_settings
 
@@ -66,13 +69,44 @@ async def upload(
     mode (npx bundle — no MinIO) writes under ``artifacts_dir`` and returns a
     ``local://`` URL, which the runs artifact routes already know how to serve.
     """
+    return await upload_fileobj(
+        workspace_id=workspace_id,
+        filename=filename,
+        source=BytesIO(data),
+        size=len(data),
+        content_type=content_type,
+    )
+
+
+async def upload_fileobj(
+    *,
+    workspace_id: str,
+    filename: str,
+    source: BinaryIO,
+    size: int,
+    content_type: str,
+) -> tuple[str, str, int]:
+    """Store a seekable stream without materialising it as one giant ``bytes``.
+
+    Starlette spools large multipart parts to disk. Keeping that stream intact
+    bounds API memory for both local SQLite/disk installs and S3 deployments.
+    """
     settings = get_settings()
     key = f"{workspace_prefix(workspace_id)}{uuid.uuid4().hex}/{_safe_name(filename)}"
     if settings.mode == "local":
         path = local_path(key)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
-        return f"local://{key}", key, len(data)
+        source.seek(0)
+
+        def _copy() -> None:
+            import shutil
+
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("wb") as destination:
+                shutil.copyfileobj(source, destination, length=1024 * 1024)
+
+        await anyio.to_thread.run_sync(_copy)
+        return f"local://{key}", key, size
+    source.seek(0)
     async with aioboto3.Session().client(
         "s3",
         endpoint_url=settings.s3_endpoint,
@@ -81,9 +115,9 @@ async def upload(
         region_name=settings.s3_region,
     ) as client:
         await client.put_object(
-            Bucket=settings.s3_bucket, Key=key, Body=data, ContentType=content_type
+            Bucket=settings.s3_bucket, Key=key, Body=source, ContentType=content_type
         )
-    return f"s3://{settings.s3_bucket}/{key}", key, len(data)
+    return f"s3://{settings.s3_bucket}/{key}", key, size
 
 
 async def presign_get(key: str) -> str:

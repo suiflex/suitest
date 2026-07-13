@@ -122,13 +122,14 @@ def _payload_literal(fields: list[ZodField]) -> str:
     return "{\n" + "\n".join(items) + "\n    }"
 
 
-_HEADER = """import requests
+_HEADER = """import os
+import requests
 import uuid
 
-BASE_URL = "{api_url}"
+BASE_URL = os.environ.get("SUITEST_TARGET_API_URL", {api_url})
 TIMEOUT = 30
-USERNAME = "{username}"
-PASSWORD = "{password}"
+USERNAME = os.environ.get("SUITEST_TEST_USERNAME", "")
+PASSWORD = os.environ.get("SUITEST_TEST_PASSWORD", "")
 
 
 def _login():
@@ -164,9 +165,7 @@ def _render(case: PlanCase, config: Config, summary: CodeSummary) -> str:
     fn = f"test_{case.title}"
     login_rel = _rel(config.auth.login_path, config)
     header = _HEADER.format(
-        api_url=config.api_url,
-        username=config.auth.username,
-        password=config.auth.password,
+        api_url=repr(config.api_url),
         login_rel=login_rel,
         ufield=config.auth.username_field,
         pfield=config.auth.password_field,

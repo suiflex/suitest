@@ -1,8 +1,8 @@
 """Lifecycle ingest endpoints (Phase 2, Approach A).
 
-The ``suitest test`` lifecycle publishes generated cases and *completed* run
-results here so the web app can render them. These are additive, tenant-scoped,
-audit-logged writes — they never enqueue ARQ (the lifecycle already executed).
+The ``suitest test`` lifecycle publishes generated cases before execution and
+appends each completed test to one run. Legacy single-shot ingest remains
+supported. Writes are tenant-scoped and audit-logged; they never enqueue ARQ.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from suitest_api.schemas.ingest import (
 )
 from suitest_api.services.ingest_service import (
     ProjectNotFoundError,
+    RunNotFoundError,
     bulk_import_cases,
     ingest_run,
     resolve_project,
@@ -84,11 +85,13 @@ async def ingest_completed_run(
     ctx: TenantContext = Depends(tenant_via_api_key_or_session),
     session: AsyncSession = Depends(get_async_session),
 ) -> RunIngestResult:
-    """Record an already-completed run (run + run_steps + artifacts). No ARQ enqueue."""
+    """Start, append to, or finalize an externally-executed run. No ARQ enqueue."""
     try:
         result = await ingest_run(session, workspace_id=ctx.workspace_id, body=body)
-    except ProjectNotFoundError as exc:
+    except (ProjectNotFoundError, RunNotFoundError) as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     await write_audit(
         session,
         workspace_id=ctx.workspace_id,

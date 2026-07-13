@@ -22,16 +22,25 @@ from suitest_api.schemas.ingest import (
 )
 from suitest_api.services.ingest_service import (
     ProjectNotFoundError,
+    _sanitize_automation_code,
     bulk_import_cases,
     ingest_run,
     resolve_project,
 )
 from suitest_db.models.case import TestCase
-from suitest_db.models.run import RunStep
-from suitest_shared.domain.enums import CaseStatus
+from suitest_db.models.run import Run, RunStep
+from suitest_shared.domain.enums import CaseStatus, RunStatus
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from api_harness import ApiDb
+
+
+def test_ingest_sanitizes_legacy_inline_credentials() -> None:
+    code = 'USERNAME = "person@example.com"\nPASSWORD = "top-secret"\n'
+    sanitized = _sanitize_automation_code(code)
+    assert sanitized is not None
+    assert "person@example.com" not in sanitized and "top-secret" not in sanitized
+    assert "SUITEST_TEST_USERNAME" in sanitized and "SUITEST_TEST_PASSWORD" in sanitized
 
 
 def _case(slug: str) -> IngestCase:
@@ -209,3 +218,76 @@ async def test_ingest_run_writes_log_stream(api_db: ApiDb) -> None:
         assert {r.level for r in rows} == {"info", "error"}
         # every row is attached to a run_step of this run
         assert all(r.run_step_id for r in rows)
+
+
+@pytest.mark.asyncio
+async def test_ingest_run_appends_per_case_and_finalizes_idempotently(api_db: ApiDb) -> None:
+    """Incremental publishers keep one run and retries never duplicate a case."""
+    ws = await api_db.seed_workspace(slug="ws-stream", name="WS Stream")
+    async with api_db.maker() as session:
+        imported = await bulk_import_cases(session, workspace_id=ws.id, body=_import_body())
+        await session.commit()
+
+        started = await ingest_run(
+            session,
+            workspace_id=ws.id,
+            body=RunIngestBody(
+                project_id=imported.project_id,
+                suite_name="Demo suite",
+                name="streamed run",
+                results=[],
+                finalize=False,
+            ),
+        )
+        await session.commit()
+        assert started.status == "RUNNING" and started.total == 0
+
+        first_body = RunIngestBody(
+            run_id=started.run_id,
+            project_id=imported.project_id,
+            suite_name="Demo suite",
+            name="streamed run",
+            results=[IngestResult(slug="create_product", outcome="PASSED", duration_ms=10)],
+            finalize=False,
+        )
+        first = await ingest_run(session, workspace_id=ws.id, body=first_body)
+        await session.commit()
+        retry = await ingest_run(session, workspace_id=ws.id, body=first_body)
+        await session.commit()
+        assert first.total == retry.total == 1
+
+        second = await ingest_run(
+            session,
+            workspace_id=ws.id,
+            body=RunIngestBody(
+                run_id=started.run_id,
+                project_id=imported.project_id,
+                suite_name="Demo suite",
+                name="streamed run",
+                results=[IngestResult(slug="list_products", outcome="FAILED", duration_ms=20)],
+                finalize=False,
+            ),
+        )
+        await session.commit()
+        assert (second.total, second.passed, second.failed) == (2, 1, 1)
+
+        final = await ingest_run(
+            session,
+            workspace_id=ws.id,
+            body=RunIngestBody(
+                run_id=started.run_id,
+                project_id=imported.project_id,
+                suite_name="Demo suite",
+                name="streamed run",
+                results=[],
+                finalize=True,
+            ),
+        )
+        await session.commit()
+        row = await session.get(Run, started.run_id)
+        steps = (
+            await session.scalars(select(RunStep).where(RunStep.run_id == started.run_id))
+        ).all()
+        assert final.status == "FAIL"
+        assert row is not None and row.status is RunStatus.FAIL
+        assert len(steps) == 2

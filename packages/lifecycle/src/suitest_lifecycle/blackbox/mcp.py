@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import functools
 import json
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -263,29 +264,69 @@ def blackbox_generate_playwright_tests(**kwargs: Any) -> dict[str, Any]:
 
 def blackbox_run_playwright_tests(**kwargs: Any) -> dict[str, Any]:
     """Execute the generated tests; returns per-case outcomes + evidence."""
-    from suitest_lifecycle.models import PlanCase, Priority
+    from suitest_lifecycle.models import PlanCase, PlanStep, Priority, TestResult
+    from suitest_lifecycle.publish import PublishSession
+    from suitest_lifecycle.retest import resolve_binding
     from suitest_lifecycle.runner import run_tests
     from suitest_lifecycle.serialize import results_to_json
 
-    _, paths = _resolve(**kwargs)
+    ui, paths = _resolve(**kwargs)
     manifest_path = paths.tmp_dir / "blackbox_cases.json"
     if not manifest_path.is_file():
         return _envelope(False, "no generated tests — run blackbox_generate_playwright_tests first")
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    plan = json.loads(paths.test_plan_json.read_text(encoding="utf-8"))
     cases = [
         PlanCase(
-            id=str(m["id"]),
-            title=str(m["title"]),
-            description="",
-            category="Blackbox",
-            priority=Priority.MEDIUM,
-            source_ref="bb:run",
-            steps=[],
-            automation_file=str(m["file"]),
+            id=str(item["id"]),
+            title=str(item["title"]),
+            description=str(item.get("description", "")),
+            category=str(item.get("category", "Blackbox")),
+            priority=Priority(str(item.get("priority", "Medium"))),
+            source_ref=str(item.get("source_ref", "bb:run")),
+            steps=[
+                PlanStep(type=str(step["type"]), description=str(step["description"]))
+                for step in item.get("steps", [])
+            ],
+            automation_file=str(item.get("automation_file", "")),
+            tags=[str(tag) for tag in item.get("tags", [])],
         )
-        for m in manifest
+        for item in plan
     ]
-    results = run_tests(cases, paths.mode_dir, selected_ids=None, timeout_sec=120)
+
+    publish_session: PublishSession | None = None
+    publish_started = False
+    config_path = str(kwargs.get("config_path", "suitest.config.json") or "suitest.config.json")
+    import os as _os
+
+    if _os.environ.get("SUITEST_API_URL") and _os.environ.get("SUITEST_API_KEY"):
+        from suitest_lifecycle.config import load_config
+
+        config = load_config(config_path)
+        config.publish.suite_name = f"{ui.target_url.split('//')[-1]} blackbox"
+        publish_session = PublishSession(
+            config,
+            cases,
+            paths,
+            binding=resolve_binding(config, recreate=bool(kwargs.get("recreate_project", False))),
+        )
+        publish_started = bool(publish_session.start().get("started"))
+
+    def _publish_one(result: TestResult) -> None:
+        if publish_session is not None and publish_started:
+            publish_session.append(result)
+
+    results = run_tests(
+        cases,
+        paths.mode_dir,
+        selected_ids=None,
+        timeout_sec=120,
+        on_result=_publish_one,
+        env={
+            "SUITEST_TARGET_BASE_URL": ui.target_url,
+            "SUITEST_TEST_USERNAME": ui.auth.username,
+            "SUITEST_TEST_PASSWORD": ui.auth.password,
+        },
+    )
     payload = results_to_json(results)
     (paths.tmp_dir / "blackbox_results.json").write_text(
         json.dumps(payload, indent=2), encoding="utf-8"
@@ -295,11 +336,18 @@ def blackbox_run_playwright_tests(**kwargs: Any) -> dict[str, Any]:
     # Publishing is not optional: when the MCP server carries Suitest
     # credentials (SUITEST_API_URL/KEY), every run lands in the web TCM.
     # A publish failure fails the tool — results must never stay local silently.
-    import os as _os
-
     publish_summary = "publish skipped — SUITEST_API_URL/KEY not set"
     publish_ok = True
-    if _os.environ.get("SUITEST_API_URL") and _os.environ.get("SUITEST_API_KEY"):
+    if publish_session is not None and publish_started:
+        pub = publish_session.finish()
+        publish_ok = bool(pub.get("published"))
+        publish_summary = (
+            f"published run {pub.get('runId')}"
+            if publish_ok
+            else str(pub.get("reason", "incremental publish failed"))
+        )
+    elif _os.environ.get("SUITEST_API_URL") and _os.environ.get("SUITEST_API_KEY"):
+        # Compatibility fallback for an older API without incremental ingest.
         pub = blackbox_publish_results(**kwargs)
         publish_ok = bool(pub.get("success"))
         publish_summary = str(pub.get("summary"))
@@ -494,11 +542,15 @@ def blackbox_publish_results(**kwargs: Any) -> dict[str, Any]:
                             ],
                         )
 
+            committed_scratch: list[str] = []
+
             def _up(path: str, mime: str) -> str:
                 try:
-                    return client.upload_file(path, content_type=mime)
+                    url = client.upload_file(path, content_type=mime)
                 except Exception:
                     return ""
+                committed_scratch.append(path)
+                return url
 
             cases_payload: list[dict[str, Any]] = []
             results_payload: list[dict[str, Any]] = []
@@ -535,18 +587,17 @@ def blackbox_publish_results(**kwargs: Any) -> dict[str, Any]:
                 if not side:
                     continue
                 video = side.get("video") or ""
-                artifacts = (
-                    [
+                artifacts: list[dict[str, Any]] = []
+                if video and Path(video).is_file():
+                    vsize = Path(video).stat().st_size  # before _up may delete it
+                    artifacts.append(
                         {
                             "kind": "VIDEO",
-                            "url": _up(video, "video/webm") or "file://" + video,
+                            "url": _up(video, "video/webm") or Path(video).resolve().as_uri(),
                             "mimeType": "video/webm",
-                            "sizeBytes": Path(video).stat().st_size if Path(video).is_file() else 0,
+                            "sizeBytes": vsize,
                         }
-                    ]
-                    if video and Path(video).is_file()
-                    else []
-                )
+                    )
                 results_payload.append(
                     {
                         "name": c["title"],
@@ -594,6 +645,11 @@ def blackbox_publish_results(**kwargs: Any) -> dict[str, Any]:
                 name=f"{suite} run",
                 results=results_payload,
             )
+            # The blob and its result rows are now both durable. Deleting before
+            # ingest commits would turn a transient DB failure into evidence loss.
+            for scratch in committed_scratch:
+                with suppress(OSError):
+                    Path(scratch).unlink(missing_ok=True)
     except SuitestAPIError as exc:
         return _envelope(False, f"publish failed: {exc}", errors=[str(exc)])
     # Slug-based publish minted (or found) the project — pin its id so the next

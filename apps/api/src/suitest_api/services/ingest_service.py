@@ -1,18 +1,20 @@
-"""Ingest service — persists lifecycle-published cases + completed runs.
+"""Ingest service — persists lifecycle-published cases + incremental runs.
 
 Approach A (REST ingest): the ``suitest test`` lifecycle already executed the
 tests; this service writes the results into the TCM so the web app renders them.
-It never enqueues ARQ. Idempotent by ``source_ref`` (stored in
-``TestCase.generated_from['source_ref']``).
+It never enqueues ARQ. Case import is idempotent by suite/slug; incremental run
+append is idempotent by run/case.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.models.case import TestCase, TestStep
+from suitest_db.models.run import Run, RunStep
+from suitest_db.models.run_step_log import RunStepLog
 from suitest_db.repositories.run_step_logs import RunStepLogRepo
 from suitest_db.repositories.runs import (
     ArtifactRepo,
@@ -73,6 +75,25 @@ def _source(value: str | None) -> CaseSource:
         return CaseSource.IMPORT
 
 
+def _sanitize_automation_code(code: str | None) -> str | None:
+    """Strip credentials emitted inline by lifecycle clients predating env injection."""
+    if code is None:
+        return None
+    lines = code.splitlines(keepends=True)
+    replaced = False
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("USERNAME =") and "os.environ" not in stripped:
+            lines[index] = 'USERNAME = os.environ.get("SUITEST_TEST_USERNAME", "")\n'
+            replaced = True
+        elif stripped.startswith("PASSWORD =") and "os.environ" not in stripped:
+            lines[index] = 'PASSWORD = os.environ.get("SUITEST_TEST_PASSWORD", "")\n'
+            replaced = True
+    if replaced and not any(line.strip() == "import os" for line in lines):
+        lines.insert(0, "import os\n")
+    return "".join(lines)
+
+
 def _now() -> datetime:
     return datetime.now(tz=UTC)
 
@@ -87,6 +108,14 @@ class ProjectNotFoundError(Exception):
     def __init__(self, project_id: str) -> None:
         super().__init__(f"project not found in workspace: {project_id}")
         self.project_id = project_id
+
+
+class RunNotFoundError(Exception):
+    """An incremental ingest run is missing or outside the caller workspace."""
+
+    def __init__(self, run_id: str) -> None:
+        super().__init__(f"run not found in workspace: {run_id}")
+        self.run_id = run_id
 
 
 async def _ensure_project(
@@ -274,7 +303,7 @@ async def bulk_import_cases(
                     preconditions=c.preconditions,
                     source=_source(c.source),
                     automation_file_path=c.automation_file_path,
-                    automation_code=c.automation_code,
+                    automation_code=_sanitize_automation_code(c.automation_code),
                     # A re-generated case is alive again; only STALE flips back —
                     # human decisions (DEPRECATED/ARCHIVED) are never overridden.
                     status=(CaseStatus.ACTIVE if existing.status is CaseStatus.STALE else None),
@@ -307,7 +336,7 @@ async def bulk_import_cases(
                 generated_by=c.generated_by or "suitest-lifecycle",
                 generated_from=gen_from,
                 automation_file_path=c.automation_file_path,
-                automation_code=c.automation_code,
+                automation_code=_sanitize_automation_code(c.automation_code),
             ),
             workspace_id=workspace_id,
         )
@@ -370,31 +399,70 @@ async def ingest_run(
     artifact_repo = ArtifactRepo(session)
     case_repo = TestCaseRepo(session)
     log_repo = RunStepLogRepo(session)
-    log_seq = 0  # single-shot ingest — a local counter is monotonic enough
-
-    run = await run_repo.create(
-        RunCreate(
-            project_id=project_id,
-            name=body.name,
-            trigger=RunTrigger.AGENT,
-            tier_at_runtime=Tier.ZERO,
-            env=body.env,
-            branch=body.branch,
-            commit_sha=body.commit_sha,
-            status=RunStatus.RUNNING,
-        ),
-        workspace_id=workspace_id,
-    )
-
     now = _now()
-    passed = failed = 0
-    total_ms = 0
-    step_seq = 0  # global step ordering across the whole run (StepTable reads this)
+    if body.run_id:
+        run = await session.scalar(
+            select(Run).where(Run.id == body.run_id, Run.workspace_id == workspace_id)
+        )
+        if run is None or run.project_id != project_id:
+            raise RunNotFoundError(body.run_id)
+    else:
+        run = await run_repo.create(
+            RunCreate(
+                project_id=project_id,
+                name=body.name,
+                trigger=RunTrigger.AGENT,
+                tier_at_runtime=Tier.ZERO,
+                env=body.env,
+                branch=body.branch,
+                commit_sha=body.commit_sha,
+                status=RunStatus.RUNNING,
+            ),
+            workspace_id=workspace_id,
+        )
+        run.started_at = now
+
+    # Requests are sequential per publisher, but every request is a separate DB
+    # transaction. Resume counters/order from durable rows so SQLite and
+    # Postgres behave identically and a process restart does not reset ordering.
+    passed = run.passed_steps
+    failed = run.failed_steps
+    total = run.total_steps
+    total_ms = run.duration_ms or 0
+    step_seq = int(
+        await session.scalar(
+            select(func.coalesce(func.max(RunStep.step_order), 0)).where(RunStep.run_id == run.id)
+        )
+        or 0
+    )
+    log_seq = int(
+        await session.scalar(
+            select(func.coalesce(func.max(RunStepLog.seq), 0)).where(RunStepLog.run_id == run.id)
+        )
+        or 0
+    )
+    seen_case_ids = set(
+        (
+            await session.scalars(
+                select(RunStep.case_id).where(RunStep.run_id == run.id).distinct()
+            )
+        ).all()
+    )
 
     for r in body.results:
         case = await _find_case(session, suite_id, slug=r.slug or None, name=r.name or "")
         if case is None:
             continue
+        # Natural idempotency key for lifecycle runs: one result per case. If a
+        # client timed out after commit and retries, do not duplicate steps,
+        # artifacts, logs, or counters.
+        if case.id in seen_case_ids:
+            continue
+        if run.status is not RunStatus.RUNNING:
+            # A finalized run is immutable. A retry of a previously appended
+            # case was handled above; a genuinely new case needs a new run.
+            raise ValueError(f"run {run.id} is already finalized")
+        seen_case_ids.add(case.id)
         case_outcome = _OUTCOME.get(r.outcome, StepOutcome.ERROR)
         total_ms += r.duration_ms
 
@@ -433,7 +501,7 @@ async def ingest_run(
                         run_step_id=rs.id,
                         kind="SCREENSHOT",
                         url=s.screenshot,
-                        size_bytes=0,
+                        size_bytes=s.screenshot_size_bytes,
                         mime_type="image/png",
                         metadata=None,
                     )
@@ -510,15 +578,18 @@ async def ingest_run(
             passed += 1
         else:
             failed += 1
+        total += 1
 
-    final = RunStatus.PASS if failed == 0 else RunStatus.FAIL
+    final = (
+        (RunStatus.PASS if failed == 0 else RunStatus.FAIL) if body.finalize else RunStatus.RUNNING
+    )
     await run_repo.update(
         run.id,
         RunUpdate(
             status=final,
-            completed_at=now,
+            completed_at=now if body.finalize else None,
             duration_ms=total_ms,
-            total_steps=passed + failed,
+            total_steps=total,
             passed_steps=passed,
             failed_steps=failed,
         ),
@@ -527,7 +598,7 @@ async def ingest_run(
         run_id=run.id,
         project_id=project_id,
         status=final.value,
-        total=passed + failed,
+        total=total,
         passed=passed,
         failed=failed,
     )

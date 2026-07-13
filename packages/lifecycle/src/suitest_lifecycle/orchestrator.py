@@ -18,13 +18,20 @@ from suitest_lifecycle.enrich import enrich_plan, resolve_client
 from suitest_lifecycle.exporters.backend import export_backend_tests
 from suitest_lifecycle.exporters.frontend import export_frontend_tests
 from suitest_lifecycle.frontend_runtime import ensure_browser
-from suitest_lifecycle.models import CodeSummary, Mode, PlanCase, RunSummary, TestOutcome
+from suitest_lifecycle.models import (
+    CodeSummary,
+    Mode,
+    PlanCase,
+    RunSummary,
+    TestOutcome,
+    TestResult,
+)
 from suitest_lifecycle.paths import Paths, build_paths
 from suitest_lifecycle.plan import generate_backend_plan
 from suitest_lifecycle.plan_frontend import generate_frontend_plan
 from suitest_lifecycle.prd import build_prd
 from suitest_lifecycle.process import ProcessManager
-from suitest_lifecycle.publish import publish_results
+from suitest_lifecycle.publish import PublishSession, publish_results
 from suitest_lifecycle.readiness import wait_until_ready
 from suitest_lifecycle.report import write_all_reports
 from suitest_lifecycle.retest import (
@@ -522,7 +529,7 @@ def run_lifecycle(config: Config) -> LifecycleResult:
         paths = build_paths(config.output_dir, config.mode)
         paths.ensure()
         summary_code = None
-        cases = []
+        cases: list[PlanCase] = []
         steps.append("crawl mode: discovery deferred until target is ready")
     else:
         summary_code, cases, paths = generate_only(config)
@@ -635,11 +642,51 @@ def run_lifecycle(config: Config) -> LifecycleResult:
             summary_code, cases, paths = generate_only(config, crawl.summary, crawl=crawl)
             steps.append(f"generated {len(cases)} test case(s) from crawl")
 
+        stream_session: PublishSession | None = None
+        stream_started = False
+        stream_api_changed = False
+        if config.publish.enabled:
+            stream_session = PublishSession(config, cases, paths, binding=binding)
+            started = stream_session.start()
+            stream_started = bool(started.get("started"))
+            if stream_started:
+                steps.append(
+                    f"publish started: {started.get('imported')} case(s), "
+                    f"run {started.get('runId')}"
+                )
+                early_report = _load_change_report(paths)
+                early_change = early_report.get("changeDetection")
+                stream_api_changed = (
+                    bool(early_change.get("apiChanged"))
+                    if isinstance(early_change, dict)
+                    else False
+                )
+            else:
+                msg = f"incremental publish unavailable — {started.get('reason', 'unknown')}"
+                steps.append(msg)
+                errors.append(msg)
+
+        def _publish_one(result: TestResult) -> None:
+            if stream_session is None or not stream_started:
+                return
+            result_kinds = classify_results([result], config.mode, api_changed=stream_api_changed)
+            stream_session.append(
+                result,
+                classification=result_kinds.get(result.test_id, ""),
+            )
+
         results = run_tests(
             cases,
             paths.mode_dir,
             selected_ids=config.test_ids or None,
             timeout_sec=120,
+            on_result=_publish_one,
+            env={
+                "SUITEST_TARGET_BASE_URL": config.base_url,
+                "SUITEST_TARGET_API_URL": config.api_url,
+                "SUITEST_TEST_USERNAME": config.auth.username,
+                "SUITEST_TEST_PASSWORD": config.auth.password,
+            },
         )
         steps.append(f"executed {len(results)} test(s)")
     finally:
@@ -665,9 +712,15 @@ def run_lifecycle(config: Config) -> LifecycleResult:
 
     pub2: dict[str, object] = {"published": False, "reason": "publish disabled"}
     if config.publish.enabled:
-        pub2 = publish_results(
-            config, run, cases, paths, binding=binding, classifications=classifications
-        )
+        if stream_session is not None and stream_started:
+            pub2 = stream_session.finish()
+        else:
+            # Startup can fail before any result exists (older server, brief
+            # outage). One compatibility retry preserves the pre-incremental
+            # behaviour without affecting the normal per-test path.
+            pub2 = publish_results(
+                config, run, cases, paths, binding=binding, classifications=classifications
+            )
         _record_publish(pub2, steps, errors)
 
     ok = run.failed == 0 and run.errored == 0
@@ -696,8 +749,8 @@ def _finalize(config: Config, cases: list[PlanCase], run: RunSummary, paths: Pat
 
 def _build_run(
     config: Config,
-    summary_code: CodeSummary,
-    results: list,  # list[TestResult]
+    summary_code: CodeSummary | None,
+    results: list[TestResult],
     server_started: bool,
     ready_detail: str,
     startup_tail: str,
@@ -727,7 +780,7 @@ def _build_run(
 
 def _empty_run(
     config: Config,
-    summary_code: CodeSummary,
+    summary_code: CodeSummary | None,
     server_started: bool,
     ready: bool,
     ready_detail: str,

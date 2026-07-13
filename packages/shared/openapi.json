@@ -3523,6 +3523,11 @@
             "title": "Screenshot",
             "type": "string"
           },
+          "screenshotSizeBytes": {
+            "default": 0,
+            "title": "Screenshotsizebytes",
+            "type": "integer"
+          },
           "type": {
             "default": "action",
             "title": "Type",
@@ -7084,6 +7089,11 @@
             "title": "Env",
             "type": "string"
           },
+          "finalize": {
+            "default": true,
+            "title": "Finalize",
+            "type": "boolean"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -7109,6 +7119,11 @@
             },
             "title": "Results",
             "type": "array"
+          },
+          "runId": {
+            "default": "",
+            "title": "Runid",
+            "type": "string"
           },
           "suiteName": {
             "title": "Suitename",
@@ -16671,7 +16686,7 @@
     },
     "/api/v1/runs/ingest": {
       "post": {
-        "description": "Record an already-completed run (run + run_steps + artifacts). No ARQ enqueue.",
+        "description": "Start, append to, or finalize an externally-executed run. No ARQ enqueue.",
         "operationId": "ingest_completed_run_api_v1_runs_ingest_post",
         "parameters": [
           {
