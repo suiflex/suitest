@@ -14,7 +14,7 @@ point is the router contract + the workspace-isolation guard, not aioboto3.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, BinaryIO
 
 import pytest
 from suitest_api.services import file_storage
@@ -46,13 +46,22 @@ async def test_upload_stores_and_returns_url(
     ws, auth = await _key_for(api_db, email="files-up@example.com", slug="files-up")
     key = f"uploads/{ws.id}/deadbeef/clip.webm"
 
-    async def fake_upload(
-        *, workspace_id: str, filename: str, data: bytes, content_type: str
+    async def fake_upload_fileobj(
+        *,
+        workspace_id: str,
+        filename: str,
+        source: BinaryIO,
+        size: int,
+        content_type: str,
     ) -> tuple[str, str, int]:
         assert workspace_id == ws.id
-        return f"s3://bucket/{key}", key, len(data)
+        assert filename == "clip.webm"
+        assert source.read() == b"hello-bytes"
+        assert size == len(b"hello-bytes")
+        assert content_type == "video/webm"
+        return f"s3://bucket/{key}", key, size
 
-    monkeypatch.setattr(file_storage, "upload", fake_upload)
+    monkeypatch.setattr(file_storage, "upload_fileobj", fake_upload_fileobj)
 
     async with api_db.client(None) as c:
         resp = await c.post(
