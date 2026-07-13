@@ -133,6 +133,10 @@ This package bundles the `suitest_lifecycle` Python module (stdlib-only) and a
 thin Node launcher that starts it as a stdio MCP server. No pip install, no
 virtualenv, no daemon.
 
+The lifecycle sources are copied from `packages/lifecycle` during `prepack`, so
+lifecycle changes ship in a new `@suiflex/suitest-mcp` patch release. The
+standalone PyPI package keeps its own version.
+
 ## License
 
 Apache-2.0 — see [LICENSE](./LICENSE).
