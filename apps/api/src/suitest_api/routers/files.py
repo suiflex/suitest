@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import mimetypes
 
+import anyio
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,19 +37,29 @@ async def upload_file(
     session: AsyncSession = Depends(get_async_session),
 ) -> FileUploadResult:
     """Store an uploaded blob in the workspace's object store; return its s3:// URL."""
-    data = await file.read()
-    if len(data) == 0:
+    size = file.size
+    if size is None:
+        # Defensive fallback for ASGI clients that omit multipart size metadata.
+        def _measure() -> int:
+            file.file.seek(0, 2)
+            return file.file.tell()
+
+        size = await anyio.to_thread.run_sync(_measure)
+        await file.seek(0)
+    if size == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty file")
-    if len(data) > _MAX_UPLOAD_BYTES:
+    if size > _MAX_UPLOAD_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"file exceeds {_MAX_UPLOAD_BYTES} bytes",
         )
     content_type = file.content_type or "application/octet-stream"
-    url, key, size = await file_storage.upload(
+    await file.seek(0)
+    url, key, stored_size = await file_storage.upload_fileobj(
         workspace_id=ctx.workspace_id,
         filename=file.filename or "file",
-        data=data,
+        source=file.file,
+        size=size,
         content_type=content_type,
     )
     await write_audit(
@@ -60,10 +71,10 @@ async def upload_file(
         # ``resource_id`` is varchar(64); the full S3 key can exceed that, so
         # audit by the object's short uuid segment and keep the key in metadata.
         resource_id=file_storage.object_id(key),
-        metadata={"key": key, "size_bytes": size, "mime_type": content_type},
+        metadata={"key": key, "size_bytes": stored_size, "mime_type": content_type},
     )
     await session.commit()
-    return FileUploadResult(url=url, key=key, size_bytes=size, mime_type=content_type)
+    return FileUploadResult(url=url, key=key, size_bytes=stored_size, mime_type=content_type)
 
 
 @router.get("/files/signed-url", response_model=FileSignedUrl)

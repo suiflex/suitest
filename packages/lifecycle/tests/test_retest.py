@@ -396,6 +396,7 @@ class _FakeSdkClient:
     def __init__(self, *args: object, **kwargs: object) -> None:
         self.bulk_kwargs: dict[str, object] = {}
         self.ingest_kwargs: dict[str, object] = {}
+        self.ingest_calls: list[dict[str, object]] = []
         _FakeSdkClient.last = self
 
     def __enter__(self) -> _FakeSdkClient:
@@ -421,6 +422,7 @@ class _FakeSdkClient:
 
     def ingest_run(self, **kwargs: object) -> dict[str, object]:
         self.ingest_kwargs = kwargs
+        self.ingest_calls.append(kwargs)
         return {"runId": "run1", "status": "FAIL", "projectId": "proj_resolved"}
 
 
@@ -471,8 +473,13 @@ def test_publish_retest_counts_and_classification(tmp_path: Path, fake_sdk: obje
     assert client is not None
     assert client.bulk_kwargs["project_id"] == "proj_live"
     assert client.bulk_kwargs["mark_stale"] is True
-    sent = client.ingest_kwargs["results"]
+    result_call = next(call for call in client.ingest_calls if call.get("results"))
+    sent = result_call["results"]
     assert sent[0]["failureKind"] == "endpoint_not_found"  # type: ignore[index]
+    assert client.ingest_calls[0]["finalize"] is False  # run exists before execution results
+    assert result_call["run_id"] == "run1" and result_call["finalize"] is False
+    assert client.ingest_calls[-1]["run_id"] == "run1"
+    assert client.ingest_calls[-1]["finalize"] is True  # same run finalized at suite end
 
 
 def test_publish_first_setup_by_slug_pins_project_id(tmp_path: Path, fake_sdk: object) -> None:

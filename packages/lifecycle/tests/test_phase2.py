@@ -94,6 +94,21 @@ def test_publish_case_payload_shape(tmp_path: Path) -> None:
     assert payloads[0]["title"] == "Post API products with valid data creates resource"
 
 
+def test_publish_scrubs_credentials_from_legacy_generated_code(tmp_path: Path) -> None:
+    paths = build_paths(tmp_path, Mode.FRONTEND)
+    paths.ensure()
+    cases = _cases()
+    cases[0].automation_file = "TC001.py"
+    paths.test_file("TC001.py").write_text(
+        'USERNAME = "real-user@example.com"\nPASSWORD = "super-secret"\n',
+        encoding="utf-8",
+    )
+    code = str(publish._case_payloads(cases, paths)[0]["automationCode"])
+    assert "real-user@example.com" not in code
+    assert "super-secret" not in code
+    assert "SUITEST_TEST_USERNAME" in code and "SUITEST_TEST_PASSWORD" in code
+
+
 def test_publish_result_payload_shape() -> None:
     cases = _cases()
     run = RunSummary(

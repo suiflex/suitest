@@ -20,13 +20,14 @@ _HEADER = """import asyncio
 import glob
 import json
 import os
+import shutil
 import uuid
 
 from playwright.async_api import async_playwright, expect
 
-BASE_URL = "{base_url}"
-USERNAME = "{username}"
-PASSWORD = "{password}"
+BASE_URL = os.environ.get("SUITEST_TARGET_BASE_URL", {base_url})
+USERNAME = os.environ.get("SUITEST_TEST_USERNAME", "")
+PASSWORD = os.environ.get("SUITEST_TEST_PASSWORD", "")
 TIMEOUT = 15000
 TC_ID = "{cid}"
 
@@ -104,8 +105,11 @@ async def run_test():
     pw = browser = context = page = None
     status = "PASSED"
     error = ""
-    screenshot = os.path.join(_TMP, TC_ID + "_final.png")
     try:
+        # One directory represents one execution. Reusing it made videos from
+        # old runs accumulate and lexicographic selection could publish stale
+        # evidence instead of the current recording.
+        shutil.rmtree(_VIDEO_DIR, ignore_errors=True)
         os.makedirs(_VIDEO_DIR, exist_ok=True)
         # Start a Playwright session in asynchronous mode.
         pw = await async_playwright().start()
@@ -132,10 +136,6 @@ async def run_test():
                 await page.wait_for_timeout(_STEP_PAUSE_MS)
             except Exception:
                 pass
-        try:
-            await page.screenshot(path=screenshot)
-        except Exception:
-            pass
     except Exception as exc:  # record the failing step + capture a screenshot
         status = "FAILED"
         error = str(exc)
@@ -146,10 +146,6 @@ async def run_test():
                 await page.screenshot(path=_fail_shot)
             except Exception:
                 _fail_shot = ""
-            try:
-                await page.screenshot(path=screenshot)
-            except Exception:
-                pass
         STEPS.append(dict(_cur, status="FAILED", screenshot=_fail_shot))
     finally:
         if context is not None:
@@ -176,7 +172,9 @@ async def run_test():
                     "error": error,
                     "steps": STEPS,
                     "video": vids[-1] if vids else None,
-                    "screenshot": screenshot if os.path.exists(screenshot) else None,
+                    # Per-step screenshots already include the final state.
+                    # A second "final" PNG doubled the last frame for no UI value.
+                    "screenshot": None,
                 },
                 fh,
             )
@@ -427,7 +425,7 @@ def _resolve_body(
     if generate is None:
         return deterministic
     generated = generate(case, dom_context)
-    if not generated:
+    if not isinstance(generated, str) or not generated:
         return deterministic
     return "\n" + generated.rstrip() + "\n"
 
@@ -444,9 +442,7 @@ def export_frontend_tests(
     paths.ensure()
     for case in cases:
         header = _HEADER.format(
-            base_url=config.base_url,
-            username=config.auth.username,
-            password=config.auth.password,
+            base_url=repr(config.base_url),
             cid=case.id,
         )
         code = header + _resolve_body(case, config, llm, dom_context) + _RUNNER

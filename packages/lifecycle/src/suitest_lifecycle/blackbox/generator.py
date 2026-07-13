@@ -568,9 +568,7 @@ def _write_pairs(
     cases: list[PlanCase] = []
     for case, body in pairs:
         header = _HEADER.format(
-            base_url=cfg.target_url,
-            username=cfg.auth.username,
-            password=cfg.auth.password,
+            base_url=repr(cfg.target_url),
             cid=case.id,
         )
         # Drop the exporter's legacy testid-bound ``_login`` helper — blackbox

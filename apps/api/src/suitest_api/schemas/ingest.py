@@ -1,8 +1,9 @@
 """Request/response schemas for the lifecycle ingest endpoints (Phase 2).
 
-The Suitest lifecycle (``suitest test``) executes tests itself, then publishes the
-*completed* results here. These models carry generated cases (+ their runnable
-source) and finished run results — there is no ARQ execution on this path.
+The Suitest lifecycle (``suitest test``) executes tests itself. Cases are
+published before execution and results can be appended per test, then finalized;
+legacy clients may still publish a completed run in one request. There is no ARQ
+execution on this path.
 """
 
 from __future__ import annotations
@@ -115,6 +116,7 @@ class IngestRunStep(_Camel):
     outcome: str = "PASSED"  # PASSED | FAILED | SKIPPED | ERROR
     duration_ms: int | None = Field(default=None, alias="durationMs")
     screenshot: str = ""  # per-step screenshot URL (drives "Preview: Step N")
+    screenshot_size_bytes: int = Field(default=0, alias="screenshotSizeBytes")
 
 
 class IngestArtifact(_Camel):
@@ -141,6 +143,13 @@ class IngestResult(_Camel):
 
 
 class RunIngestBody(_Camel):
+    # Empty on the first request: the server creates a RUNNING run. Publishers
+    # can then send one result at a time with the returned id, keeping a single
+    # run in the UI without retaining every artifact locally until suite end.
+    # Older publishers omit both fields and retain the original single-shot
+    # behaviour (create + append all results + finalize in one request).
+    run_id: str = Field(default="", alias="runId")
+    finalize: bool = True
     project_id: str = Field(default="", alias="projectId")
     project_slug: str = Field(default="", alias="projectSlug")
     project_name: str = Field(default="", alias="projectName")

@@ -10,6 +10,7 @@ lands in the web UI instead of silently skipping publish.
 
 from __future__ import annotations
 
+import http.client
 import json
 import mimetypes
 import os
@@ -163,8 +164,12 @@ class SuitestClient:
         commit_sha: str | None = None,
         project_slug: str = "",
         project_name: str = "",
+        run_id: str = "",
+        finalize: bool = True,
     ) -> JSONDict:
         body: JSONDict = {
+            "runId": run_id,
+            "finalize": finalize,
             "projectId": project_id,
             "projectSlug": project_slug,
             "projectName": project_name,
@@ -181,27 +186,53 @@ class SuitestClient:
         return result if isinstance(result, dict) else {}
 
     def upload_file(self, path: str, *, content_type: str | None = None) -> str:
-        """Multipart upload to /api/v1/files; returns the durable s3:// URL.
+        """Stream multipart bytes to ``/api/v1/files`` in bounded memory.
 
-        The whole file is buffered in memory — run videos are a few MB, fine.
+        Evidence can be hundreds of MiB. Building ``head + file + tail`` used to
+        hold roughly twice the file size in the MCP process and made large runs
+        look hung. ``http.client`` lets the stdlib-only bundle send fixed-size
+        chunks while still providing the Content-Length FastAPI expects.
         """
         ct = content_type or mimetypes.guess_type(path)[0] or "application/octet-stream"
         boundary = uuid.uuid4().hex
-        name = os.path.basename(path)
-        with open(path, "rb") as fh:
-            payload = fh.read()
+        name = os.path.basename(path).replace('"', "_")
         head = (
             f"--{boundary}\r\n"
             f'Content-Disposition: form-data; name="file"; filename="{name}"\r\n'
             f"Content-Type: {ct}\r\n\r\n"
         ).encode()
         tail = f"\r\n--{boundary}--\r\n".encode()
-        result = self._request(
-            "POST",
-            "/api/v1/files",
-            data=head + payload + tail,
-            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        parsed = urllib.parse.urlsplit(self._base + "/api/v1/files")
+        connection_type = (
+            http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
         )
+        if parsed.hostname is None:
+            raise ValueError(f"invalid Suitest API URL: {self._base!r}")
+        connection = connection_type(parsed.hostname, parsed.port, timeout=self._timeout)
+        request_path = parsed.path + (f"?{parsed.query}" if parsed.query else "")
+        size = os.path.getsize(path)
+        try:
+            connection.putrequest("POST", request_path)
+            for key, value in self._headers.items():
+                connection.putheader(key, value)
+            connection.putheader("Content-Type", f"multipart/form-data; boundary={boundary}")
+            connection.putheader("Content-Length", str(len(head) + size + len(tail)))
+            connection.endheaders()
+            connection.send(head)
+            with open(path, "rb") as fh:
+                while chunk := fh.read(1024 * 1024):
+                    connection.send(chunk)
+            connection.send(tail)
+            response = connection.getresponse()
+            raw = response.read()
+        finally:
+            connection.close()
+        try:
+            result: object = json.loads(raw) if raw else None
+        except ValueError:
+            result = raw.decode("utf-8", errors="replace")
+        if not 200 <= response.status < 300:
+            raise SuitestAPIError(response.status, result)
         if not isinstance(result, dict):
             raise SuitestAPIError(0, "unexpected upload response")
         return str(result["url"])

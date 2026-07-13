@@ -9,6 +9,7 @@ becomes ``FAILED`` with the captured traceback as the error message.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -17,6 +18,7 @@ from typing import TYPE_CHECKING
 from suitest_lifecycle.models import PlanCase, StepResult, TestOutcome, TestResult
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -68,10 +70,13 @@ def _tail(text: str | None, lines: int = 500) -> str:
 
 
 def _run_one(
-    file_path: Path, python: str, timeout_sec: int
+    file_path: Path, python: str, timeout_sec: int, env: dict[str, str] | None = None
 ) -> tuple[TestOutcome, int, str, str, str]:
     """Returns (outcome, duration_ms, error, stdout_tail, stderr_tail)."""
     start = time.monotonic()
+    process_env = os.environ.copy()
+    if env:
+        process_env.update(env)
     try:
         proc = subprocess.run(
             [python, str(file_path)],
@@ -79,6 +84,7 @@ def _run_one(
             text=True,
             timeout=timeout_sec,
             cwd=str(file_path.parent),
+            env=process_env,
         )
     except subprocess.TimeoutExpired as exc:
         out = exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
@@ -108,6 +114,8 @@ def run_tests(
     selected_ids: list[str] | None = None,
     python: str | None = None,
     timeout_sec: int = 120,
+    on_result: Callable[[TestResult], None] | None = None,
+    env: dict[str, str] | None = None,
 ) -> list[TestResult]:
     interpreter = python or sys.executable
     wanted = set(selected_ids) if selected_ids else None
@@ -116,40 +124,42 @@ def run_tests(
         if wanted is not None and case.id not in wanted:
             continue
         if not case.automation_file:
-            results.append(
-                TestResult(
-                    test_id=case.id,
-                    title=case.title,
-                    description=case.description,
-                    status=TestOutcome.SKIPPED,
-                    duration_ms=0,
-                    error="no automation file exported",
-                )
-            )
-            continue
-        file_path = test_dir / case.automation_file
-        outcome, duration_ms, error, out_tail, err_tail = _run_one(
-            file_path, interpreter, timeout_sec
-        )
-        steps, video, screenshot = _collect_steps(case, test_dir, outcome)
-        artifacts = [p for p in (video, screenshot) if p]
-        results.append(
-            TestResult(
+            result = TestResult(
                 test_id=case.id,
                 title=case.title,
                 description=case.description,
-                status=outcome,
-                duration_ms=duration_ms,
-                error=error,
-                automation_file=case.automation_file,
-                stdout=out_tail,
-                stderr=err_tail,
-                steps=steps,
-                video_path=video,
-                screenshot_path=screenshot,
-                artifacts=artifacts,
+                status=TestOutcome.SKIPPED,
+                duration_ms=0,
+                error="no automation file exported",
             )
+            results.append(result)
+            if on_result is not None:
+                on_result(result)
+            continue
+        file_path = test_dir / case.automation_file
+        outcome, duration_ms, error, out_tail, err_tail = _run_one(
+            file_path, interpreter, timeout_sec, env
         )
+        steps, video, screenshot = _collect_steps(case, test_dir, outcome)
+        artifacts = [p for p in (video, screenshot) if p]
+        result = TestResult(
+            test_id=case.id,
+            title=case.title,
+            description=case.description,
+            status=outcome,
+            duration_ms=duration_ms,
+            error=error,
+            automation_file=case.automation_file,
+            stdout=out_tail,
+            stderr=err_tail,
+            steps=steps,
+            video_path=video,
+            screenshot_path=screenshot,
+            artifacts=artifacts,
+        )
+        results.append(result)
+        if on_result is not None:
+            on_result(result)
     return results
 
 
