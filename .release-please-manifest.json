@@ -1,5 +1,5 @@
 {
-  "packages/mcp-npx": "0.3.1",
+  "packages/mcp-npx": "0.3.2",
   "sdk/typescript": "0.1.1",
   "packages/suitest-npx": "0.2.0"
 }
