@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/suiflex/suitest/compare/mcp-v0.3.1...mcp-v0.3.2) (2026-07-13)
+
+
+### Bug Fixes
+
+* **mcp:** ship lifecycle 0.1.5 in bundled package ([#30](https://github.com/suiflex/suitest/issues/30)) ([4495606](https://github.com/suiflex/suitest/commit/4495606c67464ade8566ff169fc9584d8989ef7e))
+
 ## [0.3.1](https://github.com/suiflex/suitest/compare/mcp-v0.3.0...mcp-v0.3.1) (2026-07-13)
 
 
