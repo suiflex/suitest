@@ -6,14 +6,19 @@ const { execFileSync, spawnSync } = require("node:child_process");
 
 const pkg = require("../package.json");
 
+// The raw per-OS install command — single source of truth shared by the manual
+// hint below and the interactive auto-installer in preflight.js.
+function uvInstallCommand(platform = process.platform) {
+  return platform === "win32"
+    ? 'powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"'
+    : "curl -LsSf https://astral.sh/uv/install.sh | sh";
+}
+
 function uvInstallHint(platform = process.platform) {
-  const cmd =
-    platform === "win32"
-      ? '  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"'
-      : "  curl -LsSf https://astral.sh/uv/install.sh | sh";
   return (
     "`uv` not found. Install it first:\n" +
-    cmd +
+    "  " +
+    uvInstallCommand(platform) +
     "\nThen close this terminal, open a new one, and run the command again\n" +
     "(a fresh terminal picks up the updated PATH)."
   );
@@ -64,4 +69,4 @@ function ensureVenv(venvDir, wheelsDir) {
   return python;
 }
 
-module.exports = { requireUv, uvInstallHint, ensureVenv, venvPython };
+module.exports = { requireUv, uvInstallCommand, uvInstallHint, ensureVenv, venvPython };

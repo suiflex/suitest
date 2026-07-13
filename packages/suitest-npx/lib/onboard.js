@@ -5,7 +5,8 @@ const path = require("node:path");
 
 const { ensureProjectDirs, loadOrCreateCredentials } = require("./project.js");
 const { ensureWebDist, ensureWheels } = require("./assets.js");
-const { requireUv, ensureVenv } = require("./venv.js");
+const { ensureVenv } = require("./venv.js");
+const { preflight } = require("./preflight.js");
 const { up } = require("./stack.js");
 
 // First run → the user MUST set the superadmin account; nothing is auto-generated
@@ -63,8 +64,8 @@ function loadMcpLib(mod) {
 }
 
 // Prepare = every up() prerequisite: uv, assets, venv. Used by onboard AND `suitest up`.
-async function prepare(cwd) {
-  requireUv();
+async function prepare(cwd, opts = {}) {
+  await preflight(opts);
   const dirs = ensureProjectDirs(cwd);
   const webDist = await ensureWebDist();
   const wheels = await ensureWheels();

@@ -74,7 +74,7 @@ async function main() {
     case "up": {
       const { prepare } = require("../lib/onboard.js");
       const { up } = require("../lib/stack.js");
-      const { webDist, python } = await prepare(cwd);
+      const { webDist, python } = await prepare(cwd, opts);
       await up(cwd, { webDist, python, port: opts.port });
       await printUpdateNotice();
       break;
