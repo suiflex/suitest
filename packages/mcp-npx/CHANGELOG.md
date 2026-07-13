@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/suiflex/suitest/compare/mcp-v0.3.0...mcp-v0.3.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* **mcp:** guard cross-client protocol compatibility ([#27](https://github.com/suiflex/suitest/issues/27)) ([cbf5190](https://github.com/suiflex/suitest/commit/cbf519068c56b6066031fe2a3847180057204791))
+
 ## [0.3.0](https://github.com/suiflex/suitest/compare/mcp-v0.2.1...mcp-v0.3.0) (2026-07-10)
 
 
