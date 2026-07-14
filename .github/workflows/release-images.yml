@@ -41,14 +41,14 @@ jobs:
             dockerfile: infra/docker/Dockerfile.suitest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         if: startsWith(github.ref, 'refs/tags/images-v')
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -59,7 +59,7 @@ jobs:
         run: echo "version=${GITHUB_REF_NAME#images-v}" >> "$GITHUB_OUTPUT"
 
       - name: Build (and push on tag) ${{ matrix.image.ghcr }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.image.dockerfile }}

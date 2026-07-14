@@ -38,10 +38,10 @@ jobs:
       SUITEST_LOCAL_SMOKE_MODEL: ${{ github.event.inputs.model || 'qwen2.5:0.5b' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
