@@ -34,8 +34,8 @@ jobs:
           - package: "cli"
             artifact: "dist-cli"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Build
@@ -46,7 +46,7 @@ jobs:
         # Proves the wheel + sdist would be accepted by PyPI before any
         # credential exists — catches bad metadata/README rendering at PR time.
         run: python -m twine check dist/*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: dist/
@@ -59,7 +59,7 @@ jobs:
     permissions:
       id-token: write # OIDC for Trusted Publishing
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist-sdk
           path: dist
@@ -75,7 +75,7 @@ jobs:
     permissions:
       id-token: write # OIDC for Trusted Publishing
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist-cli
           path: dist
