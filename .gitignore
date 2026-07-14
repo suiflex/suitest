@@ -1,4 +1,5 @@
 .claude
+.agents
 # Python
 __pycache__/
 *.py[cod]
