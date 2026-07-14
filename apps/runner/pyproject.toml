@@ -24,7 +24,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-  "fakeredis>=2.26",
+  "fakeredis>=2.36.2",
   "pytest>=8.2",
   "pytest-asyncio>=0.23",
   "pytest-mock>=3.14",
