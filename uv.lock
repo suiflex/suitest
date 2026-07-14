@@ -2660,7 +2660,7 @@ requires-dist = [
     { name = "aioboto3", specifier = ">=12.4" },
     { name = "arq", specifier = ">=0.26" },
     { name = "fastapi", specifier = ">=0.115.0" },
-    { name = "fastapi-users", extras = ["sqlalchemy", "oauth"], specifier = ">=14.0.0" },
+    { name = "fastapi-users", extras = ["sqlalchemy", "oauth"], specifier = ">=15.0.5" },
     { name = "httpx-oauth", specifier = ">=0.16.0" },
     { name = "opentelemetry-distro", specifier = ">=0.50b0" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.29.0" },
