@@ -20,7 +20,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         with:
           # A PAT is required for the release tag to trigger release-mcp.yml:
           # tags pushed with the default GITHUB_TOKEN do NOT re-trigger other

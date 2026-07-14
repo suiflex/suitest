@@ -34,7 +34,7 @@ jobs:
       SUITEST_OAUTH_GOOGLE_CLIENT_ID: ci-client-id
       SUITEST_OAUTH_GOOGLE_CLIENT_SECRET: ci-client-secret
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Boot the stack (ZERO tier)
         run: docker compose -f infra/docker/docker-compose.yml --profile zero up -d --build
       - name: Dump migrate + api logs on boot failure
