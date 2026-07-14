@@ -10,7 +10,7 @@ dependencies = [
   "cuid2>=2.0.1",
   "pydantic>=2.9.0",
   "pydantic-settings>=2.6.0",
-  "fastapi-users[sqlalchemy]>=14.0.0",
+  "fastapi-users[sqlalchemy]>=15.0.5",
   "fastapi-users-db-sqlalchemy>=7.0.0",
   "pgvector>=0.3.0",
   "suitest-core",
