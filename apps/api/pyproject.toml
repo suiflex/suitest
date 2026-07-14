@@ -5,13 +5,13 @@ description = "Suitest FastAPI HTTP service"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi>=0.115.0",
-  "uvicorn[standard]>=0.32.0",
+  "uvicorn[standard]>=0.51.0",
   "pydantic>=2.9.0",
   "pydantic-settings>=2.6.0",
-  "structlog>=24.4.0",
-  "fastapi-users[sqlalchemy,oauth]>=14.0.0",
+  "structlog>=26.1.0",
+  "fastapi-users[sqlalchemy,oauth]>=15.0.5",
   "httpx-oauth>=0.16.0",
-  "opentelemetry-distro>=0.50b0",
+  "opentelemetry-distro>=0.64b0",
   "opentelemetry-sdk>=1.29.0",
   "opentelemetry-exporter-otlp-proto-http>=1.29.0",
   "opentelemetry-instrumentation-fastapi>=0.50b0",
