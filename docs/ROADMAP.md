@@ -232,7 +232,7 @@ CLOUD tier works with ≥ 5 providers tested: anthropic, openai, gemini, groq, o
 #### SDK + CLI
 
 - [~] **M4-5** `suitest-py` SDK published to PyPI (generated from OpenAPI) (code-complete — [`sdk/python`](../sdk/python) typed httpx client tracking the OpenAPI schema + Apache-2 + `release-python-sdk.yml` Trusted-Publishing workflow now runs a `twine check` publish dry-run on every PR (proves wheel + sdist metadata would be accepted); **PyPI publish pending** — needs project + OIDC publisher configured)
-- [~] **M4-6** `@suiflex/suitest-sdk` TS SDK published to npm (code-complete — [`sdk/typescript`](../sdk/typescript) dependency-free fetch client, strict tsc green + `release-ts-sdk.yml` npm-publish workflow now runs `npm pack` + `npm publish --dry-run` on every PR (proves the tarball would be accepted); **npm publish pending** — needs NPM_TOKEN secret)
+- [~] **M4-6** `@suiflex/suitest-sdk` TS SDK published to npm (code-complete — [`sdk/typescript`](../sdk/typescript) dependency-free fetch client, strict tsc green + `release-ts-sdk.yml` runs `npm pack` + `npm publish --dry-run` on every PR; tag publish and manual recovery use npm OIDC Trusted Publishing through the `release` environment, with no long-lived npm token; **first npm publish pending**)
 - [x] **M4-7** `suitest` CLI: `suitest run`, `suitest cases list`, `suitest mcp ls` (shipped — [`cli`](../cli) argparse front-end over suiflex-suitest-sdk; run/cases-list/mcp-ls against the real API, env-driven connection, non-zero exit on error/failed run)
 
 #### Eval + observability

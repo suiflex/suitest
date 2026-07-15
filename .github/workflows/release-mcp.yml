@@ -4,9 +4,8 @@ name: release-mcp
 #   - @suiflex/suitest-mcp        → npm  (npx -y @suiflex/suitest-mcp)
 #   - suiflex-suitest-lifecycle   → PyPI (uvx --from suiflex-suitest-lifecycle suitest-mcp)
 #
-# Requires an NPM_TOKEN secret (npm automation token) and a PYPI_TOKEN secret
-# (PyPI API token). On PRs touching the packages, the build + smoke + dry-run
-# steps run to validate; publish only fires on the tag.
+# npm uses OIDC Trusted Publishing; no long-lived NPM_TOKEN is required. PyPI
+# still uses PYPI_TOKEN. On PRs, the build + smoke + dry-run steps validate.
 
 on:
   push:
@@ -16,6 +15,12 @@ on:
       - "packages/mcp-npx/**"
       - "packages/lifecycle/**"
       - ".github/workflows/release-mcp.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing mcp release tag to publish to npm
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -23,6 +28,7 @@ permissions:
 jobs:
   npm:
     name: "@suiflex/suitest-mcp → npm"
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -45,14 +51,72 @@ jobs:
           npm pack --dry-run
           npm publish --dry-run --access public
 
-      - name: Publish
-        if: startsWith(github.ref, 'refs/tags/mcp-v')
+  publish-npm:
+    name: "@suiflex/suitest-mcp → npm"
+    if: github.event_name == 'push'
+    needs: [npm]
+    runs-on: ubuntu-latest
+    # OIDC Trusted Publishing: npm trusts this repository, workflow, and the
+    # `release` environment, so GitHub mints a short-lived token per publish.
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: packages/mcp-npx
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@11.5.2
+      - name: Tag matches package version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#mcp-v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          [ "$TAG_VERSION" = "$PKG_VERSION" ] || {
+            echo "tag $GITHUB_REF_NAME != package.json $PKG_VERSION" >&2; exit 1; }
+      - name: Publish to npm
         run: npm publish --access public
+
+  recover-npm:
+    name: "Recover @suiflex/suitest-mcp npm publish"
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: packages/mcp-npx
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@11.5.2
+      - name: Tag matches package version
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          TAG_VERSION="${RELEASE_TAG#mcp-v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          [ "$TAG_VERSION" = "$PKG_VERSION" ] || {
+            echo "tag $RELEASE_TAG != package.json $PKG_VERSION" >&2; exit 1; }
+      - name: Publish to npm
+        run: npm publish --access public
 
   pypi:
     name: "suiflex-suitest-lifecycle → PyPI"
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

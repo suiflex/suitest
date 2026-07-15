@@ -1,8 +1,7 @@
 name: release-ts-sdk
 
-# M4-6: build + publish @suiflex/suitest-sdk to npm on a `tssdk-v*` tag. Requires an
-# NPM_TOKEN secret with publish rights (npm automation token). On PRs the build
-# + typecheck run to validate the package; publish only fires on the tag.
+# M4-6: build + publish @suiflex/suitest-sdk to npm on a `tssdk-v*` tag through
+# OIDC Trusted Publishing. On PRs, the build + typecheck validate the package.
 
 on:
   push:
@@ -11,12 +10,19 @@ on:
     paths:
       - "sdk/typescript/**"
       - ".github/workflows/release-ts-sdk.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing TypeScript SDK release tag to publish to npm
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   build:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -32,12 +38,73 @@ jobs:
       - run: npm run build
       - name: Validate package contents (publish dry-run)
         # `npm pack --dry-run` + `npm publish --dry-run` prove the tarball builds
-        # and would be accepted by the registry before NPM_TOKEN exists.
+        # and would be accepted by the registry before an OIDC publish run.
         run: |
           npm pack --dry-run
           npm publish --dry-run --access public
-      - name: Publish
-        if: startsWith(github.ref, 'refs/tags/tssdk-v')
+
+  publish-npm:
+    name: "@suiflex/suitest-sdk → npm"
+    if: github.event_name == 'push'
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: sdk/typescript
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+      # Node 20 ships npm 10; trusted publishing requires npm >= 11.5.1.
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@11.5.2
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - name: Tag matches package version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#tssdk-v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          [ "$TAG_VERSION" = "$PKG_VERSION" ] || {
+            echo "tag $GITHUB_REF_NAME != package.json $PKG_VERSION" >&2; exit 1; }
+      - name: Publish to npm
         run: npm publish --access public
+
+  recover-npm:
+    name: "Recover @suiflex/suitest-sdk npm publish"
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: sdk/typescript
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@11.5.2
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - name: Tag matches package version
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          TAG_VERSION="${RELEASE_TAG#tssdk-v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          [ "$TAG_VERSION" = "$PKG_VERSION" ] || {
+            echo "tag $RELEASE_TAG != package.json $PKG_VERSION" >&2; exit 1; }
+      - name: Publish to npm
+        run: npm publish --access public
