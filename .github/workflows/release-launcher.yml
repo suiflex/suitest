@@ -6,9 +6,8 @@ name: release-launcher
 # The package ships the built assets inside the tarball (~3 MB): the web
 # dashboard build + all workspace wheels, produced by
 # scripts/build-bundle-assets.sh and copied in by the package's prepack
-# (scripts/sync-assets.js). Requires the NPM_TOKEN secret (same automation
-# token as release-mcp). On PRs touching the launcher, everything up to the
-# publish runs as validation; publish only fires on the tag.
+# (scripts/sync-assets.js). npm uses OIDC Trusted Publishing, so no NPM_TOKEN
+# secret is maintained. On PRs, everything up to the publish runs as validation.
 
 on:
   push:
@@ -18,13 +17,20 @@ on:
       - "packages/suitest-npx/**"
       - "scripts/build-bundle-assets.sh"
       - ".github/workflows/release-launcher.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing launcher release tag to publish to npm
+        required: true
+        type: string
 
 permissions:
-  contents: write  # create GitHub Release on tag
+  contents: write # create GitHub Release on tag
 
 jobs:
   npm:
     name: "@suiflex/suitest → npm"
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -57,24 +63,92 @@ jobs:
           npm pack --dry-run
           npm publish --dry-run --access public
 
+  publish-npm:
+    name: "@suiflex/suitest → npm"
+    if: github.event_name == 'push'
+    needs: [npm]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.5.2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+          registry-url: "https://registry.npmjs.org"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@11.5.2
+      - name: Install web deps
+        run: pnpm install --frozen-lockfile
+      - name: Build bundle assets (web dist + wheels)
+        run: ./scripts/build-bundle-assets.sh
       - name: Tag matches package version
-        if: startsWith(github.ref, 'refs/tags/launcher-v')
         working-directory: packages/suitest-npx
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#launcher-v}"
           PKG_VERSION="$(node -p "require('./package.json').version")"
           [ "$TAG_VERSION" = "$PKG_VERSION" ] || {
-            echo "tag $TAG_VERSION != package.json $PKG_VERSION" >&2; exit 1; }
-
-      - name: Publish
-        if: startsWith(github.ref, 'refs/tags/launcher-v')
+            echo "tag $GITHUB_REF_NAME != package.json $PKG_VERSION" >&2; exit 1; }
+      - name: Publish to npm
         working-directory: packages/suitest-npx
         run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: GitHub Release
-        if: startsWith(github.ref, 'refs/tags/launcher-v')
         run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
+
+  recover-npm:
+    name: "Recover @suiflex/suitest npm publish"
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.5.2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+          registry-url: "https://registry.npmjs.org"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@11.5.2
+      - name: Install web deps
+        run: pnpm install --frozen-lockfile
+      - name: Build bundle assets (web dist + wheels)
+        run: ./scripts/build-bundle-assets.sh
+      - name: Unit tests
+        working-directory: packages/suitest-npx
+        run: npm test
+      - name: Tag matches package version
+        working-directory: packages/suitest-npx
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          TAG_VERSION="${RELEASE_TAG#launcher-v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          [ "$TAG_VERSION" = "$PKG_VERSION" ] || {
+            echo "tag $RELEASE_TAG != package.json $PKG_VERSION" >&2; exit 1; }
+      - name: Publish to npm
+        working-directory: packages/suitest-npx
+        run: npm publish --access public
