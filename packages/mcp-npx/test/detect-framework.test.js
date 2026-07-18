@@ -34,6 +34,42 @@ test("vite -> frontend :5173", () => {
   assert.strictEqual(detectFramework(dir).baseUrl, "http://localhost:5173");
 });
 
+test("nuxt -> frontend :3000", () => {
+  const dir = projectWith({
+    "package.json": JSON.stringify({ dependencies: { nuxt: "^3" } }),
+  });
+  assert.deepStrictEqual(detectFramework(dir), {
+    framework: "nuxt",
+    mode: "frontend",
+    baseUrl: "http://localhost:3000",
+  });
+});
+
+test("sveltekit -> frontend :5173", () => {
+  const dir = projectWith({
+    "package.json": JSON.stringify({ devDependencies: { "@sveltejs/kit": "^2" } }),
+  });
+  assert.deepStrictEqual(detectFramework(dir), {
+    framework: "sveltekit",
+    mode: "frontend",
+    baseUrl: "http://localhost:5173",
+  });
+});
+
+test("vue cli -> frontend :8080", () => {
+  const dir = projectWith({
+    "package.json": JSON.stringify({ devDependencies: { "@vue/cli-service": "^5" } }),
+  });
+  assert.strictEqual(detectFramework(dir).baseUrl, "http://localhost:8080");
+});
+
+test("nuxt beats vite when both present", () => {
+  const dir = projectWith({
+    "package.json": JSON.stringify({ dependencies: { nuxt: "^3", vite: "^6" } }),
+  });
+  assert.strictEqual(detectFramework(dir).framework, "nuxt");
+});
+
 test("express -> backend :3000", () => {
   const dir = projectWith({
     "package.json": JSON.stringify({ dependencies: { express: "^4" } }),
