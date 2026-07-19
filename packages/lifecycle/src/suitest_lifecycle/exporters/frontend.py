@@ -20,7 +20,9 @@ _HEADER = """import asyncio
 import glob
 import json
 import os
+import re
 import shutil
+import subprocess
 import uuid
 
 from playwright.async_api import async_playwright, expect
@@ -54,6 +56,41 @@ _N = [0]
 def _begin(step_type, description):
     _N[0] += 1
     _cur.update(index=_N[0], type=step_type, description=description)
+
+
+def _trim_leading_blank(src):
+    # Playwright starts recording at about:blank (white) and keeps rolling
+    # through the app's first-load spinner before content paints. Detect the
+    # first real visual change (scene change) and drop everything before it.
+    # ffmpeg is optional: if it's absent, detection fails, or there's nothing to
+    # trim, the original video is kept untouched.
+    # ponytail: re-encode is O(video length); fine for short evidence clips. If
+    #           clips ever get long, switch to -c copy with keyframe snapping.
+    if shutil.which("ffmpeg") is None:
+        return src
+    try:
+        probe = subprocess.run(
+            ["ffmpeg", "-i", src, "-vf", "select='gt(scene,0.02)',showinfo",
+             "-an", "-f", "null", "-"],
+            capture_output=True, text=True, timeout=30,
+        )
+        m = re.search(r"pts_time:(\\d+\\.?\\d*)", probe.stderr)
+        if not m:
+            return src
+        start = max(float(m.group(1)) - 0.15, 0.0)
+        if start < 0.2:  # nothing meaningful to trim
+            return src
+        out = src[:-5] + ".trim.webm"
+        r = subprocess.run(
+            ["ffmpeg", "-y", "-ss", "%.3f" % start, "-i", src,
+             "-c:v", "libvpx-vp9", "-an", out],
+            capture_output=True, text=True, timeout=120,
+        )
+        if r.returncode == 0 and os.path.exists(out) and os.path.getsize(out) > 0:
+            os.replace(out, src)  # overwrite same name -> result.json unchanged
+    except Exception:
+        pass
+    return src
 
 
 async def _shot(page):
@@ -164,6 +201,9 @@ async def run_test():
             except Exception:
                 pass
         vids = sorted(glob.glob(os.path.join(_VIDEO_DIR, "*.webm")))
+        _video = vids[-1] if vids else None
+        if _video:
+            _video = _trim_leading_blank(_video)
         with open(_RESULT, "w", encoding="utf-8") as fh:
             json.dump(
                 {
@@ -171,7 +211,7 @@ async def run_test():
                     "status": status,
                     "error": error,
                     "steps": STEPS,
-                    "video": vids[-1] if vids else None,
+                    "video": _video,
                     # Per-step screenshots already include the final state.
                     # A second "final" PNG doubled the last frame for no UI value.
                     "screenshot": None,

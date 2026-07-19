@@ -47,8 +47,9 @@ npx -y @suiflex/suitest-mcp init
    `.claude/` directory means Claude Code, a `.cursor/` directory means Cursor.
    Windsurf keeps its MCP config in your home directory, so it has no project
    marker: select it explicitly with `--ide windsurf`.
-2. **Detects your app framework.** Next.js, Vite, and Express are read from
-   `package.json` dependencies; a `manage.py` file means Django. Detection
+2. **Detects your app framework.** Next.js, Nuxt, SvelteKit, Vite, Vue (CLI),
+   and Express are read from `package.json` dependencies; a `manage.py` file
+   means Django. Detection
    seeds the test mode (`frontend` or `backend`) and the app `baseUrl`. If
    nothing is detected, `init` asks for a base URL (default
    `http://localhost:3000`).

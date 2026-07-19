@@ -9,10 +9,15 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-// Order = priority. `next` before `express`: a Next app often ships both.
+// Order = priority. Meta-frameworks (nuxt, sveltekit) before `vite`: they ship
+// vite as a dep, but their own dev-server port must win. `next` before
+// `express`: a Next app often ships both.
 const FRAMEWORKS = [
   { id: "nextjs", dep: "next", mode: "frontend", baseUrl: "http://localhost:3000" },
+  { id: "nuxt", dep: "nuxt", mode: "frontend", baseUrl: "http://localhost:3000" },
+  { id: "sveltekit", dep: "@sveltejs/kit", mode: "frontend", baseUrl: "http://localhost:5173" },
   { id: "vite", dep: "vite", mode: "frontend", baseUrl: "http://localhost:5173" },
+  { id: "vue", dep: "@vue/cli-service", mode: "frontend", baseUrl: "http://localhost:8080" },
   { id: "express", dep: "express", mode: "backend", baseUrl: "http://localhost:3000" },
 ];
 
