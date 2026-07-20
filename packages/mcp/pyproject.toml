@@ -13,7 +13,7 @@ dependencies = [
   "opentelemetry-sdk>=1.44.0",
   "anyio>=4.3",
   "redis[hiredis]>=5.0",
-  "psycopg[binary]>=3.2",
+  "psycopg[binary]>=3.3.4",
   "psycopg-pool>=3.2",
   "jsonpath-ng>=1.6",
   "suitest-shared",
