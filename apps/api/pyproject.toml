@@ -27,6 +27,7 @@ dependencies = [
   "slowapi>=0.1.9",
   "arq>=0.26",
   "aioboto3>=12.4",
+  "fpdf2>=2.8.5",
 ]
 
 [build-system]
