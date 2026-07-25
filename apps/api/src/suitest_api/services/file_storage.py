@@ -144,6 +144,50 @@ async def presign_get(key: str) -> str:
     return url
 
 
+async def read_bytes(url: str) -> bytes | None:
+    """Read an artifact's raw bytes from its stored URL.
+
+    Handles the three schemes the platform writes: ``local://<key>`` (npx/disk),
+    ``file://<abs-path>`` (runner-local artifacts) and ``s3://<bucket>/<key>``
+    (object store). Returns ``None`` when the object is missing — a caller
+    embedding evidence should degrade to "no screenshot", never 500.
+    """
+    if url.startswith("file://"):
+        path = Path(url[len("file://") :])
+        return await _read_local(path)
+    if url.startswith("local://"):
+        return await _read_local(local_path(url[len("local://") :]))
+    if url.startswith("s3://"):
+        _, _, rest = url.partition("s3://")
+        bucket, _, key = rest.partition("/")
+        settings = get_settings()
+        async with aioboto3.Session().client(
+            "s3",
+            endpoint_url=settings.s3_endpoint,
+            aws_access_key_id=settings.s3_access_key,
+            aws_secret_access_key=settings.s3_secret_key,
+            region_name=settings.s3_region,
+        ) as client:
+            try:
+                obj = await client.get_object(Bucket=bucket, Key=key)
+                async with obj["Body"] as stream:
+                    data: bytes = await stream.read()
+                return data
+            except Exception:  # missing/denied object → degrade gracefully
+                return None
+    return None
+
+
+async def _read_local(path: Path) -> bytes | None:
+    def _read() -> bytes | None:
+        try:
+            return path.read_bytes()
+        except OSError:
+            return None
+
+    return await anyio.to_thread.run_sync(_read)
+
+
 async def delete(key: str) -> None:
     """Delete one owned object."""
     settings = get_settings()
