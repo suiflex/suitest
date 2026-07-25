@@ -42,7 +42,9 @@ def test_groups_by_suite_and_numbers_per_section() -> None:
 
 def test_status_rollup() -> None:
     doc = assemble_document(
-        title="t", locale="id", generated_at="x",
+        title="t",
+        locale="id",
+        generated_at="x",
         cases=[
             _case("ok", "S", "m", [SO.PASS, SO.PASS]),
             _case("fail", "S", "m", [SO.PASS, SO.FAIL]),
@@ -57,7 +59,9 @@ def test_status_rollup() -> None:
 
 def test_pass_pct_counts_only_passed_over_total() -> None:
     doc = assemble_document(
-        title="t", locale="id", generated_at="x",
+        title="t",
+        locale="id",
+        generated_at="x",
         cases=[
             _case("a", "S", "m", [SO.PASS]),
             _case("b", "S", "m", [SO.PASS]),
@@ -70,16 +74,19 @@ def test_pass_pct_counts_only_passed_over_total() -> None:
 
 def test_steps_and_results_preserved_in_order() -> None:
     c = CaseInput(
-        title="multi", suite_name="S", modul_fitur="m",
+        title="multi",
+        suite_name="S",
+        modul_fitur="m",
         steps=[
             StepInput(order=2, action="second", expected="r2"),
             StepInput(order=1, action="first", expected="r1"),
         ],
-        run_outcomes=[SO.PASS], evidence=[],
+        run_outcomes=[SO.PASS],
+        evidence=[],
     )
     doc = assemble_document(title="t", locale="id", generated_at="x", cases=[c])
     row = doc.sections[0].rows[0]
-    assert row.steps == ["first", "second"]      # sorted by order
+    assert row.steps == ["first", "second"]  # sorted by order
     assert row.results == ["r1", "r2"]
 
 

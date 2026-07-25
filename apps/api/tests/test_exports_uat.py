@@ -32,7 +32,9 @@ async def _seed_case(
     )
     await api_db.add_all([case])
     # add step after case is committed so case.id is populated
-    step = TestStep(case_id=case.id, order=0, action="Open login page", expected="Login form visible")
+    step = TestStep(
+        case_id=case.id, order=0, action="Open login page", expected="Login form visible"
+    )
     await api_db.add_all([step])
     return suite, case
 
@@ -76,11 +78,14 @@ async def test_uat_export_200_with_run(api_db: ApiDb) -> None:
         status=RunStatus.PASS,
     )
     await api_db.add_all([run])
-    await api_db.add_all([RunStep(run_id=run.id, case_id=case.id, step_order=0, outcome=StepOutcome.PASS)])
+    await api_db.add_all(
+        [RunStep(run_id=run.id, case_id=case.id, step_order=0, outcome=StepOutcome.PASS)]
+    )
     # wire last_run_id so service picks it up
     async with api_db.maker() as session:
         from sqlalchemy import update
         from suitest_db.models.case import TestCase as TC
+
         await session.execute(update(TC).where(TC.id == case.id).values(last_run_id=run.id))
         await session.commit()
 

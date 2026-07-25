@@ -75,7 +75,10 @@ class UatDocumentService:
                     title=case.title,
                     suite_name=suite.name,
                     modul_fitur=tags[0] if tags else suite.name,
-                    steps=[StepInput(order=s.order, action=s.action, expected=s.expected) for s in steps],
+                    steps=[
+                        StepInput(order=s.order, action=s.action, expected=s.expected)
+                        for s in steps
+                    ],
                     run_outcomes=outcomes,
                     evidence=evidence,
                 )

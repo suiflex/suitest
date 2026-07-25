@@ -28,16 +28,28 @@ _STATUS_COLOR = {"PASSED": (21, 128, 61), "FAILED": (185, 28, 28), "NOT RUN": (1
 _LABELS: dict[str, dict[str, str]] = {
     "id": {
         "doc_title": "BERITA ACARA USER ACCEPTANCE TEST (UAT)",
-        "no": "No", "modul": "Modul/ Fitur", "test_case": "Test Case",
-        "test_step": "Test Step", "test_result": "Test Result", "status": "Status",
-        "evidence": "Evidence", "result_percent": "Persentase", "generated": "Tanggal",
+        "no": "No",
+        "modul": "Modul/ Fitur",
+        "test_case": "Test Case",
+        "test_step": "Test Step",
+        "test_result": "Test Result",
+        "status": "Status",
+        "evidence": "Evidence",
+        "result_percent": "Persentase",
+        "generated": "Tanggal",
         "not_run": "BELUM DIJALANKAN",
     },
     "en": {
         "doc_title": "USER ACCEPTANCE TEST (UAT) REPORT",
-        "no": "No", "modul": "Module / Feature", "test_case": "Test Case",
-        "test_step": "Test Step", "test_result": "Test Result", "status": "Status",
-        "evidence": "Evidence", "result_percent": "Pass rate", "generated": "Date",
+        "no": "No",
+        "modul": "Module / Feature",
+        "test_case": "Test Case",
+        "test_step": "Test Step",
+        "test_result": "Test Result",
+        "status": "Status",
+        "evidence": "Evidence",
+        "result_percent": "Pass rate",
+        "generated": "Date",
         "not_run": "NOT RUN",
     },
 }
@@ -80,13 +92,18 @@ def render_pdf(doc: UatDocument) -> bytes:
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Helvetica", "", 9)
     pdf.cell(
-        0, 6,
-        f'{labels["generated"]}: {doc.generated_at}    {labels["result_percent"]}: {doc.pass_pct}%',
-        new_x="LMARGIN", new_y="NEXT",
+        0,
+        6,
+        f"{labels['generated']}: {doc.generated_at}    {labels['result_percent']}: {doc.pass_pct}%",
+        new_x="LMARGIN",
+        new_y="NEXT",
     )
     pdf.ln(2)
 
-    headings = [labels[k] for k in ("no", "modul", "test_case", "test_step", "test_result", "status", "evidence")]
+    headings = [
+        labels[k]
+        for k in ("no", "modul", "test_case", "test_step", "test_result", "status", "evidence")
+    ]
     for section in doc.sections:
         pdf.set_fill_color(*_NAVY2)
         pdf.set_text_color(*_WHITE)
