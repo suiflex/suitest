@@ -12,7 +12,14 @@ from suitest_api.services.uat_document import (
 from suitest_shared.domain.enums import StepOutcome as SO
 
 
-def _case(title: str, suite: str, modul: str, outcomes: list[SO], *, evidence=None) -> CaseInput:
+def _case(
+    title: str,
+    suite: str,
+    modul: str,
+    outcomes: list[SO],
+    *,
+    evidence: list[str] | None = None,
+) -> CaseInput:
     return CaseInput(
         title=title,
         suite_name=suite,
