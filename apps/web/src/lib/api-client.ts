@@ -865,3 +865,22 @@ export async function revokeApiKey(id: string): Promise<void> {
   const ws = requireWorkspaceId();
   await api.delete(`/workspaces/${ws}/api-keys/${id}`);
 }
+
+// ---------------------------------------------------------------------------
+// UAT document export — branded PDF for a hand-picked set of cases.
+// ---------------------------------------------------------------------------
+
+/**
+ * ``POST /projects/:id/exports/uat`` — render the selected cases into a branded
+ * UAT PDF. Returns the raw PDF blob (attachment) for a client-side download.
+ * ZERO-tier: pure document generation, no LLM, no capability gating.
+ */
+export async function exportUatDocument(
+  projectId: string,
+  body: { case_ids: string[]; title: string; locale: "id" | "en" },
+): Promise<Blob> {
+  const res = await api.post(`/projects/${projectId}/exports/uat`, body, {
+    responseType: "blob",
+  });
+  return res.data as Blob;
+}

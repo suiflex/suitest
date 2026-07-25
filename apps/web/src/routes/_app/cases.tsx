@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ChevronDown,
   Code2,
+  FileDown,
   FileText,
   FolderTree,
   ListChecks,
@@ -18,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import { CreateCaseDialog } from "@/components/cases/CreateCaseDialog";
 import { CreateProjectDialog } from "@/components/cases/CreateProjectDialog";
 import { CreateSuiteDialog } from "@/components/cases/CreateSuiteDialog";
+import { ExportUatDialog } from "@/components/cases/ExportUatDialog";
 import { GenerateModal } from "@/components/cases/GenerateModal";
 import type { GeneratorStrategy } from "@/components/cases/GenerateModal";
 import { CasesSkeleton } from "@/components/cases/skeleton";
@@ -1284,6 +1286,7 @@ function CasesBody(): React.ReactElement {
   const [active, setActive] = useState<Tab>("all");
   const [suiteDialogOpen, setSuiteDialogOpen] = useState(false);
   const [caseDialogOpen, setCaseDialogOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [query, setQuery] = useState("");
 
   // GenerateModal state — `null` strategy = open at the target-select step;
@@ -1407,6 +1410,15 @@ function CasesBody(): React.ReactElement {
           void navigate({ search: { case: publicId } });
         }}
       />
+      {projectId ? (
+        <ExportUatDialog
+          projectId={projectId}
+          selectedIds={[...selectedIds]}
+          projectName={project?.name ?? "UAT Report"}
+          open={exportDialogOpen}
+          onOpenChange={setExportDialogOpen}
+        />
+      ) : null}
       {suites.items.length === 0 ? (
         <EmptyState
           icon={FolderTree}
@@ -1465,6 +1477,25 @@ function CasesBody(): React.ReactElement {
                   New case
                 </Button>
               </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full justify-center gap-1.5 border-accent/30 text-accent hover:bg-accent/10 hover:text-accent disabled:border-border disabled:text-fg-4"
+                data-testid="export-uat-btn"
+                disabled={selectedIds.size === 0}
+                onClick={() => {
+                  setExportDialogOpen(true);
+                }}
+              >
+                <FileDown className="h-3.5 w-3.5" aria-hidden="true" />
+                Export UAT
+                {selectedIds.size > 0 ? (
+                  <span className="ml-0.5 rounded-sm bg-accent/15 px-1.5 font-mono text-[10.5px] tabular-nums">
+                    {selectedIds.size}
+                  </span>
+                ) : null}
+              </Button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-3">
               <CaseTree
