@@ -91,10 +91,7 @@ export function ExportUatDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        data-testid="export-uat-dialog"
-        className="gap-0 overflow-hidden p-0"
-      >
+      <DialogContent data-testid="export-uat-dialog" className="gap-0 overflow-hidden p-0">
         {/* Accent top-rule — the "document seal" cue */}
         <div className="h-[3px] w-full bg-gradient-to-r from-accent/70 via-accent to-accent/40" />
 
@@ -158,9 +155,7 @@ export function ExportUatDialog({
           </div>
 
           <fieldset className="flex flex-col gap-1.5">
-            <legend className="mb-1.5 text-sm font-medium leading-none text-fg-1">
-              Language
-            </legend>
+            <legend className="mb-1.5 text-sm font-medium leading-none text-fg-1">Language</legend>
             <div
               role="radiogroup"
               aria-label="Document language"
