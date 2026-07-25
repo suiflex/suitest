@@ -118,6 +118,7 @@ The frontend uses pnpm; the backend uses `uv` (uv workspace, one root `pyproject
 | Observability | OpenTelemetry FastAPI instrumentation → OTLP exporter |
 | Logging | `structlog`, JSON to stdout |
 | Capability gate | `packages/core/capabilities.py` resolver — runs on startup, exposed via `GET /capabilities` |
+| Doc export | UAT "Berita Acara" PDF via **fpdf2** (pure-Python, no system libs) + Pillow for evidence images — deterministic ZERO-tier. Pure-Python is deliberate so `POST /api/v1/projects/{id}/exports/uat` runs identically in Docker **and** the npx local bundle (no native pango/cairo needed). |
 
 **Routes mounted:**
 - `/api/v1/*` — versioned REST

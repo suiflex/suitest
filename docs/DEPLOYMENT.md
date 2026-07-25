@@ -18,6 +18,8 @@
 
 Default tier for all modes = **ZERO** (runs without an LLM). Upgrade to LOCAL/CLOUD by configuring an LLM provider per workspace in the web UI (Settings → LLM) — not via env vars. The [§5 tier matrix](#5-tier-specific-environment-matrix) describes the older env-based dial (spec only).
 
+**UAT document export** (`POST /api/v1/projects/{id}/exports/uat`) works in **every** mode with no extra system packages: the PDF engine is `fpdf2` (pure-Python), so it runs identically in the Docker image (S3/`s3://` evidence) and the npx local bundle (SQLite, `local://` evidence). No pango/cairo/native libraries required.
+
 ---
 
 ## 1. Mode 1 — Single-host docker-compose
