@@ -8920,6 +8920,40 @@
         "title": "TraceabilityMatrix",
         "type": "object"
       },
+      "UatExportBody": {
+        "properties": {
+          "case_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Case Ids",
+            "type": "array"
+          },
+          "locale": {
+            "default": "id",
+            "enum": [
+              "id",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_ids",
+          "title"
+        ],
+        "title": "UatExportBody",
+        "type": "object"
+      },
       "UrlSemanticGenerateRequest": {
         "description": "LLM-driven semantic URL generation (M3-7) \u2014 CLOUD/LOCAL only.\n\nDecomposes a natural-language ``intent`` (\"checkout flow\") into FE_WEB\njourney cases on ``url``. Steps are agentic browser actions driven by\n``playwright-mcp`` (code translated at execution time, M3-10).",
         "properties": {
@@ -15244,6 +15278,76 @@
         "summary": "Update Project",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/exports/uat": {
+      "post": {
+        "description": "Build a Suitest-branded UAT sign-off PDF from the selected test cases.\n\nEach case contributes its latest-run status + screenshot evidence. ZERO-tier,\ndeterministic. 404 when any case is outside this project/workspace.",
+        "operationId": "export_uat_document_api_v1_projects__project_id__exports_uat_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UatExportBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Export Uat Document",
+        "tags": [
+          "exports"
         ]
       }
     },
