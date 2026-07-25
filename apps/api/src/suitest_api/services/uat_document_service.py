@@ -67,7 +67,9 @@ class UatDocumentService:
                 raise UatExportError(f"case {cid} not in project {project_id}")
             steps = await self._cases.get_steps(case.id)
             tags = await self._cases.get_tags(case.id)
-            outcomes, evidence = await self._latest_run(case.last_run_id, case.id)
+            outcomes, evidence = await self._latest_run(
+                case.last_run_id, case.id, project_id=project_id, workspace_id=workspace_id
+            )
             inputs.append(
                 CaseInput(
                     title=case.title,
@@ -88,10 +90,22 @@ class UatDocumentService:
         return render_pdf(doc)
 
     async def _latest_run(
-        self, run_id: str | None, case_id: str
+        self, run_id: str | None, case_id: str, *, project_id: str, workspace_id: str
     ) -> tuple[list[StepOutcome], list[str]]:
-        """Return (this case's ordered run-step outcomes, screenshot data-URIs)."""
+        """Return (this case's ordered run-step outcomes, screenshot data-URIs).
+
+        The case's ``last_run_id`` pointer is NOT trusted: a case can be moved
+        between projects and ``run_steps.case_id`` has no cascade, so the pointed
+        run may belong to another project/workspace. If it does, we degrade to
+        "no run" (NOT RUN, no evidence) rather than embed cross-boundary data.
+        """
         if run_id is None:
+            return [], []
+        pair = await self._runs.get_with_summary(run_id)
+        if pair is None:
+            return [], []
+        run, _ = pair
+        if run.project_id != project_id or run.workspace_id != workspace_id:
             return [], []
         run_steps = [s for s in await self._runs.get_steps(run_id) if s.case_id == case_id]
         run_steps.sort(key=lambda s: s.step_order)
@@ -104,11 +118,13 @@ class UatDocumentService:
             for a in await self._runs.get_artifacts(run_id)
             if a.kind == ArtifactKind.SCREENSHOT and a.run_step_id in step_ids
         ]
-        evidence: list[str] = []
+        # The renderer draws only the first evidence image, so stop at the first
+        # one we can actually read — avoids base64'ing every screenshot into memory
+        # (matters on the npx-laptop target).
         for a in artifacts:
             raw = await file_storage.read_bytes(a.url)
             if raw is None:
                 continue
             b64 = base64.b64encode(raw).decode("ascii")
-            evidence.append(f"data:{a.mime_type};base64,{b64}")
-        return outcomes, evidence
+            return outcomes, [f"data:{a.mime_type};base64,{b64}"]
+        return outcomes, []
