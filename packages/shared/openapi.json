@@ -8658,6 +8658,7 @@
           "BE_GRPC",
           "FE_WEB",
           "FE_MOBILE",
+          "FE_DESKTOP",
           "DATA",
           "INFRA",
           "CUSTOM"
