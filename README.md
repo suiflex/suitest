@@ -1,7 +1,10 @@
 # Suitest — MCP-native testing platform
 
 <p align="center">
-  <img src="assets/brand/readme-hero.png" alt="Suitest — AI-native QA platform. Ship with confidence: manage tests, run everywhere, diagnose with AI. A checkout regression passing across browser, API and database steps." width="960">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo-dark.svg">
+    <img src="assets/brand/logo-light.svg" alt="Suitest" width="380">
+  </picture>
 </p>
 
 <p align="center">
@@ -16,12 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/demo.gif" alt="Suitest 30-second demo: PRD-generated test suite executing green against the bundled Brewly demo app" width="960">
-</p>
-
-<p align="center">
-  <em>AI-generated suite (from <a href="./examples/demo-app/PRD.md">PRD.md</a>) running green against a live app — API + browser steps, screenshots included.<br>
-  Replay it yourself in one command: <code>make demo</code> → <a href="http://localhost:3000">localhost:3000</a> (<code>demo@suitest.dev</code> / <code>demo1234</code>). No LLM key needed.</em>
+  <img src="assets/brand/readme-hero.png" alt="Suitest — AI-native QA platform. Ship with confidence: manage tests, run everywhere, diagnose with AI. A checkout regression passing across browser, API and database steps." width="960">
 </p>
 
 **Suitest** is a self-hostable, open-source QA platform that works fully **without an LLM** (ZERO tier): manual test case management plus a deterministic run engine that drives any target through [MCP](https://modelcontextprotocol.io) (Playwright, HTTP APIs, Postgres, and more). If you want AI on top, plug in your own LLM key (cloud, or local Ollama) to unlock test generation, failure diagnosis, and conversational testing. No vendor lock-in, no forced API keys.
@@ -33,6 +31,15 @@ Backend: Python 3.12 + FastAPI · Frontend: Vite + React 19 · DB: Postgres 16 +
 [Docs](./docs) · [Getting started](#install) · [MCP server](./docs/MCP_PLUGINS.md) · [Blackbox testing](./docs/BLACKBOX_UI_TESTING.md) · [Deployment](./docs/DEPLOYMENT.md) · [Architecture](./docs/ARCHITECTURE.md) · [Troubleshooting](./docs/TROUBLESHOOTING.md) · [Contributing](./CONTRIBUTING.md)
 
 New install? Start at [Install](#install) below. `npx @suiflex/suitest onboard` boots the full platform locally in one command; the MCP server alone runs from a single `npx` command; the team server is one `make docker-up`.
+
+<p align="center">
+  <img src="assets/demo.gif" alt="Suitest 30-second demo: PRD-generated test suite executing green against the bundled Brewly demo app" width="960">
+</p>
+
+<p align="center">
+  <em>AI-generated suite (from <a href="./examples/demo-app/PRD.md">PRD.md</a>) running green against a live app — API + browser steps, screenshots included.<br>
+  Replay it yourself in one command: <code>make demo</code> → <a href="http://localhost:3000">localhost:3000</a> (<code>demo@suitest.dev</code> / <code>demo1234</code>). No LLM key needed.</em>
+</p>
 
 ---
 
