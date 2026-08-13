@@ -1,10 +1,7 @@
 # Suitest — MCP-native testing platform
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo-dark.svg">
-    <img src="assets/brand/logo-light.svg" alt="Suitest" width="380">
-  </picture>
+  <img src="assets/brand/readme-hero.png" alt="Suitest — AI-native QA platform. Ship with confidence: manage tests, run everywhere, diagnose with AI. A checkout regression passing across browser, API and database steps." width="960">
 </p>
 
 <p align="center">
@@ -228,7 +225,7 @@ suitest/
 │   ├── python/              ← suiflex-suitest-sdk (REST client used by the lifecycle)
 │   └── typescript/          ← @suiflex/suitest-sdk
 │
-├── assets/brand/            ← logo.svg + light/dark lockups + mark
+├── assets/brand/            ← logo.svg + light/dark lockups + mark + readme hero
 │
 ├── infra/
 │   ├── docker/              ← Dockerfile per service
