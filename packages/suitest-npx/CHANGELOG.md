@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.4](https://github.com/suiflex/suitest/compare/launcher-v0.6.3...launcher-v0.6.4) (2026-08-13)
+
+### Features
+
+* onboard with `@suiflex/suitest-mcp@0.7.0`, which detects more FE/BE frameworks in `init`
+
 ## [0.6.3](https://github.com/suiflex/suitest/compare/launcher-v0.6.2...launcher-v0.6.3) (2026-08-12)
 
 ### Bug Fixes

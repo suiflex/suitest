@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## [0.7.0](https://github.com/suiflex/suitest/compare/mcp-v0.6.2...mcp-v0.7.0) (2026-08-13)
+
+
+### Features
+
+* detect more FE/BE frameworks in `init` ([553e62c](https://github.com/suiflex/suitest/commit/553e62c))
+
 
 ### Bug Fixes
 
