@@ -55,6 +55,17 @@ def test_ensure_install_failure_names_the_manual_command(monkeypatch) -> None:
     assert "-m pip install requests" in status.detail
 
 
+def test_project_interpreter_prefers_the_repo_venv(tmp_path) -> None:
+    venv_python = tmp_path / ".venv" / "bin" / "python"
+    venv_python.parent.mkdir(parents=True)
+    venv_python.write_text("")
+    assert pydeps.project_interpreter(tmp_path) == str(venv_python)
+
+
+def test_project_interpreter_is_none_without_a_venv(tmp_path) -> None:
+    assert pydeps.project_interpreter(tmp_path) is None
+
+
 if __name__ == "__main__":
     import pytest
 

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from itertools import chain
 from typing import TYPE_CHECKING, Protocol
 
+from suitest_lifecycle import pydeps
 from suitest_lifecycle.models import (
     CodeSummary,
     PlanCase,
@@ -78,6 +79,8 @@ class WhiteboxAdapter(Protocol):
 
     def command_for(self, target: Path) -> list[str]: ...
 
+    def ensure_runtime(self) -> pydeps.DepStatus: ...
+
 
 def _walk(root: Path, patterns: tuple[str, ...]) -> list[Path]:
     found: set[Path] = set()
@@ -97,24 +100,49 @@ def _allowed_path(path: Path) -> bool:
 class PytestAdapter:
     framework = "pytest"
 
+    def __init__(self, project_path: Path | None = None) -> None:
+        # The project's tests import the project's dependencies, which Suitest's
+        # own interpreter knows nothing about — so run them with the venv in the
+        # repo when there is one. This mirrors NodeTestAdapter, which shells out
+        # to `npm exec` and therefore already resolves the project's toolchain.
+        self.python = pydeps.project_interpreter(project_path) if project_path else None
+
+    @property
+    def interpreter(self) -> str:
+        return self.python or sys.executable
+
+    def ensure_runtime(self) -> pydeps.DepStatus:
+        """Provision pytest when falling back to Suitest's own interpreter.
+
+        A project venv is assumed to carry its own pytest; installing into it
+        would be Suitest mutating the user's environment uninvited.
+        """
+        if self.python is not None:
+            return pydeps.DepStatus(True, f"project interpreter: {self.python}")
+        return pydeps.ensure("pytest")
+
     def discover(self, project_path: Path) -> WhiteboxDiscovery:
         targets = _walk(project_path, ("test_*.py", "*_test.py"))
         coverage = project_path / "coverage.json"
         return WhiteboxDiscovery(
             capability=WHITEBOX_CAPABILITY,
             framework=self.framework,
-            command=[sys.executable, "-m", "pytest", "-q"],
+            command=[self.interpreter, "-m", "pytest", "-q"],
             targets=targets,
             coverage_file=coverage,
         )
 
     def command_for(self, target: Path) -> list[str]:
-        return [sys.executable, "-m", "pytest", "-q", str(target)]
+        return [self.interpreter, "-m", "pytest", "-q", str(target)]
 
 
 class NodeTestAdapter:
     def __init__(self, framework: str) -> None:
         self.framework = framework
+
+    def ensure_runtime(self) -> pydeps.DepStatus:
+        # `npm exec` already resolves the project's own node_modules.
+        return pydeps.DepStatus(True, "project toolchain via npm exec")
 
     def discover(self, project_path: Path) -> WhiteboxDiscovery:
         targets = _walk(
@@ -147,7 +175,7 @@ def detect_adapter(project_path: Path, requested: str = "") -> WhiteboxAdapter:
         not normalized
         and ((project_path / "pyproject.toml").is_file() or (project_path / "pytest.ini").is_file())
     ):
-        return PytestAdapter()
+        return PytestAdapter(project_path)
     package_json = project_path / "package.json"
     package_text = package_json.read_text(encoding="utf-8") if package_json.is_file() else ""
     if normalized in {"vitest", "jest"}:
@@ -335,6 +363,9 @@ def execute(config: Config) -> tuple[CodeSummary, list[PlanCase], RunSummary, Pa
         case.framework = discovery.framework
     results: list[TestResult] = []
     adapter = detect_adapter(config.project_path, discovery.framework)
+    runtime = adapter.ensure_runtime()
+    if not runtime.ready:
+        raise RuntimeError(f"white-box runtime unavailable: {runtime.detail}")
     for case, target in zip(cases, targets, strict=True):
         command = config.testing.command or adapter.command_for(target)
         outcome, duration_ms, stdout, stderr = _run_command(command, config.project_path)

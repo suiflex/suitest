@@ -18,6 +18,10 @@ import site
 import subprocess
 import sys
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -113,6 +117,25 @@ def ensure(
     return install(pkg, module, timeout_sec)
 
 
+_VENV_BIN = ("bin/python", "Scripts/python.exe")
+_PROJECT_VENV_DIRS = (".venv", "venv", ".venv-suitest", "env")
+
+
+def project_interpreter(project_path: Path) -> str | None:
+    """The interpreter belonging to the project under test, if it ships one.
+
+    A project's own tests import the project's own dependencies, which Suitest's
+    interpreter knows nothing about. Prefer the venv sitting in the repo — the
+    Python equivalent of what ``npm exec`` already does for the Node adapters.
+    """
+    for name in _PROJECT_VENV_DIRS:
+        for rel in _VENV_BIN:
+            candidate = project_path / name / rel
+            if candidate.is_file():
+                return str(candidate)
+    return None
+
+
 __all__ = [
     "DepStatus",
     "ensure",
@@ -121,4 +144,5 @@ __all__ = [
     "install",
     "make_importable_in_process",
     "pip_install_variants",
+    "project_interpreter",
 ]

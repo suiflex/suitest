@@ -7,6 +7,7 @@
 
 * run on the Python 3.11 the package advertises — a PEP 695 `type` alias in `http_client.py` made every tool crash with `SyntaxError` on 3.11 hosts
 * provision `requests` on demand for backend runs, matching how playwright is already provisioned for frontend runs
+* run white-box pytest with the project's own interpreter, so the user's tests can import the user's dependencies
 
 ## [0.7.1](https://github.com/suiflex/suitest/compare/mcp-v0.7.0...mcp-v0.7.1) (2026-08-13)
 
