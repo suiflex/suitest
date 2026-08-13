@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.2](https://github.com/suiflex/suitest/compare/mcp-v0.7.1...mcp-v0.7.2) (2026-08-13)
+
+
+### Bug Fixes
+
+* run on the Python 3.11 the package advertises — a PEP 695 `type` alias in `http_client.py` made every tool crash with `SyntaxError` on 3.11 hosts
+* provision `requests` on demand for backend runs, matching how playwright is already provisioned for frontend runs
+
 ## [0.7.1](https://github.com/suiflex/suitest/compare/mcp-v0.7.0...mcp-v0.7.1) (2026-08-13)
 
 

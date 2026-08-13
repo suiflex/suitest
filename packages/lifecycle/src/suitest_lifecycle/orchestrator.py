@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from suitest_lifecycle import pydeps
 from suitest_lifecycle.analyzers.express import analyze_express
 from suitest_lifecycle.analyzers.react import analyze_react
 from suitest_lifecycle.enrich import enrich_plan, resolve_client
@@ -666,13 +667,19 @@ def run_lifecycle(config: Config) -> LifecycleResult:
         if not is_ready:
             return _finish_fail(f"target never became ready ({ready_detail})")
 
-        # 3) frontend: ensure Suitest's bundled browser is provisioned (user never
-        #    installs playwright themselves — Suitest owns the runtime)
+        # 3) ensure Suitest's own test runtime is provisioned — the user runs their
+        #    app, never `pip install`. Frontend needs playwright + Chromium; the
+        #    generated backend tests import `requests` (exporters/backend.py).
         if config.mode is Mode.FRONTEND:
             browser = ensure_browser()
             steps.append(f"browser: {browser.detail}")
             if not browser.ready:
                 return _finish_fail(f"browser unavailable: {browser.detail}")
+        else:
+            http = pydeps.ensure("requests")
+            steps.append(f"http client: {http.detail}")
+            if not http.ready:
+                return _finish_fail(f"http client unavailable: {http.detail}")
 
         # 4) crawl/blackbox mode: app is up — discover via live DOM, then generate.
         if _is_blackbox(config):

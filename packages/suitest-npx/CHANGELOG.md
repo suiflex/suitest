@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.7](https://github.com/suiflex/suitest/compare/launcher-v0.6.6...launcher-v0.6.7) (2026-08-13)
+
+
+### Bug Fixes
+
+* onboard with `@suiflex/suitest-mcp@0.7.2`, which runs on Python 3.11 and installs the backend test dependency itself
+
 ## [0.6.6](https://github.com/suiflex/suitest/compare/launcher-v0.6.5...launcher-v0.6.6) (2026-08-13)
 
 

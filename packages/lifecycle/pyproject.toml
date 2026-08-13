@@ -1,11 +1,13 @@
 [project]
 name = "suiflex-suitest-lifecycle"
-version = "0.1.7"
+version = "0.1.8"
 description = "Suitest testing lifecycle — TestSprite-parity analyze→generate→start→wait→run→report"
 requires-python = ">=3.11"
 # No third-party runtime deps: the lifecycle core is stdlib-only so it can drive
-# any target project. Generated tests use `requests` / `playwright`, installed in
-# the target's own environment — not here.
+# any target project. The generated tests do use `requests` / `playwright`, but
+# Suitest provisions those on demand into the interpreter that runs them
+# (`pydeps.ensure`) rather than declaring them here — the person testing their
+# app never runs `pip install`.
 dependencies = []
 
 # Frontend execution runtime. Suitest BUNDLES the browser driver so the user
@@ -31,3 +33,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/suitest_lifecycle"]
+
+# The rest of the monorepo is pinned to 3.12, but this package is copied verbatim
+# into the npm tarball and executed by whatever interpreter the host has, down to
+# the 3.11 declared above. Linting it at py311 is what makes 3.12-only syntax a
+# CI failure here instead of a crash on a user's machine.
+[tool.ruff]
+extend = "../../pyproject.toml"
+target-version = "py311"

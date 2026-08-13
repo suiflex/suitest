@@ -1,8 +1,8 @@
 """Unit tests for on-demand Playwright provisioning + the browser-tool guard.
 
-Hermetic: no real pip, no browser. We assert the argv-selection logic (the
-money path: venv vs system, PEP-668 fallback) and that a browser tool degrades
-to a clean envelope instead of crashing when provisioning fails.
+Hermetic: no real pip, no browser. The pip argv-selection logic itself lives in
+``pydeps`` and is covered by ``test_pydeps.py``; here we assert that a browser
+tool degrades to a clean envelope instead of crashing when provisioning fails.
 """
 
 from __future__ import annotations
@@ -10,27 +10,6 @@ from __future__ import annotations
 import suitest_lifecycle.frontend_runtime as fr
 from suitest_lifecycle.blackbox import mcp as bbmcp
 from suitest_lifecycle.frontend_runtime import BrowserStatus
-
-
-def test_pip_variants_in_venv_installs_into_venv(monkeypatch) -> None:
-    # venv => prefix differs from base_prefix; no --user, no PEP-668 fight.
-    monkeypatch.setattr(fr.sys, "prefix", "/tmp/venv")
-    monkeypatch.setattr(fr.sys, "base_prefix", "/usr")
-    variants = fr._pip_install_variants("playwright")
-    assert len(variants) == 1
-    assert "--user" not in variants[0]
-    assert "--break-system-packages" not in variants[0]
-    assert variants[0][-1] == "playwright"
-
-
-def test_pip_variants_system_has_user_then_break_system(monkeypatch) -> None:
-    # Non-venv => --user first, then --break-system-packages for PEP-668.
-    monkeypatch.setattr(fr.sys, "prefix", "/usr")
-    monkeypatch.setattr(fr.sys, "base_prefix", "/usr")
-    variants = fr._pip_install_variants("playwright")
-    assert len(variants) == 2
-    assert "--user" in variants[0] and "--break-system-packages" not in variants[0]
-    assert "--user" in variants[1] and "--break-system-packages" in variants[1]
 
 
 def test_ensure_browser_no_autoinstall_reports_missing(monkeypatch) -> None:

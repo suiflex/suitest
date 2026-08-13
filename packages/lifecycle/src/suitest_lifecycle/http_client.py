@@ -20,7 +20,9 @@ import urllib.request
 import uuid
 from typing import Any
 
-type JSONDict = dict[str, Any]
+# Plain assignment, not a PEP 695 `type` statement: this module ships to hosts
+# running the 3.11 the package advertises, where that syntax does not parse.
+JSONDict = dict[str, Any]
 
 
 class SuitestAPIError(RuntimeError):
