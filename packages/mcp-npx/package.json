@@ -47,6 +47,6 @@
   "scripts": {
     "sync-python": "node scripts/sync-python.js",
     "prepack": "node scripts/sync-python.js",
-    "test": "node scripts/sync-python.js && node --test \"test/*.test.js\""
+    "test": "node scripts/sync-python.js && node --test"
   }
 }

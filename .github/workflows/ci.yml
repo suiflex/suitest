@@ -26,6 +26,7 @@ jobs:
       python: ${{ steps.filter.outputs.python }}
       web: ${{ steps.filter.outputs.web }}
       mcp: ${{ steps.filter.outputs.mcp }}
+      floor: ${{ steps.filter.outputs.floor }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -52,6 +53,11 @@ jobs:
             mcp:
               - 'packages/mcp-npx/**'
               - 'packages/lifecycle/**'
+              - '.github/workflows/ci.yml'
+            floor:
+              - 'packages/mcp-npx/**'
+              - 'packages/lifecycle/**'
+              - 'packages/suitest-npx/**'
               - '.github/workflows/ci.yml'
 
   python-lint:
@@ -326,6 +332,47 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
 
   # ------------------------------------------------------------------------
+  # Version floor — the npm packages declare Node >= 18 and the bundled Python
+  # declares >= 3.11, but every other job runs Node 22 / Python 3.12. A PEP 695
+  # `type` alias once shipped to npm that way and crashed every tool on a 3.11
+  # host. This job runs BOTH packages against the versions they promise.
+  # ------------------------------------------------------------------------
+  version-floor:
+    name: Version floor (Node 18 + Python 3.11)
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.floor == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "18"
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      # The unit tests import very little of the bundled tree, so compiling every
+      # module is what actually catches syntax the floor cannot parse.
+      - name: Compile the bundled Python on 3.11
+        working-directory: packages/mcp-npx
+        run: |
+          node scripts/sync-python.js
+          python -m compileall -q python
+
+      - name: MCP package tests on Node 18
+        working-directory: packages/mcp-npx
+        run: npm test
+
+      - name: Launcher tests on Node 18
+        working-directory: packages/suitest-npx
+        run: npm test
+
+  # ------------------------------------------------------------------------
   # @suiflex/suitest-mcp (npx wrapper) — prove the artifact users actually install:
   # bundle sync, JSON-RPC boot smoke via the real bin, and a tarball dry-run.
   # Also validates the uvx path: build the suiflex-suitest-lifecycle wheel and boot
@@ -343,7 +390,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: "22" # node --test glob patterns need >= 21
+          node-version: "22"
 
       - name: Set up Python
         uses: actions/setup-python@v7

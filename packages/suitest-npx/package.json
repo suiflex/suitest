@@ -25,6 +25,6 @@
   "scripts": {
     "sync-assets": "node scripts/sync-assets.js",
     "prepack": "node scripts/sync-assets.js",
-    "test": "node --test \"test/*.test.js\""
+    "test": "node --test"
   }
 }
