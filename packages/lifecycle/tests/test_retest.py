@@ -180,19 +180,39 @@ def test_binding_stale_id_auto_repairs_and_rewrites_config(tmp_path: Path) -> No
     assert raw["publish"]["projectId"] == "proj_new"  # config file rewritten
 
 
-def test_binding_stale_id_unrepairable_fails_and_never_recreates(tmp_path: Path) -> None:
+def _ambiguous() -> dict[str, object]:
+    """Server response for a dead id that several live projects could answer to."""
+    return {
+        "status": "missing",
+        "candidates": [{"id": "proj_a", "name": "Demo App"}, {"id": "proj_b", "name": "Demo App"}],
+    }
+
+
+def test_binding_ambiguous_candidates_fail_and_never_recreate(tmp_path: Path) -> None:
     cfg = _config(tmp_path, project_id="proj_gone")
-    b = rt.resolve_binding(cfg, client=FakeBindingClient({"status": "missing"}))
+    b = rt.resolve_binding(cfg, client=FakeBindingClient(_ambiguous()))
     assert b.status == "missing"
     assert b.blocks_publish
     assert "recreateProject" in b.detail  # clear next action in the message
+    assert len(b.candidates) == 2
+    raw = json.loads(cfg.config_path.read_text())
+    assert raw["publish"]["projectId"] == "proj_gone"  # never rebound behind the user's back
 
 
-def test_binding_recreate_only_with_explicit_flag(tmp_path: Path) -> None:
+def test_binding_dead_id_without_candidates_rebinds_by_slug(tmp_path: Path) -> None:
+    # A reinstall drops the whole local database, so the configured id dangles and
+    # nothing resembles it. That is unambiguous — publish should heal, not stop.
     cfg = _config(tmp_path, project_id="proj_gone")
-    missing = FakeBindingClient({"status": "missing"})
-    assert rt.resolve_binding(cfg, client=missing).status == "missing"
-    b = rt.resolve_binding(cfg, recreate=True, client=FakeBindingClient({"status": "missing"}))
+    b = rt.resolve_binding(cfg, client=FakeBindingClient({"status": "missing"}))
+    assert b.status == "recreate_requested"
+    assert not b.blocks_publish
+    assert "demo-app" in b.detail
+
+
+def test_binding_recreate_flag_overrides_ambiguity(tmp_path: Path) -> None:
+    cfg = _config(tmp_path, project_id="proj_gone")
+    assert rt.resolve_binding(cfg, client=FakeBindingClient(_ambiguous())).status == "missing"
+    b = rt.resolve_binding(cfg, recreate=True, client=FakeBindingClient(_ambiguous()))
     assert b.status == "recreate_requested"
     assert not b.blocks_publish
 

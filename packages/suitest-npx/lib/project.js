@@ -47,17 +47,26 @@ function cacheDir(version) {
 
 // Superadmin bootstrap credentials for local API; apiKey is filled after mint (api-key.js).
 // encryptionKey feeds SUITEST_ENCRYPTION_KEY (urlsafe-b64, 32 bytes) — api_keys are
-// AES-GCM encrypted at rest, so minting 500s without it. Backfilled on load for
-// credential files created before this field existed.
+// AES-GCM encrypted at rest, so minting 500s without it.
+// authSecret feeds SUITEST_AUTH_SECRET, which signs the session JWTs. Without it the
+// API falls back to the published default in settings.py, so every install on earth
+// would sign tokens anyone could forge. Both are backfilled on load for credential
+// files created before the field existed.
 // Password is NEVER auto-generated: the superadmin must set one they can remember,
 // so account creation happens in `suitest onboard` (prompt or --email/--password).
 function loadOrCreateCredentials(credPath, defaults = {}) {
   if (fs.existsSync(credPath)) {
     const creds = JSON.parse(fs.readFileSync(credPath, "utf8"));
+    let backfilled = false;
     if (!creds.encryptionKey) {
       creds.encryptionKey = crypto.randomBytes(32).toString("base64");
-      saveCredentials(credPath, creds);
+      backfilled = true;
     }
+    if (!creds.authSecret) {
+      creds.authSecret = crypto.randomBytes(32).toString("base64");
+      backfilled = true;
+    }
+    if (backfilled) saveCredentials(credPath, creds);
     return creds;
   }
   if (!defaults.password) {
@@ -67,6 +76,7 @@ function loadOrCreateCredentials(credPath, defaults = {}) {
     email: defaults.email || "admin@suitest.local",
     password: defaults.password,
     encryptionKey: crypto.randomBytes(32).toString("base64"),
+    authSecret: crypto.randomBytes(32).toString("base64"),
     apiKey: null,
   };
   saveCredentials(credPath, creds);

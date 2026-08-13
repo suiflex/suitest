@@ -48,7 +48,12 @@ class SuitestClient:
         self._headers: dict[str, str] = {"Accept": "application/json"}
         if token:
             self._headers["Authorization"] = f"Bearer {token}"
-        if workspace_id:
+        # An API key is pinned to its own workspace server-side, so the header can
+        # only ever agree with the key or be rejected with 403. Sending a stale
+        # workspaceId from suitest.config.json (a reinstall, or a config shared
+        # between people who each have their own workspace) would break every
+        # publish for no gain, so the key wins whenever there is one.
+        if workspace_id and not token:
             self._headers["X-Workspace-Id"] = workspace_id
 
     def __enter__(self) -> SuitestClient:

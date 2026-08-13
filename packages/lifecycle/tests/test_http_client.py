@@ -18,6 +18,7 @@ class _Handler(BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
         _seen["path"] = self.path
         _seen["auth"] = self.headers.get("Authorization")
+        _seen["workspace"] = self.headers.get("X-Workspace-Id")
         _seen["content_type"] = self.headers.get("Content-Type")
         _seen["body"] = body
         if self.path == "/api/v1/boom":
@@ -54,6 +55,20 @@ def test_json_post_carries_auth_and_body(server_url: str) -> None:
     assert _seen["auth"] == "Bearer sk_x"
     sent = json.loads(_seen["body"])
     assert sent["suiteName"] == "s" and sent["results"] == [{"slug": "a"}]
+
+
+def test_api_key_owns_the_workspace_and_suppresses_the_header(server_url: str) -> None:
+    # The key is pinned to its workspace server-side; a stale configured id could
+    # only ever 403 the run, so it must not be sent alongside a token.
+    with SuitestClient(server_url, token="sk_x", workspace_id="ws_from_a_dead_install") as c:
+        c.ingest_run(suite_name="s", name="n", results=[])
+    assert _seen["workspace"] is None
+
+
+def test_workspace_header_still_sent_without_a_token(server_url: str) -> None:
+    with SuitestClient(server_url, workspace_id="ws1") as c:
+        c.ingest_run(suite_name="s", name="n", results=[])
+    assert _seen["workspace"] == "ws1"
 
 
 def test_http_error_maps_to_api_error(server_url: str) -> None:

@@ -181,6 +181,17 @@ def resolve_binding(
             detail=f"projectId '{config.publish.project_id}' not found; "
             f"explicit recreate flag set — server will find-or-create slug '{slug}'",
         )
+    if not candidates:
+        # Nothing to be ambiguous about: the id is gone and no project resembles
+        # this one (a reinstall wipes the local database, so every configured id
+        # dangles). Rebinding by slug is what the same config would have done
+        # with no projectId at all, and publish rewrites the healed id back.
+        return BindingResult(
+            "recreate_requested",
+            "will_recreate_by_slug",
+            detail=f"projectId '{config.publish.project_id}' not found and no project "
+            f"matched by name or slug — server will find-or-create slug '{slug}'",
+        )
     return BindingResult(
         "missing",
         "fail",

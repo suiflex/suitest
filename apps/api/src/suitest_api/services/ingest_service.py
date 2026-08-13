@@ -189,8 +189,9 @@ async def resolve_project(
     - explicit id exists in the workspace → ``valid``
     - id missing/stale but exactly one active project matches the slug or the
       (case-insensitive) name → ``repaired`` with the surviving id
-    - anything else → ``missing`` (ambiguous matches are listed as candidates;
-      the client must fail loudly or recreate only on an explicit flag)
+    - anything else → ``missing`` (ambiguous matches are listed as candidates,
+      and a client that sees them must fail loudly rather than guess; with no
+      candidates the binding is simply gone and the client may rebind by slug)
     """
     from sqlalchemy import func
     from suitest_db.models.project import Project

@@ -45,17 +45,20 @@ test("credentials are created once from user input, persisted with mode 600", ()
   assert.strictEqual(first.apiKey, null);
   // 32 bytes base64 = 44 chars, decodes back to 32 (crypto.py urlsafe_b64decode)
   assert.strictEqual(Buffer.from(first.encryptionKey, "base64").length, 32);
+  // JWT signing key: >= 32 bytes for SHA256, and unique per install
+  assert.ok(Buffer.from(first.authSecret, "base64").length >= 32);
   const mode = fs.statSync(dirs.credentials).mode & 0o777;
   assert.strictEqual(mode, 0o600);
   const again = loadOrCreateCredentials(dirs.credentials);
   assert.strictEqual(again.password, first.password);
   assert.strictEqual(again.encryptionKey, first.encryptionKey);
+  assert.strictEqual(again.authSecret, first.authSecret); // stable across restarts
   first.apiKey = "sk_suitest_x";
   saveCredentials(dirs.credentials, first);
   assert.strictEqual(loadOrCreateCredentials(dirs.credentials).apiKey, "sk_suitest_x");
 });
 
-test("pre-encryptionKey credential files are backfilled on load", () => {
+test("older credential files are backfilled with both generated keys on load", () => {
   const cwd = tmp();
   const dirs = ensureProjectDirs(cwd);
   fs.writeFileSync(
@@ -64,9 +67,21 @@ test("pre-encryptionKey credential files are backfilled on load", () => {
   );
   const creds = loadOrCreateCredentials(dirs.credentials);
   assert.strictEqual(Buffer.from(creds.encryptionKey, "base64").length, 32);
+  assert.ok(Buffer.from(creds.authSecret, "base64").length >= 32);
   // persisted, not just in-memory
   const reread = JSON.parse(fs.readFileSync(dirs.credentials, "utf8"));
   assert.strictEqual(reread.encryptionKey, creds.encryptionKey);
+  assert.strictEqual(reread.authSecret, creds.authSecret);
+});
+
+test("each install gets its own JWT signing secret", () => {
+  const a = ensureProjectDirs(tmp());
+  const b = ensureProjectDirs(tmp());
+  const opts = { email: "me@example.com", password: "hunter2hunter2" };
+  assert.notStrictEqual(
+    loadOrCreateCredentials(a.credentials, opts).authSecret,
+    loadOrCreateCredentials(b.credentials, opts).authSecret,
+  );
 });
 
 test("dbUrl is absolute sqlite+aiosqlite (4 slashes)", () => {

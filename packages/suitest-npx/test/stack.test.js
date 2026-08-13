@@ -34,9 +34,17 @@ test("pickPort returns the preferred port when free", async () => {
 
 test("buildEnv composes the full local env for both processes", () => {
   const cwd = tmp();
-  const creds = { email: "admin@suitest.local", password: "pw", encryptionKey: "a2V5", apiKey: null };
+  const creds = {
+    email: "admin@suitest.local",
+    password: "pw",
+    encryptionKey: "a2V5",
+    authSecret: "c2VjcmV0",
+    apiKey: null,
+  };
   const env = buildEnv(cwd, { port: 4321, webDist: "/cache/web", creds });
   assert.strictEqual(env.SUITEST_ENCRYPTION_KEY, "a2V5");
+  // without this the API falls back to the published default in settings.py
+  assert.strictEqual(env.SUITEST_AUTH_SECRET, "c2VjcmV0");
   assert.strictEqual(env.PYTHONUNBUFFERED, "1");
   assert.strictEqual(env.SUITEST_MODE, "local");
   assert.ok(env.SUITEST_DATABASE_URL.startsWith("sqlite+aiosqlite:///"));
