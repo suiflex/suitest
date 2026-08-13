@@ -2648,7 +2648,7 @@ wheels = [
 
 [[package]]
 name = "suiflex-suitest-lifecycle"
-version = "0.1.5"
+version = "0.1.7"
 source = { editable = "packages/lifecycle" }
 
 [package.optional-dependencies]

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1](https://github.com/suiflex/suitest/compare/mcp-v0.7.0...mcp-v0.7.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* publish against the workspace the API key belongs to, ignoring a stale `publish.workspaceId`
+* rebind a dead `publish.projectId` by slug when nothing ambiguous matches, instead of blocking the run
+
 ## [0.7.0](https://github.com/suiflex/suitest/compare/mcp-v0.6.2...mcp-v0.7.0) (2026-08-13)
 
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.6](https://github.com/suiflex/suitest/compare/launcher-v0.6.5...launcher-v0.6.6) (2026-08-13)
+
+
+### Bug Fixes
+
+* sign session JWTs with a 32-byte secret generated per install, instead of the published default in `settings.py`. Existing installs are signed out once.
+* onboard with `@suiflex/suitest-mcp@0.7.1`, so publishing survives an uninstall/reinstall without hand-editing `suitest.config.json`
+
 ## [0.6.5](https://github.com/suiflex/suitest/compare/launcher-v0.6.4...launcher-v0.6.5) (2026-08-13)
 
 
