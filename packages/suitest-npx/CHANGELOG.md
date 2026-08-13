@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.5](https://github.com/suiflex/suitest/compare/launcher-v0.6.4...launcher-v0.6.5) (2026-08-13)
+
+
+### Bug Fixes
+
+* **onboard:** export isFree from stack.js ([2da4c2f](https://github.com/suiflex/suitest/commit/2da4c2fca20acd261dd198ffe3e8b378cd11ee47))
+* **onboard:** export isFree from stack.js ([970c644](https://github.com/suiflex/suitest/commit/970c6449616d3099e25839ec237d7155ed6c824d))
+* **onboard:** reject already-in-use ports during setup ([e2ca20d](https://github.com/suiflex/suitest/commit/e2ca20d6ec7508654187fa409b1cc868011e3c72))
+
 ## [0.6.4](https://github.com/suiflex/suitest/compare/launcher-v0.6.3...launcher-v0.6.4) (2026-08-13)
 
 ### Features
