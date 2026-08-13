@@ -7,7 +7,7 @@ const { ensureProjectDirs, loadOrCreateCredentials } = require("./project.js");
 const { ensureWebDist, ensureWheels } = require("./assets.js");
 const { ensureVenv } = require("./venv.js");
 const { preflight } = require("./preflight.js");
-const { up } = require("./stack.js");
+const { up, isFree } = require("./stack.js");
 
 // First run → the user MUST set the superadmin account; nothing is auto-generated
 // (a generated password gets lost, and it's the only superadmin). Interactive prompt
@@ -90,14 +90,19 @@ async function resolvePort(dirs, opts) {
   const readline = require("node:readline/promises");
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   try {
-    const answer = (await rl.question(`Dashboard port [${current}]: `)).trim();
-    if (!answer) return current;
-    if (/^\d+$/.test(answer)) {
-      const n = Number(answer);
-      if (n >= 1024 && n <= 65535) return n;
+    for (;;) {
+      const answer = (await rl.question(`Dashboard port [${current}]: `)).trim();
+      let candidate = current;
+      if (answer) {
+        if (!/^\d+$/.test(answer) || Number(answer) < 1024 || Number(answer) > 65535) {
+          console.log(`  Ignoring invalid port "${answer}" — using ${current}.`);
+        } else {
+          candidate = Number(answer);
+        }
+      }
+      if (await isFree(candidate)) return candidate;
+      console.log(`  Port ${candidate} is already in use — pick another.`);
     }
-    console.log(`  Ignoring invalid port "${answer}" — using ${current}.`);
-    return current;
   } finally {
     rl.close();
   }
