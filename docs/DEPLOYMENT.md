@@ -494,6 +494,26 @@ The drill is **mandatory quarterly** for production.
 | 6 | Verify `/capabilities` for a tier mismatch (in case a provider was swapped unintentionally) |
 | 7 | Rollback: `helm rollback suitest <revision>` — downgrade-safe migrations only |
 
+### 4.3b Desktop install channels (Homebrew / Scoop)
+
+`brew install suiflex/tap/suitest` and `scoop install suitest` (plus the
+`suitest-mcp` variants) are published automatically from this repo:
+
+| Stage | Where |
+|------|------|
+| 1 | Tag `launcher-v*` / `mcp-v*` → npm publish (OIDC) |
+| 2 | `scripts/build-dist-bundle.sh` builds a self-contained tarball (vendored `node_modules`, `.cmd` shim) and its `.sha256` |
+| 3 | Tarball attached to the GitHub Release for that tag |
+| 4 | `scripts/publish-installers.sh` renders `packaging/*.tmpl` and pushes to `suiflex/homebrew-tap` and `suiflex/scoop-bucket` |
+
+Both formulas declare `node` + `uv` as dependencies; the tarball vendors only
+JavaScript, and the Python runtime is still provisioned by `uv` on first run.
+
+Edit `packaging/*.tmpl`, never the published tap/bucket files — the next release
+overwrites them. The only secret involved is `TAP_PUBLISH_TOKEN` (write access
+to both distribution repos); everything else uses the run's `GITHUB_TOKEN` or
+OIDC.
+
 ### 4.4 Resource sizing guidance
 
 | Profile | Active user | Concurrent runs | Postgres | Redis | Runner replicas | API replicas |
