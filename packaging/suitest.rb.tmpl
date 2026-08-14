@@ -1,0 +1,29 @@
+# Rendered by .github/workflows/release-launcher.yml into suiflex/homebrew-tap.
+# Placeholders (@VERSION@, @BASE@, @SHA@) are filled in via sed on each release.
+# Edit the template, not the generated file.
+class Suitest < Formula
+  desc "Suitest local bundle - dashboard, SQLite, and MCP in one command"
+  homepage "https://github.com/suiflex/suitest"
+  url "@BASE@/suitest-launcher-@VERSION@.tar.gz"
+  sha256 "@SHA@"
+  license "Apache-2.0"
+
+  depends_on "node"
+  # lib/venv.js refuses to boot without uv: it provisions the Python 3.12
+  # runtime and installs the bundled wheels into a managed venv.
+  depends_on "uv"
+
+  def install
+    libexec.install Dir["*"]
+    # A wrapper rather than a symlink to bin/suitest.js: the shebang would
+    # resolve node off the caller's PATH, which may not have one.
+    (bin/"suitest").write <<~SH
+      #!/bin/bash
+      exec "#{Formula["node"].opt_bin}/node" "#{libexec}/bin/suitest.js" "$@"
+    SH
+  end
+
+  test do
+    assert_match "Usage: suitest", shell_output("#{bin}/suitest --help")
+  end
+end

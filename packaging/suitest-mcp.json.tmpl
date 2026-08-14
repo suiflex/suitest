@@ -1,0 +1,17 @@
+{
+  "version": "@VERSION@",
+  "description": "Suitest MCP server for IDE agents - generate, run, and publish QA tests",
+  "homepage": "https://github.com/suiflex/suitest",
+  "license": "Apache-2.0",
+  "depends": ["main/nodejs", "main/uv"],
+  "url": "@BASE@/suitest-mcp-@VERSION@.tar.gz",
+  "hash": "@SHA@",
+  "bin": "bin\\suitest-mcp.cmd",
+  "checkver": {
+    "github": "https://github.com/suiflex/suitest",
+    "regex": "mcp-v([\\d.]+)"
+  },
+  "autoupdate": {
+    "url": "https://github.com/suiflex/suitest/releases/download/mcp-v$version/suitest-mcp-$version.tar.gz"
+  }
+}

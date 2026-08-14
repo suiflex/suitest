@@ -1,0 +1,17 @@
+{
+  "version": "@VERSION@",
+  "description": "Suitest local bundle - dashboard, SQLite, and MCP in one command",
+  "homepage": "https://github.com/suiflex/suitest",
+  "license": "Apache-2.0",
+  "depends": ["main/nodejs", "main/uv"],
+  "url": "@BASE@/suitest-launcher-@VERSION@.tar.gz",
+  "hash": "@SHA@",
+  "bin": "bin\\suitest.cmd",
+  "checkver": {
+    "github": "https://github.com/suiflex/suitest",
+    "regex": "launcher-v([\\d.]+)"
+  },
+  "autoupdate": {
+    "url": "https://github.com/suiflex/suitest/releases/download/launcher-v$version/suitest-launcher-$version.tar.gz"
+  }
+}
