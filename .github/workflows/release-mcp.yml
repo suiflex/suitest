@@ -14,6 +14,9 @@ on:
     paths:
       - "packages/mcp-npx/**"
       - "packages/lifecycle/**"
+      - "packaging/suitest-mcp.*.tmpl"
+      - "scripts/build-dist-bundle.sh"
+      - "scripts/publish-installers.sh"
       - ".github/workflows/release-mcp.yml"
   workflow_dispatch:
     inputs:
@@ -51,6 +54,13 @@ jobs:
           npm pack --dry-run
           npm publish --dry-run --access public
 
+      - name: Validate the brew/scoop bundle and its rendered installers
+        working-directory: ${{ github.workspace }}
+        run: |
+          ./scripts/build-dist-bundle.sh packages/mcp-npx suitest-mcp
+          DRY_RUN=1 ./scripts/publish-installers.sh suitest-mcp suitest-mcp \
+            https://example.invalid/dl
+
   publish-npm:
     name: "@suiflex/suitest-mcp → npm"
     if: github.event_name == 'push'
@@ -81,6 +91,39 @@ jobs:
             echo "tag $GITHUB_REF_NAME != package.json $PKG_VERSION" >&2; exit 1; }
       - name: Publish to npm
         run: npm publish --access public
+
+  publish-installers:
+    name: "suitest-mcp → homebrew-tap + scoop-bucket"
+    if: github.event_name == 'push'
+    # After the npm publish, so a formula never points at a version npm rejected.
+    needs: [publish-npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release and upload the bundle to it
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build the self-contained bundle tarball
+        run: ./scripts/build-dist-bundle.sh packages/mcp-npx suitest-mcp
+      - name: Attach the bundle to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" \
+            dist/suitest-mcp-*.tar.gz dist/suitest-mcp-*.tar.gz.sha256 --clobber
+      - name: Render and push the formula and the manifest
+        env:
+          GH_TOKEN: ${{ secrets.TAP_PUBLISH_TOKEN }}
+        run: |
+          ./scripts/publish-installers.sh suitest-mcp suitest-mcp \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
 
   recover-npm:
     name: "Recover @suiflex/suitest-mcp npm publish"
