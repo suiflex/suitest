@@ -15,7 +15,10 @@ on:
   pull_request:
     paths:
       - "packages/suitest-npx/**"
+      - "packaging/suitest.*.tmpl"
       - "scripts/build-bundle-assets.sh"
+      - "scripts/build-dist-bundle.sh"
+      - "scripts/publish-installers.sh"
       - ".github/workflows/release-launcher.yml"
   workflow_dispatch:
     inputs:
@@ -63,6 +66,12 @@ jobs:
           npm pack --dry-run
           npm publish --dry-run --access public
 
+      - name: Validate the brew/scoop bundle and its rendered installers
+        run: |
+          ./scripts/build-dist-bundle.sh packages/suitest-npx suitest-launcher
+          DRY_RUN=1 ./scripts/publish-installers.sh suitest suitest-launcher \
+            https://example.invalid/dl
+
   publish-npm:
     name: "@suiflex/suitest → npm"
     if: github.event_name == 'push'
@@ -108,6 +117,48 @@ jobs:
             gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
+
+  publish-installers:
+    name: "suitest → homebrew-tap + scoop-bucket"
+    if: github.event_name == 'push'
+    # After the npm publish: the bundle vendors @suiflex/suitest-mcp from the
+    # registry, and a formula must never point at a version npm rejected.
+    needs: [publish-npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # gh release upload
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.5.2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install web deps
+        run: pnpm install --frozen-lockfile
+      - name: Build bundle assets (web dist + wheels)
+        run: ./scripts/build-bundle-assets.sh
+      - name: Build the self-contained bundle tarball
+        run: ./scripts/build-dist-bundle.sh packages/suitest-npx suitest-launcher
+      - name: Attach the bundle to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" \
+            dist/suitest-launcher-*.tar.gz dist/suitest-launcher-*.tar.gz.sha256 \
+            --clobber
+      - name: Render and push the formula and the manifest
+        env:
+          GH_TOKEN: ${{ secrets.TAP_PUBLISH_TOKEN }}
+        run: |
+          ./scripts/publish-installers.sh suitest suitest-launcher \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
 
   recover-npm:
     name: "Recover @suiflex/suitest npm publish"
