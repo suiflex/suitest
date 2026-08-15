@@ -50,6 +50,17 @@ def _case_steps_payload(raw_steps: list[dict[str, object]]) -> list[dict[str, ob
     ]
 
 
+def _missing_screenshots(raw_steps: list[dict[str, Any]]) -> int:
+    """Sidecar steps that name a screenshot whose file is gone (evidence loss)."""
+    return sum(
+        1
+        for step in raw_steps
+        if isinstance(step.get("screenshot"), str)
+        and step["screenshot"]
+        and not Path(step["screenshot"]).is_file()
+    )
+
+
 def _result_steps_payload(
     raw_steps: list[dict[str, Any]], upload: Callable[[str, str], str]
 ) -> list[dict[str, object]]:
@@ -565,6 +576,21 @@ def blackbox_publish_results(**kwargs: Any) -> dict[str, Any]:
                                 "re-run with recreate_project=true to create a new project"
                             ],
                         )
+
+            # Evidence gate BEFORE any upload/insert: a sidecar that points at
+            # deleted screenshots would publish a run with an empty Evidence
+            # column and move every case's last_run_id onto it. Re-run instead.
+            gone = sum(_missing_screenshots(_sidecar(str(c["id"])).get("steps", [])) for c in plan)
+            if gone:
+                return _envelope(
+                    False,
+                    f"{gone} step screenshot(s) referenced by the result sidecars no longer "
+                    "exist — nothing was published",
+                    errors=[
+                        "re-run blackbox_run_playwright_tests (it publishes with evidence) "
+                        "before publishing from sidecars"
+                    ],
+                )
 
             committed_scratch: list[str] = []
 

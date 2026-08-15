@@ -61,3 +61,15 @@ def test_both_locales_render_and_differ() -> None:
 def test_bad_evidence_uri_does_not_crash() -> None:
     pdf = render_pdf(_doc(evidence=["data:image/png;base64,not-valid-b64!!"]))
     assert pdf[:5] == b"%PDF-"
+
+
+def _page_count(pdf: bytes) -> int:
+    """Read the page-tree /Count — the structure assertion that survives compression."""
+    marker = pdf.rindex(b"/Count ") + len(b"/Count ")
+    digits = bytes(c for c in pdf[marker : marker + 8] if 48 <= c <= 57)
+    return int(digits)
+
+
+def test_document_has_cover_summary_results_and_signoff() -> None:
+    # Cover + summary + results + sign-off: a one-page dump is a regression.
+    assert _page_count(render_pdf(_doc())) >= 4

@@ -8,7 +8,12 @@ from suitest_lifecycle.models import Mode, StepResult
 from suitest_lifecycle.models import TestOutcome as Outcome
 from suitest_lifecycle.models import TestResult as Result
 from suitest_lifecycle.paths import build_paths
-from suitest_lifecycle.publish import _artifact, _cleanup_committed_result, _resolve_url
+from suitest_lifecycle.publish import (
+    _artifact,
+    _cleanup_committed_result,
+    _resolve_url,
+    cleanup_transient_media,
+)
 
 
 class _OkUploader:
@@ -72,5 +77,20 @@ def test_committed_result_deletes_durable_scratch(tmp_path: Path) -> None:
     }
     _cleanup_committed_result(result, payload, paths)
     assert not video.exists()
-    assert not shot.exists()
+    # Per-step evidence stays: the sidecar keeps pointing at it and a later
+    # sidecar-based publish re-uploads from these files.
+    assert shot.exists()
     assert not final.exists()
+
+
+def test_transient_cleanup_keeps_step_screenshots(tmp_path: Path) -> None:
+    paths = build_paths(tmp_path / "out", Mode.FRONTEND)
+    paths.ensure()
+    shot = paths.tmp_dir / "TC001_step1.png"
+    shot.write_bytes(b"png")
+    clip = paths.tmp_dir / "videos" / "TC001" / "run.webm"
+    clip.parent.mkdir(parents=True)
+    clip.write_bytes(b"video")
+    cleanup_transient_media(paths)
+    assert shot.exists()
+    assert not clip.exists()

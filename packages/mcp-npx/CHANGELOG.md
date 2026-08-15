@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.3](https://github.com/suiflex/suitest/compare/mcp-v0.7.2...mcp-v0.7.3) (2026-08-15)
+
+
+### Bug Fixes
+
+* keep per-step screenshots after a durable publish, so a later sidecar-based publish still carries evidence instead of blanking the web preview and the UAT PDF
+* refuse to publish blackbox results whose sidecar screenshots are gone, instead of silently committing an evidence-less run over every case's last run
+
 ## [0.7.2](https://github.com/suiflex/suitest/compare/mcp-v0.7.1...mcp-v0.7.2) (2026-08-13)
 
 

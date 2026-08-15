@@ -311,3 +311,17 @@ def test_prd_cases_merge_with_baseline(tmp_path: Path) -> None:
     assert prd_case.source_ref == "bb:prd /login"
     for case in cases:
         py_compile.compile(str(paths.test_file(str(case.automation_file))), doraise=True)
+
+
+def test_missing_screenshots_are_detected_before_publish(tmp_path: Path) -> None:
+    """A sidecar pointing at deleted PNGs must be reported, never published blank."""
+    from suitest_lifecycle.blackbox.mcp import _missing_screenshots
+
+    present = tmp_path / "TC001_step1.png"
+    present.write_bytes(b"png")
+    steps = [
+        {"index": 1, "screenshot": str(present)},
+        {"index": 2, "screenshot": str(tmp_path / "TC001_step2.png")},  # deleted
+        {"index": 3, "screenshot": ""},  # never captured — not evidence loss
+    ]
+    assert _missing_screenshots(steps) == 1

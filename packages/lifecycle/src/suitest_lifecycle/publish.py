@@ -269,12 +269,12 @@ def _cleanup_committed_result(result: TestResult, payload: dict[str, object], pa
         except OSError:
             pass
 
-    payload_steps = payload.get("steps")
-    result_steps = result.steps
-    if isinstance(payload_steps, list):
-        for step, sent in zip(result_steps, payload_steps, strict=False):
-            if isinstance(sent, dict) and _durable(sent.get("screenshot")):
-                _unlink(step.screenshot_path)
+    # Per-step PNGs are deliberately KEPT. The ``<TC>.result.json`` sidecar keeps
+    # pointing at them, and every later sidecar-based publish (blackbox
+    # compatibility path, re-publish of an unchanged run) re-uploads from those
+    # files. Deleting them made the second publish ship steps with no evidence,
+    # which silently blanked the web preview and the UAT PDF Evidence column.
+    # They are small (tens of KB) and the next run overwrites the same names.
 
     # The final screenshot is not published because the final recorded step is
     # already the preview. It is safe to discard once this result committed.
@@ -285,7 +285,7 @@ def cleanup_transient_media(paths: Paths) -> None:
     """Remove ephemeral browser media after a fully successful publish."""
     if not paths.tmp_dir.is_dir():
         return
-    _unlink_matches(paths.tmp_dir, "*.png")
+    # PNGs stay: they are the evidence a later sidecar-based publish re-uploads.
     _unlink_matches(paths.tmp_dir, "*.webm")
     _unlink_matches(paths.tmp_dir, "*.zip")
     # Bottom-up empty-dir removal; JSON/report files remain untouched.
