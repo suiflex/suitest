@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.8](https://github.com/suiflex/suitest/compare/launcher-v0.6.7...launcher-v0.6.8) (2026-08-16)
+
+
+### Features
+
+* ship the rebuilt API wheel, so the UAT export renders the branded four-part document (cover, execution summary, detailed results, sign-off) instead of the single navy table
+
 ## [0.6.7](https://github.com/suiflex/suitest/compare/launcher-v0.6.6...launcher-v0.6.7) (2026-08-13)
 
 
