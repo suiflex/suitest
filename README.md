@@ -61,8 +61,25 @@ New install? Start at [Install](#install) below. `npx @suiflex/suitest onboard` 
 - ✅ **MCP server for IDE agents** (`npx -y @suiflex/suitest-mcp`) — analyze → generate → run → publish from Claude Code / Cursor / Codex, incl. a **blackbox DOM engine** that tests any web app from just a URL + credentials (no repo, no LLM key)
 - ✅ BYO LLM per workspace (Settings → LLM: Anthropic/OpenAI/Gemini/…, local Ollama/vLLM, or any OpenAI-compatible URL) — unlocks agent chat, PRD-driven test generation, LLM codegen
 - ✅ Local auth: super-admin bootstrap + invite-only onboarding (no OAuth required)
+- ✅ Desktop targets (`FE_DESKTOP`) — `slint-mcp` bundled in-process, plus `electron-mcp` and `computer-use-mcp` as pinned binaries ([DESKTOP_TESTING.md](./docs/DESKTOP_TESTING.md))
+- ✅ UAT sign-off export — branded PDF (cover, execution summary, per-case results with screenshot evidence, sign-off sheet) from any selection of cases
 
 See [docs/ROADMAP.md](./docs/ROADMAP.md) — the single source of truth for build status.
+
+---
+
+## Releases
+
+Suitest ships as two independently versioned packages. **Bumping one does not bump the other**, so pick the one that carries the change you want:
+
+| Package | Carries | Update with |
+|---------|---------|-------------|
+| [`@suiflex/suitest`](https://www.npmjs.com/package/@suiflex/suitest) (launcher) | The local platform: web dashboard + every Python wheel, so API, UI, and export changes (e.g. the UAT PDF) arrive here | `npx @suiflex/suitest@latest onboard` |
+| [`@suiflex/suitest-mcp`](https://www.npmjs.com/package/@suiflex/suitest-mcp) (MCP server) | The IDE tools and the lifecycle engine that generates and runs tests. Also on PyPI as [`suiflex-suitest-lifecycle`](https://pypi.org/project/suiflex-suitest-lifecycle/) | `npx -y @suiflex/suitest-mcp@latest` |
+
+The launcher rebuilds its Python venv whenever its version changes, so re-running the command above is all an upgrade takes.
+
+**Release notes:** [suitest.suiflex.dev/docs/changelog](https://suitest.suiflex.dev/docs/changelog/) — generated from [`packages/suitest-npx/CHANGELOG.md`](./packages/suitest-npx/CHANGELOG.md) and [`packages/mcp-npx/CHANGELOG.md`](./packages/mcp-npx/CHANGELOG.md), which release-please writes from conventional commits. Publishing a release is a tag (`launcher-v*` / `mcp-v*`); the docs site picks the notes up on its next build, with no page to edit by hand.
 
 ---
 
@@ -289,7 +306,9 @@ suitest/
 | [AUTONOMY.md](./docs/AUTONOMY.md) | Per-workspace autonomy dial |
 | [AI_AGENT.md](./docs/AI_AGENT.md) | Prompts + LangGraph + tool registry (spec, M3) |
 | [BLACKBOX_UI_TESTING.md](./docs/BLACKBOX_UI_TESTING.md) | Blackbox DOM engine — test any web app from a URL (Zero + MCP) |
+| [DESKTOP_TESTING.md](./docs/DESKTOP_TESTING.md) | Desktop targets — computer-use, Electron, Slint (bundled, in-process) |
 | [DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Compose / Helm / air-gapped |
+| [docs-site/](./docs-site) | The public site (Astro + Starlight). `npm run dev` regenerates the release notes first |
 
 ---
 

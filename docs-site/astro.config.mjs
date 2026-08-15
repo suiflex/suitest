@@ -88,6 +88,14 @@ export default defineConfig({
             { label: "FAQ", link: "/docs/help/faq/" },
           ],
         },
+        {
+          label: "Releases",
+          items: [
+            // Page is generated from packages/*/CHANGELOG.md by
+            // scripts/sync-changelog.mjs (predev/prebuild) — never edited by hand.
+            { label: "Release notes", link: "/docs/changelog/" },
+          ],
+        },
       ],
     }),
   ],

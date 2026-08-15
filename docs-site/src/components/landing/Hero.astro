@@ -1,6 +1,11 @@
 ---
 import githubIcon from "@phosphor-icons/core/assets/regular/github-logo.svg?raw";
 import arrowIcon from "@phosphor-icons/core/assets/regular/arrow-right.svg?raw";
+
+// Versions come from the packages themselves, so the landing page cannot claim
+// a release that was never published.
+import launcherPkg from "../../../../packages/suitest-npx/package.json";
+import mcpPkg from "../../../../packages/mcp-npx/package.json";
 ---
 
 <section class="hero">
@@ -29,6 +34,12 @@ import arrowIcon from "@phosphor-icons/core/assets/regular/arrow-right.svg?raw";
           GitHub
         </a>
       </div>
+      <p class="hero-versions">
+        <a href="/docs/changelog/">
+          <span>Latest: launcher <strong>{launcherPkg.version}</strong> · MCP server <strong>{mcpPkg.version}</strong> — release notes</span>
+          <Fragment set:html={arrowIcon} />
+        </a>
+      </p>
     </div>
 
     <div class="hero-term" data-reveal>
@@ -172,6 +183,28 @@ import arrowIcon from "@phosphor-icons/core/assets/regular/arrow-right.svg?raw";
     display: flex;
     gap: 14px;
     flex-wrap: wrap;
+  }
+  .hero-versions {
+    margin: 20px 0 0;
+    font-size: 14px;
+  }
+  .hero-versions a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-2);
+    text-decoration: none;
+  }
+  .hero-versions a:hover {
+    color: var(--accent);
+  }
+  .hero-versions strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .hero-versions :global(svg) {
+    width: 14px;
+    height: 14px;
   }
 
   .term {
