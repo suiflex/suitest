@@ -83,7 +83,10 @@ const footCols = [
         <div class="ph-badge" set:html={productHuntBadge} />
         <a class="suiflex-badge" href="https://suiflex.dev" target="_blank" rel="noopener noreferrer">
           <img src="/assets/brand/suiflex-logo-mark.png" alt="" aria-hidden="true" />
-          <span>Suiflex</span>
+          <span class="suiflex-badge-text">
+            <small>powered by</small>
+            <strong>Suiflex</strong>
+          </span>
         </a>
       </div>
 
@@ -109,7 +112,10 @@ const footCols = [
       }
     </div>
 
-    <p class="foot-copy">Copyright {year} Suitest contributors. Apache-2.0 License.</p>
+    <p class="foot-copy">
+      Suitest is a <a href="https://suiflex.dev" target="_blank" rel="noopener">Suiflex</a>
+      project. Copyright {year} Suitest contributors. Apache-2.0 License.
+    </p>
   </div>
 </footer>
 
@@ -190,6 +196,24 @@ const footCols = [
     width: 34px;
     height: 34px;
     object-fit: contain;
+  }
+  /* Endorsement lockup: "powered by" reads as the qualifier, the parent brand
+     carries the weight — so the two never look like one two-word name. */
+  .suiflex-badge-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+  }
+  .suiflex-badge-text small {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .suiflex-badge-text strong {
+    font-size: 17px;
+    font-weight: 600;
   }
   .ph-badge {
     margin-top: 20px;

@@ -28,13 +28,17 @@ const blackboxTools = [
   "blackbox_summarize_findings",
 ];
 
+const whiteboxTools = ["whitebox_discover_tests", "whitebox_run_tests"];
+
+const toolCount = lifecycleTools.length + blackboxTools.length + whiteboxTools.length;
+
 const highlight = new Set(["run_tests", "get_failure_context", "generate_test_cases"]);
 ---
 
 <section class="section tools" id="mcp-tools">
   <div class="wrap">
     <div class="tools-head" data-reveal>
-      <h2 class="section-title">22 tools. One MCP server.</h2>
+      <h2 class="section-title">{toolCount} tools. One MCP server.</h2>
       <p class="section-sub">
         Everything the agent needs to take a test suite from first crawl to
         published report, exposed as plain MCP tools.
@@ -60,6 +64,16 @@ const highlight = new Set(["run_tests", "get_failure_context", "generate_test_ca
           {blackboxTools.map((tool) => <li>{tool}</li>)}
         </ul>
       </div>
+      <div class="tools-group tools-group-wide">
+        <h3>White-box</h3>
+        <p>
+          Run the pytest, Vitest, or Jest suite already in the repo and publish
+          it as cases, runs, and coverage.
+        </p>
+        <ul class="tools-list">
+          {whiteboxTools.map((tool) => <li>{tool}</li>)}
+        </ul>
+      </div>
     </div>
 
     <p class="tools-more" data-reveal>
@@ -81,6 +95,9 @@ const highlight = new Set(["run_tests", "get_failure_context", "generate_test_ca
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 18px;
+  }
+  .tools-group-wide {
+    grid-column: 1 / -1;
   }
   .tools-group {
     border: 1px solid var(--border);

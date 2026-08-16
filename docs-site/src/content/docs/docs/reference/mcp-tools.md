@@ -116,6 +116,22 @@ Fails with `no prior run found` when `reports/summary.json` is missing. Otherwis
 
 Reads the stored `reports/summary.json`; never re-runs. Returns `data.failure_context` (the markdown bundle) and `data.failed_cases`. With no prior run it fails; with a prior all-green run it succeeds with an empty context. See [Failure context guide](/docs/guides/failure-context/).
 
+## White-box tools
+
+Run the test suite the repository already owns (pytest, Vitest, Jest) and publish it as normal cases and runs. Both tools take a single `config_path` argument and read the [`testing` block](/docs/reference/configuration/#testing). See the [white-box guide](/docs/guides/whitebox-testing/).
+
+### whitebox_discover_tests
+
+> List what would run: framework, command, test targets, coverage file — without executing anything.
+
+Detects the adapter from `testing.framework`, or from the repository (`pyproject.toml` / `pytest.ini` → pytest; `vitest` or `jest` in `package.json` → that runner). Fails with `no white-box adapter detected` rather than guessing. Returns `data.framework`, `data.command`, `data.targets`, and `data.coverageFile`.
+
+### whitebox_run_tests
+
+> Execute the repository's own tests and publish the run.
+
+Forces `approach: white-box` regardless of what the config says, executes each discovered target directly (no shell), and publishes through the normal ingest path: one case per native test carrying its source, `testingApproach: WHITE_BOX` on every case and result, and the coverage JSON uploaded as an artifact with its normalized summary stored on the run.
+
 ## Blackbox tools
 
 The blackbox engine tests any web app from a URL, with no repo access. Tools chain through JSON state files saved under the output directory (`suitest-output/` by default), so every stage can also be called independently in a fresh session: discover, graph, generate, run, summarize.

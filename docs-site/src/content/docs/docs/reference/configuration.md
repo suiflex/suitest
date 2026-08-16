@@ -29,6 +29,7 @@ The fastest way to create one is the setup wizard (`bootstrap_project` MCP tool)
 | `prdFile` | string | `""` | Markdown product spec; when set and an LLM bridge is reachable, the plan is PRD-driven on top of the deterministic baseline. |
 | `codegen` | string | `"auto"` | Frontend codegen strategy: `auto` (deterministic archetypes first, LLM fills the rest), `llm` (LLM writes every frontend test body), `deterministic` (archetypes only; unknown cases fail loud). |
 | `output` | string | `"suitest-output"` | Output directory for generated tests, reports, and evidence, relative to the config. |
+| `testing` | object | see below | Testing approach, level, and white-box framework. |
 | `auth` | object | see below | How generated tests authenticate against the target. |
 | `server` | object | see below | How Suitest starts and stops the target. |
 | `dependencies` | object[] | `[]` | Supporting services to start before the target. |
@@ -38,6 +39,30 @@ The fastest way to create one is the setup wizard (`bootstrap_project` MCP tool)
 :::caution
 A no-repo backend (`analysisSource` other than `repo` in `backend` mode) **must** bring an API contract: set one of `openapiUrl`, `openapiFile`, or `postmanFile`, otherwise loading the config fails. Blackbox-from-URL alone is not enough to generate reliable backend tests.
 :::
+
+## `testing`
+
+Declares what the tester is allowed to observe and how deep the tests reach. See [Black-box, gray-box, white-box](/docs/concepts/testing-approaches/).
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `approach` | string | `"auto"` | `auto`, `black-box`, `gray-box`, or `white-box`. Any other value fails config loading. |
+| `level` | string | `"E2E"` | `UNIT`, `COMPONENT`, `INTEGRATION`, `SYSTEM`, or `E2E`. |
+| `framework` | string | `""` | White-box adapter: `pytest`, `vitest`, or `jest`. Empty means detect from the repository. |
+| `coverageFile` | string | `""` | Coverage JSON to publish, relative to `projectPath`. Empty uses the adapter default (`coverage.json` for pytest, `coverage/coverage-final.json` for Vitest/Jest). |
+
+With `approach: "auto"`, the value resolves from `analysisSource`: `repo` gives `GRAY_BOX`, every other source gives `BLACK_BOX`. `white-box` is never inferred — set it explicitly, and see the [white-box guide](/docs/guides/whitebox-testing/).
+
+```json
+{
+  "testing": {
+    "approach": "white-box",
+    "level": "UNIT",
+    "framework": "pytest",
+    "coverageFile": "coverage.json"
+  }
+}
+```
 
 ## `auth`
 

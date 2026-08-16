@@ -345,3 +345,14 @@ Apache License 2.0. See [LICENSE](./LICENSE).
 ## Acknowledgments
 
 Built on [Model Context Protocol](https://modelcontextprotocol.io) (Anthropic), [LiteLLM](https://github.com/BerriAI/litellm) (BerriAI), [LangGraph](https://langchain-ai.github.io/langgraph/) (LangChain), [`@ai-sdk/react`](https://sdk.vercel.ai/docs) + assistant-ui (Vercel), shadcn/ui, TanStack, and the FastAPI / SQLAlchemy / Pydantic ecosystems.
+
+---
+
+<p align="center">
+  <a href="https://suiflex.dev">
+    <img src="docs-site/public/assets/brand/suiflex-logo-mark.png" alt="Suiflex" width="40">
+  </a>
+</p>
+<p align="center">
+  <sub><strong>Suitest</strong> is a <a href="https://suiflex.dev">Suiflex</a> project — powered by Suiflex.</sub>
+</p>

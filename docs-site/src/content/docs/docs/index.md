@@ -10,6 +10,7 @@ Suitest is a self-hostable, open-source QA platform (Apache-2.0, pre-v1.0). It w
 - **Optional BYO-LLM AI.** Configure any provider per workspace from the web UI (Anthropic, OpenAI, Gemini, local Ollama or vLLM, or any OpenAI-compatible URL) to unlock agent chat, PRD-driven generation, and LLM codegen. No key is ever required.
 - **MCP server for IDE agents.** `npx -y @suiflex/suitest-mcp` gives Claude Code, Cursor, or Codex a full testing lifecycle: analyze, generate, run, report, publish.
 - **Blackbox DOM engine.** Test any web app from just a URL and test credentials: login detection, safe crawling, deterministic Playwright generation, evidence. No repo access needed.
+- **All three testing approaches.** Black-box from a URL, gray-box from your repository, and white-box by running the pytest/Vitest/Jest suite you already have — one TCM, one traceability matrix, each case labelled with what it actually observed. See [black-box, gray-box, white-box](/docs/concepts/testing-approaches/).
 
 ## Who it is for
 
@@ -41,6 +42,7 @@ npx -y @suiflex/suitest-mcp init
 - [Install the MCP server](/docs/install/mcp-server/)
 - [Agent workflow](/docs/guides/agent-workflow/)
 - [Blackbox testing from a URL](/docs/guides/blackbox-testing/)
+- [White-box: run your own pytest/Vitest/Jest suite](/docs/guides/whitebox-testing/)
 - [MCP tool reference](/docs/reference/mcp-tools/)
 
 ### I want the full platform on a server

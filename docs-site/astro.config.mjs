@@ -21,6 +21,10 @@ export default defineConfig({
       editLink: {
         baseUrl: "https://github.com/suiflex/suitest/edit/main/docs-site/",
       },
+      components: {
+        // Adds the "powered by Suiflex" endorsement under the stock footer.
+        Footer: "./src/components/DocsFooter.astro",
+      },
       lastUpdated: true,
       head: [
         {
@@ -55,6 +59,10 @@ export default defineConfig({
           label: "Concepts",
           items: [
             { label: "How Suitest works", link: "/docs/concepts/how-it-works/" },
+            {
+              label: "Black-box, gray-box, white-box",
+              link: "/docs/concepts/testing-approaches/",
+            },
             { label: "Projects, cases, and runs", link: "/docs/concepts/data-model/" },
             { label: "Evidence and artifacts", link: "/docs/concepts/evidence/" },
             { label: "Capability tiers", link: "/docs/reference/tiers/" },
@@ -65,6 +73,7 @@ export default defineConfig({
           items: [
             { label: "Testing from your IDE agent", link: "/docs/guides/agent-workflow/" },
             { label: "Blackbox testing from a URL", link: "/docs/guides/blackbox-testing/" },
+            { label: "White-box: run your own suite", link: "/docs/guides/whitebox-testing/" },
             { label: "The failure bundle", link: "/docs/guides/failure-context/" },
             { label: "Bring your own LLM", link: "/docs/guides/llm-setup/" },
             { label: "CI with the GitHub Action", link: "/docs/guides/ci-github-action/" },

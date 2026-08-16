@@ -1,0 +1,50 @@
+---
+// Starlight `Footer` override: keep the stock footer (prev/next, edit link,
+// last-updated) and append the parent-organisation endorsement, so every docs
+// page carries it — not just the landing page.
+import Default from "@astrojs/starlight/components/Footer.astro";
+---
+
+<Default><slot /></Default>
+
+<a class="suiflex-endorse" href="https://suiflex.dev" target="_blank" rel="noopener noreferrer">
+  <img src="/assets/brand/suiflex-logo-mark.png" alt="" aria-hidden="true" width="24" height="24" />
+  <span>
+    <small>powered by</small>
+    <strong>Suiflex</strong>
+  </span>
+</a>
+
+<style>
+  .suiflex-endorse {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--sl-color-hairline);
+    width: 100%;
+    color: var(--sl-color-gray-3);
+    text-decoration: none;
+  }
+  .suiflex-endorse:hover {
+    color: var(--sl-color-white);
+  }
+  .suiflex-endorse img {
+    object-fit: contain;
+  }
+  .suiflex-endorse span {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+  }
+  .suiflex-endorse small {
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .suiflex-endorse strong {
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+</style>
