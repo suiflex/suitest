@@ -6,7 +6,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
   "pydantic>=2.9.0",
   "cryptography>=50.0.0",
-  "sqlalchemy>=2.0.51",
+  "sqlalchemy>=2.0.52",
 ]
 
 # M4-2: local semantic-search embeddings. Optional + heavy (ONNX runtime + model

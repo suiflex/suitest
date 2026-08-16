@@ -13,7 +13,7 @@ dependencies = [
   "opentelemetry-exporter-otlp-proto-http>=1.25",
   "structlog>=26.1.0",
   "pydantic>=2.7",
-  "pydantic-settings>=2.4",
+  "pydantic-settings>=2.15.0",
   "suitest-mcp",
   "suitest-db",
   "suitest-shared",
