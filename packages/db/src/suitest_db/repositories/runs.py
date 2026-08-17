@@ -254,18 +254,32 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
     ) -> tuple[Run | None, list[tuple[str, int, TestStep]]]:
         """Return the run plus the ordered ``(case_id, step_order, TestStep)`` selection.
 
-        The M1c runner does not yet have a first-class ``run_cases`` join table
-        — selection is implicit "every active case in the project's suites,
-        ordered by ``(suite.order, case.created_at, step.order)``". ``step_order``
-        is a per-run counter (0-indexed across all steps in the selection) so
-        the orchestrator can index events / RunStep rows by a stable monotonic
-        position even when steps span multiple cases. M2 will swap this for a
-        persisted selection set when suite/tag filters arrive at run-create
-        time.
+        The case set comes from the selection ``RunService.create_run`` validated
+        and persisted in ``runs.metadata_json["selection"]`` — so running one case
+        runs that case, not its whole project. Runs created before that payload
+        existed (or whose metadata lost it) fall back to the old implicit set:
+        every active case in the run's project.
+
+        Ordering is always ``(suite.order, case.created_at, case.id, step.order)``
+        and ``step_order`` is a per-run counter (0-indexed across all steps in the
+        selection) so the orchestrator can index events / RunStep rows by a stable
+        monotonic position even when steps span multiple cases. There is still no
+        first-class ``run_cases`` join table — that is M2.
         """
         run = await self.get_by_id(run_id)
         if run is None:
             return None, []
+        metadata = run.metadata_json if isinstance(run.metadata_json, dict) else {}
+        raw_selection = metadata.get("selection")
+        case_ids = (
+            [
+                item["case_id"]
+                for item in raw_selection
+                if isinstance(item, dict) and isinstance(item.get("case_id"), str)
+            ]
+            if isinstance(raw_selection, list)
+            else []
+        )
         stmt = (
             select(TestCase.id, TestStep)
             .join(Suite, Suite.id == TestCase.suite_id)
@@ -281,6 +295,8 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
                 TestStep.order.asc(),
             )
         )
+        if case_ids:
+            stmt = stmt.where(TestCase.id.in_(case_ids))
         rows = (await self.session.execute(stmt)).all()
         selection: list[tuple[str, int, TestStep]] = [
             (case_id, idx, step) for idx, (case_id, step) in enumerate(rows)
