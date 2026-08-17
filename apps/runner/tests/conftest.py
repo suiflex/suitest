@@ -323,6 +323,13 @@ def stub_ctx_all_pass(
 
 
 @pytest.fixture()
+def stub_ctx_no_steps(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
+    """A real run whose selection resolved to zero steps — the issue-#109 shape."""
+    ctx, _, _ = _build_ctx(monkeypatch, outcomes=[], steps=[])
+    return ctx
+
+
+@pytest.fixture()
 def stub_ctx_empty(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     """``RunRepo.get_with_selection`` returns ``(None, [])`` — missing-run path."""
     ctx, _, _ = _build_ctx(

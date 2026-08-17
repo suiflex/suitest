@@ -107,3 +107,10 @@ async def test_selector_failure_is_classified_without_auto_repair(
     inserted = ctx["_inserted_steps"]
     assert isinstance(inserted, list)
     assert inserted[0]["state_snapshot"] == {"failureKind": "selector_changed"}
+
+
+async def test_zero_steps_marks_run_error(stub_ctx_no_steps: dict[str, object]) -> None:
+    """An empty selection must not report a green run (issue #109)."""
+    out = await run_test_case(stub_ctx_no_steps, "run-1")
+    assert out["status"] == "ERROR"
+    assert out["total"] == 0

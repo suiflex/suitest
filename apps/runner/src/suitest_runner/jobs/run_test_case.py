@@ -510,7 +510,15 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
         # --- finalize -----------------------------------------------------
         duration_ms = int((time.perf_counter() - t0) * 1000)
         failed_total = summary["failed"] + summary["errored"]
-        final_status = RunStatus.FAIL if failed_total > 0 else RunStatus.PASS
+        if summary["total"] == 0:
+            # A run that executed nothing is not a green run — reporting PASS
+            # here hid empty selections behind a passing badge (issue #109).
+            log.warning("runner.run.empty_selection", run_id=run_id)
+            final_status = RunStatus.ERROR
+        elif failed_total > 0:
+            final_status = RunStatus.FAIL
+        else:
+            final_status = RunStatus.PASS
 
         async with factory() as session:
             await RunRepo(session).update_status(
