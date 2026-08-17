@@ -40,7 +40,7 @@ export function RunDetailPage(): React.ReactElement {
       <RunSummaryCard run={run} />
 
       {/* TEST CASE master-detail — the primary run view (shared with the panel). */}
-      <RunCaseExplorer runId={runId} />
+      <RunCaseExplorer runId={runId} status={run?.status} />
     </section>
   );
 }

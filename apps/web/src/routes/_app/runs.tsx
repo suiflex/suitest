@@ -245,7 +245,7 @@ function RunDetailPanel({
 
       {/* Case-first evidence view (test cases → steps + Preview/Code/Logs/
           Artifacts), shared with the full-page run route. */}
-      <RunCaseExplorer runId={run.id} />
+      <RunCaseExplorer runId={run.id} status={run.status} />
 
       <footer className="flex justify-end" data-testid="run-cost-footer">
         <Gated

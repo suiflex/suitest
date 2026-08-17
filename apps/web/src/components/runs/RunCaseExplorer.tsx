@@ -7,11 +7,23 @@ import { CaseList } from "@/components/runs/CaseList";
 import { groupStepsByCase } from "@/components/runs/case-grouping";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { fetchRunArtifacts, fetchRunSteps } from "@/lib/api-client";
+import type { components } from "@/lib/api-types";
 import { useRunStream } from "@/lib/ws-client";
+
+type RunStatus = components["schemas"]["RunStatus"];
 
 interface RunCaseExplorerProps {
   /** Run id OR public_id — the endpoints resolve either. */
   runId: string;
+  /** Run status, when the caller already has it — drives polling + empty copy. */
+  status?: RunStatus | undefined;
+}
+
+/** Once a run reaches one of these, no further steps can appear. */
+function isTerminal(status: RunStatus | undefined): boolean {
+  return (
+    status === "PASS" || status === "FAIL" || status === "ERROR" || status === "CANCELLED"
+  );
 }
 
 /**
@@ -21,14 +33,20 @@ interface RunCaseExplorerProps {
  * dump. Shared by the full-page run route AND the /runs side panel so both give
  * the same video/code/screenshot experience.
  */
-export function RunCaseExplorer({ runId }: RunCaseExplorerProps): React.ReactElement {
+export function RunCaseExplorer({ runId, status }: RunCaseExplorerProps): React.ReactElement {
+  // Poll until the run is terminal. The WS refetch below is the fast path, but
+  // local mode publishes to a NullPublisher — no event ever reaches the browser,
+  // so without polling the panel stayed empty until a manual reload (issue #109).
+  const refetchInterval = isTerminal(status) ? false : 2000;
   const { data: stepsData, refetch: refetchSteps } = useQuery({
     queryKey: ["run-steps", runId] as const,
     queryFn: () => fetchRunSteps(runId),
+    refetchInterval,
   });
   const { data: artifactsData, refetch: refetchArtifacts } = useQuery({
     queryKey: ["run-artifacts", runId] as const,
     queryFn: () => fetchRunArtifacts(runId),
+    refetchInterval,
   });
 
   const steps = useMemo(() => stepsData?.items ?? [], [stepsData]);
@@ -70,11 +88,31 @@ export function RunCaseExplorer({ runId }: RunCaseExplorerProps): React.ReactEle
   );
 
   if (groups.length === 0) {
+    // Distinguish "hasn't run yet" from "ran and produced nothing" — the old
+    // single message read as data loss whenever a run was merely queued.
+    if (status === "QUEUED") {
+      return (
+        <EmptyState
+          icon={ListChecks}
+          title="Queued"
+          subtitle="Waiting for a runner to pick this run up."
+        />
+      );
+    }
+    if (status === "RUNNING") {
+      return (
+        <EmptyState
+          icon={ListChecks}
+          title="Running"
+          subtitle="Test cases appear here as their steps complete."
+        />
+      );
+    }
     return (
       <EmptyState
         icon={ListChecks}
         title="No test cases recorded"
-        subtitle="This run has no recorded steps yet."
+        subtitle="This run finished without executing any steps."
       />
     );
   }
