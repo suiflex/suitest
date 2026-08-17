@@ -292,9 +292,11 @@ Two things that will waste an afternoon otherwise:
 - **The runner does not hot-reload.** Restart it after touching a bundled
   provider. A stale runner reports the *previous* error text, which reads like a
   genuine test failure rather than a stale process.
-- **An ad-hoc run of one test case executes the whole suite** in one MCP session.
-  Cases that share external state (a working directory, a database) leak into
-  each other in suite order. Give every case its own.
+- **A run executes its cases in one MCP session.** Cases that share external
+  state (a working directory, a database) leak into each other in selection
+  order. Give every case its own. (An ad-hoc run of one case used to execute
+  the *whole project* — the runner ignored the persisted selection. Fixed;
+  runs created before that fix still fall back to project-wide.)
 - User-provided MCP commands are **untrusted** — sandbox per [MCP_PLUGINS.md § security](./docs/MCP_PLUGINS.md):
   - Run in a container with restricted capabilities
   - No host filesystem access unless explicitly mounted
