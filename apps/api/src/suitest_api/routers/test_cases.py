@@ -47,6 +47,7 @@ from suitest_shared.schemas.pagination import Page, PageMeta
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.arq import get_arq
 from suitest_api.deps.role import require_role
+from suitest_api.deps.run_dispatch import dispatch_run
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
 from suitest_api.deps.tier import require_autonomy, require_tier
 from suitest_api.routers._pagination import decode_cursor_or_400, encode_next
@@ -83,6 +84,7 @@ from suitest_api.services.test_case_service import (
     StepsRequireCodeError,
     TestCaseService,
 )
+from suitest_api.settings import get_settings
 from suitest_api.ws.publisher import publish_event
 
 # ARQ queue name shared with :mod:`suitest_api.routers.runs` — must match the
@@ -871,10 +873,15 @@ async def run_test_case_now(
     if run is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
 
-    job = await arq.enqueue_job("run_test_case", run.id, _queue_name=_RUNS_QUEUE)
-    if job is not None:
+    # Same dispatch seam as POST /runs: in local mode there is no ARQ consumer
+    # (the supervisor drains QUEUED rows from the DB), so enqueuing here both
+    # failed without a broker and risked a double execution with one.
+    job_id = await dispatch_run(
+        mode=get_settings().mode, arq=arq, run_id=run.id, queue_name=_RUNS_QUEUE
+    )
+    if job_id is not None:
         run_service = RunService(ctx, RunRepo(session), ProjectRepo(session))
-        await run_service.attach_arq_job_id(run.id, job.job_id)
+        await run_service.attach_arq_job_id(run.id, job_id)
     await session.commit()
     await session.refresh(run)
     return AdHocRunResponse(
