@@ -509,6 +509,10 @@ export interface LlmConfigPublic {
   isActive: boolean;
   tier: "ZERO" | "LOCAL" | "CLOUD";
   lastValidatedAt: string | null;
+  /** How the config authenticates: a pasted key, or Sign in with ChatGPT. */
+  authMethod: "api_key" | "oauth";
+  /** Signed-in ChatGPT account, when the config came from an OAuth login. */
+  oauthAccount: string | null;
 }
 
 /** Body for `PUT`/`POST :id/test`. `apiKey` is write-only. */
@@ -569,6 +573,71 @@ export async function fetchLlmModels(workspaceId: string, provider: string): Pro
     { params: { provider } },
   );
   return res.data.models;
+}
+
+// ---------------------------------------------------------------------------
+// Sign in with ChatGPT. `auto` resolves server-side: the browser redirect needs
+// port 1455/1457 on the caller's own machine, so a remote host gets a device
+// code to type instead.
+// ---------------------------------------------------------------------------
+
+export interface ChatGptLoginStart {
+  flowId: string;
+  mode: "device" | "browser";
+  /** Device flow: page where the user enters `userCode`. */
+  verificationUrl?: string | null;
+  userCode?: string | null;
+  /** Browser flow: the OAuth authorize URL to open. */
+  authorizeUrl?: string | null;
+  intervalS: number;
+}
+
+export interface ChatGptLoginStatus {
+  status: "pending" | "ready" | "error";
+  /** Signed-in account, once `ready`. */
+  account?: string | null;
+  code?: string | null;
+  message?: string | null;
+}
+
+/** `api_key` trades the sign-in for a platform key; `subscription` keeps the tokens. */
+export type ChatGptCredentialMode = "api_key" | "subscription";
+
+export async function startChatGptLogin(
+  workspaceId: string,
+  mode: "auto" | "device" | "browser" = "auto",
+): Promise<ChatGptLoginStart> {
+  const res = await api.post<ChatGptLoginStart>(
+    `/workspaces/${workspaceId}/llm-config/chatgpt/login`,
+    { mode },
+  );
+  return res.data;
+}
+
+export async function pollChatGptLogin(
+  workspaceId: string,
+  flowId: string,
+): Promise<ChatGptLoginStatus> {
+  const res = await api.get<ChatGptLoginStatus>(
+    `/workspaces/${workspaceId}/llm-config/chatgpt/login/${flowId}`,
+  );
+  return res.data;
+}
+
+export async function finishChatGptLogin(
+  workspaceId: string,
+  flowId: string,
+  body: { credentialMode: ChatGptCredentialMode; model: string },
+): Promise<LlmConfigPublic> {
+  const res = await api.post<LlmConfigPublic>(
+    `/workspaces/${workspaceId}/llm-config/chatgpt/login/${flowId}/finish`,
+    body,
+  );
+  return res.data;
+}
+
+export async function cancelChatGptLogin(workspaceId: string, flowId: string): Promise<void> {
+  await api.delete(`/workspaces/${workspaceId}/llm-config/chatgpt/login/${flowId}`);
 }
 
 // ---------------------------------------------------------------------------

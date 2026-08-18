@@ -50,6 +50,66 @@ describe("LlmSettingsPanel", () => {
     expect(result).toHaveTextContent(/OK — mock-1/);
   });
 
+  it("signs in with ChatGPT and stores the credential", async () => {
+    let polls = 0;
+    let finished: unknown = null;
+    server.use(
+      http.post("*/api/v1/workspaces/ws_1/llm-config/chatgpt/login", () =>
+        HttpResponse.json({
+          flowId: "flow_1",
+          mode: "device",
+          verificationUrl: "https://auth.openai.com/codex/device",
+          userCode: "ABCD-EFGH",
+          intervalS: 1,
+        }),
+      ),
+      http.get("*/api/v1/workspaces/ws_1/llm-config/chatgpt/login/flow_1", () => {
+        polls += 1;
+        return polls === 1
+          ? HttpResponse.json({ status: "pending" })
+          : HttpResponse.json({ status: "ready", account: "dev@example.com" });
+      }),
+      http.post(
+        "*/api/v1/workspaces/ws_1/llm-config/chatgpt/login/flow_1/finish",
+        async ({ request }) => {
+          finished = await request.json();
+          return HttpResponse.json({
+            id: "llmcfg_1",
+            provider: "chatgpt",
+            model: "gpt-5.6",
+            apiKeyHint: null,
+            config: {},
+            isActive: true,
+            tier: "CLOUD",
+            lastValidatedAt: null,
+            authMethod: "oauth",
+            oauthAccount: "dev@example.com",
+          });
+        },
+      ),
+    );
+
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+    await user.click(screen.getByLabelText(/sign in with chatgpt/i));
+    await user.click(screen.getByTestId("chatgpt-signin-start"));
+
+    // The device code is what the user has to carry to the browser.
+    expect(await screen.findByTestId("chatgpt-signin-pending")).toHaveTextContent("ABCD-EFGH");
+
+    const ready = await screen.findByTestId("chatgpt-signin-ready", {}, { timeout: 3000 });
+    expect(ready).toHaveTextContent(/dev@example.com/);
+
+    await user.type(screen.getByLabelText(/model/i), "gpt-5.6");
+    await user.click(screen.getByLabelText(/my chatgpt plan/i));
+    await user.click(screen.getByTestId("chatgpt-signin-finish"));
+
+    await waitFor(() => {
+      expect(finished).toEqual({ credentialMode: "subscription", model: "gpt-5.6" });
+    });
+  });
+
   it("shows active config + Remove when configured", async () => {
     server.use(
       http.get("*/api/v1/workspaces/ws_1/llm-config", () =>
