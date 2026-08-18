@@ -7,6 +7,8 @@ dependencies = [
   "pydantic>=2.9.0",
   "cryptography>=50.0.0",
   "sqlalchemy>=2.0.51",
+  # Sign in with ChatGPT talks to auth.openai.com over plain HTTP(S).
+  "httpx>=0.27",
 ]
 
 # M4-2: local semantic-search embeddings. Optional + heavy (ONNX runtime + model
