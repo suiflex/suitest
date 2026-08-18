@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 from sqlalchemy import select
-from suitest_db.models.llm_config import LLMConfig
+from suitest_db.models.llm_config import AUTH_METHOD_API_KEY, LLMConfig
 from suitest_db.repositories.base import AsyncRepository
 
 
@@ -17,6 +17,9 @@ class LLMConfigCreate(BaseModel):
     api_key_encrypted: str | None = None
     config_json: dict[str, object] | None = None
     is_active: bool = False
+    auth_method: str = AUTH_METHOD_API_KEY
+    #: Serialized :class:`StoredOAuthTokens`; encrypted by the column type.
+    oauth_tokens_encrypted: str | None = None
 
 
 class LLMConfigUpdate(BaseModel):
@@ -26,6 +29,8 @@ class LLMConfigUpdate(BaseModel):
     config_json: dict[str, object] | None = None
     is_active: bool | None = None
     last_validated_at: datetime | None = None
+    auth_method: str | None = None
+    oauth_tokens_encrypted: str | None = None
 
 
 class LLMConfigRepo(AsyncRepository[LLMConfig, LLMConfigCreate, LLMConfigUpdate]):
