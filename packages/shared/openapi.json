@@ -4238,6 +4238,10 @@
             ],
             "title": "Apikeyhint"
           },
+          "authMethod": {
+            "title": "Authmethod",
+            "type": "string"
+          },
           "config": {
             "additionalProperties": true,
             "title": "Config",
@@ -4266,6 +4270,17 @@
             "title": "Model",
             "type": "string"
           },
+          "oauthAccount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oauthaccount"
+          },
           "provider": {
             "title": "Provider",
             "type": "string"
@@ -4280,7 +4295,8 @@
           "provider",
           "model",
           "isActive",
-          "tier"
+          "tier",
+          "authMethod"
         ],
         "title": "LLMConfigPublic",
         "type": "object"
@@ -4516,6 +4532,152 @@
           "costUsd"
         ],
         "title": "LlmCompleteResponse",
+        "type": "object"
+      },
+      "LoginFinishBody": {
+        "description": "``api_key`` exchanges for a platform key; ``subscription`` keeps the tokens.",
+        "properties": {
+          "credentialMode": {
+            "enum": [
+              "api_key",
+              "subscription"
+            ],
+            "title": "Credentialmode",
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "credentialMode",
+          "model"
+        ],
+        "title": "LoginFinishBody",
+        "type": "object"
+      },
+      "LoginStart": {
+        "description": "What the UI has to show: a code to type, or a URL to open.",
+        "properties": {
+          "authorizeUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorizeurl"
+          },
+          "flowId": {
+            "title": "Flowid",
+            "type": "string"
+          },
+          "intervalS": {
+            "default": 5,
+            "title": "Intervals",
+            "type": "integer"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "userCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usercode"
+          },
+          "verificationUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verificationurl"
+          }
+        },
+        "required": [
+          "flowId",
+          "mode"
+        ],
+        "title": "LoginStart",
+        "type": "object"
+      },
+      "LoginStartBody": {
+        "description": "``auto`` resolves to the browser redirect on localhost, device code elsewhere.",
+        "properties": {
+          "mode": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "device",
+              "browser"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "title": "LoginStartBody",
+        "type": "object"
+      },
+      "LoginStatus": {
+        "description": "``pending`` until the user approves, then ``ready`` (or ``error``).",
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "LoginStatus",
         "type": "object"
       },
       "MatrixCase": {
@@ -22071,6 +22233,276 @@
           }
         ],
         "summary": "Put Llm Config",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/llm-config/chatgpt/login": {
+      "post": {
+        "description": "Begin a Sign in with ChatGPT flow and return what to show the user.",
+        "operationId": "start_chatgpt_login_api_v1_workspaces__workspaceId__llm_config_chatgpt_login_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginStartBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginStart"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Start Chatgpt Login",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/llm-config/chatgpt/login/{flowId}": {
+      "delete": {
+        "description": "Abandon a flow and release its callback listener.",
+        "operationId": "cancel_chatgpt_login_api_v1_workspaces__workspaceId__llm_config_chatgpt_login__flowId__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flowId",
+            "required": true,
+            "schema": {
+              "title": "Flowid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Cancel Chatgpt Login",
+        "tags": [
+          "llm"
+        ]
+      },
+      "get": {
+        "description": "Advance the flow one step: ``pending`` until the user approves it.",
+        "operationId": "poll_chatgpt_login_api_v1_workspaces__workspaceId__llm_config_chatgpt_login__flowId__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flowId",
+            "required": true,
+            "schema": {
+              "title": "Flowid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Poll Chatgpt Login",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/llm-config/chatgpt/login/{flowId}/finish": {
+      "post": {
+        "description": "Store the approved sign-in as the active config, then refresh the tier.",
+        "operationId": "finish_chatgpt_login_api_v1_workspaces__workspaceId__llm_config_chatgpt_login__flowId__finish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flowId",
+            "required": true,
+            "schema": {
+              "title": "Flowid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginFinishBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LLMConfigPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Finish Chatgpt Login",
         "tags": [
           "llm"
         ]
