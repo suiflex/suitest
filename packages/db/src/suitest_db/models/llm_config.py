@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
+from suitest_core.chatgpt_oauth import StoredOAuthTokens
 from suitest_core.crypto import EncryptedBytes
 
 from suitest_db.base import Base, TimestampMixin
@@ -17,25 +17,6 @@ from suitest_db.types import PortableJSON
 #: ``auth_method`` values. A pasted key, or Sign in with ChatGPT.
 AUTH_METHOD_API_KEY = "api_key"
 AUTH_METHOD_OAUTH = "oauth"
-
-
-class StoredOAuthTokens(BaseModel):
-    """Shape of the ``oauth_tokens_encrypted`` blob.
-
-    One encrypted JSON blob rather than a column per token: a refresh rewrites
-    the whole set anyway, and nothing queries by token or expiry.
-
-    ponytail: split into columns only once something needs to filter on expiry.
-    """
-
-    access_token: str
-    refresh_token: str | None = None
-    id_token: str | None = None
-    expires_at: datetime | None = None
-    #: ``chatgpt-account-id`` header value for ChatGPT-backend calls.
-    account_id: str | None = None
-    #: Signed-in account, shown back to the admin as a hint.
-    email: str | None = None
 
 
 class LLMConfig(Base, TimestampMixin):

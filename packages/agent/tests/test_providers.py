@@ -83,10 +83,45 @@ async def test_mock_stream_concatenates_to_content() -> None:
         # M4-1: all four validated LOCAL providers
         ("ollama", "llama3.1", "ollama/llama3.1"),
         ("llamacpp", "local-model", "openai/local-model"),
+        # Sign in with ChatGPT speaks the OpenAI protocol against its own backend.
+        ("chatgpt", "gpt-5.6", "openai/gpt-5.6"),
     ],
 )
 def test_to_litellm_model_mapping(provider: str, model: str, expected: str) -> None:
     assert to_litellm_model(provider, model) == expected
+
+
+def test_chatgpt_does_not_ask_the_user_for_a_base_url() -> None:
+    """Its endpoint comes from the resolved credential, not from the settings form."""
+    from suitest_agent.providers.litellm_router import requires_base_url
+
+    assert requires_base_url("chatgpt") is False
+
+
+def test_extra_headers_reach_the_completion_call() -> None:
+    """The ChatGPT credential identifies its account with a request header."""
+    from suitest_agent.providers.litellm_router import LiteLLMProvider
+
+    provider = LiteLLMProvider(
+        provider="chatgpt",
+        api_key="access-token",
+        base_url="https://chatgpt.example/backend-api/codex",
+        extra_headers={"chatgpt-account-id": "acc_1"},
+    )
+    kwargs = provider._kwargs(_call("hi"))
+
+    assert kwargs["model"] == "openai/mock-1"
+    assert kwargs["api_key"] == "access-token"
+    assert kwargs["api_base"] == "https://chatgpt.example/backend-api/codex"
+    assert kwargs["extra_headers"] == {"chatgpt-account-id": "acc_1"}
+
+
+def test_no_extra_headers_stay_out_of_the_call() -> None:
+    """An API-key provider must send exactly what it sent before."""
+    from suitest_agent.providers.litellm_router import LiteLLMProvider
+
+    provider = LiteLLMProvider(provider="openai", api_key="sk-1")
+    assert "extra_headers" not in provider._kwargs(_call("hi"))
 
 
 @pytest.mark.parametrize("provider", ["ollama", "llamacpp", "vllm", "lmstudio"])

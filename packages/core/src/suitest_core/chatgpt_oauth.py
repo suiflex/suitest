@@ -116,6 +116,24 @@ class OAuthTokens(BaseModel):
         return value if isinstance(value, str) else None
 
 
+class StoredOAuthTokens(BaseModel):
+    """The token set as persisted (``llm_configs.oauth_tokens_encrypted``).
+
+    Distinct from :class:`OAuthTokens`, which is what a single auth-service
+    response carries: this is the merged, durable view plus the claims already
+    extracted from it, so reading a credential never re-parses a JWT.
+    """
+
+    access_token: str
+    refresh_token: str | None = None
+    id_token: str | None = None
+    expires_at: datetime | None = None
+    #: ``chatgpt-account-id`` header value for ChatGPT-backend calls.
+    account_id: str | None = None
+    #: Signed-in account, shown back to the admin as a hint.
+    email: str | None = None
+
+
 class DeviceCode(BaseModel):
     """A pending device authorization the user has to approve in a browser."""
 

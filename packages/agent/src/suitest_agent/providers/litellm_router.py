@@ -67,7 +67,10 @@ _PREFIX: dict[str, str] = {
 # LOCAL servers (llamacpp/vllm/lmstudio) plus ``custom`` — any hosted
 # OpenAI-compatible gateway/router (e.g. LiteLLM proxy, 9router) the user
 # points at via base URL + API key. ``custom`` resolves to CLOUD tier.
-_OPENAI_SHIM = frozenset({"llamacpp", "vllm", "lmstudio", "custom"})
+# ``chatgpt`` (Sign in with ChatGPT) also speaks the OpenAI protocol, against the
+# ChatGPT backend rather than api.openai.com — base URL + account header both come
+# from ``suitest_core.llm_credentials``.
+_OPENAI_SHIM = frozenset({"llamacpp", "vllm", "lmstudio", "custom", "chatgpt"})
 
 # Seed support per docs/AI_AGENT.md §13.1 — drives the replay determinism label.
 _DETERMINISTIC_SEED = frozenset({"openai", "groq", "vllm", "llamacpp", "mock"})
@@ -85,9 +88,13 @@ LOCAL_TIER_DEFAULTS: dict[str, dict[str, str]] = {
 
 
 def requires_base_url(provider: str) -> bool:
-    """True for LOCAL providers — no public endpoint, so a base URL is required."""
+    """True when the *user* must supply a base URL — no endpoint to default to.
+
+    ``chatgpt`` speaks the same OpenAI protocol but is not in this set: its base
+    URL comes from the resolved credential, not from the person configuring it.
+    """
     p = provider.strip().lower()
-    return p == "ollama" or p in _OPENAI_SHIM
+    return p == "ollama" or (p in _OPENAI_SHIM and p != "chatgpt")
 
 
 def seed_determinism(provider: str) -> str:
@@ -125,12 +132,14 @@ class LiteLLMProvider:
         base_url: str | None = None,
         workspace_id: str | None = None,
         db_session_factory: _DbSessionFactory | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> None:
         self.name = provider.strip().lower()
         self._api_key = api_key
         self._base_url = base_url
         self._workspace_id = workspace_id
         self._db_session_factory = db_session_factory
+        self._extra_headers = extra_headers
         self._configured = False
 
     def _ensure_configured(self) -> None:
@@ -153,6 +162,8 @@ class LiteLLMProvider:
             kwargs["api_key"] = self._api_key
         if self._base_url:
             kwargs["api_base"] = self._base_url
+        if self._extra_headers:
+            kwargs["extra_headers"] = self._extra_headers
         if call.tools:
             kwargs["tools"] = call.tools
         if call.seed is not None:
@@ -262,6 +273,7 @@ def get_provider(
     base_url: str | None = None,
     workspace_id: str | None = None,
     db_session_factory: _DbSessionFactory | None = None,
+    extra_headers: dict[str, str] | None = None,
 ) -> LLMProvider:
     """Factory: return a :class:`MockProvider` for ``mock``, else LiteLLM-backed.
 
@@ -275,6 +287,9 @@ def get_provider(
         workspace_id: Workspace scope for M7-2 auto-downgrade (optional).
         db_session_factory: Async session factory for M7-2 spend queries
             (optional).  When omitted, auto-downgrade is disabled.
+        extra_headers: Per-request headers the credential requires — the
+            ``chatgpt`` provider identifies its account this way. Resolved by
+            ``suitest_core.llm_credentials``, never assembled by callers.
     """
     if provider.strip().lower() == "mock":
         from suitest_agent.providers.mock import MockProvider
@@ -287,4 +302,5 @@ def get_provider(
         base_url=base_url,
         workspace_id=workspace_id,
         db_session_factory=db_session_factory,
+        extra_headers=extra_headers,
     )
