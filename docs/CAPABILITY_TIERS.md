@@ -29,7 +29,7 @@ Principles:
 
 | Aspect | ZERO | LOCAL | CLOUD |
 |-------|------|-------|-------|
-| Trigger (workspace LLM provider, web UI) | `none` / not set | `ollama` / `llamacpp` / `vllm` / `lmstudio` | `anthropic` / `openai` / `gemini` / `groq` / `openrouter` / `azure` / `bedrock` / `vertex` / `deepseek` / `mock` (test/dev only — see §3) |
+| Trigger (workspace LLM provider, web UI) | `none` / not set | `ollama` / `llamacpp` / `vllm` / `lmstudio` | `anthropic` / `openai` / `gemini` / `groq` / `openrouter` / `azure` / `bedrock` / `vertex` / `deepseek` / `chatgpt` (Sign in with ChatGPT — see §3) / `mock` (test/dev only — see §3) |
 | Manual TCM (CRUD case/suite) | ✓ | ✓ | ✓ |
 | Deterministic runner (`step.code`) | ✓ | ✓ | ✓ |
 | MCP plugins | ✓ | ✓ | ✓ |
@@ -70,6 +70,12 @@ def _provider_to_tier(provider: str) -> Tier:
         return Tier.LOCAL
     return Tier.CLOUD        # anthropic/openai/gemini/groq/openrouter/azure/bedrock/vertex/deepseek/mock
 ```
+
+> **The `chatgpt` provider** is raised to CLOUD by an OAuth sign-in rather than by
+> a key: it is keyless as far as validation is concerned, and instead requires a
+> stored token set (`auth_method = "oauth"`) — see [API.md §3.14](./API.md). An
+> admin who signs in and picks "an API key from my account" gets provider
+> `openai` with a real key instead, and this provider never enters the picture.
 
 Validation (key required for non-IAM CLOUD, `base_url` required for LOCAL) happens at **save** time in `apps/api/.../services/llm_config_service.py` (`LLMConfigError`), not at resolve time — DB config is considered trusted. When a config is saved, `_refresh_capability` materializes `WorkspaceCapability`. Effective-tier flags are computed by the pure primitives `compute_features(tier, embeddings)` + `compute_autonomy(tier)` (still in `packages/core/capabilities.py`). Because the overlay reads the DB on every request, switching provider takes effect immediately — **without restart**.
 

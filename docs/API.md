@@ -628,6 +628,10 @@ Workspace-scoped LLM provider config. Secrets stored AES-GCM encrypted ([DATA_MO
 | POST | `/workspaces/:id/llm-config/test` | LiteLLM `health_check` round-trip |
 | DELETE | `/workspaces/:id/llm-config` | Clear config; tier downgrades to ZERO at next capability refresh |
 | GET | `/workspaces/:id/llm-config/models` | List available models for the configured provider (used by Settings → LLM model dropdown) |
+| POST | `/workspaces/:id/llm-config/chatgpt/login` | Start a Sign in with ChatGPT flow (ADMIN+) |
+| GET | `/workspaces/:id/llm-config/chatgpt/login/:flowId` | Poll it: `pending` until the user approves |
+| POST | `/workspaces/:id/llm-config/chatgpt/login/:flowId/finish` | Store the approved sign-in as the active config |
+| DELETE | `/workspaces/:id/llm-config/chatgpt/login/:flowId` | Abandon the flow |
 
 **GET `/workspaces/:id/llm-config/models` response.** Returns array of model metadata for the workspace's currently-configured provider. Backed by LiteLLM `litellm.model_list` for providers that expose it, otherwise a hard-coded provider catalog shipped in `packages/agent/providers/model_catalog.py`. Empty array if tier=`ZERO` (no provider configured).
 
@@ -679,10 +683,54 @@ Workspace-scoped LLM provider config. Secrets stored AES-GCM encrypted ([DATA_MO
   "config": { "baseUrl": "https://api.anthropic.com", "timeoutMs": 60000 },
   "isActive": true,
   "lastValidatedAt": "2026-05-26T07:11:00Z",
+  "authMethod": "api_key",      // api_key | oauth
+  "oauthAccount": null,          // signed-in ChatGPT account, when authMethod=oauth
   "createdAt": "...",
   "updatedAt": "..."
 }
 ```
+
+#### Sign in with ChatGPT
+
+An alternative to pasting a key: the admin authenticates with their ChatGPT
+account, and Suitest stores the resulting credential (AES-GCM, `llm_configs.oauth_tokens_encrypted`)
+and refreshes it on the read path. Implemented against the open-source Codex CLI
+flow — OpenAI publishes no third-party OAuth program for it — so Suitest reuses
+Codex's public client id, overridable via `SUITEST_CHATGPT_OAUTH_CLIENT_ID`.
+
+**POST `/chatgpt/login`** body `{ "mode": "auto" }` (`auto` | `device` | `browser`).
+`auto` resolves to `browser` only for a request arriving from localhost: the
+redirect has to land on port 1455/1457 of the machine the person is clicking on,
+because the OAuth client allow-lists no other redirect URI. Everything else gets
+the device code, which needs no listener.
+
+```json
+// mode=device
+{ "flowId": "…", "mode": "device",
+  "verificationUrl": "https://auth.openai.com/codex/device",
+  "userCode": "ABCD-EFGH", "intervalS": 5 }
+// mode=browser
+{ "flowId": "…", "mode": "browser", "authorizeUrl": "https://auth.openai.com/oauth/authorize?…", "intervalS": 2 }
+```
+
+**GET `/chatgpt/login/:flowId`** → `{"status":"pending"}`, then
+`{"status":"ready","account":"dev@example.com"}`, or
+`{"status":"error","code":"DEVICE_POLL_FAILED","message":"…"}`. Polling is
+idempotent once ready — the one-time authorization code is spent exactly once. A
+flow expires with its device code after 15 minutes and is then `UNKNOWN_FLOW`.
+
+**POST `/chatgpt/login/:flowId/finish`** body:
+```json
+{ "credentialMode": "subscription", "model": "gpt-5.6" }
+```
+* `subscription` — keeps the tokens; provider becomes `chatgpt` and calls draw on
+  the user's ChatGPT plan.
+* `api_key` — trades the id token for a real OpenAI API key (RFC 8693 token
+  exchange); provider becomes `openai` and usage is billed at API rates.
+
+Returns the same body as `GET /llm-config`, and has the same side-effects as `PUT`.
+Failures answer **422** with `{"code": …, "message": …}` — e.g. `NOT_APPROVED`,
+`UNKNOWN_FLOW`, `API_KEY_EXCHANGE_FAILED`, `CALLBACK_PORT_BUSY`.
 
 **POST `/test` response:**
 ```json

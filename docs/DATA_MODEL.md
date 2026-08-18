@@ -1079,10 +1079,23 @@ class LLMConfig(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
     last_validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # NEW (0049) — how the provider authenticates: "api_key" or "oauth".
+    auth_method: Mapped[str] = mapped_column(String(16), nullable=False, default="api_key")
+    # NEW (0049) — AES-GCM (see §12) JSON blob for Sign in with ChatGPT:
+    # {access_token, refresh_token, id_token, expires_at, account_id, email}.
+    # One blob rather than a column per token: a refresh rewrites the whole set,
+    # and nothing queries by token or expiry.
+    oauth_tokens_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary)
+
     __table_args__ = (
         Index("ix_llm_configs_workspace_active", "workspace_id", "is_active"),
     )
 ```
+
+Exactly one credential is populated at a time: setting one clears the other, so a
+switch of `auth_method` never leaves the previous credential on the row.
+`provider = "chatgpt"` is only valid with `auth_method = "oauth"` — it has no key
+to fall back on. See [API.md §3.14](./API.md) for the login flow.
 
 ### 4.2 `workspace_capabilities` — materialized capability snapshot
 
@@ -1642,7 +1655,7 @@ Idempotency: `INSERT … ON CONFLICT DO NOTHING` for unique slugs; safe to re-ru
 
 ## 12. Encryption (AES-GCM)
 
-All secrets (`llm_configs.api_key_encrypted`, `mcp_providers.secrets_json_encrypted`, `integrations.secrets_encrypted`) use **AES-256-GCM** with a single workspace-master key.
+All secrets (`llm_configs.api_key_encrypted`, `llm_configs.oauth_tokens_encrypted`, `mcp_providers.secrets_json_encrypted`, `integrations.secrets_encrypted`) use **AES-256-GCM** with a single workspace-master key.
 
 - Key source: `SUITEST_ENCRYPTION_KEY` env var, base64-encoded 32 bytes (`base64.urlsafe_b64decode`).
 - Generated once at install via `uv run python -m packages.db.crypto keygen` (writes to `.env`).
