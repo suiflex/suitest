@@ -724,7 +724,11 @@ flow expires with its device code after 15 minutes and is then `UNKNOWN_FLOW`.
 { "credentialMode": "subscription", "model": "gpt-5.6" }
 ```
 * `subscription` — keeps the tokens; provider becomes `chatgpt` and calls draw on
-  the user's ChatGPT plan.
+  the user's ChatGPT plan. Routed through `suitest_core.llm_credentials`, which
+  supplies the backend URL and the `chatgpt-account-id` header and refreshes the
+  token when it is within five minutes of expiry. **Unverified against the live
+  endpoint** — it may accept only Responses-API payloads, where the OpenAI-protocol
+  mapping would need replacing; the UI labels the option experimental.
 * `api_key` — trades the id token for a real OpenAI API key (RFC 8693 token
   exchange); provider becomes `openai` and usage is billed at API rates.
 

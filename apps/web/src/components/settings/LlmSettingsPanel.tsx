@@ -167,7 +167,7 @@ function ChatGptSignIn({
             {(
               [
                 ["api_key", "An API key from my account (billed at API rates)"],
-                ["subscription", "My ChatGPT plan — not routed yet, see release notes"],
+                ["subscription", "My ChatGPT plan (no API billing) — experimental"],
               ] as const
             ).map(([value, label]) => (
               <label key={value} className="flex items-center gap-2 text-[13px] text-fg-1">
