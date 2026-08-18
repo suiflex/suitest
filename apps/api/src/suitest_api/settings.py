@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from suitest_core.chatgpt_oauth import DEFAULT_CLIENT_ID
 
 
 class Settings(BaseSettings):
@@ -31,6 +32,10 @@ class Settings(BaseSettings):
     database_url: str = Field(default="postgresql+asyncpg://suitest:suitest@localhost:5432/suitest")
     oauth_google_client_id: str = Field(default="")
     oauth_google_client_secret: str = Field(default="")
+    # Sign in with ChatGPT (Settings → LLM provider). Defaults to the Codex CLI's
+    # public client, the only one whose redirect URIs the auth service accepts;
+    # an operator holding a client of their own overrides it here.
+    chatgpt_oauth_client_id: str = Field(default=DEFAULT_CLIENT_ID)
     superadmin_email: str = Field(default="")
     superadmin_password: str = Field(default="", repr=False)
     superadmin_workspace_name: str = Field(default="Default Workspace")

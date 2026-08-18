@@ -16,16 +16,24 @@ Keys are write-only: requests accept ``apiKey``, responses only ever return a hi
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from suitest_core.chatgpt_oauth import ChatGptOAuthError
 from suitest_shared.domain.enums import Role
 
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
+from suitest_api.services.chatgpt_oauth_service import (
+    ChatGptLoginError,
+    ChatGptOAuthService,
+    CredentialMode,
+    LoginMode,
+)
 from suitest_api.services.llm_config_service import (
     LLMConfigError,
     LLMConfigService,
@@ -34,6 +42,8 @@ from suitest_api.services.llm_config_service import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from suitest_db.models.llm_config import LLMConfig
 
 router = APIRouter(prefix="/api/v1", tags=["llm"])
@@ -122,6 +132,10 @@ class LLMConfigPublic(BaseModel):
     is_active: bool = Field(alias="isActive")
     tier: str
     last_validated_at: str | None = Field(default=None, alias="lastValidatedAt")
+    #: ``api_key`` or ``oauth`` — how this config authenticates.
+    auth_method: str = Field(alias="authMethod")
+    #: Signed-in ChatGPT account, when the config came from an OAuth login.
+    oauth_account: str | None = Field(default=None, alias="oauthAccount")
 
 
 class LLMConfigWriteBody(BaseModel):
@@ -154,7 +168,58 @@ class LLMModelsResponse(BaseModel):
     models: list[dict[str, object]] = Field(default_factory=list)
 
 
+class LoginStartBody(BaseModel):
+    """``auto`` resolves to the browser redirect on localhost, device code elsewhere."""
+
+    mode: LoginMode = "auto"
+
+
+class LoginStart(BaseModel):
+    """What the UI has to show: a code to type, or a URL to open."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    flow_id: str = Field(alias="flowId")
+    mode: str
+    verification_url: str | None = Field(default=None, alias="verificationUrl")
+    user_code: str | None = Field(default=None, alias="userCode")
+    authorize_url: str | None = Field(default=None, alias="authorizeUrl")
+    #: Seconds the UI should wait between polls.
+    interval_s: int = Field(default=5, alias="intervalS")
+
+
+class LoginStatus(BaseModel):
+    """``pending`` until the user approves, then ``ready`` (or ``error``)."""
+
+    status: str
+    account: str | None = None
+    code: str | None = None
+    message: str | None = None
+
+
+class LoginFinishBody(BaseModel):
+    """``api_key`` exchanges for a platform key; ``subscription`` keeps the tokens."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    credential_mode: CredentialMode = Field(alias="credentialMode")
+    model: str = Field(min_length=1, max_length=120)
+
+
+@contextmanager
+def _login_errors() -> Iterator[None]:
+    """Map a login/protocol failure onto 422 with its own error code."""
+    try:
+        yield
+    except (ChatGptLoginError, ChatGptOAuthError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+
+
 def _to_public(row: LLMConfig) -> LLMConfigPublic:
+    tokens = row.oauth_tokens
     return LLMConfigPublic(
         id=row.id,
         provider=row.provider,
@@ -164,6 +229,8 @@ def _to_public(row: LLMConfig) -> LLMConfigPublic:
         is_active=row.is_active,
         tier=provider_tier(row.provider).value,
         last_validated_at=row.last_validated_at.isoformat() if row.last_validated_at else None,
+        auth_method=row.auth_method,
+        oauth_account=tokens.email if tokens is not None else None,
     )
 
 
@@ -251,6 +318,67 @@ async def delete_llm_config(
     if not cleared:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_NO_CONFIG)
     await _publish_capability_changed(request, ctx.workspace_id, "ZERO")
+
+
+@router.post("/workspaces/{workspaceId}/llm-config/chatgpt/login", response_model=LoginStart)
+async def start_chatgpt_login(
+    body: LoginStartBody,
+    request: Request,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> LoginStart:
+    """Begin a Sign in with ChatGPT flow and return what to show the user."""
+    service = ChatGptOAuthService(session, ctx)
+    with _login_errors():
+        started = await service.start(mode=body.mode, request_host=request.url.hostname or "")
+    return LoginStart.model_validate(started)
+
+
+@router.get(
+    "/workspaces/{workspaceId}/llm-config/chatgpt/login/{flowId}", response_model=LoginStatus
+)
+async def poll_chatgpt_login(
+    flowId: str,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> LoginStatus:
+    """Advance the flow one step: ``pending`` until the user approves it."""
+    service = ChatGptOAuthService(session, ctx)
+    with _login_errors():
+        state = await service.poll(flowId)
+    return LoginStatus.model_validate(state)
+
+
+@router.post(
+    "/workspaces/{workspaceId}/llm-config/chatgpt/login/{flowId}/finish",
+    response_model=LLMConfigPublic,
+)
+async def finish_chatgpt_login(
+    flowId: str,
+    body: LoginFinishBody,
+    request: Request,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> LLMConfigPublic:
+    """Store the approved sign-in as the active config, then refresh the tier."""
+    service = ChatGptOAuthService(session, ctx)
+    with _login_errors():
+        row = await service.finish(flowId, credential_mode=body.credential_mode, model=body.model)
+    await _publish_capability_changed(request, ctx.workspace_id, provider_tier(row.provider).value)
+    return _to_public(row)
+
+
+@router.delete(
+    "/workspaces/{workspaceId}/llm-config/chatgpt/login/{flowId}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def cancel_chatgpt_login(
+    flowId: str,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> None:
+    """Abandon a flow and release its callback listener."""
+    await ChatGptOAuthService(session, ctx).cancel(flowId)
 
 
 @router.get("/workspaces/{workspaceId}/llm-config/models", response_model=LLMModelsResponse)

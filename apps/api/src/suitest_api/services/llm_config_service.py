@@ -29,6 +29,11 @@ from suitest_core.capabilities import (
     resolve_embeddings,
 )
 from suitest_db.audit import write_audit
+from suitest_db.models.llm_config import (
+    AUTH_METHOD_API_KEY,
+    AUTH_METHOD_OAUTH,
+    StoredOAuthTokens,
+)
 from suitest_db.repositories.llm_configs import LLMConfigCreate, LLMConfigRepo, LLMConfigUpdate
 from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
 from suitest_shared.domain.enums import AutonomyLevel, Tier
@@ -38,6 +43,9 @@ if TYPE_CHECKING:
     from suitest_db.models.llm_config import LLMConfig
 
     from suitest_api.deps.scope import TenantContext
+
+#: Sign in with ChatGPT, spending the user's ChatGPT plan instead of an API key.
+CHATGPT_PROVIDER = "chatgpt"
 
 _LOCAL_PROVIDERS = frozenset({"ollama", "llamacpp", "vllm", "lmstudio"})
 _CLOUD_PROVIDERS = frozenset(
@@ -52,10 +60,11 @@ _CLOUD_PROVIDERS = frozenset(
         "vertex",
         "deepseek",
         "mock",
+        CHATGPT_PROVIDER,
     }
 )
 # CLOUD providers that authenticate without SUITEST_LLM_API_KEY (IAM / canned creds).
-_KEYLESS = frozenset({"bedrock", "vertex", "mock"})
+_KEYLESS = frozenset({"bedrock", "vertex", "mock", CHATGPT_PROVIDER})
 # ``custom`` = any hosted OpenAI-compatible endpoint (gateway/router/proxy) the
 # user points at via base URL. CLOUD tier; API key optional (gateway-dependent);
 # base URL required — there is no default endpoint to fall back to.
@@ -105,13 +114,27 @@ class LLMConfigService:
         return await self._llm.get_active(self._ctx.workspace_id)
 
     def _validate(
-        self, provider: str, model: str, api_key: str | None, base_url: str | None
+        self,
+        provider: str,
+        model: str,
+        api_key: str | None,
+        base_url: str | None,
+        *,
+        auth_method: str = AUTH_METHOD_API_KEY,
+        oauth_tokens: StoredOAuthTokens | None = None,
     ) -> None:
         p = provider.strip().lower()
         if p not in known_providers():
             raise LLMConfigError("UNKNOWN_PROVIDER", f"unsupported provider {provider!r}")
         if not model.strip():
             raise LLMConfigError("INVALID_MODEL", "model is required")
+        # ``chatgpt`` carries a token set, never a key — there is nothing else to
+        # authenticate it with, so a config without tokens could never run.
+        if p == CHATGPT_PROVIDER and (auth_method != AUTH_METHOD_OAUTH or oauth_tokens is None):
+            raise LLMConfigError(
+                "MISSING_OAUTH_TOKENS",
+                f"provider {CHATGPT_PROVIDER} requires signing in with ChatGPT",
+            )
         if p in _LOCAL_PROVIDERS and not base_url:
             raise LLMConfigError("MISSING_BASE_URL", f"LOCAL provider {p} requires config.base_url")
         if p == _CUSTOM and not base_url:
@@ -126,10 +149,27 @@ class LLMConfigService:
         model: str,
         api_key: str | None,
         config: dict[str, object],
+        auth_method: str = AUTH_METHOD_API_KEY,
+        oauth_tokens: StoredOAuthTokens | None = None,
+        audit_action: str = "llm_config.set",
     ) -> LLMConfig:
-        """Create/rotate the active config, then recompute capabilities (M3-3)."""
+        """Create/rotate the active config, then recompute capabilities (M3-3).
+
+        ``auth_method`` / ``oauth_tokens`` carry a Sign in with ChatGPT session
+        (see :mod:`suitest_api.services.chatgpt_oauth_service`); left at their
+        defaults the write behaves exactly like a pasted-key rotation.
+        """
         base_url = config.get("base_url") if isinstance(config.get("base_url"), str) else None
-        self._validate(provider, model, api_key, base_url if isinstance(base_url, str) else None)
+        self._validate(
+            provider,
+            model,
+            api_key,
+            base_url if isinstance(base_url, str) else None,
+            auth_method=auth_method,
+            oauth_tokens=oauth_tokens,
+        )
+        # Whichever credential the caller brought, the other one must not linger.
+        tokens_json = oauth_tokens.model_dump_json() if oauth_tokens is not None else None
 
         existing = await self.get_active()
         if existing is not None:
@@ -141,9 +181,17 @@ class LLMConfigService:
                     api_key_encrypted=api_key,
                     config_json=config,
                     is_active=True,
+                    auth_method=auth_method,
+                    oauth_tokens_encrypted=tokens_json,
                 ),
             )
             row = existing
+            # ``AsyncRepository.update`` skips ``None`` values, so the credential
+            # the caller did not bring has to be cleared by hand — otherwise
+            # switching auth method leaves the previous one encrypted in the row
+            # and the provider layer could still pick it up.
+            row.api_key_encrypted = api_key
+            row.oauth_tokens_encrypted = tokens_json
         else:
             row = await self._llm.create(
                 LLMConfigCreate(
@@ -153,6 +201,8 @@ class LLMConfigService:
                     api_key_encrypted=api_key,
                     config_json=config,
                     is_active=True,
+                    auth_method=auth_method,
+                    oauth_tokens_encrypted=tokens_json,
                 )
             )
         await self._refresh_capability(provider_tier(provider))
@@ -160,10 +210,10 @@ class LLMConfigService:
             self._session,
             workspace_id=self._ctx.workspace_id,
             user_id=self._ctx.user_id,
-            action="llm_config.set",
+            action=audit_action,
             resource_type="llm_config",
             resource_id=row.id,
-            metadata={"provider": provider, "model": model},
+            metadata={"provider": provider, "model": model, "auth_method": auth_method},
         )
         await self._session.commit()
         await self._session.refresh(row)
