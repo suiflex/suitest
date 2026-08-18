@@ -378,7 +378,7 @@ async def cancel_chatgpt_login(
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
     """Abandon a flow and release its callback listener."""
-    await ChatGptOAuthService(session, ctx).cancel(flowId)
+    ChatGptOAuthService(session, ctx).cancel(flowId)
 
 
 @router.get("/workspaces/{workspaceId}/llm-config/models", response_model=LLMModelsResponse)

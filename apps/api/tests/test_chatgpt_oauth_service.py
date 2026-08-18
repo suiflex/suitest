@@ -8,9 +8,12 @@ DB-backed suite in ``test_llm_config.py``.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, cast
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 import pytest
@@ -87,7 +90,7 @@ async def test_browser_start_binds_the_allow_listed_port() -> None:
     assert isinstance(authorize_url, str)
     assert "redirect_uri=http%3A%2F%2Flocalhost%3A145" in authorize_url
     assert "code_challenge_method=S256" in authorize_url
-    await service.cancel(cast("str", started["flow_id"]))
+    service.cancel(cast("str", started["flow_id"]))
 
 
 @pytest.mark.asyncio
@@ -222,6 +225,153 @@ async def test_an_expired_flow_is_forgotten() -> None:
         await service.poll(flow_id)
     assert exc.value.code == "UNKNOWN_FLOW"
     assert flow_id not in svc._FLOWS
+
+
+# --- browser callback listener ----------------------------------------------
+#
+# These drive the real socket, because the bug they cover only exists there: a
+# browser opens more connections to the callback origin than the redirect itself.
+
+
+async def _request(port: int, target: str) -> bytes:
+    """Send one raw HTTP request line to the callback listener."""
+    reader, writer = await asyncio.open_connection("127.0.0.1", port)
+    writer.write(f"GET {target} HTTP/1.1\r\nHost: localhost\r\n\r\n".encode())
+    await writer.drain()
+    body = await reader.read()
+    writer.close()
+    with contextlib.suppress(Exception):
+        await writer.wait_closed()
+    return body
+
+
+async def _preconnect(port: int) -> None:
+    """Open and close a connection without sending anything, as browsers do."""
+    _, writer = await asyncio.open_connection("127.0.0.1", port)
+    writer.close()
+    with contextlib.suppress(Exception):
+        await writer.wait_closed()
+
+
+async def _browser_flow() -> tuple[svc.ChatGptOAuthService, str, str, int]:
+    """Start a browser-mode flow; return (service, flow_id, state, port).
+
+    The ports are not ours to choose — the OAuth client allow-lists 1455/1457 —
+    so a Suitest (or Codex) sign-in running on this machine owns them. Skip
+    rather than report a failure that says nothing about the code.
+    """
+    service = _service(_device_started)
+    try:
+        started = await service.start(mode="browser", request_host="localhost")
+    except svc.ChatGptLoginError as exc:
+        if exc.code == "CALLBACK_PORT_BUSY":
+            pytest.skip(f"callback ports in use by another process: {exc.message}")
+        raise
+    flow_id = cast("str", started["flow_id"])
+    url = urlparse(cast("str", started["authorize_url"]))
+    query = parse_qs(url.query)
+    state = query["state"][0]
+    port = int(urlparse(query["redirect_uri"][0]).port or 0)
+    return service, flow_id, state, port
+
+
+@pytest.mark.asyncio
+async def test_the_redirect_is_captured() -> None:
+    """The happy path: the callback's code is what the exchange will spend."""
+    service, flow_id, state, port = await _browser_flow()
+    try:
+        body = await _request(port, f"/auth/callback?code=abc&state={state}")
+        assert b"200 OK" in body
+        assert svc._FLOWS[flow_id].callback_code == "abc"
+    finally:
+        service.cancel(flow_id)
+
+
+@pytest.mark.asyncio
+async def test_a_browsers_extra_requests_do_not_undo_a_successful_sign_in() -> None:
+    """A preconnect and a favicon fetch must not turn a captured code into an error.
+
+    This is the regression: any second request used to overwrite the outcome, so
+    a sign-in failed milliseconds after it had actually worked.
+    """
+    service, flow_id, state, port = await _browser_flow()
+    try:
+        await _preconnect(port)
+        await _request(port, f"/auth/callback?code=abc&state={state}")
+        await _request(port, "/favicon.ico")
+        await _preconnect(port)
+
+        flow = svc._FLOWS[flow_id]
+        assert flow.callback_code == "abc"
+        assert flow.error is None
+    finally:
+        service.cancel(flow_id)
+
+
+@pytest.mark.asyncio
+async def test_a_repeated_redirect_does_not_replace_the_captured_code() -> None:
+    """Reloading the callback tab must not swap in a second, already-spent code."""
+    service, flow_id, state, port = await _browser_flow()
+    try:
+        await _request(port, f"/auth/callback?code=first&state={state}")
+        await _request(port, f"/auth/callback?code=second&state={state}")
+        assert svc._FLOWS[flow_id].callback_code == "first"
+    finally:
+        service.cancel(flow_id)
+
+
+@pytest.mark.asyncio
+async def test_a_mismatched_state_is_refused_and_says_so() -> None:
+    """A callback we did not start fails the flow, and the tab is told."""
+    service, flow_id, _state, port = await _browser_flow()
+    try:
+        body = await _request(port, "/auth/callback?code=abc&state=not-ours")
+        assert b"400 Bad Request" in body
+        assert b"Signed in" not in body
+        flow = svc._FLOWS[flow_id]
+        assert flow.callback_code is None
+        assert "state mismatch" in (flow.error or "")
+    finally:
+        service.cancel(flow_id)
+
+
+@pytest.mark.asyncio
+async def test_a_denied_sign_in_reports_the_providers_reason() -> None:
+    """`?error=access_denied` is a real outcome, not a malformed callback."""
+    service, flow_id, state, port = await _browser_flow()
+    try:
+        await _request(port, f"/auth/callback?error=access_denied&state={state}")
+        assert svc._FLOWS[flow_id].error == "access_denied"
+    finally:
+        service.cancel(flow_id)
+
+
+@pytest.mark.asyncio
+async def test_the_callback_port_is_released_when_a_flow_ends() -> None:
+    """A failed sign-in must not keep 1455 bound — the next one has to bind it."""
+    service, flow_id, _state, port = await _browser_flow()
+    await _request(port, "/auth/callback?code=abc&state=wrong")
+
+    status = await service.poll(flow_id)
+    assert status["status"] == "error"
+
+    # Binding again is the only proof that matters.
+    server = await asyncio.start_server(lambda r, w: None, host="127.0.0.1", port=port)
+    server.close()
+    service.cancel(flow_id)
+
+
+@pytest.mark.asyncio
+async def test_an_expired_browser_flow_releases_its_port() -> None:
+    """The TTL sweep used to drop the flow but leak the socket behind it."""
+    service, flow_id, _state, port = await _browser_flow()
+    svc._FLOWS[flow_id].started_at = datetime.now(tz=UTC) - timedelta(minutes=16)
+
+    with pytest.raises(svc.ChatGptLoginError):
+        await service.poll(flow_id)
+
+    server = await asyncio.start_server(lambda r, w: None, host="127.0.0.1", port=port)
+    server.close()
 
 
 @pytest.mark.asyncio

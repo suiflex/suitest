@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Literal
 from urllib.parse import parse_qs, urlsplit
 
 import httpx
+import structlog
 from suitest_core.chatgpt_oauth import (
     CALLBACK_PORTS,
     DEVICE_CODE_TTL,
@@ -66,12 +67,16 @@ if TYPE_CHECKING:
 
     from suitest_api.deps.scope import TenantContext
 
+log = structlog.get_logger(__name__)
+
 LoginMode = Literal["auto", "device", "browser"]
 CredentialMode = Literal["api_key", "subscription"]
 FlowStatus = Literal["pending", "ready", "error"]
 
 _HTTP_TIMEOUT = 30.0
 _LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", ""})
+#: The one path on the callback port that decides a flow's outcome.
+_CALLBACK_PATH = "/auth/callback"
 
 
 class ChatGptLoginError(Exception):
@@ -107,12 +112,17 @@ class _PendingFlow:
     def expired(self) -> bool:
         return datetime.now(tz=UTC) - self.started_at > DEVICE_CODE_TTL
 
-    async def close(self) -> None:
-        """Tear down a callback listener, if this flow opened one."""
+    def shutdown(self) -> None:
+        """Release the callback port, if this flow opened one.
+
+        Synchronous on purpose: ``Server.close()`` already releases the listening
+        socket, and every path that ends a flow — including the TTL sweep — has
+        to be able to call this. An awaited teardown is what let ports 1455/1457
+        stay bound after a failed sign-in, blocking every later one.
+        """
         for server in self.closers:
-            server.close()
             with contextlib.suppress(Exception):
-                await server.wait_closed()
+                server.close()
         self.closers.clear()
 
 
@@ -121,10 +131,17 @@ class _PendingFlow:
 _FLOWS: dict[str, _PendingFlow] = {}
 
 
+def _drop(flow_id: str) -> None:
+    """Forget a flow and release whatever it was holding."""
+    flow = _FLOWS.pop(flow_id, None)
+    if flow is not None:
+        flow.shutdown()
+
+
 def _prune() -> None:
     for flow_id, flow in list(_FLOWS.items()):
         if flow.expired:
-            _FLOWS.pop(flow_id, None)
+            _drop(flow_id)
 
 
 class ChatGptOAuthService:
@@ -196,21 +213,13 @@ class ChatGptOAuthService:
         not an option and this short-lived socket is.
         """
 
-        async def handle(
-            reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-        ) -> None:  # pragma: no cover - exercised by the live flow
+        async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
             try:
-                request_line = (await reader.readline()).decode("latin-1")
-                target = request_line.split(" ")[1] if " " in request_line else ""
-                params = parse_qs(urlsplit(target).query)
-                code = (params.get("code") or [""])[0]
-                state = (params.get("state") or [""])[0]
-                if code and state == flow.state:
-                    flow.callback_code = code
-                else:
-                    flow.error = "callback carried no code, or the state did not match"
-                writer.write(_CALLBACK_PAGE)
+                response = await self._handle_callback(flow, reader)
+                writer.write(response)
                 await writer.drain()
+            except Exception:  # pragma: no cover - a dead socket must not kill the flow
+                log.warning("chatgpt_oauth.callback_handler_failed", exc_info=True)
             finally:
                 writer.close()
                 with contextlib.suppress(Exception):
@@ -225,12 +234,52 @@ class ChatGptOAuthService:
                 continue
             flow.closers.append(server)
             return port
-        _FLOWS.pop(flow_id, None)
         raise ChatGptLoginError(
             "CALLBACK_PORT_BUSY",
             f"ports {CALLBACK_PORTS} are all in use; sign in with a device code instead"
             f" ({last_error})",
         )
+
+    async def _handle_callback(self, flow: _PendingFlow, reader: asyncio.StreamReader) -> bytes:
+        """Interpret one request on the callback port; return the reply to send.
+
+        A browser opens more than one connection to an origin it is visiting —
+        speculative preconnects that send nothing, and a ``/favicon.ico`` fetch
+        once the reply renders. Only the redirect itself may decide the flow's
+        outcome; anything else is answered and ignored, or the sign-in would fail
+        milliseconds after it succeeded.
+        """
+        request_line = (await reader.readline()).decode("latin-1", errors="replace")
+        parts = request_line.split(" ")
+        if len(parts) < 2:
+            # A preconnect that never sent a request line. Nothing to answer.
+            return b""
+
+        target = urlsplit(parts[1])
+        params = parse_qs(target.query)
+        if target.path != _CALLBACK_PATH:
+            log.debug("chatgpt_oauth.callback_ignored", path=target.path)
+            return _NOT_FOUND_PAGE
+
+        # The redirect is single-use: once it has landed, a repeat (reload, or a
+        # second tab) must not overwrite what the first one captured.
+        if flow.callback_code is not None or flow.tokens is not None:
+            return _SUCCESS_PAGE
+
+        code = (params.get("code") or [""])[0]
+        state = (params.get("state") or [""])[0]
+        if not code:
+            provider_error = (params.get("error") or [""])[0]
+            flow.error = provider_error or "the sign-in was cancelled or returned no code"
+            log.info("chatgpt_oauth.callback_without_code", provider_error=provider_error)
+            return _FAILURE_PAGE
+        if state != flow.state:
+            flow.error = "the sign-in could not be matched to this request (state mismatch)"
+            log.warning("chatgpt_oauth.callback_state_mismatch")
+            return _FAILURE_PAGE
+
+        flow.callback_code = code
+        return _SUCCESS_PAGE
 
     # --- poll ----------------------------------------------------------------
 
@@ -238,6 +287,9 @@ class ChatGptOAuthService:
         """Advance the flow one step and report where it stands."""
         flow = self._flow(flow_id)
         if flow.error:
+            # The listener has nothing left to catch — free the port now rather
+            # than at the 15-minute sweep, or the next sign-in cannot bind it.
+            flow.shutdown()
             return {"status": "error", "message": flow.error}
         if flow.tokens is not None:
             return self._ready(flow)
@@ -249,12 +301,12 @@ class ChatGptOAuthService:
                 await self._poll_browser(flow)
         except ChatGptOAuthError as exc:
             flow.error = exc.message
-            await flow.close()
+            flow.shutdown()
             return {"status": "error", "code": exc.code, "message": exc.message}
 
         if flow.tokens is None:
             return {"status": "pending"}
-        await flow.close()
+        flow.shutdown()
         return self._ready(flow)
 
     async def _poll_device(self, flow: _PendingFlow) -> None:
@@ -325,14 +377,12 @@ class ChatGptOAuthService:
                 audit_action="llm_config.oauth_login",
             )
 
-        await self.cancel(flow_id)
+        self.cancel(flow_id)
         return row
 
-    async def cancel(self, flow_id: str) -> None:
+    def cancel(self, flow_id: str) -> None:
         """Drop a flow and release its listener. Unknown ids are a no-op."""
-        flow = _FLOWS.pop(flow_id, None)
-        if flow is not None:
-            await flow.close()
+        _drop(flow_id)
 
     # --- token upkeep --------------------------------------------------------
 
@@ -397,11 +447,23 @@ def _stored(tokens: OAuthTokens) -> StoredOAuthTokens:
     )
 
 
-_CALLBACK_PAGE = (
-    b"HTTP/1.1 200 OK\r\n"
-    b"Content-Type: text/html; charset=utf-8\r\n"
-    b"Connection: close\r\n\r\n"
-    b"<!doctype html><title>Suitest</title>"
-    b"<body style='font:14px system-ui;padding:3rem'>"
-    b"<p>Signed in. You can close this tab and return to Suitest.</p>"
-)
+def _page(status: str, body: str) -> bytes:
+    """One-shot HTTP response. The inline icon stops the browser asking for one."""
+    html = (
+        "<!doctype html><title>Suitest</title>"
+        "<link rel='icon' href='data:,'>"
+        "<body style='font:14px system-ui;padding:3rem'>"
+        f"<p>{body}</p>"
+    )
+    return (
+        f"HTTP/1.1 {status}\r\n"
+        "Content-Type: text/html; charset=utf-8\r\n"
+        f"Content-Length: {len(html.encode())}\r\n"
+        "Connection: close\r\n\r\n"
+        f"{html}"
+    ).encode()
+
+
+_SUCCESS_PAGE = _page("200 OK", "Signed in. You can close this tab and return to Suitest.")
+_FAILURE_PAGE = _page("400 Bad Request", "Sign-in failed. Return to Suitest for the details.")
+_NOT_FOUND_PAGE = _page("404 Not Found", "Nothing here.")
