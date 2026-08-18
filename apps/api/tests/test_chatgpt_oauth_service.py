@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, cast
 from urllib.parse import parse_qs, urlparse
@@ -29,8 +29,21 @@ _OTHER_CTX = TenantContext(workspace_id="ws_2", user_id="user_2", role=Role.OWNE
 
 
 @pytest.fixture(autouse=True)
-def _clear_flows() -> None:
-    """Flows live in a module-level store; keep tests from seeing each other's."""
+def _clear_flows() -> Iterator[None]:
+    """Isolate the module-level flow store, and release the sockets behind it.
+
+    Dropping the dict is not enough: a browser-mode flow owns a listener on a
+    fixed port, so a test that leaves one behind takes 1455/1457 away from every
+    test after it. That is the same leak this suite exists to guard against.
+    """
+    _shutdown_all()
+    yield
+    _shutdown_all()
+
+
+def _shutdown_all() -> None:
+    for flow in list(svc._FLOWS.values()):
+        flow.shutdown()
     svc._FLOWS.clear()
 
 
@@ -44,6 +57,23 @@ def _device_started(request: httpx.Request) -> httpx.Response:
     return httpx.Response(
         200, json={"device_auth_id": "dev1", "user_code": "ABCD-EFGH", "interval": "5"}
     )
+
+
+async def _start(
+    service: svc.ChatGptOAuthService, *, mode: svc.LoginMode, host: str
+) -> dict[str, object]:
+    """Start a flow, skipping when the callback ports belong to someone else.
+
+    The ports are not ours to choose — the OAuth client allow-lists 1455/1457 —
+    so a Suitest or Codex sign-in running on this machine owns them. Skip rather
+    than report a failure that says nothing about the code.
+    """
+    try:
+        return await service.start(mode=mode, request_host=host)
+    except svc.ChatGptLoginError as exc:
+        if exc.code == "CALLBACK_PORT_BUSY":
+            pytest.skip(f"callback ports in use by another process: {exc.message}")
+        raise
 
 
 @pytest.mark.asyncio
@@ -75,7 +105,7 @@ async def test_auto_picks_the_transport_the_host_can_actually_complete(
 ) -> None:
     """The browser redirect only lands if the clicker is on the API's machine."""
     service = _service(_device_started)
-    started = await service.start(mode="auto", request_host=host)
+    started = await _start(service, mode="auto", host=host)
     assert started["mode"] == expected
 
 
@@ -84,7 +114,7 @@ async def test_browser_start_binds_the_allow_listed_port() -> None:
     """The authorize URL must point at a port the OAuth client accepts."""
     service = _service(_device_started)
 
-    started = await service.start(mode="browser", request_host="localhost")
+    started = await _start(service, mode="browser", host="localhost")
 
     authorize_url = started["authorize_url"]
     assert isinstance(authorize_url, str)
@@ -254,19 +284,9 @@ async def _preconnect(port: int) -> None:
 
 
 async def _browser_flow() -> tuple[svc.ChatGptOAuthService, str, str, int]:
-    """Start a browser-mode flow; return (service, flow_id, state, port).
-
-    The ports are not ours to choose — the OAuth client allow-lists 1455/1457 —
-    so a Suitest (or Codex) sign-in running on this machine owns them. Skip
-    rather than report a failure that says nothing about the code.
-    """
+    """Start a browser-mode flow; return (service, flow_id, state, port)."""
     service = _service(_device_started)
-    try:
-        started = await service.start(mode="browser", request_host="localhost")
-    except svc.ChatGptLoginError as exc:
-        if exc.code == "CALLBACK_PORT_BUSY":
-            pytest.skip(f"callback ports in use by another process: {exc.message}")
-        raise
+    started = await _start(service, mode="browser", host="localhost")
     flow_id = cast("str", started["flow_id"])
     url = urlparse(cast("str", started["authorize_url"]))
     query = parse_qs(url.query)
