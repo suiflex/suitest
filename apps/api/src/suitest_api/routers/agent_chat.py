@@ -21,6 +21,7 @@ from suitest_api.auth.db import get_async_session
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
 from suitest_api.deps.tier import require_tier
 from suitest_api.services.agent_chat_service import AgentChatService
+from suitest_api.services.llm_credentials import resolve_for_config
 
 router = APIRouter(prefix="/api/v1", tags=["agent"])
 
@@ -45,8 +46,7 @@ async def agent_chat(
             detail="no active LLM configured for this workspace",
         )
 
-    base_url = config.config_json.get("base_url")
-    base_url = base_url if isinstance(base_url, str) else None
+    credential = await resolve_for_config(session, config)
     ws_redis = getattr(request.app.state, "ws_redis", None)
 
     async def publish(envelope: dict[str, object]) -> None:
@@ -58,10 +58,8 @@ async def agent_chat(
     async def stream() -> AsyncIterator[bytes]:
         async for event in svc.stream(
             payload,
-            provider_name=config.provider,
+            credential=credential,
             model=config.model,
-            api_key=config.api_key_encrypted,
-            base_url=base_url,
             publish=publish,
         ):
             yield _format_sse(event).encode()

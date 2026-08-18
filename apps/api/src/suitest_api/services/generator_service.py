@@ -30,7 +30,7 @@ from suitest_agent.generators.openapi_generator import OpenApiGenerator, OpenApi
 from suitest_agent.generators.prd import PrdGenerator
 from suitest_agent.generators.url_crawler import UrlCrawler
 from suitest_agent.generators.url_semantic import UrlSemanticGenerator
-from suitest_agent.providers.litellm_router import get_provider
+from suitest_core.llm_credentials import ResolvedCredential
 from suitest_db.audit import write_audit
 from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.generator_run import GeneratorRun
@@ -48,6 +48,7 @@ from suitest_shared.schemas.generator_input import (
 )
 from suitest_shared.text import derive_slug, derive_title
 
+from suitest_api.services.llm_credentials import provider_for_credential
 from suitest_api.services.prompt_resolver import resolve_and_pin
 
 if TYPE_CHECKING:
@@ -119,10 +120,8 @@ class GeneratorService:
         user_id: str,
         request: OpenApiGenerateRequest,
         *,
-        llm_provider: str | None = None,
+        llm_credential: ResolvedCredential | None = None,
         llm_model: str | None = None,
-        llm_api_key: str | None = None,
-        llm_base_url: str | None = None,
     ) -> AsyncIterator[GeneratorSseEvent]:
         """Stream the OpenAPI generation lifecycle as SSE events.
 
@@ -205,10 +204,8 @@ class GeneratorService:
                     user_id,
                     request,
                     public_ids=public_ids,
-                    llm_provider=llm_provider,
+                    llm_credential=llm_credential,
                     llm_model=llm_model,
-                    llm_api_key=llm_api_key,
-                    llm_base_url=llm_base_url,
                 ):
                     yield event
 
@@ -238,10 +235,8 @@ class GeneratorService:
         request: OpenApiGenerateRequest,
         *,
         public_ids: list[str],
-        llm_provider: str | None,
+        llm_credential: ResolvedCredential | None,
         llm_model: str | None,
-        llm_api_key: str | None,
-        llm_base_url: str | None,
     ) -> AsyncIterator[GeneratorSseEvent]:
         """Append LLM edge cases (M3-8). Yields ``progress`` + per-edge ``case``.
 
@@ -249,7 +244,7 @@ class GeneratorService:
         the edge cases. No LLM configured → a single ``llm_enrich_skipped`` frame
         (graceful ZERO degrade); the deterministic suite already persisted.
         """
-        if not (llm_provider and llm_model):
+        if not (llm_credential and llm_model):
             yield GeneratorSseEvent(
                 kind="progress",
                 data={"phase": "llm_enrich_skipped", "reason": "no active LLM"},
@@ -267,7 +262,7 @@ class GeneratorService:
                 workspace_id=workspace_id,
                 kind=AgentSessionKind.GENERATION,
                 model_id=llm_model,
-                provider=llm_provider,
+                provider=llm_credential.provider,
                 user_id=self._as_user_uuid(user_id),
                 prompt_version_id=prompt_row.id,
                 temperature=0.2,
@@ -275,7 +270,7 @@ class GeneratorService:
             )
         )
 
-        provider = get_provider(llm_provider, api_key=llm_api_key, base_url=llm_base_url)
+        provider = provider_for_credential(llm_credential)
         enricher = OpenApiEnricher(provider, model=llm_model, prompt_override=prompt_content)
         result = await enricher.enrich(generator.op_summaries())
 
@@ -410,10 +405,8 @@ class GeneratorService:
         user_id: str,
         request: PrdGenerateRequest,
         *,
-        provider_name: str,
+        credential: ResolvedCredential,
         model: str,
-        api_key: str | None,
-        base_url: str | None,
     ) -> AsyncIterator[GeneratorSseEvent]:
         """Stream LLM-driven PRD generation as SSE (M3-6) — CLOUD/LOCAL only.
 
@@ -433,7 +426,7 @@ class GeneratorService:
         with tracer.start_as_current_span("generator.prd") as span:
             span.set_attribute("generator.source", "prd")
             span.set_attribute("workspace.id", workspace_id)
-            span.set_attribute("llm.provider", provider_name)
+            span.set_attribute("llm.provider", credential.provider)
             span.set_attribute("llm.model", model)
             start = time.perf_counter()
 
@@ -449,7 +442,7 @@ class GeneratorService:
                     workspace_id=workspace_id,
                     kind=AgentSessionKind.GENERATION,
                     model_id=model,
-                    provider=provider_name,
+                    provider=credential.provider,
                     user_id=self._as_user_uuid(user_id),
                     prompt_version_id=prompt_row.id,
                     seed=request.seed,
@@ -488,7 +481,7 @@ class GeneratorService:
                 },
             )
 
-            provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
+            provider = provider_for_credential(credential)
             generator = PrdGenerator(
                 provider,
                 model=model,
@@ -578,10 +571,8 @@ class GeneratorService:
         user_id: str,
         request: UrlSemanticGenerateRequest,
         *,
-        provider_name: str,
+        credential: ResolvedCredential,
         model: str,
-        api_key: str | None,
-        base_url: str | None,
     ) -> AsyncIterator[GeneratorSseEvent]:
         """Stream LLM semantic URL generation as SSE (M3-7) — CLOUD/LOCAL only.
 
@@ -606,7 +597,7 @@ class GeneratorService:
                     workspace_id=workspace_id,
                     kind=AgentSessionKind.GENERATION,
                     model_id=model,
-                    provider=provider_name,
+                    provider=credential.provider,
                     user_id=self._as_user_uuid(user_id),
                     prompt_version_id=prompt_row.id,
                     seed=request.seed,
@@ -646,7 +637,7 @@ class GeneratorService:
                 },
             )
 
-            provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
+            provider = provider_for_credential(credential)
             generator = UrlSemanticGenerator(provider, model=model, prompt_override=prompt_content)
             result = await generator.run(
                 request.url, request.intent, seed=request.seed, max_cases=request.max_cases
@@ -728,10 +719,8 @@ class GeneratorService:
         user_id: str,
         request: McpDiscoveryGenerateRequest,
         *,
-        provider_name: str,
+        credential: ResolvedCredential,
         model: str,
-        api_key: str | None,
-        base_url: str | None,
         mcp_provider_name: str,
         mcp_target_kind: TargetKind,
         mcp_tools: list[dict[str, object]],
@@ -761,7 +750,7 @@ class GeneratorService:
                     workspace_id=workspace_id,
                     kind=AgentSessionKind.GENERATION,
                     model_id=model,
-                    provider=provider_name,
+                    provider=credential.provider,
                     user_id=self._as_user_uuid(user_id),
                     prompt_version_id=prompt_row.id,
                     seed=request.seed,
@@ -801,7 +790,7 @@ class GeneratorService:
                 },
             )
 
-            provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
+            provider = provider_for_credential(credential)
             generator = McpDiscoveryGenerator(provider, model=model, prompt_override=prompt_content)
             result = await generator.run(
                 mcp_tools,

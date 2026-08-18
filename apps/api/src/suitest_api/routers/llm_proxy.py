@@ -16,12 +16,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_agent.providers.base import ChatMessage, ModelCall, ProviderError
-from suitest_agent.providers.litellm_router import get_provider
 from suitest_db.repositories.llm_configs import LLMConfigRepo
 
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.api_key import tenant_via_api_key_or_session
 from suitest_api.deps.scope import TenantContext
+from suitest_api.services.llm_credentials import provider_for_config
 
 router = APIRouter(prefix="/api/v1", tags=["llm"])
 
@@ -61,12 +61,7 @@ async def llm_complete(
             status_code=status.HTTP_409_CONFLICT,
             detail="no active LLM configured for this workspace",
         )
-    base_url = config.config_json.get("base_url")
-    provider = get_provider(
-        config.provider,
-        api_key=config.api_key_encrypted,
-        base_url=base_url if isinstance(base_url, str) else None,
-    )
+    provider = await provider_for_config(session, config)
     messages: list[ChatMessage] = []
     if body.system:
         messages.append(ChatMessage(role="system", content=body.system))

@@ -59,6 +59,7 @@ from suitest_api.services.generator_service import (
     GeneratorService,
     SuiteNotInWorkspaceError,
 )
+from suitest_api.services.llm_credentials import resolve_for_config
 
 router = APIRouter(prefix="/api/v1", tags=["generators"])
 
@@ -130,15 +131,13 @@ async def generate_openapi(
     # M3-8: resolve the workspace's active LLM only when edge-case enrichment is
     # requested. Absence is NOT an error — the deterministic suite still runs and
     # the service emits an ``llm_enrich_skipped`` frame (ZERO-first).
-    llm_provider = llm_model = llm_api_key = llm_base_url = None
+    llm_credential = None
+    llm_model = None
     if payload.options.include_llm_edge_cases:
         config = await LLMConfigRepo(session).get_active(ctx.workspace_id)
         if config is not None:
-            llm_provider = config.provider
+            llm_credential = await resolve_for_config(session, config)
             llm_model = config.model
-            llm_api_key = config.api_key_encrypted
-            raw_base = config.config_json.get("base_url")
-            llm_base_url = raw_base if isinstance(raw_base, str) else None
 
     async def stream() -> AsyncIterator[bytes]:
         try:
@@ -146,10 +145,8 @@ async def generate_openapi(
                 ctx.workspace_id,
                 ctx.user_id,
                 payload,
-                llm_provider=llm_provider,
+                llm_credential=llm_credential,
                 llm_model=llm_model,
-                llm_api_key=llm_api_key,
-                llm_base_url=llm_base_url,
             ):
                 yield _format_sse(event).encode()
         except SuiteNotInWorkspaceError:
@@ -198,8 +195,7 @@ async def generate_prd(
     if not await svc.suite_in_scope(payload.target_suite_id, ctx.workspace_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="suite not found")
 
-    base_url = config.config_json.get("base_url")
-    base_url = base_url if isinstance(base_url, str) else None
+    credential = await resolve_for_config(session, config)
 
     async def stream() -> AsyncIterator[bytes]:
         try:
@@ -207,10 +203,8 @@ async def generate_prd(
                 ctx.workspace_id,
                 ctx.user_id,
                 payload,
-                provider_name=config.provider,
+                credential=credential,
                 model=config.model,
-                api_key=config.api_key_encrypted,
-                base_url=base_url,
             ):
                 yield _format_sse(event).encode()
         except SuiteNotInWorkspaceError:
@@ -251,8 +245,7 @@ async def generate_url_semantic(
     if not await svc.suite_in_scope(payload.target_suite_id, ctx.workspace_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="suite not found")
 
-    base_url = config.config_json.get("base_url")
-    base_url = base_url if isinstance(base_url, str) else None
+    credential = await resolve_for_config(session, config)
 
     async def stream() -> AsyncIterator[bytes]:
         try:
@@ -260,10 +253,8 @@ async def generate_url_semantic(
                 ctx.workspace_id,
                 ctx.user_id,
                 payload,
-                provider_name=config.provider,
+                credential=credential,
                 model=config.model,
-                api_key=config.api_key_encrypted,
-                base_url=base_url,
             ):
                 yield _format_sse(event).encode()
         except SuiteNotInWorkspaceError:
@@ -329,8 +320,7 @@ async def generate_mcp_discovery(
     if not await svc.suite_in_scope(payload.target_suite_id, ctx.workspace_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="suite not found")
 
-    base_url = config.config_json.get("base_url")
-    base_url = base_url if isinstance(base_url, str) else None
+    credential = await resolve_for_config(session, config)
 
     async def stream() -> AsyncIterator[bytes]:
         try:
@@ -338,10 +328,8 @@ async def generate_mcp_discovery(
                 ctx.workspace_id,
                 ctx.user_id,
                 payload,
-                provider_name=config.provider,
+                credential=credential,
                 model=config.model,
-                api_key=config.api_key_encrypted,
-                base_url=base_url,
                 mcp_provider_name=mcp_provider.name,
                 mcp_target_kind=target_kind,
                 mcp_tools=mcp_tools,

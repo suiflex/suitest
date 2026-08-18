@@ -42,6 +42,7 @@ from suitest_core.chatgpt_oauth import (
     ChatGptOAuthError,
     DeviceCode,
     OAuthTokens,
+    StoredOAuthTokens,
     build_authorize_url,
     callback_redirect_uri,
     device_poll_once,
@@ -51,16 +52,12 @@ from suitest_core.chatgpt_oauth import (
     exchange_for_api_key,
     generate_pkce,
     needs_refresh,
-    refresh_tokens,
 )
-from suitest_db.models.llm_config import (
-    AUTH_METHOD_API_KEY,
-    AUTH_METHOD_OAUTH,
-    StoredOAuthTokens,
-)
+from suitest_core.llm_credentials import CHATGPT_PROVIDER, refresh_stored
+from suitest_db.models.llm_config import AUTH_METHOD_API_KEY, AUTH_METHOD_OAUTH
 from suitest_db.repositories.llm_configs import LLMConfigRepo, LLMConfigUpdate
 
-from suitest_api.services.llm_config_service import CHATGPT_PROVIDER, LLMConfigService
+from suitest_api.services.llm_config_service import LLMConfigService
 from suitest_api.settings import get_settings
 
 if TYPE_CHECKING:
@@ -351,24 +348,9 @@ class ChatGptOAuthService:
             return None
         if not needs_refresh(stored.expires_at):
             return stored
-        if stored.refresh_token is None:
-            raise ChatGptLoginError(
-                "REFRESH_IMPOSSIBLE", "the stored credential has no refresh token; sign in again"
-            )
 
         async with self._http() as client:
-            fresh = await refresh_tokens(
-                client, client_id=self._client_id, refresh_token=stored.refresh_token
-            )
-        # A refresh response may omit fields; keep what it did not replace.
-        merged = StoredOAuthTokens(
-            access_token=fresh.access_token,
-            refresh_token=fresh.refresh_token or stored.refresh_token,
-            id_token=fresh.id_token or stored.id_token,
-            expires_at=fresh.expires_at,
-            account_id=fresh.account_id or stored.account_id,
-            email=fresh.email or stored.email,
-        )
+            merged = await refresh_stored(client, stored, client_id=self._client_id)
         await self._llm.update(
             config.id, LLMConfigUpdate(oauth_tokens_encrypted=merged.model_dump_json())
         )

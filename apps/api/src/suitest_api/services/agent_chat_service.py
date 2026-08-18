@@ -17,11 +17,12 @@ from typing import TYPE_CHECKING
 
 from suitest_agent.graphs._util import parse_json_object
 from suitest_agent.providers.base import ChatMessage, ModelCall
-from suitest_agent.providers.litellm_router import get_provider
+from suitest_core.llm_credentials import ResolvedCredential
 from suitest_db.repositories.agent_sessions import AgentSessionCreate, AgentSessionRepo
 from suitest_shared.domain.enums import AgentSessionKind, MessageRole
 from suitest_shared.schemas.agent_chat import ChatRequest, ChatSseEvent
 
+from suitest_api.services.llm_credentials import provider_for_credential
 from suitest_api.services.prompt_resolver import resolve_and_pin
 
 if TYPE_CHECKING:
@@ -53,10 +54,8 @@ class AgentChatService:
         self,
         request: ChatRequest,
         *,
-        provider_name: str,
+        credential: ResolvedCredential,
         model: str,
-        api_key: str | None,
-        base_url: str | None,
         publish: WsPublish | None = None,
     ) -> AsyncIterator[ChatSseEvent]:
         """Stream the assistant reply; persist the session + messages."""
@@ -72,7 +71,7 @@ class AgentChatService:
                 workspace_id=self._workspace_id,
                 kind=AgentSessionKind.CONVERSATION,
                 model_id=model,
-                provider=provider_name,
+                provider=credential.provider,
                 user_id=self._as_uuid(self._user_id),
                 prompt_version_id=prompt_row.id,
                 seed=request.seed,
@@ -93,7 +92,7 @@ class AgentChatService:
         messages.extend(ChatMessage(role=m.role, content=m.content) for m in request.messages)
         call = ModelCall(model=model, messages=messages, seed=request.seed, temperature=0.3)
 
-        provider = get_provider(provider_name, api_key=api_key, base_url=base_url)
+        provider = provider_for_credential(credential)
         accumulated = ""
         tokens_out = 0
         async for chunk in provider.stream_complete(call):

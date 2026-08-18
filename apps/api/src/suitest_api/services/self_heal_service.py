@@ -14,7 +14,6 @@ from suitest_agent.generators.selector_repair import (
     selector_code_sha256,
 )
 from suitest_agent.providers.base import ProviderError
-from suitest_agent.providers.litellm_router import get_provider
 from suitest_db.audit import write_audit
 from suitest_db.models.case import TestCase, TestStep
 from suitest_db.repositories.agent_sessions import AgentSessionCreate, AgentSessionRepo
@@ -27,6 +26,7 @@ from suitest_api.schemas.self_heal import (
     SelectorRepairApplyRequest,
     SelectorRepairPublic,
 )
+from suitest_api.services.llm_credentials import provider_for_config
 from suitest_api.services.prompt_resolver import resolve_and_pin
 
 if TYPE_CHECKING:
@@ -132,12 +132,7 @@ class SelfHealService:
                 metadata_json={"caseId": case_id, "stepId": step.id, "operation": "self_heal"},
             )
         )
-        base_url_raw = config.config_json.get("base_url")
-        provider = get_provider(
-            config.provider,
-            api_key=config.api_key_encrypted,
-            base_url=base_url_raw if isinstance(base_url_raw, str) else None,
-        )
+        provider = await provider_for_config(self._session, config)
         try:
             proposal, completion = await propose_selector_repair(
                 provider,

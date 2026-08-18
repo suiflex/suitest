@@ -591,17 +591,14 @@ def build_llm_diagnoser() -> DefectDiagnoser:
         session: AsyncSession, workspace_id: str, evidence: str
     ) -> LlmDiagnosis | None:
         from suitest_agent.graphs.diagnosis import build_diagnosis_graph
-        from suitest_agent.providers.litellm_router import get_provider
         from suitest_db.repositories.llm_configs import LLMConfigRepo
+
+        from suitest_api.services.llm_credentials import provider_for_config
 
         llm = await LLMConfigRepo(session).get_active(workspace_id)
         if llm is None:
             return None
-        provider = get_provider(
-            llm.provider,
-            api_key=llm.api_key_encrypted,
-            base_url=llm.base_url,
-        )
+        provider = await provider_for_config(session, llm)
         graph = build_diagnosis_graph(provider)
         state = await graph.ainvoke({"evidence": evidence, "model": llm.model})
         diagnosis = state.get("diagnosis")

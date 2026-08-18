@@ -32,14 +32,16 @@ import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
+import httpx
 import structlog
 from suitest_agent.generators.selector_repair import is_selector_changed_failure
 from suitest_agent.graphs.execution import translate_single_step
 from suitest_agent.providers.litellm_router import get_provider
 from suitest_core.autonomy import AutonomyConfig, compute_effective
 from suitest_core.capabilities import AutonomyLevel as CoreAutonomy
+from suitest_core.llm_credentials import resolve_credential
 from suitest_db.models.project import Project
-from suitest_db.repositories.llm_configs import LLMConfigRepo
+from suitest_db.repositories.llm_configs import LLMConfigRepo, LLMConfigUpdate
 from suitest_db.repositories.run_step_logs import RunStepLogRepo
 from suitest_db.repositories.runs import RunRepo, RunStepRepo
 from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
@@ -59,6 +61,9 @@ if TYPE_CHECKING:
     from suitest_db.models.workspace_capability import WorkspaceCapability
 
 log = structlog.get_logger(__name__)
+
+# Refreshing an OAuth LLM credential is one round trip to the auth service.
+_LLM_REFRESH_TIMEOUT = 30.0
 
 
 @runtime_checkable
@@ -106,13 +111,28 @@ async def _build_translator(
 
     if not isinstance(session, AsyncSession):  # pragma: no cover - defensive
         return None
-    llm = await LLMConfigRepo(session).get_active(workspace_id)
+    repo = LLMConfigRepo(session)
+    llm = await repo.get_active(workspace_id)
     if llm is None:
         return None
+    # A Sign in with ChatGPT config has no stored key — the credential (and any
+    # refresh it needs) is resolved centrally, never read off the row here.
+    async with httpx.AsyncClient(timeout=_LLM_REFRESH_TIMEOUT) as client:
+        credential, persist = await resolve_credential(
+            client,
+            provider=llm.provider,
+            api_key=llm.api_key_encrypted,
+            base_url=llm.base_url,
+            oauth_tokens_json=llm.oauth_tokens_encrypted,
+        )
+    if persist is not None:
+        await repo.update(llm.id, LLMConfigUpdate(oauth_tokens_encrypted=persist))
+        await session.commit()
     provider = get_provider(
-        llm.provider,
-        api_key=llm.api_key_encrypted,
-        base_url=llm.base_url,
+        credential.provider,
+        api_key=credential.api_key,
+        base_url=credential.base_url,
+        extra_headers=credential.extra_headers or None,
     )
     model = llm.model
 

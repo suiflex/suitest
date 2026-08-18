@@ -28,12 +28,10 @@ from suitest_core.capabilities import (
     compute_features,
     resolve_embeddings,
 )
+from suitest_core.chatgpt_oauth import StoredOAuthTokens
+from suitest_core.llm_credentials import CHATGPT_PROVIDER
 from suitest_db.audit import write_audit
-from suitest_db.models.llm_config import (
-    AUTH_METHOD_API_KEY,
-    AUTH_METHOD_OAUTH,
-    StoredOAuthTokens,
-)
+from suitest_db.models.llm_config import AUTH_METHOD_API_KEY, AUTH_METHOD_OAUTH
 from suitest_db.repositories.llm_configs import LLMConfigCreate, LLMConfigRepo, LLMConfigUpdate
 from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
 from suitest_shared.domain.enums import AutonomyLevel, Tier
@@ -43,9 +41,6 @@ if TYPE_CHECKING:
     from suitest_db.models.llm_config import LLMConfig
 
     from suitest_api.deps.scope import TenantContext
-
-#: Sign in with ChatGPT, spending the user's ChatGPT plan instead of an API key.
-CHATGPT_PROVIDER = "chatgpt"
 
 _LOCAL_PROVIDERS = frozenset({"ollama", "llamacpp", "vllm", "lmstudio"})
 _CLOUD_PROVIDERS = frozenset(
