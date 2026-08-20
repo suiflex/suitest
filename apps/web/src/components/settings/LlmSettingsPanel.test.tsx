@@ -110,6 +110,25 @@ describe("LlmSettingsPanel", () => {
     });
   });
 
+  it("reports the status when the sign-in route answers an error", async () => {
+    // The regression this guards: an API older than the bundle answered 405 and
+    // the panel said only "Could not start the sign-in.", which reads like a
+    // rejected credential rather than a route that is not there.
+    server.use(
+      http.post("*/api/v1/workspaces/ws_1/llm-config/chatgpt/login", () =>
+        HttpResponse.json({ detail: "Method Not Allowed" }, { status: 405 }),
+      ),
+    );
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+    await user.click(screen.getByLabelText(/sign in with chatgpt/i));
+    await user.click(screen.getByTestId("chatgpt-signin-start"));
+
+    const err = await screen.findByText(/could not start the sign-in/i);
+    expect(err).toHaveTextContent(/405/);
+  });
+
   it("shows active config + Remove when configured", async () => {
     server.use(
       http.get("*/api/v1/workspaces/ws_1/llm-config", () =>

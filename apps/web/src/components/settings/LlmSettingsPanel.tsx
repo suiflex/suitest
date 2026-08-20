@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import {
+  ApiError,
   cancelChatGptLogin,
   type ChatGptCredentialMode,
   type ChatGptLoginStart,
@@ -65,7 +66,7 @@ function ChatGptSignIn({
       setFlow(started);
       if (started.authorizeUrl) window.open(started.authorizeUrl, "_blank", "noopener");
     },
-    onError: () => setError("Could not start the sign-in."),
+    onError: (err) => setError(loginError("Could not start the sign-in.", err)),
   });
 
   const statusQuery = useQuery({
@@ -85,7 +86,7 @@ function ChatGptSignIn({
       setFlow(null);
       onDone();
     },
-    onError: () => setError("Could not save the signed-in credential."),
+    onError: (err) => setError(loginError("Could not save the signed-in credential.", err)),
   });
 
   const cancel = (): void => {
@@ -226,6 +227,15 @@ interface LlmSettingsPanelProps {
   workspaceId: string;
   /** ADMIN+ may write; others see read-only status. */
   canWrite: boolean;
+}
+
+/** Keep the friendly sentence, but say what actually came back — a sign-in that
+ *  fails because the route is missing reads exactly like a rejected credential
+ *  otherwise. */
+function loginError(fallback: string, err: unknown): string {
+  if (!(err instanceof ApiError)) return fallback;
+  const detail = err.message.trim();
+  return detail ? `${fallback} (${err.status}: ${detail})` : `${fallback} (${err.status})`;
 }
 
 export function LlmSettingsPanel({
