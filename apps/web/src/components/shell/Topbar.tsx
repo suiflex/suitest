@@ -3,7 +3,9 @@ import {
   BarChart3,
   BookOpen,
   Bug,
+  Coffee,
   FileCode2,
+  HeartHandshake,
   HelpCircle,
   Inbox,
   LayoutDashboard,
@@ -56,6 +58,11 @@ export interface TopbarProps {
   /** Opens the mobile sidebar drawer (< md). Hamburger hidden when omitted. */
   onMenuClick?: () => void;
 }
+
+/** Where the sponsor icons point. Constants, not props: the project funds
+ *  itself in exactly one place, and no caller has a reason to redirect them. */
+const SPONSOR_HREF = "https://github.com/sponsors/suiflex";
+const SAWERIA_HREF = "https://saweria.co/suiflex";
 
 /**
  * Persistent top bar (47px). Breadcrumbs left, search palette + tier badge +
@@ -150,6 +157,31 @@ export function Topbar({
 
         {/* Dark / light theme toggle */}
         <ThemeToggle />
+
+        {/* Sponsor icons */}
+        <a
+          href={SPONSOR_HREF}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Sponsor Suitest on GitHub"
+          title="Sponsor Suitest on GitHub"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
+          data-testid="topbar-sponsor-link"
+        >
+          <HeartHandshake className="h-4 w-4" aria-hidden="true" />
+        </a>
+
+        <a
+          href={SAWERIA_HREF}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Support Suitest on Saweria"
+          title="Support Suitest on Saweria"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
+          data-testid="topbar-saweria-link"
+        >
+          <Coffee className="h-4 w-4" aria-hidden="true" />
+        </a>
 
         {/* Help icon */}
         <a

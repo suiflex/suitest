@@ -13,10 +13,7 @@ import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { Topbar } from "@/components/shell/Topbar";
-import {
-  useCapabilities,
-  type Capabilities,
-} from "@/stores/use-capabilities";
+import { useCapabilities, type Capabilities } from "@/stores/use-capabilities";
 
 const ZERO_CAPS: Capabilities = {
   tier: "ZERO",
@@ -108,6 +105,16 @@ describe("<Topbar>", () => {
   it("renders the tier badge slot from useCapabilities", async () => {
     await renderTopbar("/dashboard");
     expect(screen.getByTestId("tier-badge")).toHaveTextContent("ZERO");
+  });
+
+  it("links the sponsor icons out to GitHub Sponsors and Saweria", async () => {
+    await renderTopbar("/dashboard");
+    const gh = screen.getByTestId("topbar-sponsor-link");
+    expect(gh).toHaveAttribute("href", "https://github.com/sponsors/suiflex");
+    expect(gh).toHaveAttribute("rel", "noopener noreferrer");
+    const saweria = screen.getByTestId("topbar-saweria-link");
+    expect(saweria).toHaveAttribute("href", "https://saweria.co/suiflex");
+    expect(saweria).toHaveAttribute("target", "_blank");
   });
 
   it("reflects current route title in breadcrumbs", async () => {
