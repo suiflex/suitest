@@ -75,14 +75,12 @@ the note about skipped tests below before you rely on a green test run.
 ```bash
 git clone https://github.com/suiflex/suitest
 cd suitest
-make setup      # .env → uv sync + pnpm install + pre-commit hooks → migrate → seed
-```
 
-`make setup` expects Postgres and Redis to be reachable, so start the services
-first:
-
-```bash
+# Services first: the last two steps of `make setup` migrate and seed the
+# database, so they fail against a Postgres that is not up yet.
 docker compose -f infra/docker/docker-compose.yml --profile zero up -d
+
+make setup      # .env → uv sync + pnpm install + pre-commit hooks → migrate → seed
 make dev        # API (:4000) + web (:3000) + ARQ runner, together
 ```
 
