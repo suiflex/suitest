@@ -12,9 +12,9 @@ Closes #M<milestone>-<n>
 
 - [ ] Works at **ZERO tier** (no LLM) or gracefully degrades
 - [ ] Capability/autonomy gating added for any LLM-dependent feature
-- [ ] `uv run ruff check . && uv run mypy .` pass
-- [ ] `uv run pytest` pass (new tests added for new behavior)
-- [ ] `pnpm -C apps/web typecheck && pnpm -C apps/web test` pass (if FE touched)
+- [ ] `make check-all` passes (ruff + mypy + eslint + tsc)
+- [ ] `make test` passes (new tests added for new behavior)
+- [ ] `make test-web` passes (if FE touched)
 - [ ] Alembic migration added for any schema change
 - [ ] Secrets handled via AES-GCM; mutations audit-logged
 - [ ] Docs updated (`docs/*`, `ROADMAP.md` checkbox)
