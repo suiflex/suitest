@@ -59,6 +59,23 @@ export interface TopbarProps {
   onMenuClick?: () => void;
 }
 
+/** Icon-only controls say nothing on their own; the aria-label is read by
+ *  screen readers but never shown. Wrap them so a pointer gets the same text. */
+function IconTip({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactElement;
+}): React.ReactElement {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 /** Where the sponsor icons point. Constants, not props: the project funds
  *  itself in exactly one place, and no caller has a reason to redirect them. */
 const SPONSOR_HREF = "https://github.com/sponsors/suiflex";
@@ -108,97 +125,105 @@ export function Topbar({
   );
 
   return (
-    <header
-      className="flex h-[47px] items-center gap-3 border-b border-border-subtle bg-bg-base px-4"
-      data-testid="topbar"
-    >
-      {/* Mobile — sidebar drawer trigger */}
-      {onMenuClick ? (
-        <button
-          type="button"
-          onClick={onMenuClick}
-          aria-label="Open navigation"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1 md:hidden"
-          data-testid="topbar-menu-button"
-        >
-          <Menu className="h-4 w-4" aria-hidden="true" />
-        </button>
-      ) : null}
+    <TooltipProvider delayDuration={150}>
+      <header
+        className="flex h-[47px] items-center gap-3 border-b border-border-subtle bg-bg-base px-4"
+        data-testid="topbar"
+      >
+        {/* Mobile — sidebar drawer trigger */}
+        {onMenuClick ? (
+          <IconTip label="Open navigation">
+            <button
+              type="button"
+              onClick={onMenuClick}
+              aria-label="Open navigation"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1 md:hidden"
+              data-testid="topbar-menu-button"
+            >
+              <Menu className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </IconTip>
+        ) : null}
 
-      {/* Left — Breadcrumbs */}
-      <Breadcrumbs segments={breadcrumbs} />
+        {/* Left — Breadcrumbs */}
+        <Breadcrumbs segments={breadcrumbs} />
 
-      <div className="ml-auto flex shrink-0 items-center gap-2">
-        {/* Search palette trigger — full field ≥ sm, icon-only below */}
-        <button
-          type="button"
-          onClick={() => setCommandOpen(true)}
-          className="hidden h-7 w-[160px] items-center gap-2 rounded-md border border-border bg-bg-elev-1 px-2 text-left text-[12.5px] text-fg-4 hover:bg-bg-elev-2 sm:inline-flex lg:w-[220px]"
-          data-testid="topbar-search-trigger"
-        >
-          <Search className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="flex-1">Search…</span>
-          <kbd className="ml-auto inline-flex h-5 items-center gap-0.5 rounded border border-border bg-bg-elev-2 px-1 font-mono text-[10px] text-fg-3">
-            <span className="text-[10px]">⌘</span>K
-          </kbd>
-        </button>
-        <button
-          type="button"
-          onClick={() => setCommandOpen(true)}
-          aria-label="Search"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1 sm:hidden"
-          data-testid="topbar-search-trigger-mobile"
-        >
-          <Search className="h-4 w-4" aria-hidden="true" />
-        </button>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {/* Search palette trigger — full field ≥ sm, icon-only below */}
+          <button
+            type="button"
+            onClick={() => setCommandOpen(true)}
+            className="hidden h-7 w-[160px] items-center gap-2 rounded-md border border-border bg-bg-elev-1 px-2 text-left text-[12.5px] text-fg-4 hover:bg-bg-elev-2 sm:inline-flex lg:w-[220px]"
+            data-testid="topbar-search-trigger"
+          >
+            <Search className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="flex-1">Search…</span>
+            <kbd className="ml-auto inline-flex h-5 items-center gap-0.5 rounded border border-border bg-bg-elev-2 px-1 font-mono text-[10px] text-fg-3">
+              <span className="text-[10px]">⌘</span>K
+            </kbd>
+          </button>
+          <IconTip label="Search">
+            <button
+              type="button"
+              onClick={() => setCommandOpen(true)}
+              aria-label="Search"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1 sm:hidden"
+              data-testid="topbar-search-trigger-mobile"
+            >
+              <Search className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </IconTip>
 
-        {/* Language switcher (M4-12) */}
-        <LanguageSwitcher />
+          {/* Language switcher (M4-12) */}
+          <LanguageSwitcher />
 
-        {/* Dark / light theme toggle */}
-        <ThemeToggle />
+          {/* Dark / light theme toggle */}
+          <ThemeToggle />
 
-        {/* Sponsor icons */}
-        <a
-          href={SPONSOR_HREF}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Sponsor Suitest on GitHub"
-          title="Sponsor Suitest on GitHub"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
-          data-testid="topbar-sponsor-link"
-        >
-          <HeartHandshake className="h-4 w-4" aria-hidden="true" />
-        </a>
+          {/* Sponsor icons */}
+          <IconTip label="Sponsor Suitest on GitHub">
+            <a
+              href={SPONSOR_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Sponsor Suitest on GitHub"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
+              data-testid="topbar-sponsor-link"
+            >
+              <HeartHandshake className="h-4 w-4" aria-hidden="true" />
+            </a>
+          </IconTip>
 
-        <a
-          href={SAWERIA_HREF}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Support Suitest on Saweria"
-          title="Support Suitest on Saweria"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
-          data-testid="topbar-saweria-link"
-        >
-          <Coffee className="h-4 w-4" aria-hidden="true" />
-        </a>
+          <IconTip label="Support Suitest on Saweria">
+            <a
+              href={SAWERIA_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Support Suitest on Saweria"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
+              data-testid="topbar-saweria-link"
+            >
+              <Coffee className="h-4 w-4" aria-hidden="true" />
+            </a>
+          </IconTip>
 
-        {/* Help icon */}
-        <a
-          href={helpHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Help"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
-          data-testid="topbar-help-link"
-        >
-          <HelpCircle className="h-4 w-4" aria-hidden="true" />
-        </a>
+          {/* Help icon */}
+          <IconTip label="Help & documentation">
+            <a
+              href={helpHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Help"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
+              data-testid="topbar-help-link"
+            >
+              <HelpCircle className="h-4 w-4" aria-hidden="true" />
+            </a>
+          </IconTip>
 
-        <TierBadge />
+          <TierBadge />
 
-        {/* + New (disabled in M1b) */}
-        <TooltipProvider delayDuration={150}>
+          {/* + New (disabled in M1b) */}
           <Tooltip>
             <TooltipTrigger asChild>
               {/* Wrapping span lets the tooltip fire even when the underlying
@@ -219,37 +244,37 @@ export function Topbar({
             </TooltipTrigger>
             <TooltipContent>Authoring tools enabled in M1d</TooltipContent>
           </Tooltip>
-        </TooltipProvider>
-      </div>
+        </div>
 
-      <CommandDialog
-        open={commandOpen}
-        onOpenChange={setCommandOpen}
-        title="Command palette"
-        description="Jump to a screen"
-      >
-        <CommandInput placeholder="Type a command or search…" />
-        <CommandList data-testid="topbar-command-list">
-          <CommandEmpty>No results.</CommandEmpty>
-          <CommandGroup heading="Navigate">
-            {COMMAND_TARGETS.map((target) => {
-              const Icon = target.icon;
-              return (
-                <CommandItem
-                  key={target.to}
-                  value={target.label}
-                  onSelect={() => runCommand(target.to)}
-                  data-testid={`command-item-${target.to.replace(/\//g, "")}`}
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                  <span>{target.label}</span>
-                </CommandItem>
-              );
-            })}
-          </CommandGroup>
-        </CommandList>
-      </CommandDialog>
-    </header>
+        <CommandDialog
+          open={commandOpen}
+          onOpenChange={setCommandOpen}
+          title="Command palette"
+          description="Jump to a screen"
+        >
+          <CommandInput placeholder="Type a command or search…" />
+          <CommandList data-testid="topbar-command-list">
+            <CommandEmpty>No results.</CommandEmpty>
+            <CommandGroup heading="Navigate">
+              {COMMAND_TARGETS.map((target) => {
+                const Icon = target.icon;
+                return (
+                  <CommandItem
+                    key={target.to}
+                    value={target.label}
+                    onSelect={() => runCommand(target.to)}
+                    data-testid={`command-item-${target.to.replace(/\//g, "")}`}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                    <span>{target.label}</span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </CommandDialog>
+      </header>
+    </TooltipProvider>
   );
 }
 

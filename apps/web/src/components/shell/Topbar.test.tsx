@@ -117,6 +117,21 @@ describe("<Topbar>", () => {
     expect(saweria).toHaveAttribute("target", "_blank");
   });
 
+  it("shows a tooltip when an icon-only control is hovered", async () => {
+    await renderTopbar("/dashboard");
+    const user = userEvent.setup();
+    await user.hover(screen.getByTestId("topbar-help-link"));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Help & documentation");
+  });
+
+  it("labels the theme toggle with the theme it switches to", async () => {
+    await renderTopbar("/dashboard");
+    const user = userEvent.setup();
+    await user.hover(screen.getByTestId("theme-toggle"));
+    const tip = await screen.findByRole("tooltip");
+    expect(tip.textContent).toMatch(/Switch to (light|dark) theme/);
+  });
+
   it("reflects current route title in breadcrumbs", async () => {
     await renderTopbar("/runs");
     const crumbs = await screen.findByTestId("topbar-breadcrumbs");

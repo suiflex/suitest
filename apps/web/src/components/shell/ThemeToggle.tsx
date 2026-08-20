@@ -1,6 +1,7 @@
 import { Moon, Sun } from "lucide-react";
 import { useState } from "react";
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getTheme, setTheme, type Theme } from "@/lib/theme";
 
 /**
@@ -13,22 +14,29 @@ export function ThemeToggle(): React.ReactElement {
   const [theme, setThemeState] = useState<Theme>(() => getTheme());
   const next: Theme = theme === "dark" ? "light" : "dark";
 
+  // The tooltip lives here rather than in the topbar because the label depends
+  // on state only this component holds. Relies on the topbar's TooltipProvider.
   return (
-    <button
-      type="button"
-      onClick={() => {
-        setTheme(next);
-        setThemeState(next);
-      }}
-      aria-label={`Switch to ${next} theme`}
-      className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
-      data-testid="theme-toggle"
-    >
-      {theme === "dark" ? (
-        <Sun className="h-4 w-4" aria-hidden="true" />
-      ) : (
-        <Moon className="h-4 w-4" aria-hidden="true" />
-      )}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={() => {
+            setTheme(next);
+            setThemeState(next);
+          }}
+          aria-label={`Switch to ${next} theme`}
+          className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 hover:bg-bg-elev-2 hover:text-fg-1"
+          data-testid="theme-toggle"
+        >
+          {theme === "dark" ? (
+            <Sun className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Moon className="h-4 w-4" aria-hidden="true" />
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{`Switch to ${next} theme`}</TooltipContent>
+    </Tooltip>
   );
 }
