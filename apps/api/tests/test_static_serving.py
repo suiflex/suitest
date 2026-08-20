@@ -49,3 +49,30 @@ def test_api_routes_still_work_under_static_mount(
     resp = client.get("/health")
     assert resp.status_code in (200, 401)  # route exists (ok/auth) — NOT the SPA html
     assert "<!doctype html>" not in resp.text
+
+
+def test_unknown_api_path_404s_instead_of_reaching_the_mount(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A POST to a route the running API lacks must not answer 405 from StaticFiles.
+
+    StaticFiles rejects every non-GET before it looks at the path, so an API and a
+    web bundle built from different revisions used to report the missing route as
+    "Method Not Allowed" — which reads like a bug in a route that exists.
+    """
+    dist = tmp_path / "web"
+    dist.mkdir()
+    (dist / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    monkeypatch.setenv("SUITEST_WEB_DIST", str(dist))
+
+    app = create_app()
+    client = TestClient(app)
+    resp = client.post("/api/v1/no-such-route", json={})
+    assert resp.status_code == 404, resp.text
+    assert "older than the web bundle" in resp.json()["detail"]
+
+    # GET must not silently serve the SPA for an API path either — a JSON caller
+    # parsing index.html is no easier to diagnose than the 405 was.
+    get = client.get("/api/v1/no-such-route")
+    assert get.status_code == 404
+    assert "<!doctype html>" not in get.text

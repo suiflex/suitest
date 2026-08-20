@@ -290,10 +290,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from starlette.exceptions import HTTPException as StarletteHTTPException
         from starlette.types import Scope
 
+        # Prefixes that belong to the routers above. Reaching the mount means no
+        # router matched, which in a local bundle almost always means the API and
+        # the dashboard were built from different revisions. Say so, instead of
+        # letting StaticFiles answer index.html (GET) or 405 (POST) — the 405 in
+        # particular reads like a method bug in a route that simply is not there.
+        _API_PREFIXES = ("api/", "auth/", "ws/")
+
         class _SpaStaticFiles(StaticFiles):
             """StaticFiles that falls back to index.html for unknown paths (SPA deep links)."""
 
             async def get_response(self, path: str, scope: Scope) -> Response:
+                if path.startswith(_API_PREFIXES):
+                    raise StarletteHTTPException(
+                        status_code=404,
+                        detail=(
+                            f"No API route matches /{path}. If the dashboard just called "
+                            "this, the running API is older than the web bundle it serves."
+                        ),
+                    )
                 try:
                     return await super().get_response(path, scope)
                 except StarletteHTTPException as exc:
