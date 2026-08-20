@@ -51,25 +51,82 @@ Two workspaces live side by side in this repo:
 You need Python 3.12 (the workspace pins `>=3.12,<3.13`) and Node 22 with pnpm.
 `.python-version` and `.node-version` carry the exact versions CI uses.
 
-### From zero to a running app
+### Pick your setup
+
+There are two ways to run Suitest while you work on it, and they are not
+interchangeable. Choose by what you are changing:
+
+| | **Docker stack** | **Local bundle (npx)** |
+|---|---|---|
+| What you are changing | `apps/api`, `apps/web`, `apps/runner`, `packages/*` | `packages/suitest-npx`, packaging, first-run experience |
+| Database | Postgres + pgvector | SQLite, in `./.suitest/` |
+| Also runs | Redis, MinIO | neither — a local supervisor replaces the ARQ worker |
+| Where the dashboard lives | Vite on `:3000`, proxying to the API on `:4000` | one process on `:4000` serving both |
+| Hot reload | yes, both ends | no — rebuild and restart |
+| Postgres-backed tests | run | **skip themselves** |
+| Needs Docker | yes | no |
+
+**Most contributions want the Docker stack.** Take the local bundle if you are
+working on the launcher itself, or if Docker is not available to you — but see
+the note about skipped tests below before you rely on a green test run.
+
+### Docker stack
 
 ```bash
 git clone https://github.com/suiflex/suitest
 cd suitest
 make setup      # .env → uv sync + pnpm install + pre-commit hooks → migrate → seed
-make dev        # API (:4000) + web (:3000) + ARQ runner, together
 ```
 
-`make setup` expects Postgres and Redis to be reachable. The quickest way to get
-them is the compose stack:
+`make setup` expects Postgres and Redis to be reachable, so start the services
+first:
 
 ```bash
 docker compose -f infra/docker/docker-compose.yml --profile zero up -d
+make dev        # API (:4000) + web (:3000) + ARQ runner, together
 ```
 
-If you run the services on the host instead of in compose, read the "Running the
-platform locally" notes in [`CLAUDE.md`](./CLAUDE.md) first — two defaults point
-at compose hostnames, and the resulting failures look unrelated to the cause.
+Open the dashboard on `:3000`. The Vite dev server proxies `/api` to `:4000`,
+so both ends hot-reload.
+
+If you run Postgres and Redis on the host rather than in compose, read the
+"Running the platform locally" notes in [`CLAUDE.md`](./CLAUDE.md) first — two
+defaults point at compose hostnames, and the failures they cause look unrelated
+to their cause.
+
+### Local bundle (npx)
+
+This is how the product ships: one command, SQLite, no services to run. To
+exercise it against your working tree rather than a published release, build the
+bundle assets and point the launcher at them:
+
+```bash
+bash scripts/build-bundle-assets.sh            # → dist/bundle/{web,wheels}
+
+cd ~/some-project                              # any directory you want to test in
+SUITEST_BUNDLE_WHEELS_DIR=<repo>/dist/bundle/wheels \
+SUITEST_BUNDLE_WEB_DIST=<repo>/dist/bundle/web \
+node <repo>/packages/suitest-npx/bin/suitest.js up
+```
+
+Then `suitest.js down` to stop, `status` to check, `onboard` for the guided
+first run. Add `--yes` if the directory does not look like a project root.
+
+Things worth knowing before you lose an afternoon to them:
+
+- **Rebuild the bundle after every code change.** The launcher installs wheels
+  into `./.suitest/.venv`, so editing the source changes nothing until
+  `build-bundle-assets.sh` runs again. The venv reinstalls itself whenever the
+  wheels change, but the *web* half is a separate build — rebuild both.
+- **The API serves the dashboard here**, unlike the Docker stack. Anything under
+  `/api`, `/auth` or `/ws` that no route matches returns a 404 that says the API
+  is older than the web bundle. If you see that, your two halves are out of sync.
+- **Admin credentials are generated on first run** into
+  `./.suitest/credentials.json`. That file also holds the encryption key and an
+  API key — never paste it into an issue, a PR or a screenshot.
+- **Postgres-backed tests skip themselves** with no database reachable, so
+  `make test` can report success having executed almost nothing. Check the skip
+  count, and run the suite against the Docker stack before you open a PR.
 
 ## Build, lint, test
 
@@ -99,8 +156,8 @@ Two invocations are scoped on purpose, and collapsing them breaks the build:
 `pre-commit` (installed by `make setup`) runs ruff, ruff-format, mypy and a
 secret scan on the files you touch.
 
-Postgres-backed tests skip themselves when no database is reachable, so a green
-local `make test` is not proof on its own — check the skip count.
+A green local `make test` is not proof on its own if you are on the local
+bundle — see the skip-count warning above.
 
 ### What CI covers
 
