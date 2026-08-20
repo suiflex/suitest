@@ -215,6 +215,22 @@ label. Two conditions: show the commands you actually ran, and be able to
 explain the code you are proposing. A PR the author cannot discuss is not
 reviewable, whoever or whatever wrote it.
 
+Both conditions are ones assistants are bad at on their own — they will report
+a suite as passing when it skipped, and describe a cause they inferred rather
+than checked. [ForgeGuard](https://github.com/suiflex/ForgeGuard) exists to hold
+them to it, and we suggest it for AI-assisted work here:
+
+```bash
+forgeguard init            # install rules and hooks for your agent
+forgeguard gate            # static rules + this repo's quality commands
+forgeguard review          # the same, over changed files only
+```
+
+It also tracks an objective and its evidence across a session
+(`forgeguard task`), so what the agent claims it verified and what it actually
+ran stay attached to each other. Optional, and nothing in CI depends on it —
+`.forgeguard/` is gitignored, so it never reaches your diff.
+
 ## Reporting bugs & requesting features
 
 Use the GitHub issue templates. For security issues, **do not open a public
