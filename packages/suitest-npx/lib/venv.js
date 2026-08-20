@@ -84,7 +84,10 @@ function ensureVenv(venvDir, wheelsDir) {
   console.log(
     "Setting up the Python runtime (first run or new version — may download Python 3.12, ~1 min)...",
   );
-  execFileSync("uv", ["venv", venvDir, "--python", "3.12"], { stdio: "inherit" });
+  // --clear: reaching here means the venv is stale, and uv refuses to write over
+  // an existing one without it. Without the flag every invalidation is a hard
+  // failure the user has to clear by hand.
+  execFileSync("uv", ["venv", venvDir, "--clear", "--python", "3.12"], { stdio: "inherit" });
   execFileSync("uv", ["pip", "install", "--python", python, ...wheels], {
     stdio: "inherit",
   });
