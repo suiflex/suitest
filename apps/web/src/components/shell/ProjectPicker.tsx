@@ -32,7 +32,7 @@ export function ProjectPicker(): React.ReactElement | null {
   const active = projects.find((p) => p.id === projectId) ?? projects[0];
 
   return (
-    <div className="border-b border-border-subtle px-3 py-2">
+    <div className="shrink-0 border-b border-border-subtle px-3 py-2">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button

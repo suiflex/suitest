@@ -159,7 +159,7 @@ export function Sidebar({
         data-testid="sidebar"
       >
         {/* Section 1 — Brand */}
-        <div className="flex h-[47px] items-center justify-between border-b border-border-subtle px-4">
+        <div className="flex h-[47px] shrink-0 items-center justify-between border-b border-border-subtle px-4">
           <span className="flex select-none items-center gap-2">
             <img src="/logo.svg" alt="" aria-hidden="true" className="h-6 w-6 rounded-md" />
             <span className="font-mono text-[15px] font-bold tracking-tight">
@@ -184,7 +184,7 @@ export function Sidebar({
         </div>
 
         {/* Section 2 — Workspace picker */}
-        <div className="border-b border-border-subtle px-3 py-3">
+        <div className="shrink-0 border-b border-border-subtle px-3 py-3">
           <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
             <PopoverTrigger asChild>
               <button
@@ -259,8 +259,11 @@ export function Sidebar({
         {/* Section 2b — Project picker (Test Cases / Runs are project-scoped) */}
         <ProjectPicker />
 
-        {/* Section 3 — Nav */}
-        <ScrollArea className="flex-1">
+        {/* Section 3 — Nav. min-h-0 is load-bearing: a flex child keeps
+            min-height:auto, so flex-1 alone let the nav grow to its content
+            height and push the rows below it out of the rail instead of
+            scrolling. Visible as soon as the page is zoomed in. */}
+        <ScrollArea className="min-h-0 flex-1">
           <nav className="px-2 py-3" aria-label="Primary">
             {groups.map((group) => (
               <div key={group.eyebrow} className="mb-4 last:mb-0">
@@ -280,7 +283,7 @@ export function Sidebar({
         </ScrollArea>
 
         {/* Section 4 — User footer */}
-        <div className="flex items-center gap-2 border-t border-border-subtle px-3 py-3">
+        <div className="flex shrink-0 items-center gap-2 border-t border-border-subtle px-3 py-3">
           <span
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-bg-elev-3 font-mono text-[11px] font-semibold text-fg-1"
             aria-hidden="true"
@@ -320,7 +323,7 @@ export function Sidebar({
             <LogOut className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <div className="border-t border-border-subtle px-4 py-2 text-center text-[10px] text-fg-5">
+        <div className="shrink-0 border-t border-border-subtle px-4 py-2 text-center text-[10px] text-fg-5">
           © 2026 Suitest contributors · Apache-2.0
         </div>
       </aside>
