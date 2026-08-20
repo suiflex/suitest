@@ -1,11 +1,21 @@
 # Contributing to Suitest
 
-Thanks for your interest in contributing! Suitest is an MCP-native, self-hostable
-testing platform. This guide gets you from clone to merged PR.
-
-## Code of conduct
+Suitest is an MCP-native, self-hostable testing platform: manual test case
+management, deterministic runs driven by pluggable MCP servers, and optional AI
+on top when you bring your own LLM. This guide gets you from clone to merged PR.
 
 By participating you agree to uphold our [Code of Conduct](./CODE_OF_CONDUCT.md).
+
+## Quick links
+
+- [`docs/ROADMAP.md`](./docs/ROADMAP.md) — the single entry point for what to work on
+- [`docs/PRODUCT.md`](./docs/PRODUCT.md) — what the product is for, and who for
+- [`CLAUDE.md`](./CLAUDE.md) — the full coding rules, binding on humans and agents alike
+- [`SECURITY.md`](./SECURITY.md) · [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) · [`CLA.md`](./CLA.md)
+- [Issues](https://github.com/suiflex/suitest/issues/new/choose) · [Discussions](https://github.com/suiflex/suitest/discussions)
+
+Read the ROADMAP before you start. It decides order and scope, and if it
+disagrees with any other doc, it wins — update the doc in the same PR.
 
 ## Contributor License Agreement (CLA)
 
@@ -19,56 +29,138 @@ The CLA keeps the project's licensing flexible (see [`CLA.md`](./CLA.md) § 4)
 while guaranteeing your contributions always remain available under the
 [Apache License 2.0](./LICENSE).
 
+## How to contribute
+
+- **Small fix** — typo, broken link, obvious bug: open a PR directly.
+- **New MCP provider, a schema change, anything that moves a capability tier** —
+  open an issue first. These touch contracts other parts of the system rely on,
+  and it is cheaper to disagree before the code exists.
+- **A question** — Discussions, not an issue.
+- **A security problem** — [SECURITY.md](./SECURITY.md). Never a public issue.
+
 ## Getting started
+
+Two workspaces live side by side in this repo:
+
+- **Python**, managed with [`uv`](https://docs.astral.sh/uv/) — `apps/api`,
+  `apps/runner`, and `packages/{agent,core,db,mcp,shared,lifecycle}`.
+- **Node**, managed with [`pnpm`](https://pnpm.io/) — `apps/web`,
+  `packages/mcp-npx`, `docs-site`. There is no root `package.json`; frontend
+  commands run with `apps/web` as the working directory.
+
+You need Python 3.12 (the workspace pins `>=3.12,<3.13`) and Node 22 with pnpm.
+`.python-version` and `.node-version` carry the exact versions CI uses.
+
+### From zero to a running app
 
 ```bash
 git clone https://github.com/suiflex/suitest
 cd suitest
-cp .env.example .env
-docker compose -f infra/docker/docker-compose.yml --profile zero up -d   # pg + redis + minio + api + web + runner
+make setup      # .env → uv sync + pnpm install + pre-commit hooks → migrate → seed
+make dev        # API (:4000) + web (:3000) + ARQ runner, together
 ```
 
-Python deps are managed with [`uv`](https://docs.astral.sh/uv/), frontend deps with
-[`pnpm`](https://pnpm.io/). Install dev tooling:
+`make setup` expects Postgres and Redis to be reachable. The quickest way to get
+them is the compose stack:
 
 ```bash
-uv sync                # Python workspace
-pnpm install           # frontend workspace
-pre-commit install     # ruff + black + mypy + secret scan on commit
+docker compose -f infra/docker/docker-compose.yml --profile zero up -d
 ```
 
-## How we work
+If you run the services on the host instead of in compose, read the "Running the
+platform locally" notes in [`CLAUDE.md`](./CLAUDE.md) first — two defaults point
+at compose hostnames, and the resulting failures look unrelated to the cause.
 
-- **`docs/ROADMAP.md` is the single entry point.** Pick the next unchecked
-  acceptance criterion in the active milestone; one PR = one criterion.
-- **ZERO-tier first.** Every feature must work (or gracefully degrade) with no
-  LLM configured before any AI enrichment is added.
-- **Backend first, frontend second.** Pydantic schema + Alembic migration +
-  service test, then wire the UI.
-- Read [`CLAUDE.md`](./CLAUDE.md) for the full coding rules (typing, MCP/LLM
-  routing, capability gating, audit logging).
+## Build, lint, test
 
-## Quality gates (must pass before merge)
+Everything is wrapped in the Makefile. Run `make help` for the full list.
 
-```bash
-uv run ruff check . && uv run ruff format --check .
-uv run mypy .                     # strict, no `Any`
-uv run pytest                     # pytest-asyncio strict mode
-pnpm -C apps/web typecheck && pnpm -C apps/web test
+```
+make lint            # ruff check + ruff format --check
+make lint-fix        # ruff --fix + format
+make typecheck       # mypy strict, one call per package
+make test            # pytest (asyncio strict mode)
+make test-cov        # pytest with coverage
+make lint-web        # eslint --max-warnings=0
+make typecheck-web   # tsc --noEmit
+make test-web        # vitest
+make check-all       # every linter and typechecker, no tests
+make ci              # check-all + test + test-web
 ```
 
-CI runs all of the above plus Docker image builds. A PR needs green CI + one
-review before squash-merge to `main`.
+**Run `make ci` before opening a PR.**
 
-## Commit & PR conventions
+Two invocations are scoped on purpose, and collapsing them breaks the build:
 
-- Branch: `feat/<scope>-<short-desc>` (e.g. `feat/agent-prd-parser`).
-- Commits: [Conventional Commits](https://www.conventionalcommits.org/) —
-  `feat(api): add X`, `fix(runner): handle Y`.
-- Reference the milestone criterion in the PR (`Closes #M4-9`).
-- Keep PRs small and focused.
+- `ruff` runs against `apps packages`, not `.`
+- `mypy` runs **once per package**. A single `mypy .` fails with "Duplicate
+  module named conftest".
 
-## Reporting bugs / requesting features
+`pre-commit` (installed by `make setup`) runs ruff, ruff-format, mypy and a
+secret scan on the files you touch.
+
+Postgres-backed tests skip themselves when no database is reachable, so a green
+local `make test` is not proof on its own — check the skip count.
+
+### What CI covers
+
+`.github/workflows/ci.yml` gates every PR:
+
+| Job | What it runs |
+|---|---|
+| `changes` | Path filter; the jobs below are skipped when nothing relevant moved |
+| `python-lint` | ruff check, ruff format --check, mypy per package |
+| `python-test` | pytest against pgvector + redis, after `alembic upgrade head`; also re-exports the OpenAPI spec and fails if `packages/shared/openapi.json` is stale |
+| `ts-lint` | `pnpm typecheck` + `pnpm lint` in `apps/web` |
+| `ts-test` | vitest |
+| `web-lighthouse` | Frontend budgets; soft fail |
+| `build-images` | The four Docker images, after the lint and test jobs pass |
+| `version-floor` | Proves the published npx/uvx packages still boot on Node 18 and Python 3.11 |
+| `mcp-package` | npx and uvx packaging smoke test |
+
+End-to-end suites, the air-gapped checks and the eval harness run in their own
+workflows, on a schedule or on demand.
+
+## Adding a bundled MCP provider
+
+MCP is the plugin layer, so a new provider touches five places that no compiler
+will remind you about — the registry, the in-process runtime's lazy module list,
+the builtin spec and its tool catalog, the default routing table, and the docs.
+The checklist lives in [`CLAUDE.md`](./CLAUDE.md) § 5; follow it there rather
+than from memory, and open an issue before you start.
+
+## Commit conventions
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/), and
+`release-please` parses them to generate changelogs and version bumps for three
+separately released components: `packages/mcp-npx`, `packages/suitest-npx` and
+`sdk/typescript`.
+
+- Types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`, `build`, `ci`
+- Subject ≤ 72 characters, imperative mood, no trailing period
+- Body wrapped at 72, explaining **why** — the diff already shows the what
+- One logical change per commit, so `git revert` stays safe and obvious
+- Never hand-edit the changelog sections `release-please` manages
+
+## Branching & pull requests
+
+Branch off `main`, named for the type of the leading commit: `feat/...`,
+`fix/...`, `refactor/...`, `chore/...`, `docs/...`.
+
+- One PR = one roadmap acceptance criterion. Reference it (`Closes #M4-9`).
+- Fill in the PR template: what, roadmap criterion, checklist, notes.
+- Tick the test-plan boxes you actually ran. An honest unticked box is far more
+  useful than a ticked one nobody checked.
+- Green CI plus one review, then squash-merge.
+
+### AI-assisted pull requests
+
+Contributions written with an AI assistant are welcome and need no special
+label. Two conditions: show the commands you actually ran, and be able to
+explain the code you are proposing. A PR the author cannot discuss is not
+reviewable, whoever or whatever wrote it.
+
+## Reporting bugs & requesting features
 
 Use the GitHub issue templates. For security issues, **do not open a public
 issue** — see [SECURITY.md](./SECURITY.md).
