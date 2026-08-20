@@ -142,3 +142,60 @@ async def test_non_admin_cannot_write(api_db: ApiDb) -> None:
             json={"provider": "mock", "model": "mock-1"},
         )
     assert put.status_code == 403
+
+
+# --- Sign in with ChatGPT ----------------------------------------------------
+# These cover route registration and the flow-lookup errors only: no test drives
+# a real sign-in, because every mode of ``start`` talks to OpenAI. That is enough
+# for the failure these were written after — the routes were reachable in source
+# but not in the running process, and nothing here noticed.
+
+
+@pytest.mark.asyncio
+async def test_chatgpt_login_start_is_routed_and_admin_only(api_db: ApiDb) -> None:
+    user = await api_db.seed_user(email="chatgpt-qa@example.com")
+    ws = await api_db.member_workspace(user, slug="chatgpt-qa")  # default Role.QA
+    async with api_db.client(user) as c:
+        resp = await c.post(
+            f"/api/v1/workspaces/{ws.id}/llm-config/chatgpt/login",
+            headers=_h(ws.id),
+            json={"mode": "auto"},
+        )
+    # 403 from the role gate, never 404/405 — those mean the route is not mounted.
+    assert resp.status_code == 403, resp.text
+
+
+@pytest.mark.asyncio
+async def test_chatgpt_login_poll_rejects_unknown_flow(api_db: ApiDb) -> None:
+    user, ws = await _admin_ws(api_db, email="chatgpt-poll@example.com", slug="chatgpt-poll")
+    async with api_db.client(user) as c:
+        resp = await c.get(
+            f"/api/v1/workspaces/{ws.id}/llm-config/chatgpt/login/nope",
+            headers=_h(ws.id),
+        )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["detail"]["code"] == "UNKNOWN_FLOW"
+
+
+@pytest.mark.asyncio
+async def test_chatgpt_login_finish_rejects_unknown_flow(api_db: ApiDb) -> None:
+    user, ws = await _admin_ws(api_db, email="chatgpt-fin@example.com", slug="chatgpt-fin")
+    async with api_db.client(user) as c:
+        resp = await c.post(
+            f"/api/v1/workspaces/{ws.id}/llm-config/chatgpt/login/nope/finish",
+            headers=_h(ws.id),
+            json={"credentialMode": "subscription", "model": "gpt-5.6"},
+        )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["detail"]["code"] == "UNKNOWN_FLOW"
+
+
+@pytest.mark.asyncio
+async def test_chatgpt_login_cancel_is_idempotent(api_db: ApiDb) -> None:
+    user, ws = await _admin_ws(api_db, email="chatgpt-cxl@example.com", slug="chatgpt-cxl")
+    async with api_db.client(user) as c:
+        resp = await c.delete(
+            f"/api/v1/workspaces/{ws.id}/llm-config/chatgpt/login/nope",
+            headers=_h(ws.id),
+        )
+    assert resp.status_code == 204, resp.text
