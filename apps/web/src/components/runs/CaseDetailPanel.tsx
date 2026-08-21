@@ -14,6 +14,8 @@ import { useRunArtifactUrl } from "@/hooks/use-run-artifact-url";
 import type { components } from "@/lib/api-types";
 import { formatDuration } from "@/lib/test-case-format";
 
+import { ScreenshotDiffViewer } from "./ScreenshotDiffViewer";
+
 import { rollupLabel, rollupToBadge, type CaseGroup } from "./case-grouping";
 import { StepTable } from "./StepTable";
 
@@ -200,6 +202,7 @@ function CaseEvidenceTabs({
         <TabsTrigger value="code">Code</TabsTrigger>
         <TabsTrigger value="logs">Logs</TabsTrigger>
         <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
+        <TabsTrigger value="diff">Diff</TabsTrigger>
       </TabsList>
 
       <TabsContent value="preview">
@@ -283,6 +286,14 @@ function CaseEvidenceTabs({
             ))}
           </ul>
         )}
+      </TabsContent>
+
+      {/* M12-1 — pixel diff of any two screenshots in this case (ZERO tier). */}
+      <TabsContent value="diff">
+        <ScreenshotDiffViewer
+          runId={runId}
+          artifacts={artifacts.filter((a) => a.kind === "SCREENSHOT")}
+        />
       </TabsContent>
     </Tabs>
   );

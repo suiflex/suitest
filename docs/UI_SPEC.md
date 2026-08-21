@@ -925,6 +925,21 @@ Item types depend on capability:
 - ZERO: deploy gate failures, flaky test promotions, manual run failures, MCP health alerts
 - LOCAL/CLOUD adds: AI-generated cases pending approval (assist mode), auto-diagnosis pending review, AI fix PR pending merge
 
+### 3.11 Screenshot diff — `components/runs/ScreenshotDiffViewer.tsx`
+
+> **Built (M12-1):** pixel-diff mode only. Perceptual mode is a disabled stub landing with the vision LLM in M12-2.
+
+A tab in the run-detail Case evidence panel ("Diff") that compares any two **SCREENSHOT** artifacts captured in the same test case.
+
+- **Pickers A/B:** two `<select>` dropdowns over the case's screenshots; default to the first two.
+- **Mode toggle:** `Pixel` (active, ZERO-tier) | `Perceptual` (disabled — arrives with the vision LLM in M12-2, behind `<Gated>`).
+- **View toggle:** `Side` (side-by-side) | `Overlay` (B at 50% over A — flicker compare) | `Diff` (red overlay over dimmed unchanged pixels).
+- **Diff badge:** `X.X% pixel diff`, colored by threshold — accent (<1%), amber (1–10%), red (>10%) — reusing the `StateDiff` color pattern.
+- **Comparison scope:** the smaller shared dimensions (intersection), so a scrollbar-width difference doesn't reject a valid diff. Alpha is ignored (RGB only).
+- **Empty state:** when fewer than two screenshots exist in the case, shows `EmptyState` ("Need at least 2 screenshots to compare").
+
+No backend change: reuses `GET /runs/:id/artifacts` + `GET /runs/:id/artifacts/:id` (presigned URL). No "baseline" concept yet — baseline persistence + per-case threshold tuning are M12-3 follow-ups.
+
 ---
 
 ## 4. Shared components

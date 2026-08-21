@@ -325,7 +325,7 @@ Tag `v1.0.0`. Announce on HN / Reddit / dev.to. Discord + community forum set up
 
 ## M12 — Visual regression with AI explanation (4 weeks)
 
-- [ ] **M12-1** Screenshot diff (pixel + perceptual)
+- [x] **M12-1** Screenshot diff (pixel + perceptual) — pixel diff shipped; `components/runs/ScreenshotDiffViewer.tsx` + pure `screenshot-diff.ts` math, "Diff" tab in run-detail Case evidence panel (side-by-side / overlay / red-overlay views, `% pixel diff` badge). Perceptual mode scaffolded as a disabled stub (lands with vision LLM in M12-2). No backend change — compares any two SCREENSHOT artifacts in a run via the existing presigned-URL API. Baseline persistence + per-case threshold tuning deferred to M12-3.
 - [ ] **M12-2** Semantic reason via vision LLM ("Button color changed from green to blue")
 - [ ] **M12-3** Threshold tuning per case
 
