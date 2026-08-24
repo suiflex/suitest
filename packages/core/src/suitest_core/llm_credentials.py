@@ -27,6 +27,7 @@ from pydantic import BaseModel, ConfigDict
 
 from suitest_core.chatgpt_oauth import DEFAULT_CLIENT_ID
 from suitest_core.chatgpt_oauth import refresh_tokens as _refresh_chatgpt
+from suitest_core.google_oauth import DEFAULT_CLIENT_ID as _GOOGLE_CLIENT_ID
 from suitest_core.google_oauth import refresh_tokens as _refresh_google
 from suitest_core.oauth import OAuthTokens, StoredOAuthTokens, needs_refresh
 
@@ -88,9 +89,7 @@ OAUTH_BACKENDS: Final[dict[str, OAuthBackend]] = {
         # per-workspace and stored on the config rather than fixed here.
         api_base=None,
         refresh=_refresh_google,
-        # No bundled client: the operator registers a Desktop-app client of
-        # their own (see suitest_api.settings).
-        default_client_id="",
+        default_client_id=_GOOGLE_CLIENT_ID,
     ),
 }
 

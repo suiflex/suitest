@@ -5,6 +5,8 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from suitest_core.chatgpt_oauth import DEFAULT_CLIENT_ID
+from suitest_core.google_oauth import DEFAULT_CLIENT_ID as GOOGLE_DEFAULT_CLIENT_ID
+from suitest_core.google_oauth import DEFAULT_CLIENT_SECRET as GOOGLE_DEFAULT_CLIENT_SECRET
 
 
 class Settings(BaseSettings):
@@ -40,10 +42,12 @@ class Settings(BaseSettings):
     # Deliberately NOT ``oauth_google_client_*`` above: that client signs users
     # in to Suitest and is a Web-application registration. This one drives a
     # loopback redirect and asks for cloud-platform, so it must be a Desktop-app
-    # client. There is no default -- an operator supplies their own, and Google
-    # documents that this "secret" is not confidential for a Desktop client.
-    llm_google_oauth_client_id: str = Field(default="")
-    llm_google_oauth_client_secret: str = Field(default="", repr=False)
+    # client. Defaults to the Gemini CLI's public client so sign-in works out of
+    # the box; an operator holding a Desktop-app client of their own overrides
+    # both halves here. Google documents that a Desktop client's "secret" is not
+    # confidential -- PKCE is what secures the flow.
+    llm_google_oauth_client_id: str = Field(default=GOOGLE_DEFAULT_CLIENT_ID)
+    llm_google_oauth_client_secret: str = Field(default=GOOGLE_DEFAULT_CLIENT_SECRET, repr=False)
     superadmin_email: str = Field(default="")
     superadmin_password: str = Field(default="", repr=False)
     superadmin_workspace_name: str = Field(default="Default Workspace")

@@ -23,9 +23,11 @@ clients and its own documentation says the client "cannot keep the
 still required in the token request, so it is threaded through as a plain
 argument.
 
-No client id or secret is baked in. Which credentials to use is a deployment
-decision (see ``suitest_api.settings``), and a module that pins one would make
-the choice for every operator.
+The bundled default is the Gemini CLI's own client (``google-gemini/gemini-cli``,
+Apache-2.0), which is what makes Sign in with Google work without the operator
+registering anything — the same arrangement as the Codex client id in
+:mod:`suitest_core.chatgpt_oauth`. An operator who would rather use a client of
+their own overrides both halves in ``suitest_api.settings``.
 
 This module is pure protocol: no database, no FastAPI, and the caller owns the
 ``httpx.AsyncClient`` (and therefore timeouts, proxies and test transports).
@@ -43,6 +45,16 @@ if TYPE_CHECKING:
 
 AUTH_ENDPOINT: Final = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT: Final = "https://oauth2.googleapis.com/token"
+
+#: Gemini CLI's public Desktop-app client (``packages/core/src/code_assist/oauth2.ts``).
+DEFAULT_CLIENT_ID: Final = (
+    "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com"
+)
+# Its paired secret. Not a credential in the usual sense: Google's own docs say
+# that for an installed application "the client secret is obviously not treated
+# as a secret", and PKCE is what actually secures this flow. gemini-cli ships it
+# in source for the same reason. pragma: allowlist secret
+DEFAULT_CLIENT_SECRET: Final = "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"
 
 #: Scopes for calling Google Cloud APIs as the signed-in user, plus identity.
 CLOUD_PLATFORM_SCOPES: Final = (
