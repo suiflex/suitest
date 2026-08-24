@@ -85,6 +85,9 @@ async def test_mock_stream_concatenates_to_content() -> None:
         ("llamacpp", "local-model", "openai/local-model"),
         # Sign in with ChatGPT speaks the OpenAI protocol against its own backend.
         ("chatgpt", "gpt-5.6", "openai/gpt-5.6"),
+        # Sign in with Google reaches Vertex's OpenAI-compatible endpoint, which
+        # is a different surface from the ``vertex`` service-account path above.
+        ("google-vertex", "google/gemini-2.5-pro", "openai/google/gemini-2.5-pro"),
     ],
 )
 def test_to_litellm_model_mapping(provider: str, model: str, expected: str) -> None:
@@ -133,7 +136,7 @@ def test_local_providers_require_base_url(provider: str) -> None:
     assert LOCAL_TIER_DEFAULTS[provider]["base_url"].startswith("http")
 
 
-@pytest.mark.parametrize("provider", ["anthropic", "openai", "gemini"])
+@pytest.mark.parametrize("provider", ["anthropic", "openai", "gemini", "google-vertex"])
 def test_cloud_providers_do_not_require_base_url(provider: str) -> None:
     from suitest_agent.providers.litellm_router import requires_base_url
 

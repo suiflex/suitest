@@ -13,7 +13,12 @@ from typing import TYPE_CHECKING
 
 import httpx
 from suitest_agent.providers.litellm_router import get_provider
-from suitest_core.llm_credentials import ResolvedCredential, resolve_credential
+from suitest_core.llm_credentials import (
+    CHATGPT_PROVIDER,
+    GOOGLE_VERTEX_PROVIDER,
+    ResolvedCredential,
+    resolve_credential,
+)
 from suitest_db.repositories.llm_configs import LLMConfigRepo, LLMConfigUpdate
 
 from suitest_api.settings import get_settings
@@ -26,12 +31,31 @@ if TYPE_CHECKING:
 _REFRESH_TIMEOUT = 30.0
 
 
+def _client_credentials(provider: str) -> tuple[str | None, str | None]:
+    """The OAuth client this deployment refreshes ``provider``'s tokens with.
+
+    Each provider has its own registration; handing one provider's client id to
+    another's token endpoint fails the refresh, which surfaces much later as an
+    expired credential rather than as a misconfiguration.
+    """
+    settings = get_settings()
+    if provider.strip().lower() == CHATGPT_PROVIDER:
+        return settings.chatgpt_oauth_client_id, None
+    if provider.strip().lower() == GOOGLE_VERTEX_PROVIDER:
+        return (
+            settings.llm_google_oauth_client_id or None,
+            settings.llm_google_oauth_client_secret or None,
+        )
+    return None, None
+
+
 async def resolve_for_config(session: AsyncSession, config: LLMConfig) -> ResolvedCredential:
     """Resolve ``config`` into call arguments, refreshing its tokens if due.
 
     A refreshed token set is written back before returning, so the next caller
     does not repeat the round trip.
     """
+    client_id, client_secret = _client_credentials(config.provider)
     async with httpx.AsyncClient(timeout=_REFRESH_TIMEOUT) as client:
         credential, persist = await resolve_credential(
             client,
@@ -39,7 +63,8 @@ async def resolve_for_config(session: AsyncSession, config: LLMConfig) -> Resolv
             api_key=config.api_key_encrypted,
             base_url=config.base_url,
             oauth_tokens_json=config.oauth_tokens_encrypted,
-            client_id=get_settings().chatgpt_oauth_client_id,
+            client_id=client_id,
+            client_secret=client_secret,
         )
     if persist is not None:
         await LLMConfigRepo(session).update(

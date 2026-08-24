@@ -25,7 +25,9 @@ from typing import TYPE_CHECKING, Final, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
-from suitest_core.chatgpt_oauth import DEFAULT_CLIENT_ID, refresh_tokens
+from suitest_core.chatgpt_oauth import DEFAULT_CLIENT_ID
+from suitest_core.chatgpt_oauth import refresh_tokens as _refresh_chatgpt
+from suitest_core.google_oauth import refresh_tokens as _refresh_google
 from suitest_core.oauth import OAuthTokens, StoredOAuthTokens, needs_refresh
 
 if TYPE_CHECKING:
@@ -38,6 +40,9 @@ CHATGPT_PROVIDER: Final = "chatgpt"
 CHATGPT_API_BASE: Final = "https://chatgpt.com/backend-api/codex"
 _ACCOUNT_HEADER: Final = "chatgpt-account-id"
 
+#: Provider key for Vertex AI reached as the signed-in Google user.
+GOOGLE_VERTEX_PROVIDER: Final = "google-vertex"
+
 
 class RefreshFn(Protocol):
     """Exchange a refresh token for a fresh token set at one auth service."""
@@ -47,6 +52,7 @@ class RefreshFn(Protocol):
         client: httpx.AsyncClient,
         *,
         client_id: str,
+        client_secret: str | None = None,
         refresh_token: str,
     ) -> OAuthTokens:
         """Return the refreshed tokens, raising the backend's own error type."""
@@ -73,11 +79,35 @@ class OAuthBackend:
 OAUTH_BACKENDS: Final[dict[str, OAuthBackend]] = {
     CHATGPT_PROVIDER: OAuthBackend(
         api_base=CHATGPT_API_BASE,
-        refresh=refresh_tokens,
+        refresh=_refresh_chatgpt,
         default_client_id=DEFAULT_CLIENT_ID,
         account_header=_ACCOUNT_HEADER,
     ),
+    GOOGLE_VERTEX_PROVIDER: OAuthBackend(
+        # Vertex's endpoint names the caller's project and region, so the URL is
+        # per-workspace and stored on the config rather than fixed here.
+        api_base=None,
+        refresh=_refresh_google,
+        # No bundled client: the operator registers a Desktop-app client of
+        # their own (see suitest_api.settings).
+        default_client_id="",
+    ),
 }
+
+
+def vertex_openai_base_url(*, project: str, location: str) -> str:
+    """Vertex's OpenAI-compatible endpoint for one project and region.
+
+    Vertex speaks the OpenAI chat-completions protocol at this path, which is
+    what lets a Google-authenticated config reuse the OpenAI shim instead of
+    needing a provider implementation of its own.
+    """
+    if not project.strip() or not location.strip():
+        raise CredentialError(
+            "MISSING_VERTEX_TARGET", "a Vertex endpoint needs both a project and a location"
+        )
+    host = f"https://{location}-aiplatform.googleapis.com"
+    return f"{host}/v1/projects/{project}/locations/{location}/endpoints/openapi"
 
 
 class ResolvedCredential(BaseModel):
@@ -119,6 +149,7 @@ async def resolve_credential(
     base_url: str | None,
     oauth_tokens_json: str | None,
     client_id: str | None = None,
+    client_secret: str | None = None,
 ) -> tuple[ResolvedCredential, str | None]:
     """Return the call arguments, plus a token blob to persist (or ``None``).
 
@@ -151,7 +182,13 @@ async def resolve_credential(
                 "REFRESH_UNAVAILABLE",
                 "the credential needs refreshing but no HTTP client was supplied",
             )
-        stored = await refresh_stored(client, stored, client_id=client_id, backend=backend)
+        stored = await refresh_stored(
+            client,
+            stored,
+            client_id=client_id,
+            client_secret=client_secret,
+            backend=backend,
+        )
         persist = stored.model_dump_json()
 
     headers = (
@@ -175,6 +212,7 @@ async def refresh_stored(
     stored: StoredOAuthTokens,
     *,
     client_id: str | None = None,
+    client_secret: str | None = None,
     backend: OAuthBackend | None = None,
 ) -> StoredOAuthTokens:
     """Refresh a token set, keeping whatever the response did not replace."""
@@ -186,6 +224,7 @@ async def refresh_stored(
     fresh = await backend.refresh(
         client,
         client_id=client_id or backend.default_client_id,
+        client_secret=client_secret,
         refresh_token=stored.refresh_token,
     )
     return StoredOAuthTokens(

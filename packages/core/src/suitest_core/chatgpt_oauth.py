@@ -174,10 +174,16 @@ async def refresh_tokens(
     client: httpx.AsyncClient,
     *,
     client_id: str = DEFAULT_CLIENT_ID,
+    client_secret: str | None = None,
     refresh_token: str,
     issuer: str = ISSUER,
 ) -> ChatGptTokens:
-    """Refresh an expiring access token. This endpoint takes JSON, not a form."""
+    """Refresh an expiring access token. This endpoint takes JSON, not a form.
+
+    ``client_secret`` is accepted and ignored: OpenAI's installed-app client is
+    public and sends none. It exists so this and the Google refresh share one
+    signature, which is what lets a credential backend hold either.
+    """
     response = await client.post(
         f"{issuer.rstrip('/')}/oauth/token",
         headers=_JSON,

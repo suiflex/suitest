@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     # public client, the only one whose redirect URIs the auth service accepts;
     # an operator holding a client of their own overrides it here.
     chatgpt_oauth_client_id: str = Field(default=DEFAULT_CLIENT_ID)
+    # Sign in with Google for the LLM provider (Settings -> LLM provider).
+    # Deliberately NOT ``oauth_google_client_*`` above: that client signs users
+    # in to Suitest and is a Web-application registration. This one drives a
+    # loopback redirect and asks for cloud-platform, so it must be a Desktop-app
+    # client. There is no default -- an operator supplies their own, and Google
+    # documents that this "secret" is not confidential for a Desktop client.
+    llm_google_oauth_client_id: str = Field(default="")
+    llm_google_oauth_client_secret: str = Field(default="", repr=False)
     superadmin_email: str = Field(default="")
     superadmin_password: str = Field(default="", repr=False)
     superadmin_workspace_name: str = Field(default="Default Workspace")

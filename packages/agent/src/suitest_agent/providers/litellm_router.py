@@ -70,7 +70,12 @@ _PREFIX: dict[str, str] = {
 # ``chatgpt`` (Sign in with ChatGPT) also speaks the OpenAI protocol, against the
 # ChatGPT backend rather than api.openai.com — base URL + account header both come
 # from ``suitest_core.llm_credentials``.
-_OPENAI_SHIM = frozenset({"llamacpp", "vllm", "lmstudio", "custom", "chatgpt"})
+# ``google-vertex`` (Sign in with Google) speaks the OpenAI protocol too, against
+# Vertex's own OpenAI-compatible endpoint; its base URL names the caller's GCP
+# project and region and comes from ``suitest_core.llm_credentials``. That is why
+# it is here and not under the ``vertex`` prefix, which reaches Vertex's native
+# API with service-account credentials instead.
+_OPENAI_SHIM = frozenset({"llamacpp", "vllm", "lmstudio", "custom", "chatgpt", "google-vertex"})
 
 # Seed support per docs/AI_AGENT.md §13.1 — drives the replay determinism label.
 _DETERMINISTIC_SEED = frozenset({"openai", "groq", "vllm", "llamacpp", "mock"})
@@ -87,14 +92,21 @@ LOCAL_TIER_DEFAULTS: dict[str, dict[str, str]] = {
 }
 
 
+# OpenAI-shim providers whose endpoint the sign-in derives rather than the user
+# typing it: ChatGPT's is fixed, and Vertex's is built from the project and
+# region the Google sign-in collected.
+_ENDPOINT_FROM_CREDENTIAL = frozenset({"chatgpt", "google-vertex"})
+
+
 def requires_base_url(provider: str) -> bool:
     """True when the *user* must supply a base URL — no endpoint to default to.
 
-    ``chatgpt`` speaks the same OpenAI protocol but is not in this set: its base
-    URL comes from the resolved credential, not from the person configuring it.
+    An OAuth provider speaks the same OpenAI protocol but is not in this set:
+    its base URL comes from the resolved credential, not from the person
+    configuring it.
     """
     p = provider.strip().lower()
-    return p == "ollama" or (p in _OPENAI_SHIM and p != "chatgpt")
+    return p == "ollama" or (p in _OPENAI_SHIM and p not in _ENDPOINT_FROM_CREDENTIAL)
 
 
 def seed_determinism(provider: str) -> str:

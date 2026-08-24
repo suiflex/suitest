@@ -6,14 +6,17 @@ import base64
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from urllib.parse import parse_qs
 
 import httpx
 import pytest
 from suitest_core.llm_credentials import (
     CHATGPT_API_BASE,
     CHATGPT_PROVIDER,
+    GOOGLE_VERTEX_PROVIDER,
     CredentialError,
     resolve_credential,
+    vertex_openai_base_url,
 )
 from suitest_core.oauth import StoredOAuthTokens
 
@@ -170,3 +173,90 @@ async def test_refreshing_without_a_client_is_reported_not_guessed() -> None:
             oauth_tokens_json=stored.model_dump_json(),
         )
     assert exc.value.code == "REFRESH_UNAVAILABLE"
+
+
+@pytest.mark.asyncio
+async def test_a_google_config_gets_no_chatgpt_endpoint_or_header() -> None:
+    """The bug the per-provider dispatch exists to prevent."""
+    stored = StoredOAuthTokens(
+        access_token="ya29.live",
+        refresh_token="1//r",
+        expires_at=datetime.now(tz=UTC) + timedelta(hours=1),
+        account_id="acc_should_not_leak",
+    )
+    base = vertex_openai_base_url(project="proj", location="us-central1")
+
+    async with _client(_unused) as client:
+        credential, persist = await resolve_credential(
+            client,
+            provider=GOOGLE_VERTEX_PROVIDER,
+            api_key=None,
+            base_url=base,
+            oauth_tokens_json=stored.model_dump_json(),
+        )
+
+    assert credential.base_url == base
+    assert CHATGPT_API_BASE not in (credential.base_url or "")
+    # No account header: Google identifies the caller from the bearer alone.
+    assert credential.extra_headers == {}
+    assert credential.api_key == "ya29.live"
+    assert persist is None
+
+
+@pytest.mark.asyncio
+async def test_google_refresh_sends_the_client_secret_and_keeps_the_refresh_token() -> None:
+    """Google does not reissue the refresh token, so the stored one must survive."""
+    seen: dict[str, list[str]] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(parse_qs(request.content.decode()))
+        return httpx.Response(200, json={"access_token": "ya29.new", "expires_in": 3599})
+
+    stale = StoredOAuthTokens(
+        access_token="ya29.old",
+        refresh_token="1//keep-me",
+        expires_at=datetime.now(tz=UTC) - timedelta(minutes=1),
+    )
+
+    async with _client(handler) as client:
+        credential, persist = await resolve_credential(
+            client,
+            provider=GOOGLE_VERTEX_PROVIDER,
+            api_key=None,
+            base_url="https://us-central1-aiplatform.googleapis.com/v1/x/openapi",
+            oauth_tokens_json=stale.model_dump_json(),
+            client_id="cid",
+            client_secret="csec",
+        )
+
+    assert seen["client_secret"] == ["csec"]
+    assert credential.api_key == "ya29.new"
+    assert persist is not None
+    assert StoredOAuthTokens.model_validate_json(persist).refresh_token == "1//keep-me"
+
+
+@pytest.mark.asyncio
+async def test_tokens_on_a_provider_with_no_oauth_backend_are_refused() -> None:
+    """Better a loud misconfiguration than a silent call to the wrong endpoint."""
+    stored = StoredOAuthTokens(access_token="tok", expires_at=datetime.now(tz=UTC))
+    async with _client(_unused) as client:
+        with pytest.raises(CredentialError) as err:
+            await resolve_credential(
+                client,
+                provider="anthropic",
+                api_key=None,
+                base_url=None,
+                oauth_tokens_json=stored.model_dump_json(),
+            )
+    assert err.value.code == "OAUTH_UNSUPPORTED"
+
+
+def test_a_vertex_endpoint_needs_both_project_and_location() -> None:
+    """Half a target would build a URL that 404s at call time instead of at save time."""
+    assert vertex_openai_base_url(project="p", location="us-central1") == (
+        "https://us-central1-aiplatform.googleapis.com/v1/projects/p/locations/us-central1/endpoints/openapi"
+    )
+    for project, location in (("", "us-central1"), ("p", ""), (" ", " ")):
+        with pytest.raises(CredentialError) as err:
+            vertex_openai_base_url(project=project, location=location)
+        assert err.value.code == "MISSING_VERTEX_TARGET"

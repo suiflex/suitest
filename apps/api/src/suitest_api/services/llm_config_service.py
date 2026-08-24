@@ -28,7 +28,7 @@ from suitest_core.capabilities import (
     compute_features,
     resolve_embeddings,
 )
-from suitest_core.llm_credentials import CHATGPT_PROVIDER
+from suitest_core.llm_credentials import CHATGPT_PROVIDER, GOOGLE_VERTEX_PROVIDER
 from suitest_core.oauth import StoredOAuthTokens
 from suitest_db.audit import write_audit
 from suitest_db.models.llm_config import AUTH_METHOD_API_KEY, AUTH_METHOD_OAUTH
@@ -56,10 +56,11 @@ _CLOUD_PROVIDERS = frozenset(
         "deepseek",
         "mock",
         CHATGPT_PROVIDER,
+        GOOGLE_VERTEX_PROVIDER,
     }
 )
 # CLOUD providers that authenticate without SUITEST_LLM_API_KEY (IAM / canned creds).
-_KEYLESS = frozenset({"bedrock", "vertex", "mock", CHATGPT_PROVIDER})
+_KEYLESS = frozenset({"bedrock", "vertex", "mock", CHATGPT_PROVIDER, GOOGLE_VERTEX_PROVIDER})
 # ``custom`` = any hosted OpenAI-compatible endpoint (gateway/router/proxy) the
 # user points at via base URL. CLOUD tier; API key optional (gateway-dependent);
 # base URL required — there is no default endpoint to fall back to.
@@ -130,6 +131,20 @@ class LLMConfigService:
                 "MISSING_OAUTH_TOKENS",
                 f"provider {CHATGPT_PROVIDER} requires signing in with ChatGPT",
             )
+        # Vertex-as-the-signed-in-user needs both halves: the tokens to
+        # authenticate, and the endpoint that names the project and region they
+        # authenticate against. Neither is recoverable from the other.
+        if p == GOOGLE_VERTEX_PROVIDER:
+            if auth_method != AUTH_METHOD_OAUTH or oauth_tokens is None:
+                raise LLMConfigError(
+                    "MISSING_OAUTH_TOKENS",
+                    f"provider {GOOGLE_VERTEX_PROVIDER} requires signing in with Google",
+                )
+            if not base_url:
+                raise LLMConfigError(
+                    "MISSING_BASE_URL",
+                    f"provider {GOOGLE_VERTEX_PROVIDER} requires config.base_url",
+                )
         if p in _LOCAL_PROVIDERS and not base_url:
             raise LLMConfigError("MISSING_BASE_URL", f"LOCAL provider {p} requires config.base_url")
         if p == _CUSTOM and not base_url:
