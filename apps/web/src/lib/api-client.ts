@@ -641,6 +641,80 @@ export async function cancelChatGptLogin(workspaceId: string, flowId: string): P
 }
 
 // ---------------------------------------------------------------------------
+// Sign in with Google (Settings → LLM provider). The loopback redirect only
+// lands when the person clicking is on the API's own machine; every other
+// deployment falls back to pasting the callback URL, because Google's device
+// flow does not allow the cloud-platform scope this sign-in needs.
+// ---------------------------------------------------------------------------
+
+export interface GoogleLoginStart {
+  flowId: string;
+  mode: "browser" | "paste";
+  /** The OAuth consent URL to open. */
+  authorizeUrl?: string | null;
+  intervalS: number;
+}
+
+export interface GoogleLoginStatus {
+  status: "pending" | "ready" | "error";
+  /** Signed-in account, once `ready`. */
+  email?: string | null;
+  hasRefreshToken?: boolean;
+  code?: string | null;
+  message?: string | null;
+}
+
+export async function startGoogleLogin(
+  workspaceId: string,
+  mode: "auto" | "browser" | "paste" = "auto",
+): Promise<GoogleLoginStart> {
+  const res = await api.post<GoogleLoginStart>(
+    `/workspaces/${workspaceId}/llm-config/google/login`,
+    { mode },
+  );
+  return res.data;
+}
+
+export async function pollGoogleLogin(
+  workspaceId: string,
+  flowId: string,
+): Promise<GoogleLoginStatus> {
+  const res = await api.get<GoogleLoginStatus>(
+    `/workspaces/${workspaceId}/llm-config/google/login/${flowId}`,
+  );
+  return res.data;
+}
+
+/** Paste mode: hand back the URL the browser was redirected to. */
+export async function submitGoogleCallback(
+  workspaceId: string,
+  flowId: string,
+  callbackUrl: string,
+): Promise<GoogleLoginStatus> {
+  const res = await api.post<GoogleLoginStatus>(
+    `/workspaces/${workspaceId}/llm-config/google/login/${flowId}/callback`,
+    { callbackUrl },
+  );
+  return res.data;
+}
+
+export async function finishGoogleLogin(
+  workspaceId: string,
+  flowId: string,
+  body: { model: string; gcpProject: string; gcpLocation: string },
+): Promise<LlmConfigPublic> {
+  const res = await api.post<LlmConfigPublic>(
+    `/workspaces/${workspaceId}/llm-config/google/login/${flowId}/finish`,
+    body,
+  );
+  return res.data;
+}
+
+export async function cancelGoogleLogin(workspaceId: string, flowId: string): Promise<void> {
+  await api.delete(`/workspaces/${workspaceId}/llm-config/google/login/${flowId}`);
+}
+
+// ---------------------------------------------------------------------------
 // Workspace cost tracking (M3-14) — Insights → Cost.
 // ---------------------------------------------------------------------------
 

@@ -17,6 +17,8 @@ import {
   testLlmConfig,
 } from "@/lib/api-client";
 
+import { GoogleSignIn } from "./GoogleSignIn";
+
 /** Providers offered in the picker, grouped by tier (label only — backend validates). */
 const CLOUD_PROVIDERS = [
   "anthropic",
@@ -248,7 +250,7 @@ export function LlmSettingsPanel({
     queryFn: () => fetchLlmConfig(workspaceId),
   });
 
-  const [authMethod, setAuthMethod] = useState<"api_key" | "chatgpt">("api_key");
+  const [authMethod, setAuthMethod] = useState<"api_key" | "chatgpt" | "google">("api_key");
   const [provider, setProvider] = useState("anthropic");
   const [model, setModel] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -358,6 +360,7 @@ export function LlmSettingsPanel({
             [
               ["api_key", "Paste a key"],
               ["chatgpt", "Sign in with ChatGPT"],
+              ["google", "Sign in with Google"],
             ] as const
           ).map(([value, label]) => (
             <label key={value} className="flex items-center gap-2 text-[13px] text-fg-1">
@@ -377,6 +380,10 @@ export function LlmSettingsPanel({
 
       {canWrite && authMethod === "chatgpt" ? (
         <ChatGptSignIn workspaceId={workspaceId} onDone={refresh} />
+      ) : null}
+
+      {canWrite && authMethod === "google" ? (
+        <GoogleSignIn workspaceId={workspaceId} onDone={refresh} />
       ) : null}
 
       {canWrite && authMethod === "api_key" ? (

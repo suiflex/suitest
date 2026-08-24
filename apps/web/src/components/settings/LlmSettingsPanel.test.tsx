@@ -150,4 +150,80 @@ describe("LlmSettingsPanel", () => {
     expect(status).toHaveTextContent(/anthropic/);
     expect(status).toHaveTextContent(/CLOUD/);
   });
+
+  it("signs in with Google on localhost by polling the loopback listener", async () => {
+    let polls = 0;
+    let finished: unknown = null;
+    server.use(
+      http.post("*/api/v1/workspaces/ws_1/llm-config/google/login", () =>
+        HttpResponse.json({ flowId: "g_1", mode: "browser", authorizeUrl: "https://accounts.example/auth", intervalS: 1 }),
+      ),
+      http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/g_1", () => {
+        polls += 1;
+        return polls === 1
+          ? HttpResponse.json({ status: "pending" })
+          : HttpResponse.json({ status: "ready", email: "dev@example.com", hasRefreshToken: true });
+      }),
+      http.post("*/api/v1/workspaces/ws_1/llm-config/google/login/g_1/finish", async ({ request }) => {
+        finished = await request.json();
+        return HttpResponse.json({
+          id: "cfg_1",
+          provider: "google-vertex",
+          model: "google/gemini-2.5-pro",
+          config: {},
+          isActive: true,
+          tier: "CLOUD",
+        });
+      }),
+    );
+
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+    await user.click(screen.getByLabelText(/sign in with google/i));
+    await user.click(screen.getByTestId("google-signin-start"));
+
+    await screen.findByTestId("google-signin-ready", undefined, { timeout: 4000 });
+    expect(screen.getByTestId("google-signin-ready")).toHaveTextContent(/dev@example.com/);
+
+    await user.type(screen.getByLabelText(/project id/i), "my-project-123");
+    await user.click(screen.getByTestId("google-signin-finish"));
+
+    await waitFor(() => {
+      expect(finished).toEqual({
+        model: "google/gemini-2.5-pro",
+        gcpProject: "my-project-123",
+        gcpLocation: "us-central1",
+      });
+    });
+  });
+
+  it("falls back to pasting the callback URL when loopback cannot be reached", async () => {
+    let submitted: unknown = null;
+    server.use(
+      http.post("*/api/v1/workspaces/ws_1/llm-config/google/login", () =>
+        HttpResponse.json({ flowId: "g_2", mode: "paste", authorizeUrl: "https://accounts.example/auth", intervalS: 2 }),
+      ),
+      http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/g_2", () => {
+        throw new Error("paste mode must not poll — there is no listener to wait on");
+      }),
+      http.post("*/api/v1/workspaces/ws_1/llm-config/google/login/g_2/callback", async ({ request }) => {
+        submitted = await request.json();
+        return HttpResponse.json({ status: "ready", email: "dev@example.com", hasRefreshToken: true });
+      }),
+    );
+
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+    await user.click(screen.getByLabelText(/sign in with google/i));
+    await user.click(screen.getByTestId("google-signin-start"));
+
+    const url = "http://127.0.0.1:8765/?state=abc&code=4/xyz";
+    await user.type(await screen.findByTestId("google-signin-callback-url"), url);
+    await user.click(screen.getByTestId("google-signin-submit-url"));
+
+    await screen.findByTestId("google-signin-ready");
+    expect(submitted).toEqual({ callbackUrl: url });
+  });
 });
