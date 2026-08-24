@@ -31,19 +31,35 @@ This module is pure protocol: no database, no FastAPI, and the caller owns the
 
 from __future__ import annotations
 
-import base64
-import binascii
-import hashlib
-import json
-import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING, Final
 from urllib.parse import urlencode
 
 from pydantic import BaseModel
 
+from suitest_core.oauth import OAuthError, OAuthTokens, jwt_claims
+
 if TYPE_CHECKING:
     import httpx
+
+__all__ = [
+    "CALLBACK_PORTS",
+    "DEFAULT_CLIENT_ID",
+    "DEVICE_CODE_TTL",
+    "DEVICE_VERIFICATION_URL",
+    "ISSUER",
+    "ChatGptOAuthError",
+    "ChatGptTokens",
+    "DeviceCode",
+    "build_authorize_url",
+    "callback_redirect_uri",
+    "device_poll_once",
+    "device_redirect_uri",
+    "device_start",
+    "exchange_code",
+    "exchange_for_api_key",
+    "refresh_tokens",
+]
 
 ISSUER: Final = "https://auth.openai.com"
 #: Codex CLI's public client id (``codex-rs/login/src/auth/manager.rs``).
@@ -57,8 +73,6 @@ _SCOPE: Final = "openid profile email offline_access api.connectors.read api.con
 _ID_TOKEN_TYPE: Final = "urn:ietf:params:oauth:token-type:id_token"
 _TOKEN_EXCHANGE_GRANT: Final = "urn:ietf:params:oauth:grant-type:token-exchange"
 _AUTH_CLAIM: Final = "https://api.openai.com/auth"
-#: Refresh this far ahead of expiry, matching Codex's window.
-REFRESH_WINDOW: Final = timedelta(minutes=5)
 #: A device code is valid for 15 minutes.
 DEVICE_CODE_TTL: Final = timedelta(minutes=15)
 
@@ -68,33 +82,12 @@ _JSON: Final = {"Content-Type": "application/json"}
 _DEVICE_PENDING: Final = frozenset({403, 404})
 
 
-class ChatGptOAuthError(Exception):
-    """A step of the OAuth flow failed. ``code`` is the API-facing error code."""
-
-    def __init__(self, code: str, message: str) -> None:
-        super().__init__(message)
-        self.code = code
-        self.message = message
+class ChatGptOAuthError(OAuthError):
+    """A step of the ChatGPT OAuth flow failed."""
 
 
-class OAuthTokens(BaseModel):
-    """Tokens returned by ``/oauth/token``.
-
-    A refresh response may omit fields, so only ``access_token`` is required;
-    the caller merges what came back onto what it already stored.
-    """
-
-    access_token: str
-    id_token: str | None = None
-    refresh_token: str | None = None
-
-    @property
-    def expires_at(self) -> datetime | None:
-        """Expiry from the access token's ``exp`` claim, or ``None`` if absent."""
-        exp = jwt_claims(self.access_token).get("exp")
-        if not isinstance(exp, int | float) or isinstance(exp, bool):
-            return None
-        return datetime.fromtimestamp(float(exp), tz=UTC)
+class ChatGptTokens(OAuthTokens):
+    """ChatGPT token set — an OpenAI id token carries the account id."""
 
     @property
     def account_id(self) -> str | None:
@@ -107,32 +100,6 @@ class OAuthTokens(BaseModel):
         value = auth.get("chatgpt_account_id")
         return value if isinstance(value, str) else None
 
-    @property
-    def email(self) -> str | None:
-        """Signed-in account email, shown back to the user as a hint."""
-        if self.id_token is None:
-            return None
-        value = jwt_claims(self.id_token).get("email")
-        return value if isinstance(value, str) else None
-
-
-class StoredOAuthTokens(BaseModel):
-    """The token set as persisted (``llm_configs.oauth_tokens_encrypted``).
-
-    Distinct from :class:`OAuthTokens`, which is what a single auth-service
-    response carries: this is the merged, durable view plus the claims already
-    extracted from it, so reading a credential never re-parses a JWT.
-    """
-
-    access_token: str
-    refresh_token: str | None = None
-    id_token: str | None = None
-    expires_at: datetime | None = None
-    #: ``chatgpt-account-id`` header value for ChatGPT-backend calls.
-    account_id: str | None = None
-    #: Signed-in account, shown back to the admin as a hint.
-    email: str | None = None
-
 
 class DeviceCode(BaseModel):
     """A pending device authorization the user has to approve in a browser."""
@@ -141,39 +108,6 @@ class DeviceCode(BaseModel):
     user_code: str
     interval_s: int
     verification_url: str = DEVICE_VERIFICATION_URL
-
-
-def jwt_claims(token: str) -> dict[str, object]:
-    """Base64url-decode a JWT payload without verifying its signature.
-
-    The token always arrives over TLS straight from the token endpoint, so there
-    is nothing a local signature check would add — Codex reads claims the same
-    way. Returns ``{}`` for anything unparseable.
-    """
-    parts = token.split(".")
-    if len(parts) < 2:
-        return {}
-    payload = parts[1]
-    payload += "=" * (-len(payload) % 4)
-    try:
-        decoded = json.loads(base64.urlsafe_b64decode(payload))
-    except (binascii.Error, ValueError):
-        return {}
-    return decoded if isinstance(decoded, dict) else {}
-
-
-def needs_refresh(expires_at: datetime | None, *, now: datetime | None = None) -> bool:
-    """True when a token is missing an expiry or expires inside the window."""
-    if expires_at is None:
-        return True
-    return expires_at - (now or datetime.now(tz=UTC)) <= REFRESH_WINDOW
-
-
-def generate_pkce() -> tuple[str, str]:
-    """Return ``(code_verifier, code_challenge)`` for the S256 method."""
-    verifier = base64.urlsafe_b64encode(secrets.token_bytes(64)).rstrip(b"=").decode()
-    digest = hashlib.sha256(verifier.encode()).digest()
-    return verifier, base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
 
 
 def callback_redirect_uri(port: int) -> str:
@@ -218,7 +152,7 @@ async def exchange_code(
     redirect_uri: str,
     code_verifier: str,
     issuer: str = ISSUER,
-) -> OAuthTokens:
+) -> ChatGptTokens:
     """Trade an authorization code for tokens (both transports end here)."""
     response = await client.post(
         f"{issuer.rstrip('/')}/oauth/token",
@@ -242,7 +176,7 @@ async def refresh_tokens(
     client_id: str = DEFAULT_CLIENT_ID,
     refresh_token: str,
     issuer: str = ISSUER,
-) -> OAuthTokens:
+) -> ChatGptTokens:
     """Refresh an expiring access token. This endpoint takes JSON, not a form."""
     response = await client.post(
         f"{issuer.rstrip('/')}/oauth/token",
@@ -364,7 +298,7 @@ def _body(response: httpx.Response) -> dict[str, object]:
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _tokens_or_raise(response: httpx.Response, code: str) -> OAuthTokens:
+def _tokens_or_raise(response: httpx.Response, code: str) -> ChatGptTokens:
     if response.status_code >= 400:
         raise ChatGptOAuthError(code, f"auth service returned status {response.status_code}")
     body = _body(response)
@@ -373,7 +307,7 @@ def _tokens_or_raise(response: httpx.Response, code: str) -> OAuthTokens:
         raise ChatGptOAuthError(code, "response carried no access token")
     id_token = body.get("id_token")
     refresh = body.get("refresh_token")
-    return OAuthTokens(
+    return ChatGptTokens(
         access_token=access,
         id_token=id_token if isinstance(id_token, str) else None,
         refresh_token=refresh if isinstance(refresh, str) else None,

@@ -42,8 +42,6 @@ from suitest_core.chatgpt_oauth import (
     DEVICE_CODE_TTL,
     ChatGptOAuthError,
     DeviceCode,
-    OAuthTokens,
-    StoredOAuthTokens,
     build_authorize_url,
     callback_redirect_uri,
     device_poll_once,
@@ -51,10 +49,9 @@ from suitest_core.chatgpt_oauth import (
     device_start,
     exchange_code,
     exchange_for_api_key,
-    generate_pkce,
-    needs_refresh,
 )
 from suitest_core.llm_credentials import CHATGPT_PROVIDER, refresh_stored
+from suitest_core.oauth import OAuthTokens, StoredOAuthTokens, generate_pkce, needs_refresh
 from suitest_db.models.llm_config import AUTH_METHOD_API_KEY, AUTH_METHOD_OAUTH
 from suitest_db.repositories.llm_configs import LLMConfigRepo, LLMConfigUpdate
 

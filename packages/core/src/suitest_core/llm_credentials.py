@@ -25,13 +25,8 @@ from typing import TYPE_CHECKING, Final, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
-from suitest_core.chatgpt_oauth import (
-    DEFAULT_CLIENT_ID,
-    OAuthTokens,
-    StoredOAuthTokens,
-    needs_refresh,
-    refresh_tokens,
-)
+from suitest_core.chatgpt_oauth import DEFAULT_CLIENT_ID, refresh_tokens
+from suitest_core.oauth import OAuthTokens, StoredOAuthTokens, needs_refresh
 
 if TYPE_CHECKING:
     import httpx

@@ -28,8 +28,8 @@ from suitest_core.capabilities import (
     compute_features,
     resolve_embeddings,
 )
-from suitest_core.chatgpt_oauth import StoredOAuthTokens
 from suitest_core.llm_credentials import CHATGPT_PROVIDER
+from suitest_core.oauth import StoredOAuthTokens
 from suitest_db.audit import write_audit
 from suitest_db.models.llm_config import AUTH_METHOD_API_KEY, AUTH_METHOD_OAUTH
 from suitest_db.repositories.llm_configs import LLMConfigCreate, LLMConfigRepo, LLMConfigUpdate

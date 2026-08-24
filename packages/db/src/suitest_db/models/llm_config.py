@@ -7,8 +7,8 @@ from typing import Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
-from suitest_core.chatgpt_oauth import StoredOAuthTokens
 from suitest_core.crypto import EncryptedBytes
+from suitest_core.oauth import StoredOAuthTokens
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id

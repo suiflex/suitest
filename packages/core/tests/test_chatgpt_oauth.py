@@ -9,10 +9,8 @@ breaking. All traffic goes through ``httpx.MockTransport`` — no network.
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -21,17 +19,14 @@ from suitest_core.chatgpt_oauth import (
     DEFAULT_CLIENT_ID,
     ISSUER,
     ChatGptOAuthError,
+    ChatGptTokens,
     DeviceCode,
-    OAuthTokens,
     build_authorize_url,
     callback_redirect_uri,
     device_poll_once,
     device_start,
     exchange_code,
     exchange_for_api_key,
-    generate_pkce,
-    jwt_claims,
-    needs_refresh,
     refresh_tokens,
 )
 
@@ -50,16 +45,6 @@ def _client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.AsyncCl
 
 
 # --- PKCE + URL building ----------------------------------------------------
-
-
-def test_pkce_challenge_is_s256_of_verifier() -> None:
-    """The challenge must be the unpadded base64url SHA-256 of the verifier."""
-    verifier, challenge = generate_pkce()
-    assert 43 <= len(verifier) <= 128
-    assert "=" not in verifier and "=" not in challenge
-    assert challenge == _b64url(hashlib.sha256(verifier.encode()).digest())
-    # Fresh randomness per call, or two concurrent logins would collide.
-    assert generate_pkce()[0] != verifier
 
 
 def test_authorize_url_carries_the_expected_query() -> None:
@@ -287,36 +272,13 @@ async def test_device_poll_raises_on_a_hard_failure() -> None:
 # --- claims -----------------------------------------------------------------
 
 
-def test_tokens_expose_expiry_account_and_email_from_claims() -> None:
-    """Expiry comes from the access token, identity from the id token."""
-    exp = datetime(2026, 8, 19, 12, 0, tzinfo=UTC)
-    tokens = OAuthTokens(
-        access_token=_jwt({"exp": int(exp.timestamp())}),
-        id_token=_jwt(
-            {
-                "email": "dev@example.com",
-                "https://api.openai.com/auth": {"chatgpt_account_id": "acc_123"},
-            }
-        ),
+def test_account_id_comes_from_the_openai_auth_claim() -> None:
+    """The ChatGPT flavour reads the account id the backend header needs."""
+    tokens = ChatGptTokens(
+        access_token="opaque",
+        id_token=_jwt({"https://api.openai.com/auth": {"chatgpt_account_id": "acc_123"}}),
     )
-    assert tokens.expires_at == exp
     assert tokens.account_id == "acc_123"
-    assert tokens.email == "dev@example.com"
-
-
-def test_claims_of_unparseable_tokens_degrade_to_empty() -> None:
-    """A malformed token yields no claims rather than blowing up a request."""
-    assert jwt_claims("not-a-jwt") == {}
-    assert jwt_claims("a.!!!.c") == {}
-    opaque = OAuthTokens(access_token="opaque", id_token="opaque")
-    assert opaque.expires_at is None
-    assert opaque.account_id is None
-    assert opaque.email is None
-
-
-def test_needs_refresh_uses_a_five_minute_window() -> None:
-    """Refresh ahead of expiry, and always when the expiry is unknown."""
-    now = datetime(2026, 8, 19, 12, 0, tzinfo=UTC)
-    assert needs_refresh(None, now=now) is True
-    assert needs_refresh(now + timedelta(minutes=4), now=now) is True
-    assert needs_refresh(now + timedelta(minutes=6), now=now) is False
+    # An id token without the claim, and none at all, both degrade to None.
+    assert ChatGptTokens(access_token="o", id_token=_jwt({})).account_id is None
+    assert ChatGptTokens(access_token="o").account_id is None

@@ -9,13 +9,13 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
-from suitest_core.chatgpt_oauth import StoredOAuthTokens
 from suitest_core.llm_credentials import (
     CHATGPT_API_BASE,
     CHATGPT_PROVIDER,
     CredentialError,
     resolve_credential,
 )
+from suitest_core.oauth import StoredOAuthTokens
 
 
 def _client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.AsyncClient:
