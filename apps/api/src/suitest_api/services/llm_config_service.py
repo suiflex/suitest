@@ -28,7 +28,11 @@ from suitest_core.capabilities import (
     compute_features,
     resolve_embeddings,
 )
-from suitest_core.llm_credentials import CHATGPT_PROVIDER, GOOGLE_VERTEX_PROVIDER
+from suitest_core.llm_credentials import (
+    CHATGPT_PROVIDER,
+    GOOGLE_VERTEX_PROVIDER,
+    OAUTH_BACKENDS,
+)
 from suitest_core.oauth import StoredOAuthTokens
 from suitest_db.audit import write_audit
 from suitest_db.models.llm_config import AUTH_METHOD_API_KEY, AUTH_METHOD_OAUTH
@@ -279,8 +283,27 @@ class LLMConfigService:
     async def test_connection(
         self, *, provider: str, model: str, api_key: str | None, base_url: str | None
     ) -> tuple[bool, int, str, str | None, str | None]:
-        """Round-trip a 1-token completion. Returns (ok, latency_ms, echo, code, msg)."""
-        impl = get_provider(provider, api_key=api_key, base_url=base_url)
+        """Round-trip a 1-token completion. Returns (ok, latency_ms, echo, code, msg).
+
+        An OAuth provider has no key to test with: its bearer, endpoint and any
+        account header live on the stored config, so the test resolves that
+        instead of the (empty) credential fields the form submitted.
+        """
+        extra_headers: dict[str, str] | None = None
+        if api_key is None and provider.strip().lower() in OAUTH_BACKENDS:
+            active = await self.get_active()
+            if active is None or active.provider != provider.strip().lower():
+                return (False, 0, "", "NOT_SIGNED_IN", "sign in before testing this provider")
+            from suitest_api.services.llm_credentials import resolve_for_config
+
+            credential = await resolve_for_config(self._session, active)
+            api_key = credential.api_key
+            base_url = credential.base_url
+            extra_headers = credential.extra_headers or None
+
+        impl = get_provider(
+            provider, api_key=api_key, base_url=base_url, extra_headers=extra_headers
+        )
         call = ModelCall(
             model=model,
             messages=[ChatMessage(role="user", content="ping")],
