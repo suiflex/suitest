@@ -40,6 +40,8 @@ Supported providers:
 | `ollama`, `llamacpp`, `vllm`, `lmstudio` | LOCAL | `base_url` required, no API key |
 | `anthropic`, `openai`, `gemini`, `groq`, `openrouter`, `azure`, `deepseek` | CLOUD | API key required |
 | `bedrock`, `vertex` | CLOUD | no key in Suitest (IAM or ambient credentials) |
+| `chatgpt` | CLOUD | Sign in with ChatGPT; no key |
+| `google-vertex` | CLOUD | Sign in with Google; no key. Needs a GCP project with the Vertex AI API enabled and billing active |
 | `custom` | CLOUD | any OpenAI-compatible endpoint; `base_url` required, key optional (gateway-dependent) |
 | `mock` | CLOUD (test flag) | canned deterministic responses for CI and dev, flagged `is_test_provider` |
 

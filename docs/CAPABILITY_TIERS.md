@@ -29,7 +29,7 @@ Principles:
 
 | Aspect | ZERO | LOCAL | CLOUD |
 |-------|------|-------|-------|
-| Trigger (workspace LLM provider, web UI) | `none` / not set | `ollama` / `llamacpp` / `vllm` / `lmstudio` | `anthropic` / `openai` / `gemini` / `groq` / `openrouter` / `azure` / `bedrock` / `vertex` / `deepseek` / `chatgpt` (Sign in with ChatGPT — see §3) / `mock` (test/dev only — see §3) |
+| Trigger (workspace LLM provider, web UI) | `none` / not set | `ollama` / `llamacpp` / `vllm` / `lmstudio` | `anthropic` / `openai` / `gemini` / `groq` / `openrouter` / `azure` / `bedrock` / `vertex` / `deepseek` / `chatgpt` (Sign in with ChatGPT — see §3) / `google-vertex` (Sign in with Google — see §3) / `mock` (test/dev only — see §3) |
 | Manual TCM (CRUD case/suite) | ✓ | ✓ | ✓ |
 | Deterministic runner (`step.code`) | ✓ | ✓ | ✓ |
 | MCP plugins | ✓ | ✓ | ✓ |

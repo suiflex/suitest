@@ -736,6 +736,46 @@ Returns the same body as `GET /llm-config`, and has the same side-effects as `PU
 Failures answer **422** with `{"code": …, "message": …}` — e.g. `NOT_APPROVED`,
 `UNKNOWN_FLOW`, `API_KEY_EXCHANGE_FAILED`, `CALLBACK_PORT_BUSY`.
 
+#### Sign in with Google
+
+The same idea for Google, storing the result as provider `google-vertex`: Suitest
+calls Vertex AI's OpenAI-compatible endpoint as the signed-in user. The bundled
+OAuth client is the Gemini CLI's public one; an operator can override it with
+`SUITEST_LLM_GOOGLE_OAUTH_CLIENT_ID` / `_SECRET`, which must be a **Desktop app**
+client (only that type accepts the `http://127.0.0.1:<any port>` redirect).
+
+**POST `/google/login`** body `{ "mode": "auto" }` (`auto` | `browser` | `paste`).
+`auto` resolves to `browser` only for a request arriving from localhost, where the
+redirect can land on a loopback listener. Everything else gets `paste`. There is
+no device-code option: Google allows that flow only for the
+`openid`/`email`/`profile`, Drive and YouTube scopes, and this sign-in needs
+`cloud-platform`.
+
+```json
+{ "flowId": "…", "mode": "browser", "authorizeUrl": "https://accounts.google.com/o/oauth2/v2/auth?…", "intervalS": 2 }
+```
+
+**GET `/google/login/:flowId`** → `{"status":"pending"}`, then
+`{"status":"ready","email":"dev@example.com","hasRefreshToken":true}`, or
+`{"status":"error","code":"CODE_EXCHANGE_FAILED","message":"…"}`. Only meaningful
+in `browser` mode; `paste` has no listener to wait on.
+
+**POST `/google/login/:flowId/callback`** body `{ "callbackUrl": "http://127.0.0.1:8765/?state=…&code=…" }`.
+The `paste` fallback: the browser lands on a loopback URL nothing answers, and the
+user copies the address bar back. Returns the same body as the poll. A URL from a
+different sign-in answers **422** `STATE_MISMATCH`.
+
+**POST `/google/login/:flowId/finish`** body:
+```json
+{ "model": "google/gemini-2.5-pro", "gcpProject": "my-project-123", "gcpLocation": "us-central1" }
+```
+The project and region are not cosmetic — Vertex's endpoint is built from them.
+Refused with **422** `NO_REFRESH_TOKEN` when Google returned none, which would
+otherwise leave a credential that dies in an hour. Other codes: `NOT_APPROVED`,
+`UNKNOWN_FLOW`, `OAUTH_CLIENT_UNSET`, `MISSING_VERTEX_TARGET`.
+
+Returns the same body as `GET /llm-config`, and has the same side-effects as `PUT`.
+
 **POST `/test` response:**
 ```json
 { "ok": true, "latencyMs": 412, "modelEcho": "claude-sonnet-4-5-20250929" }

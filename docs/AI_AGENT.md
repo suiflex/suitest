@@ -181,6 +181,7 @@ def cost_usd(response) -> float:
 | `azure` | `azure/<deployment>` | Requires `AZURE_API_BASE`, `AZURE_API_KEY`, `AZURE_API_VERSION`. Per-deployment routing. |
 | `bedrock` | `bedrock/<model>` | Requires AWS creds (`AWS_ACCESS_KEY_ID` etc.) or IAM role. Region-specific model availability. |
 | `vertex` | `vertex_ai/<model>` | Requires GCP SA JSON via `GOOGLE_APPLICATION_CREDENTIALS`. Project + location config. |
+| `google-vertex` | `openai/<model>` w/ `api_base` | Sign in with Google. Vertex's OpenAI-compatible endpoint, built from the workspace's GCP project + region. Model ids carry the publisher prefix (`google/gemini-2.5-pro`). |
 | `deepseek` | `deepseek/deepseek-*` | Cheap reasoning. OpenAI-compatible API shape. |
 | `ollama` | `ollama/<model>` | LOCAL tier. `OLLAMA_API_BASE=http://ollama:11434`. Tool use via `ollama/llama3.1` etc. |
 | `llamacpp` | `openai/<any>` w/ `api_base` | LOCAL tier. llama.cpp server with OpenAI shim. |
