@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_core.chatgpt_oauth import ChatGptOAuthError
+from suitest_core.google_oauth import GoogleOAuthError
 from suitest_shared.domain.enums import Role
 
 from suitest_api.auth.db import get_async_session
@@ -34,12 +35,19 @@ from suitest_api.services.chatgpt_oauth_service import (
     CredentialMode,
     LoginMode,
 )
+from suitest_api.services.google_oauth_service import (
+    GoogleOAuthService,
+)
+from suitest_api.services.google_oauth_service import (
+    LoginMode as GoogleLoginMode,
+)
 from suitest_api.services.llm_config_service import (
     LLMConfigError,
     LLMConfigService,
     api_key_hint,
     provider_tier,
 )
+from suitest_api.services.oauth_flows import OAuthLoginError
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -56,6 +64,22 @@ _NO_CONFIG = "no LLM config set for this workspace"
 # Curated, provider-keyed. Pricing in USD per 1M tokens. Unknown providers fall
 # back to echoing the configured model only.
 _MODEL_CATALOG: dict[str, list[dict[str, object]]] = {
+    # Vertex's OpenAI-compatible surface namespaces the model by publisher, so
+    # these ids carry the ``google/`` prefix the endpoint expects.
+    "google-vertex": [
+        {
+            "id": "google/gemini-2.5-pro",
+            "name": "Gemini 2.5 Pro",
+            "contextWindow": 1048576,
+            "maxOutput": 65536,
+        },
+        {
+            "id": "google/gemini-2.5-flash",
+            "name": "Gemini 2.5 Flash",
+            "contextWindow": 1048576,
+            "maxOutput": 65536,
+        },
+    ],
     "anthropic": [
         {
             "id": "claude-opus-4-1",
@@ -197,6 +221,42 @@ class LoginStatus(BaseModel):
     message: str | None = None
 
 
+class GoogleLoginStartBody(BaseModel):
+    """``auto`` resolves to the loopback redirect on localhost, paste elsewhere."""
+
+    mode: GoogleLoginMode = "auto"
+
+
+class GoogleLoginStatus(BaseModel):
+    """``pending`` until the redirect lands, then ``ready`` (or ``error``)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    status: str
+    email: str | None = None
+    has_refresh_token: bool = Field(default=False, alias="hasRefreshToken")
+    code: str | None = None
+    message: str | None = None
+
+
+class GoogleCallbackBody(BaseModel):
+    """The URL the user copied out of the address bar in ``paste`` mode."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    callback_url: str = Field(alias="callbackUrl", min_length=1, max_length=4096)
+
+
+class GoogleLoginFinishBody(BaseModel):
+    """Vertex needs a project and region: they are what its endpoint is built from."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    model: str = Field(min_length=1, max_length=120)
+    project: str = Field(min_length=1, max_length=120, alias="gcpProject")
+    location: str = Field(min_length=1, max_length=64, alias="gcpLocation")
+
+
 class LoginFinishBody(BaseModel):
     """``api_key`` exchanges for a platform key; ``subscription`` keeps the tokens."""
 
@@ -211,7 +271,7 @@ def _login_errors() -> Iterator[None]:
     """Map a login/protocol failure onto 422 with its own error code."""
     try:
         yield
-    except (ChatGptLoginError, ChatGptOAuthError) as exc:
+    except (ChatGptLoginError, ChatGptOAuthError, OAuthLoginError, GoogleOAuthError) as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": exc.code, "message": exc.message},
@@ -379,6 +439,87 @@ async def cancel_chatgpt_login(
 ) -> None:
     """Abandon a flow and release its callback listener."""
     ChatGptOAuthService(session, ctx).cancel(flowId)
+
+
+@router.post("/workspaces/{workspaceId}/llm-config/google/login", response_model=LoginStart)
+async def start_google_login(
+    body: GoogleLoginStartBody,
+    request: Request,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> LoginStart:
+    """Begin a Sign in with Google flow and return the URL to open."""
+    service = GoogleOAuthService(session, ctx)
+    with _login_errors():
+        started = await service.start(mode=body.mode, request_host=request.url.hostname or "")
+    return LoginStart.model_validate(started)
+
+
+@router.get(
+    "/workspaces/{workspaceId}/llm-config/google/login/{flowId}",
+    response_model=GoogleLoginStatus,
+)
+async def poll_google_login(
+    flowId: str,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> GoogleLoginStatus:
+    """Advance the flow one step: ``pending`` until the redirect lands."""
+    service = GoogleOAuthService(session, ctx)
+    with _login_errors():
+        state = await service.poll(flowId)
+    return GoogleLoginStatus.model_validate(state)
+
+
+@router.post(
+    "/workspaces/{workspaceId}/llm-config/google/login/{flowId}/callback",
+    response_model=GoogleLoginStatus,
+)
+async def submit_google_callback(
+    flowId: str,
+    body: GoogleCallbackBody,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> GoogleLoginStatus:
+    """Accept the pasted callback URL — the fallback where loopback cannot reach."""
+    service = GoogleOAuthService(session, ctx)
+    with _login_errors():
+        state = await service.submit_callback_url(flowId, url=body.callback_url)
+    return GoogleLoginStatus.model_validate(state)
+
+
+@router.post(
+    "/workspaces/{workspaceId}/llm-config/google/login/{flowId}/finish",
+    response_model=LLMConfigPublic,
+)
+async def finish_google_login(
+    flowId: str,
+    body: GoogleLoginFinishBody,
+    request: Request,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> LLMConfigPublic:
+    """Store the approved sign-in as the active config, then refresh the tier."""
+    service = GoogleOAuthService(session, ctx)
+    with _login_errors():
+        row = await service.finish(
+            flowId, model=body.model, project=body.project, location=body.location
+        )
+    await _publish_capability_changed(request, ctx.workspace_id, provider_tier(row.provider).value)
+    return _to_public(row)
+
+
+@router.delete(
+    "/workspaces/{workspaceId}/llm-config/google/login/{flowId}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def cancel_google_login(
+    flowId: str,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> None:
+    """Abandon a flow and release its callback listener."""
+    GoogleOAuthService(session, ctx).cancel(flowId)
 
 
 @router.get("/workspaces/{workspaceId}/llm-config/models", response_model=LLMModelsResponse)
