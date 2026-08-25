@@ -228,25 +228,40 @@ async def test_projects_before_approval_is_refused() -> None:
 
 
 @pytest.mark.asyncio
-async def test_an_antigravity_sign_in_uses_its_own_client_and_scopes() -> None:
-    """It registers separately and asks for two scopes the Gemini CLI does not,
-    so it cannot ride on the Google sign-in above it."""
-    from urllib.parse import parse_qs
-
-    from suitest_core.code_assist import ANTIGRAVITY_PROVIDER, variant
+async def test_antigravity_is_unavailable_until_an_operator_brings_a_client() -> None:
+    """Nothing is bundled for it, and refusing by name beats a broken consent URL."""
+    from suitest_core.code_assist import ANTIGRAVITY_PROVIDER
 
     session = cast("AsyncSession", object())
     service = svc.GoogleOAuthService(
-        session,
-        _CTX,
-        transport=httpx.MockTransport(_unused),
-        variant_key=ANTIGRAVITY_PROVIDER,
+        session, _CTX, transport=httpx.MockTransport(_unused), variant_key=ANTIGRAVITY_PROVIDER
+    )
+
+    with pytest.raises(svc.GoogleLoginError) as err:
+        await service.start(mode="paste", request_host="suitest.example.com")
+    assert err.value.code == "OAUTH_CLIENT_UNSET"
+
+
+@pytest.mark.asyncio
+async def test_a_configured_antigravity_sign_in_asks_for_its_own_scopes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """It cannot ride on the Google sign-in: two scopes that one does not request."""
+    from urllib.parse import parse_qs
+
+    from suitest_core.code_assist import ANTIGRAVITY_PROVIDER
+
+    monkeypatch.setenv("SUITEST_LLM_ANTIGRAVITY_OAUTH_CLIENT_ID", "operator-client-id")
+    monkeypatch.setenv("SUITEST_LLM_ANTIGRAVITY_OAUTH_CLIENT_SECRET", "operator-secret")
+
+    session = cast("AsyncSession", object())
+    service = svc.GoogleOAuthService(
+        session, _CTX, transport=httpx.MockTransport(_unused), variant_key=ANTIGRAVITY_PROVIDER
     )
     started = await service.start(mode="paste", request_host="suitest.example.com")
     query = parse_qs(urlparse(cast("str", started["authorize_url"])).query)
 
-    spec = variant(ANTIGRAVITY_PROVIDER)
-    assert query["client_id"] == [spec.client_id]
+    assert query["client_id"] == ["operator-client-id"]
     scope = query["scope"][0]
     assert "cclog" in scope
     assert "experimentsandconfigs" in scope

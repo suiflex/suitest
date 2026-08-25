@@ -50,9 +50,14 @@ def _client_credentials(provider: str) -> tuple[str | None, str | None]:
         )
     spec = CODE_ASSIST_VARIANTS.get(key)
     if spec is not None:
-        # Each Code Assist product has its own registration; the deployment-wide
-        # override does not apply to a client that is not ours to swap.
-        return spec.client_id, spec.client_secret
+        # Each Code Assist product has its own registration. Antigravity ships
+        # none, so it falls through to what the operator configured.
+        if spec.client_id:
+            return spec.client_id, spec.client_secret
+        return (
+            settings.llm_antigravity_oauth_client_id or None,
+            settings.llm_antigravity_oauth_client_secret or None,
+        )
     return None, None
 
 

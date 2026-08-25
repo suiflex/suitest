@@ -56,13 +56,17 @@ _DEFAULT_TIER: Final = "legacy-tier"
 #: Where onboarding is driven from, for both variants.
 CLOUDCODE_ENDPOINT: Final = "https://cloudcode-pa.googleapis.com"
 
-#: Antigravity's own public Desktop-app client. Not a credential in the usual
-#: sense, for the reason given in :mod:`suitest_core.google_oauth`: Google says
-#: an installed application's secret is not treated as one.
-ANTIGRAVITY_CLIENT_ID: Final = (
-    "<operator-supplied>"
-)
-ANTIGRAVITY_CLIENT_SECRET: Final = "<operator-supplied>"
+# Antigravity's client is deliberately NOT bundled, unlike the Gemini CLI's.
+#
+# The difference is provenance, not shape. Google publishes the Gemini CLI's
+# client in its own repository with a comment saying it is fine to keep in git.
+# Nothing comparable exists for Antigravity: its client is only known because a
+# third party read it out of the IDE, so shipping it would be redistributing
+# someone else's reverse-engineering under Suitest's name.
+#
+# An operator who wants this provider supplies the pair themselves via
+# ``SUITEST_LLM_ANTIGRAVITY_OAUTH_CLIENT_ID`` / ``_SECRET``; the sign-in refuses
+# with ``OAUTH_CLIENT_UNSET`` until they do.
 
 
 class CodeAssistError(Exception):
@@ -112,8 +116,8 @@ CODE_ASSIST_VARIANTS: Final[dict[str, CodeAssistVariant]] = {
     ),
     ANTIGRAVITY_PROVIDER: CodeAssistVariant(
         provider=ANTIGRAVITY_PROVIDER,
-        client_id=ANTIGRAVITY_CLIENT_ID,
-        client_secret=ANTIGRAVITY_CLIENT_SECRET,
+        client_id="",
+        client_secret="",
         # Antigravity asks for two scopes the Gemini CLI does not.
         scopes=(
             *_GOOGLE_SCOPES,

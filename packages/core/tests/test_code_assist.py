@@ -29,8 +29,11 @@ def test_the_two_variants_differ_only_where_they_have_to() -> None:
     cli = variant(CODE_ASSIST_PROVIDER)
     ag = variant(ANTIGRAVITY_PROVIDER)
 
-    # Separate client registrations, and Antigravity asks for two more scopes.
-    assert cli.client_id != ag.client_id
+    # The Gemini CLI's client is bundled because Google publishes it;
+    # Antigravity's is not, because only a third party ever has.
+    assert cli.client_id
+    assert ag.client_id == ""
+    # Antigravity asks for two scopes the Gemini CLI does not.
     assert set(cli.scopes) < set(ag.scopes)
     assert "cclog" in " ".join(ag.scopes)
 
