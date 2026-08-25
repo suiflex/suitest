@@ -20,13 +20,14 @@ first one's base URL and header.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
 from suitest_core.chatgpt_oauth import DEFAULT_CLIENT_ID
 from suitest_core.chatgpt_oauth import refresh_tokens as _refresh_chatgpt
+from suitest_core.code_assist import CODE_ASSIST_VARIANTS
 from suitest_core.google_oauth import DEFAULT_CLIENT_ID as _GOOGLE_CLIENT_ID
 from suitest_core.google_oauth import refresh_tokens as _refresh_google
 from suitest_core.oauth import OAuthTokens, StoredOAuthTokens, needs_refresh
@@ -74,6 +75,12 @@ class OAuthBackend:
     default_client_id: str
     #: Header carrying ``StoredOAuthTokens.account_id``, when the backend wants one.
     account_header: str | None = None
+    #: ``User-Agent`` this backend identifies its client with, when it cares.
+    user_agent: str | None = None
+    #: Fields sent in the request envelope beside the payload.
+    envelope_extra: dict[str, str] = field(default_factory=dict)
+    #: True when the envelope must name the project stored on the config.
+    envelope_needs_project: bool = False
 
 
 #: Provider key → its OAuth backend. A provider absent here is API-key only.
@@ -91,6 +98,19 @@ OAUTH_BACKENDS: Final[dict[str, OAuthBackend]] = {
         refresh=_refresh_google,
         default_client_id=_GOOGLE_CLIENT_ID,
     ),
+    # Code Assist products are derived rather than repeated: the variant table
+    # in ``code_assist`` is already the one place that knows how they differ.
+    **{
+        key: OAuthBackend(
+            api_base=spec.api_endpoint,
+            refresh=_refresh_google,
+            default_client_id=spec.client_id,
+            user_agent=spec.user_agent,
+            envelope_extra=dict(spec.envelope_extra),
+            envelope_needs_project=True,
+        )
+        for key, spec in CODE_ASSIST_VARIANTS.items()
+    },
 }
 
 
@@ -151,6 +171,7 @@ async def resolve_credential(
     api_key: str | None,
     base_url: str | None,
     oauth_tokens_json: str | None,
+    config: dict[str, object] | None = None,
     client_id: str | None = None,
     client_secret: str | None = None,
 ) -> tuple[ResolvedCredential, str | None]:
@@ -194,17 +215,29 @@ async def resolve_credential(
         )
         persist = stored.model_dump_json()
 
-    headers = (
-        {backend.account_header: stored.account_id}
-        if backend.account_header and stored.account_id
-        else {}
-    )
+    headers: dict[str, str] = {}
+    if backend.account_header and stored.account_id:
+        headers[backend.account_header] = stored.account_id
+    if backend.user_agent:
+        headers["User-Agent"] = backend.user_agent
+
+    extra_body: dict[str, object] = dict(backend.envelope_extra)
+    if backend.envelope_needs_project:
+        project = (config or {}).get("project")
+        if not isinstance(project, str) or not project:
+            raise CredentialError(
+                "MISSING_PROJECT",
+                f"provider {provider!r} needs the project its sign-in discovered; sign in again",
+            )
+        extra_body["project"] = project
+
     return (
         ResolvedCredential(
             provider=provider,
             api_key=stored.access_token,
             base_url=base_url or backend.api_base,
             extra_headers=headers,
+            extra_body=extra_body,
         ),
         persist,
     )

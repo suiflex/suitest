@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 from suitest_agent.providers.litellm_router import get_provider
+from suitest_core.code_assist import CODE_ASSIST_VARIANTS
 from suitest_core.llm_credentials import (
     CHATGPT_PROVIDER,
     GOOGLE_VERTEX_PROVIDER,
@@ -41,11 +42,17 @@ def _client_credentials(provider: str) -> tuple[str | None, str | None]:
     settings = get_settings()
     if provider.strip().lower() == CHATGPT_PROVIDER:
         return settings.chatgpt_oauth_client_id, None
-    if provider.strip().lower() == GOOGLE_VERTEX_PROVIDER:
+    key = provider.strip().lower()
+    if key == GOOGLE_VERTEX_PROVIDER:
         return (
             settings.llm_google_oauth_client_id or None,
             settings.llm_google_oauth_client_secret or None,
         )
+    spec = CODE_ASSIST_VARIANTS.get(key)
+    if spec is not None:
+        # Each Code Assist product has its own registration; the deployment-wide
+        # override does not apply to a client that is not ours to swap.
+        return spec.client_id, spec.client_secret
     return None, None
 
 
@@ -63,6 +70,7 @@ async def resolve_for_config(session: AsyncSession, config: LLMConfig) -> Resolv
             api_key=config.api_key_encrypted,
             base_url=config.base_url,
             oauth_tokens_json=config.oauth_tokens_encrypted,
+            config=dict(config.config_json or {}),
             client_id=client_id,
             client_secret=client_secret,
         )
@@ -90,4 +98,5 @@ def provider_for_credential(credential: ResolvedCredential) -> LLMProvider:
         api_key=credential.api_key,
         base_url=credential.base_url,
         extra_headers=credential.extra_headers or None,
+        extra_body=credential.extra_body or None,
     )

@@ -124,6 +124,9 @@ async def _build_translator(
             api_key=llm.api_key_encrypted,
             base_url=llm.base_url,
             oauth_tokens_json=llm.oauth_tokens_encrypted,
+            # Code Assist names its project in the request envelope, and the
+            # project lives on the config rather than in the token.
+            config=dict(llm.config_json or {}),
         )
     if persist is not None:
         await repo.update(llm.id, LLMConfigUpdate(oauth_tokens_encrypted=persist))
@@ -133,6 +136,7 @@ async def _build_translator(
         api_key=credential.api_key,
         base_url=credential.base_url,
         extra_headers=credential.extra_headers or None,
+        extra_body=credential.extra_body or None,
     )
     model = llm.model
 
