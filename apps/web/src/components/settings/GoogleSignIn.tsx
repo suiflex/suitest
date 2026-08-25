@@ -5,6 +5,7 @@ import {
   ApiError,
   cancelGoogleLogin,
   fetchGoogleProjects,
+  fetchGoogleLoginModels,
   finishGoogleLogin,
   type GoogleBackend,
   type GoogleLoginStart,
@@ -125,6 +126,15 @@ export function GoogleSignIn({
     retry: false,
   });
   const projects = projectsQuery.data ?? [];
+
+  // Only the Code Assist backends publish a list here; Vertex does not.
+  const modelsQuery = useQuery({
+    queryKey: ["google-login-models", workspaceId, flow?.flowId] as const,
+    queryFn: () => (flow ? fetchGoogleLoginModels(workspaceId, flow.flowId) : []),
+    enabled: ready && !needsProject && flow !== null,
+    retry: false,
+  });
+  const models = modelsQuery.data ?? [];
 
   const status = pasteAccepted ? "ready" : statusQuery.data?.status;
   const email = pasteMutation.data?.email ?? statusQuery.data?.email;
@@ -309,15 +319,36 @@ export function GoogleSignIn({
             <label htmlFor="google-model" className="text-[12.5px] font-medium text-fg-1">
               Model
             </label>
-            <input
-              id="google-model"
-              autoComplete="off"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              placeholder="google/gemini-2.5-pro"
-              required
-              className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
-            />
+            {models.length > 0 ? (
+              <select
+                id="google-model"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                required
+                className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
+                data-testid="google-signin-model-select"
+              >
+                <option value="">Select a model…</option>
+                {models.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              // The list is undocumented and may not come back; typing one is
+              // always allowed rather than blocking on it.
+              <input
+                id="google-model"
+                autoComplete="off"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder="gemini-2.5-pro"
+                required
+                className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
+                data-testid="google-signin-model-input"
+              />
+            )}
           </div>
 
           <button

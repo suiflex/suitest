@@ -539,6 +539,22 @@ async def list_google_projects(
     )
 
 
+@router.get(
+    "/workspaces/{workspaceId}/llm-config/google/login/{flowId}/models",
+    response_model=LLMModelsResponse,
+)
+async def list_google_login_models(
+    flowId: str,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> LLMModelsResponse:
+    """Models the signed-in Code Assist account may call. Empty if unreadable."""
+    service = GoogleOAuthService(session, ctx)
+    with _login_errors():
+        found = await service.models(flowId)
+    return LLMModelsResponse(provider="google-codeassist", models=[{"id": m} for m in found])
+
+
 @router.post(
     "/workspaces/{workspaceId}/llm-config/google/login/{flowId}/finish",
     response_model=LLMConfigPublic,

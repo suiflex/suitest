@@ -47,6 +47,7 @@ ANTIGRAVITY_PROVIDER: Final = "antigravity"
 
 _LOAD_PATH: Final = "/v1internal:loadCodeAssist"
 _ONBOARD_PATH: Final = "/v1internal:onboardUser"
+_MODELS_PATH: Final = "/v1internal:fetchAvailableModels"
 #: Onboarding is a long-running operation; poll it rather than assume it is done.
 _ONBOARD_ATTEMPTS: Final = 10
 _ONBOARD_INTERVAL_S: Final = 5.0
@@ -294,3 +295,57 @@ async def resolve_account(
             sleep_s=sleep_s,
         )
     return CodeAssistAccount(project_id=project_id, tier_id=tier_id)
+
+
+async def fetch_available_models(
+    client: httpx.AsyncClient,
+    *,
+    access_token: str,
+    spec: CodeAssistVariant,
+    endpoint: str = CLOUDCODE_ENDPOINT,
+) -> list[str]:
+    """List the model ids this account may call, newest surface first.
+
+    Returns ``[]`` rather than raising: a sign-in that already succeeded must
+    not fail because its model list could not be read, and the caller falls
+    back to letting the user type one.
+
+    The response shape is not documented anywhere public. Model entries have
+    been seen keyed by ``name`` and by ``modelId``, so both are accepted and
+    anything unrecognised is skipped rather than guessed at.
+    """
+    import httpx as _httpx
+
+    try:
+        response = await client.post(
+            f"{endpoint.rstrip('/')}{_MODELS_PATH}",
+            headers=_headers(access_token, spec),
+            json={"metadata": client_metadata(spec)},
+        )
+    except _httpx.HTTPError:
+        return []
+    if response.status_code >= 400:
+        return []
+    try:
+        parsed = response.json()
+    except ValueError:
+        return []
+    if not isinstance(parsed, dict):
+        return []
+
+    models: list[str] = []
+    for raw in parsed.get("models") or []:
+        if isinstance(raw, str) and raw.strip():
+            models.append(raw.strip())
+            continue
+        if not isinstance(raw, dict):
+            continue
+        for key in ("modelId", "name", "model"):
+            value = raw.get(key)
+            if isinstance(value, str) and value.strip():
+                # Some surfaces qualify the id as "models/<id>".
+                models.append(value.strip().removeprefix("models/"))
+                break
+    # Preserve order while dropping repeats: the same model can appear under
+    # more than one entry.
+    return list(dict.fromkeys(models))

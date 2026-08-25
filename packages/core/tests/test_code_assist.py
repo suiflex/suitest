@@ -12,6 +12,7 @@ from suitest_core.code_assist import (
     CODE_ASSIST_PROVIDER,
     CodeAssistError,
     client_metadata,
+    fetch_available_models,
     load_code_assist,
     onboard_user,
     resolve_account,
@@ -191,3 +192,49 @@ async def test_a_rejected_load_surfaces_rather_than_returning_no_project() -> No
         with pytest.raises(CodeAssistError) as err:
             await load_code_assist(client, access_token="t", spec=variant(CODE_ASSIST_PROVIDER))
     assert err.value.code == "LOAD_FAILED"
+
+
+@pytest.mark.asyncio
+async def test_model_list_accepts_the_shapes_the_surface_uses() -> None:
+    """Undocumented response: entries have been seen keyed several ways."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1internal:fetchAvailableModels"
+        return httpx.Response(
+            200,
+            json={
+                "models": [
+                    {"modelId": "gemini-2.5-pro"},
+                    {"name": "models/gemini-2.5-flash"},
+                    "gemini-3-flash",
+                    {"modelId": "gemini-2.5-pro"},
+                    {"unexpected": "shape"},
+                    42,
+                ]
+            },
+        )
+
+    async with _client(handler) as client:
+        models = await fetch_available_models(
+            client, access_token="t", spec=variant(CODE_ASSIST_PROVIDER)
+        )
+
+    # Qualified ids are unqualified, repeats collapse, order is kept, and an
+    # entry we cannot read is skipped rather than guessed at.
+    assert models == ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-3-flash"]
+
+
+@pytest.mark.asyncio
+async def test_model_list_degrades_to_empty() -> None:
+    """The sign-in already succeeded; an unreadable list must not undo it."""
+
+    def denied(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, text="no such method")
+
+    async with _client(denied) as client:
+        assert (
+            await fetch_available_models(
+                client, access_token="t", spec=variant(CODE_ASSIST_PROVIDER)
+            )
+            == []
+        )

@@ -555,4 +555,64 @@ describe("LlmSettingsPanel", () => {
       expect(finished).toEqual({ model: "gemini-2.5-pro", backend: "code_assist" });
     });
   });
+
+  it("offers the models the account can call, and lets one be typed when it cannot", async () => {
+    server.use(
+      http.post("*/api/v1/workspaces/ws_1/llm-config/google/login", () =>
+        HttpResponse.json({
+          flowId: "m_1",
+          mode: "browser",
+          authorizeUrl: "https://x/a",
+          intervalS: 1,
+        }),
+      ),
+      http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/m_1", () =>
+        HttpResponse.json({ status: "ready", email: "dev@example.com", hasRefreshToken: true }),
+      ),
+      http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/m_1/models", () =>
+        HttpResponse.json({ provider: "google-codeassist", models: [{ id: "gemini-2.5-pro" }] }),
+      ),
+    );
+
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "google");
+    await user.click(screen.getByLabelText(/sign in with google/i));
+    await user.click(screen.getByTestId("google-signin-start"));
+
+    const select = await screen.findByTestId("google-signin-model-select");
+    expect(select).toBeInTheDocument();
+    await user.selectOptions(select, "gemini-2.5-pro");
+  });
+
+  it("falls back to a typed model when the list cannot be read", async () => {
+    server.use(
+      http.post("*/api/v1/workspaces/ws_1/llm-config/google/login", () =>
+        HttpResponse.json({
+          flowId: "m_2",
+          mode: "browser",
+          authorizeUrl: "https://x/a",
+          intervalS: 1,
+        }),
+      ),
+      http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/m_2", () =>
+        HttpResponse.json({ status: "ready", email: "dev@example.com", hasRefreshToken: true }),
+      ),
+      // The endpoint is undocumented; an empty answer must not block the save.
+      http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/m_2/models", () =>
+        HttpResponse.json({ provider: "google-codeassist", models: [] }),
+      ),
+    );
+
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "google");
+    await user.click(screen.getByLabelText(/sign in with google/i));
+    await user.click(screen.getByTestId("google-signin-start"));
+
+    expect(await screen.findByTestId("google-signin-model-input")).toBeInTheDocument();
+    expect(screen.queryByTestId("google-signin-model-select")).not.toBeInTheDocument();
+  });
 });

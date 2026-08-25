@@ -704,6 +704,17 @@ export async function submitGoogleCallback(
  *  in who pays and in what the user has to supply. */
 export type GoogleBackend = "code_assist" | "vertex";
 
+/** Models the signed-in Code Assist account may call. Empty if unreadable. */
+export async function fetchGoogleLoginModels(
+  workspaceId: string,
+  flowId: string,
+): Promise<string[]> {
+  const res = await api.get<{ provider: string; models: { id: string }[] }>(
+    `/workspaces/${workspaceId}/llm-config/google/login/${flowId}/models`,
+  );
+  return (res.data.models ?? []).map((m) => m.id).filter(Boolean);
+}
+
 export async function finishGoogleLogin(
   workspaceId: string,
   flowId: string,

@@ -32,7 +32,12 @@ from typing import TYPE_CHECKING, Literal
 
 import httpx
 import structlog
-from suitest_core.code_assist import CODE_ASSIST_PROVIDER, resolve_account, variant
+from suitest_core.code_assist import (
+    CODE_ASSIST_PROVIDER,
+    fetch_available_models,
+    resolve_account,
+    variant,
+)
 from suitest_core.google_oauth import (
     CLOUD_PLATFORM_SCOPES,
     GoogleOAuthError,
@@ -257,6 +262,17 @@ class GoogleOAuthService:
             raise GoogleLoginError("NOT_APPROVED", "the sign-in has not been approved yet")
         async with self._http() as client:
             return await list_projects(client, access_token=flow.tokens.access_token)
+
+    async def models(self, flow_id: str) -> list[str]:
+        """The models the approved account may call, for the model picker.
+
+        Only meaningful for a Code Assist backend; Vertex publishes its catalog
+        elsewhere. An unreadable list comes back empty and the UI asks instead.
+        """
+        tokens = self._approved(flow_id)
+        spec = variant(self._flow(flow_id).variant_key or CODE_ASSIST_PROVIDER)
+        async with self._http() as client:
+            return await fetch_available_models(client, access_token=tokens.access_token, spec=spec)
 
     # --- finish --------------------------------------------------------------
 
