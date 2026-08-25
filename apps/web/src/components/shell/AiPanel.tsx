@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Gated } from "@/components/gating/Gated";
 import { Button } from "@/components/ui/button";
 import { type ChatMessageInput, type ChatToolEvent, streamChat } from "@/lib/chat-client";
+import { providerLabel } from "@/lib/llm-vendors";
 import { useCapabilities } from "@/stores/use-capabilities";
 
 /**
@@ -29,7 +30,9 @@ interface ChatTurn {
 
 function AiPanelInner(): React.ReactElement {
   const capabilities = useCapabilities((s) => s.capabilities);
-  const provider = capabilities?.llm?.provider ?? "unknown";
+  const provider = capabilities?.llm?.provider
+    ? providerLabel(capabilities.llm.provider)
+    : "unknown";
   const model = capabilities?.llm?.model ?? "—";
   const autonomy = capabilities?.autonomy?.default ?? "manual";
 

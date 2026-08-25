@@ -34,7 +34,12 @@ const ZERO_CAPS: Capabilities = {
 const LOCAL_CAPS: Capabilities = {
   ...ZERO_CAPS,
   tier: "LOCAL",
-  llm: { provider: "ollama", model: "llama3.1", base_url: "http://localhost:11434", is_test_provider: false },
+  llm: {
+    provider: "ollama",
+    model: "llama3.1",
+    base_url: "http://localhost:11434",
+    is_test_provider: false,
+  },
   features: { ...BASE_FEATURES, ai_generation: true, ai_conversation: true },
   autonomy: { available: ["manual", "assist"], default: "assist" },
 };
@@ -42,7 +47,12 @@ const LOCAL_CAPS: Capabilities = {
 const CLOUD_CAPS: Capabilities = {
   ...ZERO_CAPS,
   tier: "CLOUD",
-  llm: { provider: "anthropic", model: "claude-sonnet-4-5", base_url: null, is_test_provider: false },
+  llm: {
+    provider: "anthropic",
+    model: "claude-sonnet-4-5",
+    base_url: null,
+    is_test_provider: false,
+  },
   features: { ...BASE_FEATURES, ai_generation: true, ai_conversation: true },
   autonomy: { available: ["manual", "assist", "semi_auto", "auto"], default: "assist" },
 };
@@ -78,7 +88,7 @@ describe("<TierBadge>", () => {
     setCaps(LOCAL_CAPS);
     render(<TierBadge />);
     const badge = screen.getByTestId("tier-badge");
-    expect(badge).toHaveTextContent("LOCAL · ollama:llama3.1");
+    expect(badge).toHaveTextContent("LOCAL · Ollama:llama3.1");
     expect(badge.className).toContain("text-blue");
   });
 
@@ -86,7 +96,7 @@ describe("<TierBadge>", () => {
     setCaps(CLOUD_CAPS);
     render(<TierBadge />);
     const badge = screen.getByTestId("tier-badge");
-    expect(badge).toHaveTextContent("CLOUD · anthropic:claude-sonnet-4-5");
+    expect(badge).toHaveTextContent("CLOUD · Anthropic:claude-sonnet-4-5");
     expect(badge.className).toContain("text-violet");
   });
 
@@ -95,9 +105,9 @@ describe("<TierBadge>", () => {
     render(<TierBadge />);
     await userEvent.click(screen.getByTestId("tier-badge"));
     const popover = await screen.findByTestId("tier-badge-popover");
-    expect(popover).toHaveTextContent("anthropic");
+    expect(popover).toHaveTextContent("Anthropic");
     expect(popover).toHaveTextContent("claude-sonnet-4-5");
-    expect(screen.getByTestId("tier-badge-configure")).toHaveAttribute("href", "/settings/llm");
+    expect(screen.getByTestId("tier-badge-configure")).toHaveAttribute("href", "/settings");
   });
 
   it("falls back to ZERO when capabilities are not loaded yet", () => {

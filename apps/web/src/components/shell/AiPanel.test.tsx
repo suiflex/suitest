@@ -89,7 +89,7 @@ describe("<AiPanel>", () => {
     expect(screen.getByTestId("ai-panel")).toBeInTheDocument();
     expect(screen.getByText("Suitest Agent")).toBeInTheDocument();
     expect(screen.getByTestId("ai-panel-subtitle")).toHaveTextContent(
-      "anthropic:claude-sonnet-4-5 · assist",
+      "Anthropic:claude-sonnet-4-5 · assist",
     );
   });
 

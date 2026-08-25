@@ -1,8 +1,5 @@
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { providerLabel } from "@/lib/llm-vendors";
 import { cn } from "@/lib/utils";
 import { useCapabilities, type Tier } from "@/stores/use-capabilities";
 
@@ -28,7 +25,8 @@ export function TierBadge(): React.ReactElement {
   // don't crash the topbar. Falls back to "ZERO" via the tier default above.
   const provider = capabilities?.llm?.provider ?? null;
   const model = capabilities?.llm?.model ?? null;
-  const providerModel = provider && model ? `${provider}:${model}` : provider;
+  const providerName = provider ? providerLabel(provider) : null;
+  const providerModel = providerName && model ? `${providerName}:${model}` : providerName;
   const label = tier === "ZERO" || !providerModel ? tier : `${tier} · ${providerModel}`;
 
   return (
@@ -58,12 +56,12 @@ export function TierBadge(): React.ReactElement {
           </div>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12.5px]">
             <dt className="text-fg-4">Provider</dt>
-            <dd className="font-mono text-fg-1">{provider ?? "—"}</dd>
+            <dd className="font-mono text-fg-1">{providerLabel(provider)}</dd>
             <dt className="text-fg-4">Model</dt>
             <dd className="font-mono text-fg-1">{model ?? "—"}</dd>
           </dl>
           <a
-            href="/settings/llm"
+            href="/settings"
             className="mt-1 inline-flex w-fit text-[12.5px] text-accent hover:underline"
             data-testid="tier-badge-configure"
           >
