@@ -667,10 +667,12 @@ export interface GoogleLoginStatus {
 export async function startGoogleLogin(
   workspaceId: string,
   mode: "auto" | "browser" | "paste" = "auto",
+  /** A Code Assist product with its own OAuth client, e.g. Antigravity. */
+  variant?: "antigravity",
 ): Promise<GoogleLoginStart> {
   const res = await api.post<GoogleLoginStart>(
     `/workspaces/${workspaceId}/llm-config/google/login`,
-    { mode },
+    { mode, ...(variant ? { variant } : {}) },
   );
   return res.data;
 }

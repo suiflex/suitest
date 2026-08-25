@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -223,9 +223,14 @@ class LoginStatus(BaseModel):
 
 
 class GoogleLoginStartBody(BaseModel):
-    """``auto`` resolves to the loopback redirect on localhost, paste elsewhere."""
+    """``auto`` resolves to the loopback redirect on localhost, paste elsewhere.
+
+    ``variant`` names a Code Assist product that registers its own OAuth client
+    — Antigravity does, so it cannot ride on the plain Google sign-in.
+    """
 
     mode: GoogleLoginMode = "auto"
+    variant: Literal["antigravity"] | None = None
 
 
 class GoogleLoginStatus(BaseModel):
@@ -477,7 +482,7 @@ async def start_google_login(
     session: AsyncSession = Depends(get_async_session),
 ) -> LoginStart:
     """Begin a Sign in with Google flow and return the URL to open."""
-    service = GoogleOAuthService(session, ctx)
+    service = GoogleOAuthService(session, ctx, variant_key=body.variant)
     with _login_errors():
         started = await service.start(mode=body.mode, request_host=request.url.hostname or "")
     return LoginStart.model_validate(started)

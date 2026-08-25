@@ -28,12 +28,14 @@ export interface Vendor {
   oauth?: {
     label: string;
     /** Which sign-in flow drives it — the panel maps this to a component. */
-    flow: "chatgpt" | "google";
+    flow: "chatgpt" | "google" | "antigravity";
   };
   /** The user must supply the endpoint; there is no default to fall back to. */
   needsBaseUrl?: boolean;
   /** No API key field: the endpoint is unauthenticated or uses ambient creds. */
   keyless?: boolean;
+  /** Reachable only by signing in — there is no key to paste for this one. */
+  oauthOnly?: boolean;
 }
 
 export const VENDORS: readonly Vendor[] = [
@@ -57,6 +59,16 @@ export const VENDORS: readonly Vendor[] = [
     // A pasted key is an AI Studio key, which talks to the Gemini API.
     apiKeyProvider: "gemini",
     oauth: { label: "Sign in with Google", flow: "google" },
+  },
+  {
+    id: "antigravity",
+    label: "Antigravity",
+    group: "cloud",
+    // No key path: this product is only reachable by signing in.
+    apiKeyProvider: "antigravity",
+    oauth: { label: "Sign in with Google", flow: "antigravity" },
+    keyless: true,
+    oauthOnly: true,
   },
   { id: "groq", label: "Groq", group: "cloud", apiKeyProvider: "groq" },
   { id: "openrouter", label: "OpenRouter", group: "cloud", apiKeyProvider: "openrouter" },
@@ -116,6 +128,7 @@ export function vendorsInGroup(group: VendorGroup): Vendor[] {
 const OAUTH_ONLY_LABELS: Record<string, string> = {
   chatgpt: "OpenAI (ChatGPT plan)",
   "google-vertex": "Google (Vertex AI)",
+  "google-codeassist": "Google (Code Assist)",
 };
 
 /** Provider keys the backend accepts but this build does not offer in the picker. */

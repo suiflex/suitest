@@ -46,7 +46,9 @@ export function LlmSettingsPanel({
   const vendor = vendorById(vendorId);
   // A vendor with no sign-in has only one way in, so the radio never shows and
   // the choice can never be left pointing at a flow that is not there.
-  const signingIn = authMethod === "oauth" && vendor?.oauth !== undefined;
+  // A vendor with no key path is always signing in; one with no sign-in never is.
+  const signingIn =
+    vendor?.oauth !== undefined && (vendor.oauthOnly === true || authMethod === "oauth");
 
   const body = (): LlmConfigWriteBody => {
     const next: LlmConfigWriteBody = {
@@ -191,7 +193,7 @@ export function LlmSettingsPanel({
             ) : null}
           </div>
 
-          {vendor?.oauth ? (
+          {vendor?.oauth && !vendor.oauthOnly ? (
             <fieldset className="flex gap-4" data-testid="llm-auth-method">
               <legend className="px-1 text-[12.5px] font-medium text-fg-1">Authentication</legend>
               {(
@@ -225,6 +227,10 @@ export function LlmSettingsPanel({
 
       {canWrite && signingIn && vendor?.oauth?.flow === "google" ? (
         <GoogleSignIn workspaceId={workspaceId} onDone={refresh} />
+      ) : null}
+
+      {canWrite && signingIn && vendor?.oauth?.flow === "antigravity" ? (
+        <GoogleSignIn workspaceId={workspaceId} onDone={refresh} variant="antigravity" />
       ) : null}
 
       {canWrite && !signingIn ? (

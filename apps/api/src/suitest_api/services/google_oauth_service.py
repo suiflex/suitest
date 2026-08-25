@@ -87,6 +87,9 @@ class _PendingFlow(PendingFlow):
     """A Google login. ``paste`` mode opens no listener, so it has no port."""
 
     mode: Literal["browser", "paste"] = "browser"
+    #: Which Code Assist product this sign-in was started for, if any. Read back
+    #: at ``finish``: the service is rebuilt per request and would not remember.
+    variant_key: str | None = None
 
 
 class GoogleOAuthService:
@@ -113,7 +116,7 @@ class GoogleOAuthService:
         else:
             # Antigravity registers its own client and asks for two scopes the
             # Gemini CLI does not, so it cannot ride on the sign-in above.
-            spec = variant(variant_key or self._variant_key or CODE_ASSIST_PROVIDER)
+            spec = variant(variant_key)
             self._client_id = spec.client_id
             self._client_secret = spec.client_secret
             self._scopes = spec.scopes
@@ -136,6 +139,7 @@ class GoogleOAuthService:
             workspace_id=self._ctx.workspace_id,
             started_at=datetime.now(tz=UTC),
             mode=resolved,
+            variant_key=self._variant_key,
         )
 
         verifier, challenge = generate_pkce()
@@ -275,7 +279,7 @@ class GoogleOAuthService:
         tokens = self._approved(flow_id)
 
         if backend == "code_assist":
-            spec = variant(variant_key or self._variant_key or CODE_ASSIST_PROVIDER)
+            spec = variant(variant_key or self._flow(flow_id).variant_key or CODE_ASSIST_PROVIDER)
             async with self._http() as client:
                 account = await resolve_account(client, access_token=tokens.access_token, spec=spec)
             provider = spec.provider

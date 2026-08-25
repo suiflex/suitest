@@ -38,11 +38,28 @@ describe("llm-vendors", () => {
     expect(providerLabel("  Google-Vertex  ")).toBe("Google (Vertex AI)");
   });
 
-  it("offers exactly two vendors that can be signed in to", () => {
+  it("maps each signed-in vendor to its own flow", () => {
     const withOauth = VENDORS.filter((v) => v.oauth);
-    expect(withOauth.map((v) => v.id).sort()).toEqual(["google", "openai"]);
+    expect(withOauth.map((v) => v.id).sort()).toEqual(["antigravity", "google", "openai"]);
     expect(vendorById("openai")?.oauth?.flow).toBe("chatgpt");
     expect(vendorById("google")?.oauth?.flow).toBe("google");
+    expect(vendorById("antigravity")?.oauth?.flow).toBe("antigravity");
+  });
+
+  it("marks antigravity as reachable only by signing in", () => {
+    // It has no key to paste, so the panel must not offer that as a choice.
+    const ag = vendorById("antigravity");
+    expect(ag?.oauthOnly).toBe(true);
+    // Every other vendor does have a key path.
+    for (const v of VENDORS.filter((x) => x.id !== "antigravity")) {
+      expect(v.oauthOnly).toBeUndefined();
+    }
+  });
+
+  it("names the code assist provider key", () => {
+    expect(providerLabel("google-codeassist")).toBe("Google (Code Assist)");
+    // Antigravity's stored key matches its vendor, so it reads back on its own.
+    expect(providerLabel("antigravity")).toBe("Antigravity");
   });
 
   it("marks every local vendor as needing a base url and no key", () => {

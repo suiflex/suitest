@@ -499,4 +499,60 @@ describe("LlmSettingsPanel", () => {
     // And it never went looking for a project list it does not need.
     expect(projectsAsked).toBe(false);
   });
+
+  it("signs in to antigravity with its own oauth client and no key option", async () => {
+    let startBody: unknown = null;
+    let finished: unknown = null;
+    server.use(
+      http.post("*/api/v1/workspaces/ws_1/llm-config/google/login", async ({ request }) => {
+        startBody = await request.json();
+        return HttpResponse.json({
+          flowId: "a_1",
+          mode: "browser",
+          authorizeUrl: "https://x/a",
+          intervalS: 1,
+        });
+      }),
+      http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/a_1", () =>
+        HttpResponse.json({ status: "ready", email: "dev@example.com", hasRefreshToken: true }),
+      ),
+      http.post(
+        "*/api/v1/workspaces/ws_1/llm-config/google/login/a_1/finish",
+        async ({ request }) => {
+          finished = await request.json();
+          return HttpResponse.json({
+            id: "cfg_1",
+            provider: "antigravity",
+            model: "gemini-2.5-pro",
+            config: {},
+            isActive: true,
+            tier: "CLOUD",
+          });
+        },
+      ),
+    );
+
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "antigravity");
+
+    // There is no key to paste for this one, so no choice is offered — the
+    // sign-in panel is simply what the vendor is.
+    expect(screen.queryByTestId("llm-auth-method")).not.toBeInTheDocument();
+    expect(screen.getByTestId("google-signin")).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("google-signin-start"));
+    expect(startBody).toEqual({ mode: "auto", variant: "antigravity" });
+
+    await screen.findByTestId("google-signin-ready");
+    // One backend, so no backend choice and no project question.
+    expect(screen.queryByLabelText(/vertex ai/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("google-signin-project-input")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("google-signin-finish"));
+    await waitFor(() => {
+      expect(finished).toEqual({ model: "gemini-2.5-pro", backend: "code_assist" });
+    });
+  });
 });

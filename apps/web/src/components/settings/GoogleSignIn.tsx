@@ -38,13 +38,17 @@ function loginError(fallback: string, err: unknown): string {
 export function GoogleSignIn({
   workspaceId,
   onDone,
+  variant,
 }: {
   workspaceId: string;
   onDone: () => void;
+  /** A Code Assist product with its own OAuth client. Omitted for plain Google. */
+  variant?: "antigravity";
 }): React.ReactElement {
   const [flow, setFlow] = useState<GoogleLoginStart | null>(null);
   const [pastedUrl, setPastedUrl] = useState("");
   const [pasteAccepted, setPasteAccepted] = useState(false);
+  // Antigravity has one backend; only plain Google offers a choice.
   const [backend, setBackend] = useState<GoogleBackend>("code_assist");
   const [model, setModel] = useState("gemini-2.5-pro");
   const [project, setProject] = useState("");
@@ -52,7 +56,7 @@ export function GoogleSignIn({
   const [error, setError] = useState<string | null>(null);
 
   const startMutation = useMutation({
-    mutationFn: () => startGoogleLogin(workspaceId),
+    mutationFn: () => startGoogleLogin(workspaceId, "auto", variant),
     onSuccess: (started) => {
       setError(null);
       setPasteAccepted(false);
@@ -112,7 +116,7 @@ export function GoogleSignIn({
 
   const ready = pasteAccepted || statusQuery.data?.status === "ready";
   // Only Vertex needs a project from the user; Code Assist discovers its own.
-  const needsProject = backend === "vertex";
+  const needsProject = variant === undefined && backend === "vertex";
   const projectsQuery = useQuery({
     queryKey: ["google-projects", workspaceId, flow?.flowId] as const,
     queryFn: () => (flow ? fetchGoogleProjects(workspaceId, flow.flowId) : []),
@@ -198,33 +202,37 @@ export function GoogleSignIn({
         <div className="space-y-3" data-testid="google-signin-ready">
           <p className="text-[13px] text-accent">Signed in{email ? ` as ${email}` : ""}.</p>
 
-          <div className="space-y-2">
-            <span className="text-[12.5px] font-medium text-fg-1">Use this sign-in for</span>
-            {(
-              [
-                ["code_assist", "Code Assist quota — free, no Google Cloud project"],
-                ["vertex", "Vertex AI — needs a project with billing"],
-              ] as const
-            ).map(([value, label]) => (
-              <label key={value} className="flex items-center gap-2 text-[13px] text-fg-1">
-                <input
-                  type="radio"
-                  name="google-backend"
-                  value={value}
-                  checked={backend === value}
-                  onChange={() => {
-                    setBackend(value);
-                    setModel(value === "vertex" ? "google/gemini-2.5-pro" : "gemini-2.5-pro");
-                  }}
-                  className="accent-accent"
-                />
-                {label}
-              </label>
-            ))}
-          </div>
+          {variant === undefined ? (
+            <div className="space-y-2">
+              <span className="text-[12.5px] font-medium text-fg-1">Use this sign-in for</span>
+              {(
+                [
+                  ["code_assist", "Code Assist quota — free, no Google Cloud project"],
+                  ["vertex", "Vertex AI — needs a project with billing"],
+                ] as const
+              ).map(([value, label]) => (
+                <label key={value} className="flex items-center gap-2 text-[13px] text-fg-1">
+                  <input
+                    type="radio"
+                    name="google-backend"
+                    value={value}
+                    checked={backend === value}
+                    onChange={() => {
+                      setBackend(value);
+                      setModel(value === "vertex" ? "google/gemini-2.5-pro" : "gemini-2.5-pro");
+                    }}
+                    className="accent-accent"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          ) : null}
 
           {backend === "code_assist" ? (
-            <UnlicensedSessionNotice what="your Gemini Code Assist quota" />
+            <UnlicensedSessionNotice
+              what={variant ? "your Antigravity account" : "your Gemini Code Assist quota"}
+            />
           ) : null}
 
           {needsProject ? (
