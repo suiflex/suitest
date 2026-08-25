@@ -34,8 +34,10 @@ import httpx
 import structlog
 from suitest_core.google_oauth import (
     GoogleOAuthError,
+    GoogleProject,
     build_authorize_url,
     exchange_code,
+    list_projects,
     loopback_redirect_uri,
     parse_callback_url,
 )
@@ -220,6 +222,18 @@ class GoogleOAuthService:
                 redirect_uri=flow.redirect_uri,
                 code_verifier=flow.code_verifier,
             )
+
+    async def projects(self, flow_id: str) -> list[GoogleProject]:
+        """The GCP projects the approved sign-in can see.
+
+        Read mid-flow, from the token the flow is holding: nothing is persisted
+        until ``finish``, and the project is one of the things ``finish`` needs.
+        """
+        flow = self._flow(flow_id)
+        if flow.tokens is None:
+            raise GoogleLoginError("NOT_APPROVED", "the sign-in has not been approved yet")
+        async with self._http() as client:
+            return await list_projects(client, access_token=flow.tokens.access_token)
 
     # --- finish --------------------------------------------------------------
 

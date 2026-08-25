@@ -247,6 +247,21 @@ class GoogleCallbackBody(BaseModel):
     callback_url: str = Field(alias="callbackUrl", min_length=1, max_length=4096)
 
 
+class GoogleProjectOut(BaseModel):
+    """One GCP project the signed-in user can pick."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    project_id: str = Field(alias="projectId")
+    name: str
+
+
+class GoogleProjectsResponse(BaseModel):
+    """Empty when the list could not be read — the UI then asks for the id."""
+
+    projects: list[GoogleProjectOut] = Field(default_factory=list)
+
+
 class GoogleLoginFinishBody(BaseModel):
     """Vertex needs a project and region: they are what its endpoint is built from."""
 
@@ -486,6 +501,24 @@ async def submit_google_callback(
     with _login_errors():
         state = await service.submit_callback_url(flowId, url=body.callback_url)
     return GoogleLoginStatus.model_validate(state)
+
+
+@router.get(
+    "/workspaces/{workspaceId}/llm-config/google/login/{flowId}/projects",
+    response_model=GoogleProjectsResponse,
+)
+async def list_google_projects(
+    flowId: str,
+    ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> GoogleProjectsResponse:
+    """The GCP projects the approved sign-in can see, for the project picker."""
+    service = GoogleOAuthService(session, ctx)
+    with _login_errors():
+        found = await service.projects(flowId)
+    return GoogleProjectsResponse(
+        projects=[GoogleProjectOut(project_id=p.project_id, name=p.name) for p in found]
+    )
 
 
 @router.post(

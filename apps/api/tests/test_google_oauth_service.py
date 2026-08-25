@@ -189,3 +189,39 @@ async def test_a_cancelled_flow_releases_its_port() -> None:
     server.close()
     with contextlib.suppress(Exception):
         await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_projects_reads_the_flow_token_before_anything_is_persisted() -> None:
+    """The project is one of the things finish needs, so it is picked mid-flow."""
+    seen_auth: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "cloudresourcemanager" in str(request.url):
+            seen_auth.append(request.headers.get("authorization"))
+            return httpx.Response(200, json={"projects": [{"projectId": "p-1", "name": "First"}]})
+        return _tokens(request)
+
+    service = _service(handler)
+    started = await service.start(mode="paste", request_host="suitest.example.com")
+    flow_id = cast("str", started["flow_id"])
+    state = oauth_flows.FLOWS[flow_id].state
+    await service.submit_callback_url(
+        flow_id, url=f"http://127.0.0.1:8765/?state={state}&code=4/abc"
+    )
+
+    found = await service.projects(flow_id)
+
+    assert [p.project_id for p in found] == ["p-1"]
+    assert seen_auth == ["Bearer ya29.live"]
+
+
+@pytest.mark.asyncio
+async def test_projects_before_approval_is_refused() -> None:
+    """There is no token to read yet, and saying so beats an empty list."""
+    service = _service()
+    started = await service.start(mode="paste", request_host="suitest.example.com")
+
+    with pytest.raises(svc.GoogleLoginError) as err:
+        await service.projects(cast("str", started["flow_id"]))
+    assert err.value.code == "NOT_APPROVED"
