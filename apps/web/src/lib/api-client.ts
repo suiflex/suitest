@@ -710,6 +710,22 @@ export async function finishGoogleLogin(
   return res.data;
 }
 
+export interface GoogleProject {
+  projectId: string;
+  name: string;
+}
+
+/** Empty when the list could not be read — the caller then asks for the id. */
+export async function fetchGoogleProjects(
+  workspaceId: string,
+  flowId: string,
+): Promise<GoogleProject[]> {
+  const res = await api.get<{ projects: GoogleProject[] }>(
+    `/workspaces/${workspaceId}/llm-config/google/login/${flowId}/projects`,
+  );
+  return res.data.projects ?? [];
+}
+
 export async function cancelGoogleLogin(workspaceId: string, flowId: string): Promise<void> {
   await api.delete(`/workspaces/${workspaceId}/llm-config/google/login/${flowId}`);
 }

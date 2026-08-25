@@ -172,6 +172,9 @@ describe("LlmSettingsPanel", () => {
           ? HttpResponse.json({ status: "pending" })
           : HttpResponse.json({ status: "ready", email: "dev@example.com", hasRefreshToken: true });
       }),
+      http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/g_1/projects", () =>
+        HttpResponse.json({ projects: [{ projectId: "my-project-123", name: "My Project" }] }),
+      ),
       http.post(
         "*/api/v1/workspaces/ws_1/llm-config/google/login/g_1/finish",
         async ({ request }) => {
@@ -198,7 +201,11 @@ describe("LlmSettingsPanel", () => {
     await screen.findByTestId("google-signin-ready", undefined, { timeout: 4000 });
     expect(screen.getByTestId("google-signin-ready")).toHaveTextContent(/dev@example.com/);
 
-    await user.type(screen.getByLabelText(/project id/i), "my-project-123");
+    // The project list was readable, so this is a pick rather than a typed id.
+    await user.selectOptions(
+      await screen.findByTestId("google-signin-project-select"),
+      "my-project-123",
+    );
     await user.click(screen.getByTestId("google-signin-finish"));
 
     await waitFor(() => {
@@ -338,6 +345,62 @@ describe("LlmSettingsPanel", () => {
 
     await waitFor(() => {
       expect(saved).toMatchObject({ provider: "gemini", model: "gemini-2.5-pro" });
+    });
+  });
+
+  it("still lets the sign-in finish when the project list cannot be read", async () => {
+    let finished: unknown = null;
+    server.use(
+      http.post("*/api/v1/workspaces/ws_1/llm-config/google/login", () =>
+        HttpResponse.json({
+          flowId: "g_3",
+          mode: "paste",
+          authorizeUrl: "https://x/auth",
+          intervalS: 2,
+        }),
+      ),
+      http.post("*/api/v1/workspaces/ws_1/llm-config/google/login/g_3/callback", () =>
+        HttpResponse.json({ status: "ready", email: "dev@example.com", hasRefreshToken: true }),
+      ),
+      // Resource Manager disabled, or no permission on the account.
+      http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/g_3/projects", () =>
+        HttpResponse.json({ projects: [] }),
+      ),
+      http.post(
+        "*/api/v1/workspaces/ws_1/llm-config/google/login/g_3/finish",
+        async ({ request }) => {
+          finished = await request.json();
+          return HttpResponse.json({
+            id: "cfg_1",
+            provider: "google-vertex",
+            model: "google/gemini-2.5-pro",
+            config: {},
+            isActive: true,
+            tier: "CLOUD",
+          });
+        },
+      ),
+    );
+
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "google");
+    await user.click(screen.getByLabelText(/sign in with google/i));
+    await user.click(screen.getByTestId("google-signin-start"));
+    await user.type(
+      await screen.findByTestId("google-signin-callback-url"),
+      "http://127.0.0.1:8765/?state=s&code=4/x",
+    );
+    await user.click(screen.getByTestId("google-signin-submit-url"));
+
+    // No list, so the id is typed — the sign-in itself is still good.
+    const input = await screen.findByTestId("google-signin-project-input");
+    await user.type(input, "typed-project");
+    await user.click(screen.getByTestId("google-signin-finish"));
+
+    await waitFor(() => {
+      expect(finished).toMatchObject({ gcpProject: "typed-project", gcpLocation: "us-central1" });
     });
   });
 });
