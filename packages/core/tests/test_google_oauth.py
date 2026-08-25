@@ -11,6 +11,7 @@ from suitest_core.google_oauth import (
     GoogleOAuthError,
     build_authorize_url,
     exchange_code,
+    list_projects,
     loopback_redirect_uri,
     parse_callback_url,
     refresh_tokens,
@@ -134,3 +135,76 @@ async def test_a_rejected_refresh_raises() -> None:
         with pytest.raises(GoogleOAuthError) as err:
             await refresh_tokens(client, client_id="cid", refresh_token="stale")
     assert err.value.code == "REFRESH_FAILED"
+
+
+@pytest.mark.asyncio
+async def test_project_list_follows_pagination_and_carries_the_bearer() -> None:
+    """A choice the token cannot imply, turned into a list instead of a text box."""
+    seen_tokens: list[str | None] = []
+    auth_headers: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        auth_headers.append(request.headers.get("authorization"))
+        token = request.url.params.get("pageToken")
+        seen_tokens.append(token)
+        assert request.url.params.get("filter") == "lifecycleState:ACTIVE"
+        if token is None:
+            return httpx.Response(
+                200,
+                json={
+                    "projects": [{"projectId": "p-1", "name": "First"}],
+                    "nextPageToken": "page2",
+                },
+            )
+        return httpx.Response(200, json={"projects": [{"projectId": "p-2", "name": "Second"}]})
+
+    async with _client(handler) as client:
+        projects = await list_projects(client, access_token="ya29.live")
+
+    assert [p.project_id for p in projects] == ["p-1", "p-2"]
+    assert [p.name for p in projects] == ["First", "Second"]
+    assert seen_tokens == [None, "page2"]
+    assert auth_headers == ["Bearer ya29.live", "Bearer ya29.live"]
+
+
+@pytest.mark.asyncio
+async def test_project_list_degrades_to_empty_rather_than_failing_the_sign_in() -> None:
+    """The API may be disabled or the user may lack the permission.
+
+    Either way the sign-in itself already succeeded, so this must hand back
+    nothing and let the caller ask for the project id directly.
+    """
+
+    def denied(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(403, json={"error": {"message": "permission denied"}})
+
+    async with _client(denied) as client:
+        assert await list_projects(client, access_token="ya29.live") == []
+
+    def garbage(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="<html>not json</html>")
+
+    async with _client(garbage) as client:
+        assert await list_projects(client, access_token="ya29.live") == []
+
+
+@pytest.mark.asyncio
+async def test_project_list_skips_entries_with_no_id_and_names_the_rest() -> None:
+    """A project with no id cannot be selected; one with no name shows its id."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "projects": [
+                    {"name": "no id here"},
+                    {"projectId": "p-3"},
+                    "not-an-object",
+                ]
+            },
+        )
+
+    async with _client(handler) as client:
+        projects = await list_projects(client, access_token="ya29.live")
+
+    assert [(p.project_id, p.name) for p in projects] == [("p-3", "p-3")]

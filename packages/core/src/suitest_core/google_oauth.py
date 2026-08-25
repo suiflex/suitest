@@ -38,12 +38,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Final
 from urllib.parse import parse_qs, urlencode, urlparse
 
+from pydantic import BaseModel
+
 from suitest_core.oauth import OAuthError, OAuthTokens
 
 if TYPE_CHECKING:
     import httpx
 
 AUTH_ENDPOINT: Final = "https://accounts.google.com/o/oauth2/v2/auth"
+PROJECTS_ENDPOINT: Final = "https://cloudresourcemanager.googleapis.com/v1/projects"
 TOKEN_ENDPOINT: Final = "https://oauth2.googleapis.com/token"
 
 #: Gemini CLI's public Desktop-app client (``packages/core/src/code_assist/oauth2.ts``).
@@ -65,10 +68,19 @@ CLOUD_PLATFORM_SCOPES: Final = (
 )
 
 _FORM: Final = {"Content-Type": "application/x-www-form-urlencoded"}
+#: Stop paging long before an account with thousands of projects stalls a request.
+_MAX_PROJECT_PAGES: Final = 10
 
 
 class GoogleOAuthError(OAuthError):
     """A step of the Google OAuth flow failed."""
+
+
+class GoogleProject(BaseModel):
+    """A GCP project the signed-in user can see."""
+
+    project_id: str
+    name: str
 
 
 def loopback_redirect_uri(port: int) -> str:
@@ -212,3 +224,71 @@ def _tokens_or_raise(response: httpx.Response, code: str) -> OAuthTokens:
         if isinstance(expires_in, int) and not isinstance(expires_in, bool)
         else None,
     )
+
+
+async def list_projects(
+    client: httpx.AsyncClient,
+    *,
+    access_token: str,
+    endpoint: str = PROJECTS_ENDPOINT,
+) -> list[GoogleProject]:
+    """List the active GCP projects the signed-in user can see.
+
+    A Google account maps to zero or many projects and the token says nothing
+    about which one to bill, so the endpoint Vertex is reached at cannot be
+    derived — it has to be chosen. This turns that choice from a free-text box
+    into a list.
+
+    Returns ``[]`` rather than raising when the API is disabled or the user
+    lacks ``resourcemanager.projects.get``: a sign-in that already succeeded
+    must not fail because its project list could not be read. The caller falls
+    back to asking for the id directly.
+    """
+    # httpx is a type-only import in this module; the error class is needed at
+    # runtime only on this path.
+    import httpx as _httpx
+
+    projects: list[GoogleProject] = []
+    page_token: str | None = None
+
+    for _ in range(_MAX_PROJECT_PAGES):
+        params = {"filter": "lifecycleState:ACTIVE"}
+        if page_token:
+            params["pageToken"] = page_token
+        try:
+            response = await client.get(
+                endpoint,
+                params=params,
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+        except _httpx.HTTPError:
+            return projects
+        if response.status_code >= 400:
+            return projects
+        try:
+            body = response.json()
+        except ValueError:
+            return projects
+        if not isinstance(body, dict):
+            return projects
+
+        for raw in body.get("projects") or []:
+            if not isinstance(raw, dict):
+                continue
+            project_id = raw.get("projectId")
+            if not isinstance(project_id, str) or not project_id:
+                continue
+            name = raw.get("name")
+            projects.append(
+                GoogleProject(
+                    project_id=project_id,
+                    name=name if isinstance(name, str) and name else project_id,
+                )
+            )
+
+        next_token = body.get("nextPageToken")
+        if not isinstance(next_token, str) or not next_token:
+            break
+        page_token = next_token
+
+    return projects
