@@ -10,32 +10,12 @@ import {
   testLlmConfig,
 } from "@/lib/api-client";
 
+import { providerLabel, vendorById, vendorsInGroup } from "@/lib/llm-vendors";
+
 import { ChatGptSignIn } from "./ChatGptSignIn";
 import { GoogleSignIn } from "./GoogleSignIn";
 
-/** Providers offered in the picker, grouped by tier (label only — backend validates). */
-const CLOUD_PROVIDERS = [
-  "anthropic",
-  "openai",
-  "gemini",
-  "groq",
-  "openrouter",
-  "deepseek",
-] as const;
-const LOCAL_PROVIDERS = ["ollama", "llamacpp", "vllm", "lmstudio"] as const;
-
-/** Any hosted OpenAI-compatible endpoint (gateway / router / LiteLLM proxy). */
-const CUSTOM_PROVIDER = "custom";
-
-/** LOCAL providers require a base URL instead of an API key. */
-function isLocal(provider: string): boolean {
-  return (LOCAL_PROVIDERS as readonly string[]).includes(provider);
-}
-
-/** Providers that talk to a user-supplied endpoint, so the form shows Base URL. */
-function needsBaseUrl(provider: string): boolean {
-  return isLocal(provider) || provider === CUSTOM_PROVIDER;
-}
+const CUSTOM_VENDOR = "custom";
 
 interface LlmSettingsPanelProps {
   workspaceId: string;
@@ -53,19 +33,26 @@ export function LlmSettingsPanel({
     queryFn: () => fetchLlmConfig(workspaceId),
   });
 
-  const [authMethod, setAuthMethod] = useState<"api_key" | "chatgpt" | "google">("api_key");
-  const [provider, setProvider] = useState("anthropic");
+  // The vendor is who the user picks; which provider key gets stored depends on
+  // how they authenticate to it (see lib/llm-vendors).
+  const [vendorId, setVendorId] = useState("anthropic");
+  const [authMethod, setAuthMethod] = useState<"api_key" | "oauth">("api_key");
   const [model, setModel] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [testResult, setTestResult] = useState<LlmTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const vendor = vendorById(vendorId);
+  // A vendor with no sign-in has only one way in, so the radio never shows and
+  // the choice can never be left pointing at a flow that is not there.
+  const signingIn = authMethod === "oauth" && vendor?.oauth !== undefined;
+
   const body = (): LlmConfigWriteBody => {
     const next: LlmConfigWriteBody = {
-      provider,
+      provider: vendor?.apiKeyProvider ?? vendorId,
       model,
-      config: needsBaseUrl(provider) && baseUrl ? { base_url: baseUrl } : {},
+      config: vendor?.needsBaseUrl && baseUrl ? { base_url: baseUrl } : {},
     };
     if (apiKey) next.apiKey = apiKey;
     return next;
@@ -118,7 +105,7 @@ export function LlmSettingsPanel({
           ) : active ? (
             <div className="flex items-center justify-between rounded-md border border-accent/30 bg-accent/10 px-3 py-2">
               <span className="min-w-0">
-                Active: <strong>{active.provider}</strong> / {active.model}{" "}
+                Active: <strong>{providerLabel(active.provider)}</strong> / {active.model}{" "}
                 <span className="text-fg-3">({active.tier})</span>
                 {active.apiKeyHint ? (
                   <span className="ml-2 font-mono text-fg-4">{active.apiKeyHint}</span>
@@ -154,48 +141,9 @@ export function LlmSettingsPanel({
       </div>
 
       {canWrite ? (
-        <fieldset
-          className="flex gap-4 rounded-lg border border-border bg-bg-elev-1 p-5"
-          data-testid="llm-auth-method"
-        >
-          <legend className="px-1 text-[12.5px] font-medium text-fg-1">Authentication</legend>
-          {(
-            [
-              ["api_key", "Paste a key"],
-              ["chatgpt", "Sign in with ChatGPT"],
-              ["google", "Sign in with Google"],
-            ] as const
-          ).map(([value, label]) => (
-            <label key={value} className="flex items-center gap-2 text-[13px] text-fg-1">
-              <input
-                type="radio"
-                name="llm-auth-method"
-                value={value}
-                checked={authMethod === value}
-                onChange={() => setAuthMethod(value)}
-                className="accent-accent"
-              />
-              {label}
-            </label>
-          ))}
-        </fieldset>
-      ) : null}
-
-      {canWrite && authMethod === "chatgpt" ? (
-        <ChatGptSignIn workspaceId={workspaceId} onDone={refresh} />
-      ) : null}
-
-      {canWrite && authMethod === "google" ? (
-        <GoogleSignIn workspaceId={workspaceId} onDone={refresh} />
-      ) : null}
-
-      {canWrite && authMethod === "api_key" ? (
-        <form
+        <div
           className="space-y-4 rounded-lg border border-border bg-bg-elev-1 p-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            saveMutation.mutate();
-          }}
+          data-testid="llm-vendor-picker"
         >
           <div className="space-y-2">
             <label htmlFor="llm-provider" className="text-[12.5px] font-medium text-fg-1">
@@ -203,29 +151,39 @@ export function LlmSettingsPanel({
             </label>
             <select
               id="llm-provider"
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
+              value={vendorId}
+              onChange={(e) => {
+                setVendorId(e.target.value);
+                // The new vendor may not offer a sign-in; start from the way in
+                // that every vendor has.
+                setAuthMethod("api_key");
+                setTestResult(null);
+              }}
               className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
             >
               <optgroup label="Cloud">
-                {CLOUD_PROVIDERS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                {vendorsInGroup("cloud").map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.label}
                   </option>
                 ))}
               </optgroup>
               <optgroup label="Local">
-                {LOCAL_PROVIDERS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                {vendorsInGroup("local").map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.label}
                   </option>
                 ))}
               </optgroup>
               <optgroup label="Other">
-                <option value={CUSTOM_PROVIDER}>custom (OpenAI-compatible URL)</option>
+                {vendorsInGroup("other").map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.label}
+                  </option>
+                ))}
               </optgroup>
             </select>
-            {provider === CUSTOM_PROVIDER ? (
+            {vendorId === CUSTOM_VENDOR ? (
               <p className="text-[11.5px] text-fg-4">
                 Any OpenAI-compatible endpoint: LLM gateways/routers, LiteLLM proxy, or a hosted
                 inference server. Point the base URL at its <code>/v1</code> root.
@@ -233,6 +191,50 @@ export function LlmSettingsPanel({
             ) : null}
           </div>
 
+          {vendor?.oauth ? (
+            <fieldset className="flex gap-4" data-testid="llm-auth-method">
+              <legend className="px-1 text-[12.5px] font-medium text-fg-1">Authentication</legend>
+              {(
+                [
+                  // Reads as an action, and keeps the field below it the only
+                  // thing on screen labelled "API key".
+                  ["api_key", "Paste a key"],
+                  ["oauth", vendor.oauth.label],
+                ] as const
+              ).map(([value, label]) => (
+                <label key={value} className="flex items-center gap-2 text-[13px] text-fg-1">
+                  <input
+                    type="radio"
+                    name="llm-auth-method"
+                    value={value}
+                    checked={authMethod === value}
+                    onChange={() => setAuthMethod(value)}
+                    className="accent-accent"
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+          ) : null}
+        </div>
+      ) : null}
+
+      {canWrite && signingIn && vendor?.oauth?.flow === "chatgpt" ? (
+        <ChatGptSignIn workspaceId={workspaceId} onDone={refresh} />
+      ) : null}
+
+      {canWrite && signingIn && vendor?.oauth?.flow === "google" ? (
+        <GoogleSignIn workspaceId={workspaceId} onDone={refresh} />
+      ) : null}
+
+      {canWrite && !signingIn ? (
+        <form
+          className="space-y-4 rounded-lg border border-border bg-bg-elev-1 p-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveMutation.mutate();
+          }}
+        >
           <div className="space-y-2">
             <label htmlFor="llm-model" className="text-[12.5px] font-medium text-fg-1">
               Model
@@ -247,7 +249,7 @@ export function LlmSettingsPanel({
             />
           </div>
 
-          {needsBaseUrl(provider) ? (
+          {vendor?.needsBaseUrl ? (
             <div className="space-y-2">
               <label htmlFor="llm-base-url" className="text-[12.5px] font-medium text-fg-1">
                 Base URL
@@ -257,20 +259,20 @@ export function LlmSettingsPanel({
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
                 placeholder={
-                  provider === CUSTOM_PROVIDER
+                  vendorId === CUSTOM_VENDOR
                     ? "https://your-gateway.example.com/v1"
                     : "http://localhost:11434"
                 }
-                required={provider === CUSTOM_PROVIDER}
+                required={vendorId === CUSTOM_VENDOR}
                 className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
               />
             </div>
           ) : null}
 
-          {!isLocal(provider) ? (
+          {!vendor?.keyless ? (
             <div className="space-y-2">
               <label htmlFor="llm-api-key" className="text-[12.5px] font-medium text-fg-1">
-                API key{provider === CUSTOM_PROVIDER ? " (optional)" : ""}
+                API key{vendorId === CUSTOM_VENDOR ? " (optional)" : ""}
               </label>
               <input
                 id="llm-api-key"

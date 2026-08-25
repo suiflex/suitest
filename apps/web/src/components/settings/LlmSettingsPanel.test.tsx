@@ -92,6 +92,7 @@ describe("LlmSettingsPanel", () => {
     renderPanel();
     const user = userEvent.setup();
     await screen.findByTestId("llm-none");
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "openai");
     await user.click(screen.getByLabelText(/sign in with chatgpt/i));
     await user.click(screen.getByTestId("chatgpt-signin-start"));
 
@@ -122,6 +123,7 @@ describe("LlmSettingsPanel", () => {
     renderPanel();
     const user = userEvent.setup();
     await screen.findByTestId("llm-none");
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "openai");
     await user.click(screen.getByLabelText(/sign in with chatgpt/i));
     await user.click(screen.getByTestId("chatgpt-signin-start"));
 
@@ -147,7 +149,8 @@ describe("LlmSettingsPanel", () => {
     renderPanel();
     expect(await screen.findByTestId("llm-remove")).toBeInTheDocument();
     const status = screen.getByTestId("llm-current-status");
-    expect(status).toHaveTextContent(/anthropic/);
+    // Named for a person, not the raw provider key.
+    expect(status).toHaveTextContent(/Anthropic/);
     expect(status).toHaveTextContent(/CLOUD/);
   });
 
@@ -156,7 +159,12 @@ describe("LlmSettingsPanel", () => {
     let finished: unknown = null;
     server.use(
       http.post("*/api/v1/workspaces/ws_1/llm-config/google/login", () =>
-        HttpResponse.json({ flowId: "g_1", mode: "browser", authorizeUrl: "https://accounts.example/auth", intervalS: 1 }),
+        HttpResponse.json({
+          flowId: "g_1",
+          mode: "browser",
+          authorizeUrl: "https://accounts.example/auth",
+          intervalS: 1,
+        }),
       ),
       http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/g_1", () => {
         polls += 1;
@@ -164,22 +172,26 @@ describe("LlmSettingsPanel", () => {
           ? HttpResponse.json({ status: "pending" })
           : HttpResponse.json({ status: "ready", email: "dev@example.com", hasRefreshToken: true });
       }),
-      http.post("*/api/v1/workspaces/ws_1/llm-config/google/login/g_1/finish", async ({ request }) => {
-        finished = await request.json();
-        return HttpResponse.json({
-          id: "cfg_1",
-          provider: "google-vertex",
-          model: "google/gemini-2.5-pro",
-          config: {},
-          isActive: true,
-          tier: "CLOUD",
-        });
-      }),
+      http.post(
+        "*/api/v1/workspaces/ws_1/llm-config/google/login/g_1/finish",
+        async ({ request }) => {
+          finished = await request.json();
+          return HttpResponse.json({
+            id: "cfg_1",
+            provider: "google-vertex",
+            model: "google/gemini-2.5-pro",
+            config: {},
+            isActive: true,
+            tier: "CLOUD",
+          });
+        },
+      ),
     );
 
     renderPanel();
     const user = userEvent.setup();
     await screen.findByTestId("llm-none");
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "google");
     await user.click(screen.getByLabelText(/sign in with google/i));
     await user.click(screen.getByTestId("google-signin-start"));
 
@@ -202,20 +214,33 @@ describe("LlmSettingsPanel", () => {
     let submitted: unknown = null;
     server.use(
       http.post("*/api/v1/workspaces/ws_1/llm-config/google/login", () =>
-        HttpResponse.json({ flowId: "g_2", mode: "paste", authorizeUrl: "https://accounts.example/auth", intervalS: 2 }),
+        HttpResponse.json({
+          flowId: "g_2",
+          mode: "paste",
+          authorizeUrl: "https://accounts.example/auth",
+          intervalS: 2,
+        }),
       ),
       http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/g_2", () => {
         throw new Error("paste mode must not poll — there is no listener to wait on");
       }),
-      http.post("*/api/v1/workspaces/ws_1/llm-config/google/login/g_2/callback", async ({ request }) => {
-        submitted = await request.json();
-        return HttpResponse.json({ status: "ready", email: "dev@example.com", hasRefreshToken: true });
-      }),
+      http.post(
+        "*/api/v1/workspaces/ws_1/llm-config/google/login/g_2/callback",
+        async ({ request }) => {
+          submitted = await request.json();
+          return HttpResponse.json({
+            status: "ready",
+            email: "dev@example.com",
+            hasRefreshToken: true,
+          });
+        },
+      ),
     );
 
     renderPanel();
     const user = userEvent.setup();
     await screen.findByTestId("llm-none");
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "google");
     await user.click(screen.getByLabelText(/sign in with google/i));
     await user.click(screen.getByTestId("google-signin-start"));
 
@@ -225,5 +250,94 @@ describe("LlmSettingsPanel", () => {
 
     await screen.findByTestId("google-signin-ready");
     expect(submitted).toEqual({ callbackUrl: url });
+  });
+
+  it("offers no auth choice for a vendor that has only one way in", async () => {
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+
+    // Anthropic takes a key and nothing else — a radio with one option is noise.
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "anthropic");
+    expect(screen.queryByTestId("llm-auth-method")).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "openai");
+    expect(screen.getByTestId("llm-auth-method")).toBeInTheDocument();
+  });
+
+  it("puts each sign-in under the vendor it authenticates to", async () => {
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "openai");
+    expect(screen.getByLabelText(/sign in with chatgpt/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/sign in with google/i)).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "google");
+    expect(screen.getByLabelText(/sign in with google/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/sign in with chatgpt/i)).not.toBeInTheDocument();
+  });
+
+  it("renders one form body at a time", async () => {
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+
+    // Both bodies carry a Model field; rendering them together would make every
+    // getByLabelText(/model/i) in this file ambiguous.
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "google");
+    await user.click(screen.getByLabelText(/sign in with google/i));
+    expect(screen.getByTestId("google-signin")).toBeInTheDocument();
+    expect(screen.queryByTestId("llm-save")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/paste a key/i));
+    expect(screen.queryByTestId("google-signin")).not.toBeInTheDocument();
+    expect(screen.getByTestId("llm-save")).toBeInTheDocument();
+  });
+
+  it("drops back to the key form when the new vendor has no sign-in", async () => {
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "google");
+    await user.click(screen.getByLabelText(/sign in with google/i));
+    expect(screen.getByTestId("google-signin")).toBeInTheDocument();
+
+    // Anthropic has no sign-in — the stale choice must not leave a dead panel.
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "anthropic");
+    expect(screen.queryByTestId("google-signin")).not.toBeInTheDocument();
+    expect(screen.getByTestId("llm-save")).toBeInTheDocument();
+  });
+
+  it("saves the provider key the picked vendor maps to", async () => {
+    let saved: unknown = null;
+    server.use(
+      http.put("*/api/v1/workspaces/ws_1/llm-config", async ({ request }) => {
+        saved = await request.json();
+        return HttpResponse.json({
+          id: "cfg_1",
+          provider: "gemini",
+          model: "gemini-2.5-pro",
+          config: {},
+          isActive: true,
+          tier: "CLOUD",
+        });
+      }),
+    );
+
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+    // The vendor reads "Google"; the stored provider key is still `gemini`.
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "google");
+    await user.type(screen.getByLabelText(/model/i), "gemini-2.5-pro");
+    await user.type(screen.getByLabelText(/api key/i), "AIza-secret");
+    await user.click(screen.getByTestId("llm-save"));
+
+    await waitFor(() => {
+      expect(saved).toMatchObject({ provider: "gemini", model: "gemini-2.5-pro" });
+    });
   });
 });
