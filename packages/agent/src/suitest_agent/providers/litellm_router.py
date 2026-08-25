@@ -67,15 +67,14 @@ _PREFIX: dict[str, str] = {
 # LOCAL servers (llamacpp/vllm/lmstudio) plus ``custom`` — any hosted
 # OpenAI-compatible gateway/router (e.g. LiteLLM proxy, 9router) the user
 # points at via base URL + API key. ``custom`` resolves to CLOUD tier.
-# ``chatgpt`` (Sign in with ChatGPT) also speaks the OpenAI protocol, against the
-# ChatGPT backend rather than api.openai.com — base URL + account header both come
-# from ``suitest_core.llm_credentials``.
 # ``google-vertex`` (Sign in with Google) speaks the OpenAI protocol too, against
 # Vertex's own OpenAI-compatible endpoint; its base URL names the caller's GCP
 # project and region and comes from ``suitest_core.llm_credentials``. That is why
 # it is here and not under the ``vertex`` prefix, which reaches Vertex's native
 # API with service-account credentials instead.
-_OPENAI_SHIM = frozenset({"llamacpp", "vllm", "lmstudio", "custom", "chatgpt", "google-vertex"})
+# ``chatgpt`` is deliberately absent: the ChatGPT backend serves the Responses
+# API, not chat completions, so it has its own provider rather than a shim.
+_OPENAI_SHIM = frozenset({"llamacpp", "vllm", "lmstudio", "custom", "google-vertex"})
 
 # Code Assist backends speak a Gemini payload inside their own envelope, which
 # LiteLLM has no provider for — see providers/code_assist.py.
@@ -99,7 +98,7 @@ LOCAL_TIER_DEFAULTS: dict[str, dict[str, str]] = {
 # OpenAI-shim providers whose endpoint the sign-in derives rather than the user
 # typing it: ChatGPT's is fixed, and Vertex's is built from the project and
 # region the Google sign-in collected.
-_ENDPOINT_FROM_CREDENTIAL = frozenset({"chatgpt", "google-vertex"})
+_ENDPOINT_FROM_CREDENTIAL = frozenset({"chatgpt", "google-vertex", *_CODE_ASSIST_PROVIDERS})
 
 
 def requires_base_url(provider: str) -> bool:
@@ -317,6 +316,17 @@ def get_provider(
 
         mock: MockProvider = MockProvider()
         return mock
+    if key == "chatgpt":
+        from suitest_agent.providers.chatgpt_responses import ChatGptResponsesProvider
+
+        if not base_url:
+            raise ProviderError("MISSING_BASE_URL", "chatgpt needs its backend endpoint")
+        return ChatGptResponsesProvider(
+            provider=key,
+            api_key=api_key,
+            base_url=base_url,
+            extra_headers=extra_headers,
+        )
     if key in _CODE_ASSIST_PROVIDERS:
         from suitest_agent.providers.code_assist import CodeAssistProvider
 
