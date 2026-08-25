@@ -11,6 +11,8 @@ import {
   startChatGptLogin,
 } from "@/lib/api-client";
 
+import { UnlicensedSessionNotice } from "./UnlicensedSessionNotice";
+
 /** Keep the friendly sentence, but say what actually came back — a sign-in that
  *  fails because the route is missing reads exactly like a rejected credential
  *  otherwise. */
@@ -163,6 +165,10 @@ export function ChatGptSignIn({
               </label>
             ))}
           </div>
+
+          {credentialMode === "subscription" ? (
+            <UnlicensedSessionNotice what="your ChatGPT plan" />
+          ) : null}
 
           <div className="space-y-2">
             <label htmlFor="chatgpt-model" className="text-[12.5px] font-medium text-fg-1">

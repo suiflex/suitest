@@ -403,4 +403,34 @@ describe("LlmSettingsPanel", () => {
       expect(finished).toMatchObject({ gcpProject: "typed-project", gcpLocation: "us-central1" });
     });
   });
+
+  it("warns before a sign-in is spent on an unlicensed session", async () => {
+    server.use(
+      http.post("*/api/v1/workspaces/ws_1/llm-config/chatgpt/login", () =>
+        HttpResponse.json({
+          flowId: "c_1",
+          mode: "browser",
+          authorizeUrl: "https://x/a",
+          intervalS: 1,
+        }),
+      ),
+      http.get("*/api/v1/workspaces/ws_1/llm-config/chatgpt/login/c_1", () =>
+        HttpResponse.json({ status: "ready", account: "dev@example.com" }),
+      ),
+    );
+
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "openai");
+    await user.click(screen.getByLabelText(/sign in with chatgpt/i));
+    await user.click(screen.getByTestId("chatgpt-signin-start"));
+    await screen.findByTestId("chatgpt-signin-ready");
+
+    // The API-key mode ends in a real, licensed key — nothing to warn about.
+    expect(screen.queryByTestId("unlicensed-session-notice")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/my chatgpt plan/i));
+    expect(screen.getByTestId("unlicensed-session-notice")).toBeInTheDocument();
+  });
 });
