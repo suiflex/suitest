@@ -201,6 +201,8 @@ describe("LlmSettingsPanel", () => {
     await screen.findByTestId("google-signin-ready", undefined, { timeout: 4000 });
     expect(screen.getByTestId("google-signin-ready")).toHaveTextContent(/dev@example.com/);
 
+    // Vertex is the backend that needs a project; Code Assist is the default.
+    await user.click(screen.getByLabelText(/vertex ai/i));
     // The project list was readable, so this is a pick rather than a typed id.
     await user.selectOptions(
       await screen.findByTestId("google-signin-project-select"),
@@ -211,6 +213,7 @@ describe("LlmSettingsPanel", () => {
     await waitFor(() => {
       expect(finished).toEqual({
         model: "google/gemini-2.5-pro",
+        backend: "vertex",
         gcpProject: "my-project-123",
         gcpLocation: "us-central1",
       });
@@ -394,13 +397,18 @@ describe("LlmSettingsPanel", () => {
     );
     await user.click(screen.getByTestId("google-signin-submit-url"));
 
+    await user.click(screen.getByLabelText(/vertex ai/i));
     // No list, so the id is typed — the sign-in itself is still good.
     const input = await screen.findByTestId("google-signin-project-input");
     await user.type(input, "typed-project");
     await user.click(screen.getByTestId("google-signin-finish"));
 
     await waitFor(() => {
-      expect(finished).toMatchObject({ gcpProject: "typed-project", gcpLocation: "us-central1" });
+      expect(finished).toMatchObject({
+        backend: "vertex",
+        gcpProject: "typed-project",
+        gcpLocation: "us-central1",
+      });
     });
   });
 
@@ -432,5 +440,63 @@ describe("LlmSettingsPanel", () => {
 
     await user.click(screen.getByLabelText(/my chatgpt plan/i));
     expect(screen.getByTestId("unlicensed-session-notice")).toBeInTheDocument();
+  });
+
+  it("asks for nothing when the sign-in is spent on code assist", async () => {
+    let finished: unknown = null;
+    let projectsAsked = false;
+    server.use(
+      http.post("*/api/v1/workspaces/ws_1/llm-config/google/login", () =>
+        HttpResponse.json({
+          flowId: "g_4",
+          mode: "browser",
+          authorizeUrl: "https://x/a",
+          intervalS: 1,
+        }),
+      ),
+      http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/g_4", () =>
+        HttpResponse.json({ status: "ready", email: "dev@example.com", hasRefreshToken: true }),
+      ),
+      http.get("*/api/v1/workspaces/ws_1/llm-config/google/login/g_4/projects", () => {
+        projectsAsked = true;
+        return HttpResponse.json({ projects: [] });
+      }),
+      http.post(
+        "*/api/v1/workspaces/ws_1/llm-config/google/login/g_4/finish",
+        async ({ request }) => {
+          finished = await request.json();
+          return HttpResponse.json({
+            id: "cfg_1",
+            provider: "google-codeassist",
+            model: "gemini-2.5-pro",
+            config: {},
+            isActive: true,
+            tier: "CLOUD",
+          });
+        },
+      ),
+    );
+
+    renderPanel();
+    const user = userEvent.setup();
+    await screen.findByTestId("llm-none");
+    await user.selectOptions(screen.getByLabelText(/^provider$/i), "google");
+    await user.click(screen.getByLabelText(/sign in with google/i));
+    await user.click(screen.getByTestId("google-signin-start"));
+    await screen.findByTestId("google-signin-ready");
+
+    // The whole point of this backend: the account already knows its project.
+    expect(screen.queryByTestId("google-signin-project-select")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("google-signin-project-input")).not.toBeInTheDocument();
+    // It spends an unlicensed session, so it says so.
+    expect(screen.getByTestId("unlicensed-session-notice")).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("google-signin-finish"));
+
+    await waitFor(() => {
+      expect(finished).toEqual({ model: "gemini-2.5-pro", backend: "code_assist" });
+    });
+    // And it never went looking for a project list it does not need.
+    expect(projectsAsked).toBe(false);
   });
 });

@@ -6,11 +6,14 @@ import {
   cancelGoogleLogin,
   fetchGoogleProjects,
   finishGoogleLogin,
+  type GoogleBackend,
   type GoogleLoginStart,
   pollGoogleLogin,
   startGoogleLogin,
   submitGoogleCallback,
 } from "@/lib/api-client";
+
+import { UnlicensedSessionNotice } from "./UnlicensedSessionNotice";
 
 /** Vertex regions worth offering; any other is typed in. */
 const LOCATIONS = [
@@ -42,7 +45,8 @@ export function GoogleSignIn({
   const [flow, setFlow] = useState<GoogleLoginStart | null>(null);
   const [pastedUrl, setPastedUrl] = useState("");
   const [pasteAccepted, setPasteAccepted] = useState(false);
-  const [model, setModel] = useState("google/gemini-2.5-pro");
+  const [backend, setBackend] = useState<GoogleBackend>("code_assist");
+  const [model, setModel] = useState("gemini-2.5-pro");
   const [project, setProject] = useState("");
   const [location, setLocation] = useState<string>(LOCATIONS[0]);
   const [error, setError] = useState<string | null>(null);
@@ -87,8 +91,8 @@ export function GoogleSignIn({
       flow
         ? finishGoogleLogin(workspaceId, flow.flowId, {
             model,
-            gcpProject: project,
-            gcpLocation: location,
+            backend,
+            ...(backend === "vertex" ? { gcpProject: project, gcpLocation: location } : {}),
           })
         : Promise.reject(new Error("no sign-in in progress")),
     onSuccess: () => {
@@ -107,10 +111,12 @@ export function GoogleSignIn({
   };
 
   const ready = pasteAccepted || statusQuery.data?.status === "ready";
+  // Only Vertex needs a project from the user; Code Assist discovers its own.
+  const needsProject = backend === "vertex";
   const projectsQuery = useQuery({
     queryKey: ["google-projects", workspaceId, flow?.flowId] as const,
     queryFn: () => (flow ? fetchGoogleProjects(workspaceId, flow.flowId) : []),
-    enabled: ready && flow !== null,
+    enabled: ready && needsProject && flow !== null,
     // An unreadable list is an answer, not something to keep asking for.
     retry: false,
   });
@@ -193,70 +199,103 @@ export function GoogleSignIn({
           <p className="text-[13px] text-accent">Signed in{email ? ` as ${email}` : ""}.</p>
 
           <div className="space-y-2">
-            <label htmlFor="google-project" className="text-[12.5px] font-medium text-fg-1">
-              Google Cloud project
-            </label>
-            {projectsQuery.isLoading ? (
-              <p className="text-[12.5px] text-fg-3">Looking up your projects…</p>
-            ) : projects.length > 0 ? (
-              <select
-                id="google-project"
-                value={project}
-                onChange={(e) => setProject(e.target.value)}
-                required
-                className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
-                data-testid="google-signin-project-select"
-              >
-                <option value="">Select a project…</option>
-                {projects.map((p) => (
-                  <option key={p.projectId} value={p.projectId}>
-                    {p.name === p.projectId ? p.projectId : `${p.name} (${p.projectId})`}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <>
-                {/* The list can be unreadable — Resource Manager off, or no
-                    permission — and the sign-in is still good, so ask. */}
+            <span className="text-[12.5px] font-medium text-fg-1">Use this sign-in for</span>
+            {(
+              [
+                ["code_assist", "Code Assist quota — free, no Google Cloud project"],
+                ["vertex", "Vertex AI — needs a project with billing"],
+              ] as const
+            ).map(([value, label]) => (
+              <label key={value} className="flex items-center gap-2 text-[13px] text-fg-1">
                 <input
-                  id="google-project"
-                  autoComplete="off"
-                  value={project}
-                  onChange={(e) => setProject(e.target.value)}
-                  placeholder="my-project-123"
-                  required
-                  className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
-                  data-testid="google-signin-project-input"
+                  type="radio"
+                  name="google-backend"
+                  value={value}
+                  checked={backend === value}
+                  onChange={() => {
+                    setBackend(value);
+                    setModel(value === "vertex" ? "google/gemini-2.5-pro" : "gemini-2.5-pro");
+                  }}
+                  className="accent-accent"
                 />
-                <p className="text-[11.5px] text-fg-4">
-                  We could not read your project list. Enter the project ID from the Google Cloud
-                  console.
-                </p>
-              </>
-            )}
+                {label}
+              </label>
+            ))}
           </div>
 
-          <details className="rounded-md border border-border px-3 py-2">
-            <summary className="cursor-pointer text-[12.5px] text-fg-3">Advanced</summary>
-            <div className="mt-3 space-y-2">
-              <label htmlFor="google-location" className="text-[12.5px] font-medium text-fg-1">
-                Region
-              </label>
-              <input
-                id="google-location"
-                list="google-locations"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                required
-                className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
-              />
-              <datalist id="google-locations">
-                {LOCATIONS.map((loc) => (
-                  <option key={loc} value={loc} />
-                ))}
-              </datalist>
-            </div>
-          </details>
+          {backend === "code_assist" ? (
+            <UnlicensedSessionNotice what="your Gemini Code Assist quota" />
+          ) : null}
+
+          {needsProject ? (
+            <>
+              <div className="space-y-2">
+                <label htmlFor="google-project" className="text-[12.5px] font-medium text-fg-1">
+                  Google Cloud project
+                </label>
+                {projectsQuery.isLoading ? (
+                  <p className="text-[12.5px] text-fg-3">Looking up your projects…</p>
+                ) : projects.length > 0 ? (
+                  <select
+                    id="google-project"
+                    value={project}
+                    onChange={(e) => setProject(e.target.value)}
+                    required
+                    className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
+                    data-testid="google-signin-project-select"
+                  >
+                    <option value="">Select a project…</option>
+                    {projects.map((p) => (
+                      <option key={p.projectId} value={p.projectId}>
+                        {p.name === p.projectId ? p.projectId : `${p.name} (${p.projectId})`}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <>
+                    {/* The list can be unreadable — Resource Manager off, or no
+                    permission — and the sign-in is still good, so ask. */}
+                    <input
+                      id="google-project"
+                      autoComplete="off"
+                      value={project}
+                      onChange={(e) => setProject(e.target.value)}
+                      placeholder="my-project-123"
+                      required
+                      className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
+                      data-testid="google-signin-project-input"
+                    />
+                    <p className="text-[11.5px] text-fg-4">
+                      We could not read your project list. Enter the project ID from the Google
+                      Cloud console.
+                    </p>
+                  </>
+                )}
+              </div>
+
+              <details className="rounded-md border border-border px-3 py-2">
+                <summary className="cursor-pointer text-[12.5px] text-fg-3">Advanced</summary>
+                <div className="mt-3 space-y-2">
+                  <label htmlFor="google-location" className="text-[12.5px] font-medium text-fg-1">
+                    Region
+                  </label>
+                  <input
+                    id="google-location"
+                    list="google-locations"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    required
+                    className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
+                  />
+                  <datalist id="google-locations">
+                    {LOCATIONS.map((loc) => (
+                      <option key={loc} value={loc} />
+                    ))}
+                  </datalist>
+                </div>
+              </details>
+            </>
+          ) : null}
 
           <div className="space-y-2">
             <label htmlFor="google-model" className="text-[12.5px] font-medium text-fg-1">
@@ -276,7 +315,9 @@ export function GoogleSignIn({
           <button
             type="button"
             onClick={() => finishMutation.mutate()}
-            disabled={finishMutation.isPending || !model || !project || !location}
+            disabled={
+              finishMutation.isPending || !model || (needsProject && (!project || !location))
+            }
             className="inline-flex h-9 items-center justify-center rounded-md bg-accent px-4 text-[13px] font-medium text-accent-fg hover:opacity-90 disabled:opacity-60"
             data-testid="google-signin-finish"
           >

@@ -698,10 +698,14 @@ export async function submitGoogleCallback(
   return res.data;
 }
 
+/** What an approved Google sign-in is spent on. Both reach Gemini; they differ
+ *  in who pays and in what the user has to supply. */
+export type GoogleBackend = "code_assist" | "vertex";
+
 export async function finishGoogleLogin(
   workspaceId: string,
   flowId: string,
-  body: { model: string; gcpProject: string; gcpLocation: string },
+  body: { model: string; backend: GoogleBackend; gcpProject?: string; gcpLocation?: string },
 ): Promise<LlmConfigPublic> {
   const res = await api.post<LlmConfigPublic>(
     `/workspaces/${workspaceId}/llm-config/google/login/${flowId}/finish`,
