@@ -42,6 +42,8 @@ Supported providers:
 | `bedrock`, `vertex` | CLOUD | no key in Suitest (IAM or ambient credentials) |
 | `chatgpt` | CLOUD | Sign in with ChatGPT; no key |
 | `google-vertex` | CLOUD | Sign in with Google; no key. Needs a GCP project with the Vertex AI API enabled and billing active |
+| `google-codeassist` | CLOUD | Sign in with Google; no key, **no project to supply** — the account's own is discovered. Draws on Code Assist quota |
+| `antigravity` | CLOUD | Sign in only; no key. Its own OAuth client and scopes |
 | `custom` | CLOUD | any OpenAI-compatible endpoint; `base_url` required, key optional (gateway-dependent) |
 | `mock` | CLOUD (test flag) | canned deterministic responses for CI and dev, flagged `is_test_provider` |
 

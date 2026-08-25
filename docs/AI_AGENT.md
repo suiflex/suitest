@@ -182,6 +182,9 @@ def cost_usd(response) -> float:
 | `bedrock` | `bedrock/<model>` | Requires AWS creds (`AWS_ACCESS_KEY_ID` etc.) or IAM role. Region-specific model availability. |
 | `vertex` | `vertex_ai/<model>` | Requires GCP SA JSON via `GOOGLE_APPLICATION_CREDENTIALS`. Project + location config. |
 | `google-vertex` | `openai/<model>` w/ `api_base` | Sign in with Google. Vertex's OpenAI-compatible endpoint, built from the workspace's GCP project + region. Model ids carry the publisher prefix (`google/gemini-2.5-pro`). |
+| `google-codeassist` | *(own provider)* | Sign in with Google. The Gemini payload inside a Code Assist envelope at `cloudcode-pa`; the billing project is discovered from the account, so the user supplies nothing. Quota-based, so cost is reported as 0. |
+| `antigravity` | *(own provider)* | Same protocol at `daily-cloudcode-pa`, with its own OAuth client and two extra scopes. Sign-in only — there is no key for it. |
+| `chatgpt` | *(own provider)* | Sign in with ChatGPT, subscription mode. The **Responses API** (`/responses`), not chat completions — see `providers/chatgpt_responses.py`. |
 | `deepseek` | `deepseek/deepseek-*` | Cheap reasoning. OpenAI-compatible API shape. |
 | `ollama` | `ollama/<model>` | LOCAL tier. `OLLAMA_API_BASE=http://ollama:11434`. Tool use via `ollama/llama3.1` etc. |
 | `llamacpp` | `openai/<any>` w/ `api_base` | LOCAL tier. llama.cpp server with OpenAI shim. |

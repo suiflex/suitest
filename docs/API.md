@@ -772,11 +772,21 @@ it has to be chosen; this turns that into a pick rather than a typed id. Answers
 `resourcemanager.projects.get` — the UI then asks for the id, because the sign-in
 itself already succeeded. Before approval: **422** `NOT_APPROVED`.
 
+**GET `/google/login/:flowId/models`** → `{"provider":"google-codeassist","models":[{"id":"…"}]}`.
+The models the signed-in account may call. Answers an empty list when the
+surface cannot be read; the UI then lets the model be typed. Meaningful only
+for a Code Assist backend.
+
 **POST `/google/login/:flowId/finish`** body:
 ```json
-{ "model": "google/gemini-2.5-pro", "gcpProject": "my-project-123", "gcpLocation": "us-central1" }
+{ "model": "gemini-2.5-pro", "backend": "code_assist" }
+{ "model": "google/gemini-2.5-pro", "backend": "vertex", "gcpProject": "my-project-123", "gcpLocation": "us-central1" }
 ```
-The project and region are not cosmetic — Vertex's endpoint is built from them.
+`backend` decides what the one consent is spent on. `code_assist` asks for
+nothing further — the project is discovered from the account and stored as
+`google-codeassist` (or `antigravity`, when the sign-in was started with
+`{"variant":"antigravity"}`). `vertex` requires `gcpProject` and `gcpLocation`,
+which are not cosmetic — its endpoint is built from them.
 Refused with **422** `NO_REFRESH_TOKEN` when Google returned none, which would
 otherwise leave a credential that dies in an hour. Other codes: `NOT_APPROVED`,
 `UNKNOWN_FLOW`, `OAUTH_CLIENT_UNSET`, `MISSING_VERTEX_TARGET`.
