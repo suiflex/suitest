@@ -77,6 +77,10 @@ _PREFIX: dict[str, str] = {
 # API with service-account credentials instead.
 _OPENAI_SHIM = frozenset({"llamacpp", "vllm", "lmstudio", "custom", "chatgpt", "google-vertex"})
 
+# Code Assist backends speak a Gemini payload inside their own envelope, which
+# LiteLLM has no provider for — see providers/code_assist.py.
+_CODE_ASSIST_PROVIDERS = frozenset({"google-codeassist", "antigravity"})
+
 # Seed support per docs/AI_AGENT.md §13.1 — drives the replay determinism label.
 _DETERMINISTIC_SEED = frozenset({"openai", "groq", "vllm", "llamacpp", "mock"})
 
@@ -286,6 +290,7 @@ def get_provider(
     workspace_id: str | None = None,
     db_session_factory: _DbSessionFactory | None = None,
     extra_headers: dict[str, str] | None = None,
+    extra_body: dict[str, object] | None = None,
 ) -> LLMProvider:
     """Factory: return a :class:`MockProvider` for ``mock``, else LiteLLM-backed.
 
@@ -302,12 +307,28 @@ def get_provider(
         extra_headers: Per-request headers the credential requires — the
             ``chatgpt`` provider identifies its account this way. Resolved by
             ``suitest_core.llm_credentials``, never assembled by callers.
+        extra_body: Request-body fields outside the payload, for a backend that
+            wraps it — Code Assist names its billing project this way. Same
+            provenance as ``extra_headers``.
     """
-    if provider.strip().lower() == "mock":
+    key = provider.strip().lower()
+    if key == "mock":
         from suitest_agent.providers.mock import MockProvider
 
         mock: MockProvider = MockProvider()
         return mock
+    if key in _CODE_ASSIST_PROVIDERS:
+        from suitest_agent.providers.code_assist import CodeAssistProvider
+
+        if not base_url:
+            raise ProviderError("MISSING_BASE_URL", f"{key} needs its backend endpoint")
+        return CodeAssistProvider(
+            provider=key,
+            api_key=api_key,
+            base_url=base_url,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
+        )
     return LiteLLMProvider(
         provider=provider,
         api_key=api_key,

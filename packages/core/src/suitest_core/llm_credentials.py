@@ -118,6 +118,10 @@ class ResolvedCredential(BaseModel):
     api_key: str | None
     base_url: str | None
     extra_headers: dict[str, str] = {}
+    #: Fields the backend wants in the request body outside the payload itself —
+    #: Code Assist wraps a Gemini request in an envelope naming the project. Empty
+    #: for every provider that just posts its payload.
+    extra_body: dict[str, object] = {}
 
 
 class CredentialError(Exception):
