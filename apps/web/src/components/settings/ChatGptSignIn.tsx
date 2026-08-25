@@ -170,6 +170,7 @@ export function ChatGptSignIn({
             </label>
             <input
               id="chatgpt-model"
+              autoComplete="off"
               value={model}
               onChange={(e) => setModel(e.target.value)}
               placeholder="gpt-5.6"

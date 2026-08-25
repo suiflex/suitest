@@ -187,6 +187,7 @@ export function GoogleSignIn({
             </label>
             <input
               id="google-project"
+              autoComplete="off"
               value={project}
               onChange={(e) => setProject(e.target.value)}
               placeholder="my-project-123"
@@ -220,6 +221,7 @@ export function GoogleSignIn({
             </label>
             <input
               id="google-model"
+              autoComplete="off"
               value={model}
               onChange={(e) => setModel(e.target.value)}
               placeholder="google/gemini-2.5-pro"

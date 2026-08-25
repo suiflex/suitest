@@ -241,6 +241,7 @@ export function LlmSettingsPanel({
             </label>
             <input
               id="llm-model"
+              autoComplete="off"
               value={model}
               onChange={(e) => setModel(e.target.value)}
               placeholder="claude-sonnet-4-5"
