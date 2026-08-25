@@ -2875,6 +2875,194 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspaceId}/llm-config/chatgpt/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Chatgpt Login
+         * @description Begin a Sign in with ChatGPT flow and return what to show the user.
+         */
+        post: operations["start_chatgpt_login_api_v1_workspaces__workspaceId__llm_config_chatgpt_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/llm-config/chatgpt/login/{flowId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Poll Chatgpt Login
+         * @description Advance the flow one step: ``pending`` until the user approves it.
+         */
+        get: operations["poll_chatgpt_login_api_v1_workspaces__workspaceId__llm_config_chatgpt_login__flowId__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Cancel Chatgpt Login
+         * @description Abandon a flow and release its callback listener.
+         */
+        delete: operations["cancel_chatgpt_login_api_v1_workspaces__workspaceId__llm_config_chatgpt_login__flowId__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/llm-config/chatgpt/login/{flowId}/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish Chatgpt Login
+         * @description Store the approved sign-in as the active config, then refresh the tier.
+         */
+        post: operations["finish_chatgpt_login_api_v1_workspaces__workspaceId__llm_config_chatgpt_login__flowId__finish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/llm-config/google/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Google Login
+         * @description Begin a Sign in with Google flow and return the URL to open.
+         */
+        post: operations["start_google_login_api_v1_workspaces__workspaceId__llm_config_google_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/llm-config/google/login/{flowId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Poll Google Login
+         * @description Advance the flow one step: ``pending`` until the redirect lands.
+         */
+        get: operations["poll_google_login_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Cancel Google Login
+         * @description Abandon a flow and release its callback listener.
+         */
+        delete: operations["cancel_google_login_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/llm-config/google/login/{flowId}/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Google Callback
+         * @description Accept the pasted callback URL — the fallback where loopback cannot reach.
+         */
+        post: operations["submit_google_callback_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__callback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/llm-config/google/login/{flowId}/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish Google Login
+         * @description Store the approved sign-in as the active config, then refresh the tier.
+         */
+        post: operations["finish_google_login_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__finish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/llm-config/google/login/{flowId}/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Google Login Models
+         * @description Models the signed-in Code Assist account may call. Empty if unreadable.
+         */
+        get: operations["list_google_login_models_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{workspaceId}/llm-config/google/login/{flowId}/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Google Projects
+         * @description The GCP projects the approved sign-in can see, for the project picker.
+         */
+        get: operations["list_google_projects_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__projects_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{workspaceId}/llm-config/models": {
         parameters: {
             query?: never;
@@ -4618,6 +4806,96 @@ export interface components {
             /** Private Key Pem */
             private_key_pem: string;
         };
+        /**
+         * GoogleCallbackBody
+         * @description The URL the user copied out of the address bar in ``paste`` mode.
+         */
+        GoogleCallbackBody: {
+            /** Callbackurl */
+            callbackUrl: string;
+        };
+        /**
+         * GoogleLoginFinishBody
+         * @description What the approved sign-in is spent on.
+         *
+         *     ``code_assist`` needs nothing else — the project is discovered from the
+         *     account. ``vertex`` needs the project and region its endpoint is built from,
+         *     so they are required only there.
+         */
+        GoogleLoginFinishBody: {
+            /**
+             * Backend
+             * @default vertex
+             * @enum {string}
+             */
+            backend: "code_assist" | "vertex";
+            /**
+             * Gcplocation
+             * @default
+             */
+            gcpLocation: string;
+            /**
+             * Gcpproject
+             * @default
+             */
+            gcpProject: string;
+            /** Model */
+            model: string;
+        };
+        /**
+         * GoogleLoginStartBody
+         * @description ``auto`` resolves to the loopback redirect on localhost, paste elsewhere.
+         *
+         *     ``variant`` names a Code Assist product that registers its own OAuth client
+         *     — Antigravity does, so it cannot ride on the plain Google sign-in.
+         */
+        GoogleLoginStartBody: {
+            /**
+             * Mode
+             * @default auto
+             * @enum {string}
+             */
+            mode: "auto" | "browser" | "paste";
+            /** Variant */
+            variant?: "antigravity" | null;
+        };
+        /**
+         * GoogleLoginStatus
+         * @description ``pending`` until the redirect lands, then ``ready`` (or ``error``).
+         */
+        GoogleLoginStatus: {
+            /** Code */
+            code?: string | null;
+            /** Email */
+            email?: string | null;
+            /**
+             * Hasrefreshtoken
+             * @default false
+             */
+            hasRefreshToken: boolean;
+            /** Message */
+            message?: string | null;
+            /** Status */
+            status: string;
+        };
+        /**
+         * GoogleProjectOut
+         * @description One GCP project the signed-in user can pick.
+         */
+        GoogleProjectOut: {
+            /** Name */
+            name: string;
+            /** Projectid */
+            projectId: string;
+        };
+        /**
+         * GoogleProjectsResponse
+         * @description Empty when the list could not be read — the UI then asks for the id.
+         */
+        GoogleProjectsResponse: {
+            /** Projects */
+            projects?: components["schemas"]["GoogleProjectOut"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -5118,6 +5396,8 @@ export interface components {
         LLMConfigPublic: {
             /** Apikeyhint */
             apiKeyHint?: string | null;
+            /** Authmethod */
+            authMethod: string;
             /** Config */
             config?: {
                 [key: string]: unknown;
@@ -5130,6 +5410,8 @@ export interface components {
             lastValidatedAt?: string | null;
             /** Model */
             model: string;
+            /** Oauthaccount */
+            oauthAccount?: string | null;
             /** Provider */
             provider: string;
             /** Tier */
@@ -5230,6 +5512,66 @@ export interface components {
             tokensIn: number;
             /** Tokensout */
             tokensOut: number;
+        };
+        /**
+         * LoginFinishBody
+         * @description ``api_key`` exchanges for a platform key; ``subscription`` keeps the tokens.
+         */
+        LoginFinishBody: {
+            /**
+             * Credentialmode
+             * @enum {string}
+             */
+            credentialMode: "api_key" | "subscription";
+            /** Model */
+            model: string;
+        };
+        /**
+         * LoginStart
+         * @description What the UI has to show: a code to type, or a URL to open.
+         */
+        LoginStart: {
+            /** Authorizeurl */
+            authorizeUrl?: string | null;
+            /** Flowid */
+            flowId: string;
+            /**
+             * Intervals
+             * @default 5
+             */
+            intervalS: number;
+            /** Mode */
+            mode: string;
+            /** Usercode */
+            userCode?: string | null;
+            /** Verificationurl */
+            verificationUrl?: string | null;
+        };
+        /**
+         * LoginStartBody
+         * @description ``auto`` resolves to the browser redirect on localhost, device code elsewhere.
+         */
+        LoginStartBody: {
+            /**
+             * Mode
+             * @default auto
+             * @enum {string}
+             */
+            mode: "auto" | "device" | "browser";
+        };
+        /**
+         * LoginStatus
+         * @description ``pending`` until the user approves, then ``ready`` (or ``error``).
+         */
+        LoginStatus: {
+            /** Account */
+            account?: string | null;
+            /** Code */
+            code?: string | null;
+            /** Message */
+            message?: string | null;
+            /** Status */
+            status: string;
         };
         /** MatrixCase */
         MatrixCase: {
@@ -6996,7 +7338,7 @@ export interface components {
          * TargetKind
          * @enum {string}
          */
-        TargetKind: "BE_REST" | "BE_GRAPHQL" | "BE_GRPC" | "FE_WEB" | "FE_MOBILE" | "DATA" | "INFRA" | "CUSTOM";
+        TargetKind: "BE_REST" | "BE_GRAPHQL" | "BE_GRPC" | "FE_WEB" | "FE_MOBILE" | "FE_DESKTOP" | "DATA" | "INFRA" | "CUSTOM";
         /**
          * TestCaseCreate
          * @description Body for ``POST /test-cases`` (docs/API.md §3.3 — sample request).
@@ -13353,6 +13695,381 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_chatgpt_login_api_v1_workspaces__workspaceId__llm_config_chatgpt_login_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginStartBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginStart"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    poll_chatgpt_login_api_v1_workspaces__workspaceId__llm_config_chatgpt_login__flowId__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                flowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_chatgpt_login_api_v1_workspaces__workspaceId__llm_config_chatgpt_login__flowId__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                flowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    finish_chatgpt_login_api_v1_workspaces__workspaceId__llm_config_chatgpt_login__flowId__finish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                flowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginFinishBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LLMConfigPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_google_login_api_v1_workspaces__workspaceId__llm_config_google_login_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleLoginStartBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginStart"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    poll_google_login_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                flowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleLoginStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_google_login_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                flowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_google_callback_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__callback_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                flowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleCallbackBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleLoginStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    finish_google_login_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__finish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                flowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleLoginFinishBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LLMConfigPublic"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_google_login_models_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__models_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                flowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LLMModelsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_google_projects_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__projects_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Workspace-Id"?: string | null;
+            };
+            path: {
+                flowId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleProjectsResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

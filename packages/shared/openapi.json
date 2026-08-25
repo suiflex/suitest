@@ -3126,6 +3126,173 @@
         "title": "GitHubTestConnectionRequest",
         "type": "object"
       },
+      "GoogleCallbackBody": {
+        "description": "The URL the user copied out of the address bar in ``paste`` mode.",
+        "properties": {
+          "callbackUrl": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Callbackurl",
+            "type": "string"
+          }
+        },
+        "required": [
+          "callbackUrl"
+        ],
+        "title": "GoogleCallbackBody",
+        "type": "object"
+      },
+      "GoogleLoginFinishBody": {
+        "description": "What the approved sign-in is spent on.\n\n``code_assist`` needs nothing else \u2014 the project is discovered from the\naccount. ``vertex`` needs the project and region its endpoint is built from,\nso they are required only there.",
+        "properties": {
+          "backend": {
+            "default": "vertex",
+            "enum": [
+              "code_assist",
+              "vertex"
+            ],
+            "title": "Backend",
+            "type": "string"
+          },
+          "gcpLocation": {
+            "default": "",
+            "maxLength": 64,
+            "title": "Gcplocation",
+            "type": "string"
+          },
+          "gcpProject": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Gcpproject",
+            "type": "string"
+          },
+          "model": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "title": "GoogleLoginFinishBody",
+        "type": "object"
+      },
+      "GoogleLoginStartBody": {
+        "description": "``auto`` resolves to the loopback redirect on localhost, paste elsewhere.\n\n``variant`` names a Code Assist product that registers its own OAuth client\n\u2014 Antigravity does, so it cannot ride on the plain Google sign-in.",
+        "properties": {
+          "mode": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "browser",
+              "paste"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "const": "antigravity",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variant"
+          }
+        },
+        "title": "GoogleLoginStartBody",
+        "type": "object"
+      },
+      "GoogleLoginStatus": {
+        "description": "``pending`` until the redirect lands, then ``ready`` (or ``error``).",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "hasRefreshToken": {
+            "default": false,
+            "title": "Hasrefreshtoken",
+            "type": "boolean"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "GoogleLoginStatus",
+        "type": "object"
+      },
+      "GoogleProjectOut": {
+        "description": "One GCP project the signed-in user can pick.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "projectId": {
+            "title": "Projectid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId",
+          "name"
+        ],
+        "title": "GoogleProjectOut",
+        "type": "object"
+      },
+      "GoogleProjectsResponse": {
+        "description": "Empty when the list could not be read \u2014 the UI then asks for the id.",
+        "properties": {
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/GoogleProjectOut"
+            },
+            "title": "Projects",
+            "type": "array"
+          }
+        },
+        "title": "GoogleProjectsResponse",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -22503,6 +22670,487 @@
           }
         ],
         "summary": "Finish Chatgpt Login",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/llm-config/google/login": {
+      "post": {
+        "description": "Begin a Sign in with Google flow and return the URL to open.",
+        "operationId": "start_google_login_api_v1_workspaces__workspaceId__llm_config_google_login_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleLoginStartBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginStart"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Start Google Login",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/llm-config/google/login/{flowId}": {
+      "delete": {
+        "description": "Abandon a flow and release its callback listener.",
+        "operationId": "cancel_google_login_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flowId",
+            "required": true,
+            "schema": {
+              "title": "Flowid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Cancel Google Login",
+        "tags": [
+          "llm"
+        ]
+      },
+      "get": {
+        "description": "Advance the flow one step: ``pending`` until the redirect lands.",
+        "operationId": "poll_google_login_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flowId",
+            "required": true,
+            "schema": {
+              "title": "Flowid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleLoginStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Poll Google Login",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/llm-config/google/login/{flowId}/callback": {
+      "post": {
+        "description": "Accept the pasted callback URL \u2014 the fallback where loopback cannot reach.",
+        "operationId": "submit_google_callback_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__callback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flowId",
+            "required": true,
+            "schema": {
+              "title": "Flowid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleCallbackBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleLoginStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Submit Google Callback",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/llm-config/google/login/{flowId}/finish": {
+      "post": {
+        "description": "Store the approved sign-in as the active config, then refresh the tier.",
+        "operationId": "finish_google_login_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__finish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flowId",
+            "required": true,
+            "schema": {
+              "title": "Flowid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleLoginFinishBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LLMConfigPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Finish Google Login",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/llm-config/google/login/{flowId}/models": {
+      "get": {
+        "description": "Models the signed-in Code Assist account may call. Empty if unreadable.",
+        "operationId": "list_google_login_models_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__models_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flowId",
+            "required": true,
+            "schema": {
+              "title": "Flowid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LLMModelsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Google Login Models",
+        "tags": [
+          "llm"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/llm-config/google/login/{flowId}/projects": {
+      "get": {
+        "description": "The GCP projects the approved sign-in can see, for the project picker.",
+        "operationId": "list_google_projects_api_v1_workspaces__workspaceId__llm_config_google_login__flowId__projects_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flowId",
+            "required": true,
+            "schema": {
+              "title": "Flowid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleProjectsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Google Projects",
         "tags": [
           "llm"
         ]
