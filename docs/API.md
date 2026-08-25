@@ -765,6 +765,13 @@ The `paste` fallback: the browser lands on a loopback URL nothing answers, and t
 user copies the address bar back. Returns the same body as the poll. A URL from a
 different sign-in answers **422** `STATE_MISMATCH`.
 
+**GET `/google/login/:flowId/projects`** → `{"projects":[{"projectId":"…","name":"…"}]}`.
+The project a Vertex endpoint is built from cannot be derived from the token, so
+it has to be chosen; this turns that into a pick rather than a typed id. Answers
+`{"projects":[]}` when Resource Manager is disabled or the account lacks
+`resourcemanager.projects.get` — the UI then asks for the id, because the sign-in
+itself already succeeded. Before approval: **422** `NOT_APPROVED`.
+
 **POST `/google/login/:flowId/finish`** body:
 ```json
 { "model": "google/gemini-2.5-pro", "gcpProject": "my-project-123", "gcpLocation": "us-central1" }

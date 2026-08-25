@@ -708,6 +708,16 @@ Path: `/settings/llm` (sub-route in the Settings layout — the Settings sidebar
 **Capability:** this page is **always available** in all tiers (it is precisely how a user upgrades from ZERO to LOCAL/CLOUD).
 
 **Form layout:**
+0. **Authentication** — shown *under* the provider dropdown, and only for a
+   provider that can be reached more than one way. OpenAI offers "Paste a key" or
+   "Sign in with ChatGPT"; Google offers "Paste a key" (AI Studio) or "Sign in
+   with Google" (Vertex). Every other provider takes a key and renders no radio
+   at all. Exactly one form body is mounted at a time.
+
+   The vendor the user picks is not always the provider key that gets stored —
+   signing in to Google stores `google-vertex`, to ChatGPT stores `chatgpt`. The
+   mapping, and how each key is written for a person, lives in
+   `apps/web/src/lib/llm-vendors.ts`; no surface prints a raw provider key.
 1. **Provider dropdown** — LiteLLM supported list with grouping:
    - *Cloud* — Anthropic / OpenAI / Google Gemini / Groq / OpenRouter / Bedrock / Vertex / DeepSeek / xAI / Mistral / Cohere / ...
    - *Local* — Ollama / llama.cpp / vLLM / LM Studio / Text Generation Inference
