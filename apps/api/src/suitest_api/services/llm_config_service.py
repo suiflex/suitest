@@ -28,6 +28,7 @@ from suitest_core.capabilities import (
     compute_features,
     resolve_embeddings,
 )
+from suitest_core.code_assist import CODE_ASSIST_VARIANTS
 from suitest_core.llm_credentials import (
     CHATGPT_PROVIDER,
     GOOGLE_VERTEX_PROVIDER,
@@ -61,10 +62,13 @@ _CLOUD_PROVIDERS = frozenset(
         "mock",
         CHATGPT_PROVIDER,
         GOOGLE_VERTEX_PROVIDER,
+        *CODE_ASSIST_VARIANTS,
     }
 )
 # CLOUD providers that authenticate without SUITEST_LLM_API_KEY (IAM / canned creds).
-_KEYLESS = frozenset({"bedrock", "vertex", "mock", CHATGPT_PROVIDER, GOOGLE_VERTEX_PROVIDER})
+_KEYLESS = frozenset(
+    {"bedrock", "vertex", "mock", CHATGPT_PROVIDER, GOOGLE_VERTEX_PROVIDER, *CODE_ASSIST_VARIANTS}
+)
 # ``custom`` = any hosted OpenAI-compatible endpoint (gateway/router/proxy) the
 # user points at via base URL. CLOUD tier; API key optional (gateway-dependent);
 # base URL required — there is no default endpoint to fall back to.
@@ -122,6 +126,7 @@ class LLMConfigService:
         *,
         auth_method: str = AUTH_METHOD_API_KEY,
         oauth_tokens: StoredOAuthTokens | None = None,
+        config: dict[str, object] | None = None,
     ) -> None:
         p = provider.strip().lower()
         if p not in known_providers():
@@ -149,6 +154,15 @@ class LLMConfigService:
                     "MISSING_BASE_URL",
                     f"provider {GOOGLE_VERTEX_PROVIDER} requires config.base_url",
                 )
+        # A Code Assist config carries the project its sign-in discovered; the
+        # request envelope cannot be built without it.
+        if p in CODE_ASSIST_VARIANTS:
+            if auth_method != AUTH_METHOD_OAUTH or oauth_tokens is None:
+                raise LLMConfigError(
+                    "MISSING_OAUTH_TOKENS", f"provider {p} requires signing in with Google"
+                )
+            if not (config or {}).get("project"):
+                raise LLMConfigError("MISSING_PROJECT", f"provider {p} requires config.project")
         if p in _LOCAL_PROVIDERS and not base_url:
             raise LLMConfigError("MISSING_BASE_URL", f"LOCAL provider {p} requires config.base_url")
         if p == _CUSTOM and not base_url:
@@ -181,6 +195,7 @@ class LLMConfigService:
             base_url if isinstance(base_url, str) else None,
             auth_method=auth_method,
             oauth_tokens=oauth_tokens,
+            config=config,
         )
         # Whichever credential the caller brought, the other one must not linger.
         tokens_json = oauth_tokens.model_dump_json() if oauth_tokens is not None else None

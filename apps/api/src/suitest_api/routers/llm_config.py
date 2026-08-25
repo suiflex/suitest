@@ -20,7 +20,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_core.chatgpt_oauth import ChatGptOAuthError
 from suitest_core.google_oauth import GoogleOAuthError
@@ -36,6 +36,7 @@ from suitest_api.services.chatgpt_oauth_service import (
     LoginMode,
 )
 from suitest_api.services.google_oauth_service import (
+    GoogleBackend,
     GoogleOAuthService,
 )
 from suitest_api.services.google_oauth_service import (
@@ -263,13 +264,25 @@ class GoogleProjectsResponse(BaseModel):
 
 
 class GoogleLoginFinishBody(BaseModel):
-    """Vertex needs a project and region: they are what its endpoint is built from."""
+    """What the approved sign-in is spent on.
+
+    ``code_assist`` needs nothing else — the project is discovered from the
+    account. ``vertex`` needs the project and region its endpoint is built from,
+    so they are required only there.
+    """
 
     model_config = ConfigDict(populate_by_name=True)
 
     model: str = Field(min_length=1, max_length=120)
-    project: str = Field(min_length=1, max_length=120, alias="gcpProject")
-    location: str = Field(min_length=1, max_length=64, alias="gcpLocation")
+    backend: GoogleBackend = "vertex"
+    project: str = Field(default="", max_length=120, alias="gcpProject")
+    location: str = Field(default="", max_length=64, alias="gcpLocation")
+
+    @model_validator(mode="after")
+    def _vertex_needs_a_target(self) -> GoogleLoginFinishBody:
+        if self.backend == "vertex" and not (self.project.strip() and self.location.strip()):
+            raise ValueError("vertex requires gcpProject and gcpLocation")
+        return self
 
 
 class LoginFinishBody(BaseModel):
@@ -536,7 +549,11 @@ async def finish_google_login(
     service = GoogleOAuthService(session, ctx)
     with _login_errors():
         row = await service.finish(
-            flowId, model=body.model, project=body.project, location=body.location
+            flowId,
+            model=body.model,
+            backend=body.backend,
+            project=body.project,
+            location=body.location,
         )
     await _publish_capability_changed(request, ctx.workspace_id, provider_tier(row.provider).value)
     return _to_public(row)

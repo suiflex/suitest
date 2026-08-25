@@ -225,3 +225,28 @@ async def test_projects_before_approval_is_refused() -> None:
     with pytest.raises(svc.GoogleLoginError) as err:
         await service.projects(cast("str", started["flow_id"]))
     assert err.value.code == "NOT_APPROVED"
+
+
+@pytest.mark.asyncio
+async def test_an_antigravity_sign_in_uses_its_own_client_and_scopes() -> None:
+    """It registers separately and asks for two scopes the Gemini CLI does not,
+    so it cannot ride on the Google sign-in above it."""
+    from urllib.parse import parse_qs
+
+    from suitest_core.code_assist import ANTIGRAVITY_PROVIDER, variant
+
+    session = cast("AsyncSession", object())
+    service = svc.GoogleOAuthService(
+        session,
+        _CTX,
+        transport=httpx.MockTransport(_unused),
+        variant_key=ANTIGRAVITY_PROVIDER,
+    )
+    started = await service.start(mode="paste", request_host="suitest.example.com")
+    query = parse_qs(urlparse(cast("str", started["authorize_url"])).query)
+
+    spec = variant(ANTIGRAVITY_PROVIDER)
+    assert query["client_id"] == [spec.client_id]
+    scope = query["scope"][0]
+    assert "cclog" in scope
+    assert "experimentsandconfigs" in scope

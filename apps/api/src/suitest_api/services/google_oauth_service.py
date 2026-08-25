@@ -32,7 +32,9 @@ from typing import TYPE_CHECKING, Literal
 
 import httpx
 import structlog
+from suitest_core.code_assist import CODE_ASSIST_PROVIDER, resolve_account, variant
 from suitest_core.google_oauth import (
+    CLOUD_PLATFORM_SCOPES,
     GoogleOAuthError,
     GoogleProject,
     build_authorize_url,
@@ -42,7 +44,7 @@ from suitest_core.google_oauth import (
     parse_callback_url,
 )
 from suitest_core.llm_credentials import GOOGLE_VERTEX_PROVIDER, vertex_openai_base_url
-from suitest_core.oauth import StoredOAuthTokens, generate_pkce
+from suitest_core.oauth import OAuthTokens, StoredOAuthTokens, generate_pkce
 from suitest_db.models.llm_config import AUTH_METHOD_OAUTH
 
 from suitest_api.services.llm_config_service import LLMConfigService
@@ -66,6 +68,9 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 LoginMode = Literal["auto", "browser", "paste"]
+#: What a finished Google sign-in is spent on. Both reach Gemini; they differ in
+#: who pays and what the user has to supply.
+GoogleBackend = Literal["code_assist", "vertex"]
 
 _HTTP_TIMEOUT = 30.0
 _LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", ""})
@@ -93,12 +98,25 @@ class GoogleOAuthService:
         ctx: TenantContext,
         *,
         transport: httpx.AsyncBaseTransport | None = None,
+        variant_key: str | None = None,
     ) -> None:
         self._session = session
         self._ctx = ctx
-        settings = get_settings()
-        self._client_id = settings.llm_google_oauth_client_id
-        self._client_secret = settings.llm_google_oauth_client_secret or None
+        self._variant_key = variant_key
+        if variant_key is None:
+            # The deployment's own Google client, used for Vertex and for Code
+            # Assist alike — same scopes, so one consent covers both.
+            settings = get_settings()
+            self._client_id = settings.llm_google_oauth_client_id
+            self._client_secret = settings.llm_google_oauth_client_secret or None
+            self._scopes: tuple[str, ...] = CLOUD_PLATFORM_SCOPES
+        else:
+            # Antigravity registers its own client and asks for two scopes the
+            # Gemini CLI does not, so it cannot ride on the sign-in above.
+            spec = variant(variant_key or self._variant_key or CODE_ASSIST_PROVIDER)
+            self._client_id = spec.client_id
+            self._client_secret = spec.client_secret
+            self._scopes = spec.scopes
         # Only the tests pass a transport; production talks to the real issuer.
         self._transport = transport
 
@@ -135,6 +153,7 @@ class GoogleOAuthService:
             redirect_uri=flow.redirect_uri,
             code_challenge=challenge,
             state=flow.state,
+            scopes=self._scopes,
         )
 
         FLOWS[flow_id] = flow
@@ -237,27 +256,44 @@ class GoogleOAuthService:
 
     # --- finish --------------------------------------------------------------
 
-    async def finish(self, flow_id: str, *, model: str, project: str, location: str) -> LLMConfig:
-        """Persist the approved session as the workspace's active LLM config."""
-        flow = self._flow(flow_id)
-        tokens = flow.tokens
-        if tokens is None:
-            raise GoogleLoginError("NOT_APPROVED", "the sign-in has not been approved yet")
-        if tokens.refresh_token is None:
-            # Without one the credential dies in an hour with no way back, which
-            # would surface as a broken workspace rather than a failed sign-in.
-            raise GoogleLoginError(
-                "NO_REFRESH_TOKEN",
-                "Google returned no refresh token; revoke Suitest's access and sign in again",
-            )
+    async def finish(
+        self,
+        flow_id: str,
+        *,
+        model: str,
+        backend: GoogleBackend = "vertex",
+        variant_key: str | None = None,
+        project: str = "",
+        location: str = "",
+    ) -> LLMConfig:
+        """Persist the approved session as the workspace's active LLM config.
 
-        base_url = vertex_openai_base_url(project=project, location=location)
+        ``code_assist`` asks the user for nothing: the project is discovered
+        from the account. ``vertex`` needs the project and region the caller
+        collected, because its endpoint is built from them.
+        """
+        tokens = self._approved(flow_id)
+
+        if backend == "code_assist":
+            spec = variant(variant_key or self._variant_key or CODE_ASSIST_PROVIDER)
+            async with self._http() as client:
+                account = await resolve_account(client, access_token=tokens.access_token, spec=spec)
+            provider = spec.provider
+            config: dict[str, object] = {"project": account.project_id, "tier": account.tier_id}
+        else:
+            provider = GOOGLE_VERTEX_PROVIDER
+            config = {
+                "base_url": vertex_openai_base_url(project=project, location=location),
+                "gcp_project": project,
+                "gcp_location": location,
+            }
+
         service = LLMConfigService(self._session, self._ctx)
         row = await service.set_config(
-            provider=GOOGLE_VERTEX_PROVIDER,
+            provider=provider,
             model=model,
             api_key=None,
-            config={"base_url": base_url, "gcp_project": project, "gcp_location": location},
+            config=config,
             auth_method=AUTH_METHOD_OAUTH,
             oauth_tokens=StoredOAuthTokens(
                 access_token=tokens.access_token,
@@ -270,6 +306,21 @@ class GoogleOAuthService:
         )
         self.cancel(flow_id)
         return row
+
+    def _approved(self, flow_id: str) -> OAuthTokens:
+        """The token set of an approved flow, or a named refusal."""
+        flow = self._flow(flow_id)
+        tokens = flow.tokens
+        if tokens is None:
+            raise GoogleLoginError("NOT_APPROVED", "the sign-in has not been approved yet")
+        if tokens.refresh_token is None:
+            # Without one the credential dies in an hour with no way back, which
+            # would surface as a broken workspace rather than a failed sign-in.
+            raise GoogleLoginError(
+                "NO_REFRESH_TOKEN",
+                "Google returned no refresh token; revoke Suitest's access and sign in again",
+            )
+        return tokens
 
     def cancel(self, flow_id: str) -> None:
         """Drop a flow and release its listener. Unknown ids are a no-op."""
