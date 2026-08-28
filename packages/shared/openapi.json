@@ -9167,6 +9167,17 @@
             ],
             "title": "Description"
           },
+          "diff_threshold": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diff Threshold"
+          },
           "effective_testing_approach": {
             "$ref": "#/components/schemas/TestingApproach",
             "default": "BLACK_BOX"
@@ -9548,6 +9559,19 @@
               }
             ],
             "title": "Description"
+          },
+          "diffThreshold": {
+            "anyOf": [
+              {
+                "maximum": 255.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diffthreshold"
           },
           "framework": {
             "anyOf": [

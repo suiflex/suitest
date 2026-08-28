@@ -7392,6 +7392,8 @@ export interface components {
             created_at: string;
             /** Description */
             description?: string | null;
+            /** Diff Threshold */
+            diff_threshold?: number | null;
             /** @default BLACK_BOX */
             effective_testing_approach: components["schemas"]["TestingApproach"];
             /** Framework */
@@ -7509,6 +7511,8 @@ export interface components {
         TestCaseUpdate: {
             /** Description */
             description?: string | null;
+            /** Diffthreshold */
+            diffThreshold?: number | null;
             /** Framework */
             framework?: string | null;
             /** Name */
