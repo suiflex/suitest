@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/suiflex/suitest/compare/launcher-v0.7.0...launcher-v0.8.0) (2026-08-28)
+
+
+### Features
+
+* **cases:** per-case pixel-diff threshold override (M12-3) ([399182e](https://github.com/suiflex/suitest/commit/399182e9a9885cbf90de22cab91619865ea4285a))
+
+
+### Bug Fixes
+
+* **api:** stop the UAT export 500ing on unrenderable content ([145ee97](https://github.com/suiflex/suitest/commit/145ee97d6948b7bb0f5a192ef0b250e200653048))
+
 ## [0.7.0](https://github.com/suiflex/suitest/compare/launcher-v0.6.10...launcher-v0.7.0) (2026-08-27)
 
 
