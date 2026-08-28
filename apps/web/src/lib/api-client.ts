@@ -139,6 +139,33 @@ export async function fetchTestCaseDescription(caseId: string): Promise<string |
   return res.data.description ?? null;
 }
 
+// ---------------------------------------------------------------------------
+// Screenshot diff threshold (M12-3 — per-case pixel-diff threshold override).
+// ---------------------------------------------------------------------------
+
+interface TestCaseDiffThreshold {
+  diff_threshold?: number | null;
+  diffThreshold?: number | null;
+}
+
+/** ``GET /test-cases/:id`` — read just the persisted diff-threshold override. */
+export async function fetchTestCaseDiffThreshold(caseId: string): Promise<number | null> {
+  const res = await api.get<TestCaseDiffThreshold>(`/test-cases/${caseId}`);
+  return res.data.diff_threshold ?? res.data.diffThreshold ?? null;
+}
+
+/**
+ * ``PATCH /test-cases/:id`` — persist a per-case pixel-diff threshold
+ * override (0-255) for the {@link ScreenshotDiffViewer}. Pass `null` to clear
+ * the override and fall back to `DEFAULT_PIXEL_THRESHOLD`.
+ */
+export async function updateTestCaseDiffThreshold(
+  caseId: string,
+  diffThreshold: number | null,
+): Promise<void> {
+  await api.patch(`/test-cases/${caseId}`, { diffThreshold });
+}
+
 type RunLogPage = components["schemas"]["RunLogPage"];
 
 /** ``GET /runs/:id/logs`` — persisted log stream (M4-10 time-travel replay reads this). */

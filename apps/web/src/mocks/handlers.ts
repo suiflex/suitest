@@ -268,6 +268,18 @@ export const handlers: HttpHandler[] = [
   }),
   http.get(`${BASE}/test-cases/:caseId/steps`, () => HttpResponse.json({ items: [] })),
 
+  // M12-3: per-case pixel-diff threshold — PATCH echoes the new value back so
+  // ScreenshotDiffViewer's threshold control round-trips in tests/storybook.
+  http.patch(`${BASE}/test-cases/:caseId`, async ({ params, request }) => {
+    const publicId = String(params["caseId"]);
+    const body = (await request.json()) as { diffThreshold?: number | null };
+    return HttpResponse.json({
+      id: `case_${publicId}`,
+      public_id: publicId,
+      diff_threshold: body.diffThreshold ?? null,
+    });
+  }),
+
   // M1-12: step write endpoints — thin stubs (per-test overrides via server.use)
   http.post(`${BASE}/test-cases/:caseId/steps`, ({ params }) => {
     const publicId = String(params["caseId"]);

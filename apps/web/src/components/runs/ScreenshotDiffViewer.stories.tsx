@@ -36,7 +36,7 @@ const baseArtifacts: ArtifactPublic[] = [
 const meta: Meta<typeof ScreenshotDiffViewer> = {
   title: "Runs/ScreenshotDiffViewer",
   component: ScreenshotDiffViewer,
-  args: { runId: "run_demo", artifacts: baseArtifacts },
+  args: { runId: "run_demo", caseId: "case_demo", artifacts: baseArtifacts },
 };
 
 export default meta;
@@ -44,9 +44,13 @@ export default meta;
 export const Default: StoryObj<typeof ScreenshotDiffViewer> = {};
 
 export const NoScreenshots: StoryObj<typeof ScreenshotDiffViewer> = {
-  args: { runId: "run_demo", artifacts: [] },
+  args: { runId: "run_demo", caseId: "case_demo", artifacts: [] },
 };
 
 export const OneScreenshot: StoryObj<typeof ScreenshotDiffViewer> = {
-  args: { runId: "run_demo", artifacts: [baseArtifacts[0] as ArtifactPublic] },
+  args: {
+    runId: "run_demo",
+    caseId: "case_demo",
+    artifacts: [baseArtifacts[0] as ArtifactPublic],
+  },
 };

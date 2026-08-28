@@ -1,13 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GitCompareArrows } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { EmptyState } from "@/components/shared/EmptyState";
-import { fetchRunSignedUrl } from "@/lib/api-client";
+import {
+  fetchRunSignedUrl,
+  fetchTestCaseDiffThreshold,
+  updateTestCaseDiffThreshold,
+} from "@/lib/api-client";
 import type { components } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
 
 import {
+  DEFAULT_PIXEL_THRESHOLD,
   diffImage,
   diffPctColor,
   pixelDiffPct,
@@ -21,6 +26,8 @@ interface ScreenshotDiffViewerProps {
   runId: string;
   /** Artifacts already filtered to SCREENSHOT kind by the parent. */
   artifacts: ArtifactPublic[];
+  /** Case id — used to load/persist the per-case threshold override (M12-3). */
+  caseId: string;
 }
 
 type ViewMode = "side-by-side" | "overlay" | "diff";
@@ -31,10 +38,15 @@ type ViewMode = "side-by-side" | "overlay" | "diff";
  * via the presigned-URL API, draws them to a canvas, and reports the pixel-diff
  * percentage plus a red-overlay visualization. Perceptual mode is scaffolded
  * as a disabled toggle — it lands in M12-2 behind an LLM gate.
+ *
+ * M12-3 — the pixel threshold is tunable per case: the picker below the mode
+ * toggle loads/persists `TestCase.diff_threshold` via `PATCH /test-cases/:id`
+ * and falls back to `DEFAULT_PIXEL_THRESHOLD` when the case has no override.
  */
 export function ScreenshotDiffViewer({
   runId,
   artifacts,
+  caseId,
 }: ScreenshotDiffViewerProps): React.ReactElement {
   // Two pickers default to the first two screenshots.
   const [aId, setAId] = useState<string | null>(null);
@@ -82,10 +94,12 @@ export function ScreenshotDiffViewer({
         />
         <ModeToggle mode={mode} onModeChange={setMode} />
         <ViewToggle view={view} onViewChange={setView} />
+        <ThresholdControl caseId={caseId} />
       </div>
 
       <DiffCanvas
         runId={runId}
+        caseId={caseId}
         aId={aId}
         bId={bId}
         view={view}
@@ -97,6 +111,72 @@ export function ScreenshotDiffViewer({
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Per-case pixel-diff threshold control (M12-3). Loads `TestCase.diff_threshold`
+ * (falls back to `DEFAULT_PIXEL_THRESHOLD` display when unset) and persists
+ * edits via `PATCH /test-cases/:id`. The number input is debounced-free —
+ * commits on blur/Enter so a keystroke never spams the API.
+ */
+function ThresholdControl({ caseId }: { caseId: string }): React.ReactElement {
+  const queryClient = useQueryClient();
+  const { data: savedThreshold } = useQuery({
+    queryKey: ["case-diff-threshold", caseId] as const,
+    queryFn: () => fetchTestCaseDiffThreshold(caseId),
+  });
+
+  const effective = savedThreshold ?? DEFAULT_PIXEL_THRESHOLD;
+  const [draft, setDraft] = useState<string>(effective.toString());
+
+  // Resync the draft when the persisted value changes underneath us (new
+  // case, or a save round-trips a normalized value).
+  useEffect(() => {
+    setDraft(effective.toString());
+  }, [effective]);
+
+  const mutation = useMutation({
+    mutationFn: (value: number | null) => updateTestCaseDiffThreshold(caseId, value),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["case-diff-threshold", caseId] });
+    },
+  });
+
+  const commit = (): void => {
+    const trimmed = draft.trim();
+    if (trimmed === "") {
+      mutation.mutate(null); // clear override → back to DEFAULT_PIXEL_THRESHOLD
+      return;
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 255) {
+      setDraft(effective.toString()); // reject out-of-range input, revert
+      return;
+    }
+    if (parsed !== savedThreshold) mutation.mutate(parsed);
+  };
+
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[10.5px] uppercase tracking-wide text-fg-5">
+        Threshold
+      </span>
+      <input
+        type="number"
+        min={0}
+        max={255}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+        data-testid="diff-threshold-input"
+        title="Per-case pixel RGB-distance threshold (0-255). Blank clears the override."
+        className="w-16 rounded-md border border-border bg-bg-elev-1 px-2 py-1 font-mono text-[12px] text-fg-1 focus:border-accent focus:outline-none"
+      />
+    </label>
+  );
+}
 
 function Picker({
   label,
@@ -235,12 +315,14 @@ function ViewToggle({
 
 function DiffCanvas({
   runId,
+  caseId,
   aId,
   bId,
   view,
   computeMode,
 }: {
   runId: string;
+  caseId: string;
   aId: string | null;
   bId: string | null;
   view: ViewMode;
@@ -253,11 +335,19 @@ function DiffCanvas({
   const aImg = useImage(aUrl);
   const bImg = useImage(bUrl);
 
+  // M12-3: the persisted per-case override (falls back to
+  // DEFAULT_PIXEL_THRESHOLD when the case has none set).
+  const { data: savedThreshold } = useQuery({
+    queryKey: ["case-diff-threshold", caseId] as const,
+    queryFn: () => fetchTestCaseDiffThreshold(caseId),
+  });
+  const threshold = savedThreshold ?? DEFAULT_PIXEL_THRESHOLD;
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pct, setPct] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // Redraw whenever images or view change.
+  // Redraw whenever images, view, or the threshold change.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas === null) return;
@@ -309,10 +399,10 @@ function DiffCanvas({
     ctx.clearRect(0, 0, w, h);
     ctx.drawImage(imgB, 0, 0, w, h);
     const dataB = ctx.getImageData(0, 0, w, h);
-    const diff = diffImage(dataA, dataB);
+    const diff = diffImage(dataA, dataB, { threshold });
     ctx.putImageData(diff, 0, 0);
-    setPct(pixelDiffPct(dataA, dataB));
-  }, [aImg, bImg, view, computeMode]);
+    setPct(pixelDiffPct(dataA, dataB, { threshold }));
+  }, [aImg, bImg, view, computeMode, threshold]);
 
   const loading = aImg.status === "loading" || bImg.status === "loading";
   const error = aImg.status === "error" || bImg.status === "error";

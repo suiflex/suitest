@@ -166,6 +166,7 @@ export function CaseDetailPanel({
         logs={logItems}
         artifacts={caseArtifacts}
         runId={runId}
+        caseId={group.caseId}
       />
     </div>
   );
@@ -180,6 +181,7 @@ interface CaseEvidenceTabsProps {
   logs: components["schemas"]["RunLogItem"][];
   artifacts: ArtifactPublic[];
   runId: string;
+  caseId: string;
 }
 
 function CaseEvidenceTabs({
@@ -191,6 +193,7 @@ function CaseEvidenceTabs({
   logs,
   artifacts,
   runId,
+  caseId,
 }: CaseEvidenceTabsProps): React.ReactElement {
   const [tab, setTab] = useState("preview");
   const showStep = Boolean(stepScreenshotUrl);
@@ -292,6 +295,7 @@ function CaseEvidenceTabs({
       <TabsContent value="diff">
         <ScreenshotDiffViewer
           runId={runId}
+          caseId={caseId}
           artifacts={artifacts.filter((a) => a.kind === "SCREENSHOT")}
         />
       </TabsContent>

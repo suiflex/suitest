@@ -96,6 +96,9 @@ class TestCaseDetail(TestCaseListItem):
     last_run_result: str | None = None
     last_run_at: datetime | None = None
     last_duration_ms: int | None = None
+    # M12-3: per-case pixel-diff threshold override (0-255). NULL = the
+    # ScreenshotDiffViewer falls back to its client-side default.
+    diff_threshold: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -188,6 +191,12 @@ class TestCaseUpdate(BaseModel):
     framework: Annotated[str, Field(min_length=1, max_length=64)] | None = None
     strategy_id: str | None = Field(default=None, alias="strategyId")
     tags: list[str] | None = None
+    # M12-3: per-case pixel-diff threshold override. `null` clears the
+    # override (falls back to the viewer's client-side default); omitted =
+    # untouched, matching every other optional field on this DTO.
+    diff_threshold: Annotated[int, Field(ge=0, le=255)] | None = Field(
+        default=None, alias="diffThreshold"
+    )
 
 
 class StepReplace(BaseModel):

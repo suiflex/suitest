@@ -32,7 +32,7 @@ function screenshot(id: string, runStepId = "rs_02"): ArtifactPublic {
 
 describe("<ScreenshotDiffViewer>", () => {
   it("shows an empty state when fewer than 2 screenshots", () => {
-    renderViewer({ runId: "run_1", artifacts: [screenshot("a")] });
+    renderViewer({ runId: "run_1", caseId: "case_1", artifacts: [screenshot("a")] });
     expect(screen.getByTestId("screenshot-diff-empty")).toBeInTheDocument();
     expect(
       screen.getByText(/fewer than two screenshots/i),
@@ -40,13 +40,14 @@ describe("<ScreenshotDiffViewer>", () => {
   });
 
   it("shows an empty state for zero screenshots", () => {
-    renderViewer({ runId: "run_1", artifacts: [] });
+    renderViewer({ runId: "run_1", caseId: "case_1", artifacts: [] });
     expect(screen.getByTestId("screenshot-diff-empty")).toBeInTheDocument();
   });
 
   it("renders pickers A and B with two screenshots available", () => {
     renderViewer({
       runId: "run_1",
+      caseId: "case_1",
       artifacts: [screenshot("art_01"), screenshot("art_02")],
     });
     expect(screen.getByTestId("diff-pick-a")).toBeInTheDocument();
@@ -61,6 +62,7 @@ describe("<ScreenshotDiffViewer>", () => {
   it("defaults pickers to the first two screenshots", () => {
     renderViewer({
       runId: "run_1",
+      caseId: "case_1",
       artifacts: [screenshot("art_01"), screenshot("art_02")],
     });
     expect(
@@ -74,6 +76,7 @@ describe("<ScreenshotDiffViewer>", () => {
   it("exposes the pixel mode toggle and the disabled perceptual stub", () => {
     renderViewer({
       runId: "run_1",
+      caseId: "case_1",
       artifacts: [screenshot("a"), screenshot("b")],
     });
     expect(screen.getByTestId("diff-mode-pixel")).toBeInTheDocument();
@@ -84,6 +87,7 @@ describe("<ScreenshotDiffViewer>", () => {
   it("exposes all three view modes", () => {
     renderViewer({
       runId: "run_1",
+      caseId: "case_1",
       artifacts: [screenshot("a"), screenshot("b")],
     });
     expect(screen.getByTestId("diff-view-side-by-side")).toBeInTheDocument();
@@ -94,9 +98,24 @@ describe("<ScreenshotDiffViewer>", () => {
   it("canvas wrap renders (canvas path is skipped under jsdom)", () => {
     renderViewer({
       runId: "run_1",
+      caseId: "case_1",
       artifacts: [screenshot("a"), screenshot("b")],
     });
     // The canvas element is present even if drawing is a no-op in jsdom.
     expect(screen.getByTestId("diff-canvas-wrap")).toBeInTheDocument();
+  });
+
+  it("exposes the per-case threshold input defaulting to DEFAULT_PIXEL_THRESHOLD (M12-3)", async () => {
+    renderViewer({
+      runId: "run_1",
+      caseId: "case_1",
+      artifacts: [screenshot("a"), screenshot("b")],
+    });
+    const input = (await screen.findByTestId(
+      "diff-threshold-input",
+    )) as HTMLInputElement;
+    // The mock `GET /test-cases/:id` handler returns no diff_threshold, so
+    // the control falls back to DEFAULT_PIXEL_THRESHOLD (30).
+    expect(input.value).toBe("30");
   });
 });

@@ -440,6 +440,7 @@ class TestCaseService:
             "test_level",
             "framework",
             "strategy_id",
+            "diff_threshold",
         ):
             if field in payload:
                 setattr(case, field, payload[field])

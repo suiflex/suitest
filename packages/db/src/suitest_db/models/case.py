@@ -136,6 +136,11 @@ class TestCase(Base, TimestampMixin):
     order_in_suite: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
+    # M12-3: per-case pixel-diff threshold override for the screenshot diff
+    # viewer (docs/ROADMAP.md M12-3). NULL = use the viewer's client-side
+    # default (`DEFAULT_PIXEL_THRESHOLD` in screenshot-diff.ts). 0-255 range
+    # is enforced at the API layer (schemas/test_case.py `TestCaseUpdate`).
+    diff_threshold: Mapped[int | None] = mapped_column(Integer)
 
     suite: Mapped[Suite] = relationship("Suite")
     steps: Mapped[list[TestStep]] = relationship(
