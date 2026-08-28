@@ -58,9 +58,28 @@ def test_both_locales_render_and_differ() -> None:
     assert id_pdf != en_pdf
 
 
+def test_typographic_characters_do_not_crash() -> None:
+    # Helvetica is a Latin-1 core font; an em dash used to raise mid-render and
+    # surface as a bare 500 on the export endpoint.
+    doc = _doc()
+    doc.title = "RDB V43 \u2014 \u201cgrid\u201d selection\u2026"
+    doc.sections[0].module_name = "Editor \u2014 caret"
+    doc.sections[0].rows[0].test_case = "Verifikasi user tidak bisa \u2192 pindah"
+    doc.sections[0].rows[0].steps = ["Klik \u2018Copy\u2019", "Tekan \U0001f600"]
+    pdf = render_pdf(doc)
+    assert pdf[:5] == b"%PDF-"
+
+
 def test_bad_evidence_uri_does_not_crash() -> None:
     pdf = render_pdf(_doc(evidence=["data:image/png;base64,not-valid-b64!!"]))
     assert pdf[:5] == b"%PDF-"
+
+
+def test_undecodable_evidence_image_does_not_crash() -> None:
+    # Valid base64, unreadable image — a truncated screenshot. Pillow used to
+    # raise inside pdf.output(), long after _first_image had waved it through.
+    uri = "data:image/png;base64," + base64.b64encode(_PNG[:20]).decode("ascii")
+    assert render_pdf(_doc(evidence=[uri]))[:5] == b"%PDF-"
 
 
 def _page_count(pdf: bytes) -> int:
