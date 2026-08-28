@@ -28,6 +28,9 @@ dependencies = [
   "arq>=0.26",
   "aioboto3>=12.4",
   "fpdf2>=2.8.5",
+  # Already pulled in by fpdf2; declared because the UAT renderer validates
+  # evidence screenshots with it directly.
+  "pillow>=11",
 ]
 
 [build-system]

@@ -21,11 +21,13 @@ footer with ``page N of M``.
 from __future__ import annotations
 
 import base64
+from dataclasses import replace
 from io import BytesIO
 from pathlib import Path
 
 from fpdf import FPDF
 from fpdf.fonts import FontFace
+from PIL import Image
 
 from suitest_api.services.uat_document import UatDocument
 
@@ -148,6 +150,66 @@ _LABELS: dict[str, dict[str, str]] = {
 }
 
 
+# fpdf2 core fonts (Helvetica) encode Latin-1 only; anything outside that range
+# raises FPDFUnicodeEncodingException mid-render. LLM-written case titles and
+# suite names routinely carry typographic punctuation, which used to 500 the
+# whole export.
+_LATIN1_FALLBACK = str.maketrans(
+    {
+        "\u2014": "-",
+        "\u2013": "-",
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2026": "...",
+        "\u2192": "->",
+        "\u2022": "-",
+        "\u00a0": " ",
+    }
+)
+
+
+def _latin1(text: str) -> str:
+    """Coerce text into the Latin-1 range Helvetica can encode.
+
+    ponytail: transliteration, not an embedded Unicode font. Ship a TTF via
+    ``add_font`` if a non-Latin locale (CJK, Cyrillic) is ever added.
+    """
+    return text.translate(_LATIN1_FALLBACK).encode("latin-1", "replace").decode("latin-1")
+
+
+def _encodable(doc: UatDocument) -> UatDocument:
+    """Copy the document with every rendered string coerced to Latin-1.
+
+    Done once at the entry point rather than at each of the 30+ draw calls, and
+    on a copy so the caller's document is untouched. ``evidence`` is left alone —
+    it holds base64 data URIs, which are ASCII by construction.
+    """
+    return replace(
+        doc,
+        title=_latin1(doc.title),
+        generated_at=_latin1(doc.generated_at),
+        sections=[
+            replace(
+                section,
+                module_name=_latin1(section.module_name),
+                rows=[
+                    replace(
+                        row,
+                        modul_fitur=_latin1(row.modul_fitur),
+                        test_case=_latin1(row.test_case),
+                        steps=[_latin1(x) for x in row.steps],
+                        results=[_latin1(x) for x in row.results],
+                    )
+                    for row in section.rows
+                ],
+            )
+            for section in doc.sections
+        ],
+    )
+
+
 class _UatPdf(FPDF):
     """Running header/footer. Both are suppressed on the cover page."""
 
@@ -267,7 +329,13 @@ def _first_image(evidence: list[str]) -> BytesIO | None:
         return None
     try:
         b64 = evidence[0].split(",", 1)[1]
-        return BytesIO(base64.b64decode(b64))
+        buf = BytesIO(base64.b64decode(b64))
+        # Decoding base64 is not enough: fpdf2 hands the bytes to Pillow at
+        # ``output()`` time, and a truncated or mislabelled screenshot raises
+        # UnidentifiedImageError there — far from this call site, as a bare 500.
+        Image.open(buf).verify()
+        buf.seek(0)
+        return buf
     except Exception:  # bad/absent image must never break the export
         return None
 
@@ -545,6 +613,7 @@ def _signoff(pdf: _UatPdf, doc: UatDocument, labels: dict[str, str]) -> None:
 def render_pdf(doc: UatDocument) -> bytes:
     """Render the document to PDF bytes (fpdf2). Pure, deterministic, ZERO-tier."""
     labels = _LABELS.get(doc.locale, _LABELS["id"])
+    doc = _encodable(doc)
     pdf = _UatPdf(labels, doc.title)
     pdf.set_auto_page_break(auto=True, margin=18)
     pdf.alias_nb_pages()
