@@ -40,6 +40,12 @@ jobs:
   label:
     # Forks of this repository have their own labels, if any.
     if: github.repository_owner == 'suiflex'
+    # Not for ordering's sake — actions/labeler writes with issues.setLabels,
+    # a PUT of the whole label set built from a snapshot read when the job
+    # starts. Run in parallel and that snapshot predates the labels triage
+    # just applied, so the PUT drops them until the next push puts them back.
+    # Waiting costs half a minute and makes the two jobs stop racing.
+    needs: triage
     runs-on: ubuntu-latest
     # The app token below carries the write, so this job's own token only reads.
     permissions:
@@ -56,6 +62,9 @@ jobs:
         with:
           repo-token: ${{ steps.app-token.outputs.token }}
           configuration-path: .github/labeler.yml
-          # Drop a label again once a force-push stops touching that area,
-          # so the row keeps describing the diff as it stands.
-          sync-labels: true
+          # This job only ever adds. Removing is the one thing a PUT-based
+          # writer cannot be trusted with here: a label it decides to drop is
+          # indistinguishable from one someone applied by hand a second ago.
+          # An 'area:' label left over from a reverted change is cheaper than
+          # silently losing a real one.
+          sync-labels: false
