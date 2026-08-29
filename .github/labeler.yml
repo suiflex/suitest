@@ -1,0 +1,90 @@
+# Path -> label map for the PR area labeler (the `label` job in
+# .github/workflows/suiflex.yml).
+#
+# One entry per component, mirroring the paths-filter map in ci.yml: a reviewer
+# can tell from the label row which parts of the repository a pull request
+# touches without opening the diff.
+#
+# Adding a package means adding it here as well as to ci.yml's filters and
+# pyproject/pnpm-workspace — nothing checks that this file stayed in sync.
+
+
+"area: api":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/api/**"
+
+"area: runner":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/runner/**"
+
+"area: web":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "apps/web/**"
+
+"area: agent":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/agent/**"
+
+"area: core":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/core/**"
+
+"area: db":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/db/**"
+
+"area: mcp":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/mcp/**"
+          - "packages/mcp-npx/**"
+
+"area: shared":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/shared/**"
+
+"area: launcher":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packages/suitest-npx/**"
+          - "packages/lifecycle/**"
+          - "cli/**"
+
+"area: sdk":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "sdk/**"
+
+"area: tests":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "tests/**"
+          - "eval/**"
+
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+          - "Makefile"
+
+"area: packaging":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "packaging/**"
+          - "infra/**"
+          - "action/**"
+          - "Dockerfile*"
+
+"area: docs":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "*.md"
+          - "docs/**"
+          - "docs-site/**"
