@@ -1,0 +1,61 @@
+name: PR Triage
+
+# Everything that labels a pull request, in one place. Two jobs because they
+# own different things:
+#
+#   triage — a thin caller into the organization's shared workflow, so that
+#            every repository in suiflex marks authorship and conventional-commit
+#            types the same way and a change to that lands once, upstream.
+#   label  — this repository's own path -> area map (.github/labeler.yml), which
+#            is specific to this repository's layout and has no business upstream.
+#
+# Both label as suiflex-bot, so a pull request never shows two identities doing
+# the same job.
+#
+# pull_request_target, not pull_request: a fork's pull request runs with a
+# read-only token, which cannot apply labels — the one case that matters most
+# here. This is safe because NEITHER job ever checks out or executes the pull
+# request's code; they pass GitHub-provided event metadata to pinned actions,
+# and actions/labeler reads its configuration through the API from the base
+# branch, so a fork cannot supply its own map. The same pattern is used by
+# cla.yml in this repository and by pr_issue_labeler.yml in zed-industries/zed.
+#
+# Do not add a checkout step, and do not "tidy" this to pull_request.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+# Deliberately no workflow-level `permissions`: that would also narrow the
+# token handed down to the reusable workflow below. Each job states its own.
+
+jobs:
+  triage:
+    # Forks of this repository should not try to run the organization's bot.
+    if: github.repository_owner == 'suiflex'
+    uses: suiflex/.github/.github/workflows/pr-triage.yml@main
+    secrets:
+      app_id: ${{ secrets.SUIFLEX_BOT_APP_ID }}
+      private_key: ${{ secrets.SUIFLEX_BOT_PRIVATE_KEY }}
+
+  label:
+    # Forks of this repository have their own labels, if any.
+    if: github.repository_owner == 'suiflex'
+    runs-on: ubuntu-latest
+    # The app token below carries the write, so this job's own token only reads.
+    permissions:
+      contents: read
+    steps:
+      # Same app credentials the triage job passes upstream, so both jobs'
+      # labels arrive from suiflex-bot rather than github-actions.
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ secrets.SUIFLEX_BOT_APP_ID }}
+          private-key: ${{ secrets.SUIFLEX_BOT_PRIVATE_KEY }}
+      - uses: actions/labeler@v5
+        with:
+          repo-token: ${{ steps.app-token.outputs.token }}
+          configuration-path: .github/labeler.yml
+          # Drop a label again once a force-push stops touching that area,
+          # so the row keeps describing the diff as it stands.
+          sync-labels: true
