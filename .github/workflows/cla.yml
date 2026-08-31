@@ -16,7 +16,20 @@ jobs:
   cla:
     runs-on: ubuntu-latest
     steps:
+      # Labels below are applied with these credentials rather than
+      # GITHUB_TOKEN, so every label on a pull request arrives from
+      # suiflex-bot — the same identity used by suiflex.yml — instead of
+      # splitting the row between two bots. The CLA step itself keeps
+      # GITHUB_TOKEN: it pushes to the cla-signatures branch of this
+      # repository, which is this workflow's own token's job.
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ secrets.SUIFLEX_BOT_APP_ID }}
+          private-key: ${{ secrets.SUIFLEX_BOT_PRIVATE_KEY }}
+
       - name: CLA Assistant Lite
+        id: cla
         if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
         uses: contributor-assistant/github-action@v2.6.1
         env:
@@ -36,3 +49,37 @@ jobs:
           custom-pr-sign-comment: I have read the CLA Document and I hereby sign the CLA
           custom-allsigned-prcomment: All contributors have signed the CLA ✅
           lock-pullrequest-aftermerge: false
+
+      # A commit status cannot be filtered from the pull request list, so the
+      # signing state is mirrored onto a label as well:
+      #
+      #   gh label create 'cla: signed' --repo suiflex/suitest --force \
+      #     --color 4ade80 --description 'Contributor has signed the CLA · suiflex-bot'
+      #   gh label create 'cla: not signed' --repo suiflex/suitest --force \
+      #     --color bf8700 --description 'Contributor has not signed the CLA · suiflex-bot'
+      #
+      # Deliberately not in suiflex/.github's sync-labels.sh: that script runs
+      # across every repository in the organization, and suitest is the only one
+      # with a CLA. Elsewhere these two would be labels nothing ever applies.
+      #
+      # Gate on steps.cla.outcome, NOT on success()/failure(). A comment that is
+      # neither `recheck` nor the sign phrase skips the CLA step entirely, and
+      # success() is true for a skipped step — which would stamp an unsigned
+      # pull request as signed on any passing comment. `skipped` matches
+      # neither branch below, which is the point.
+      - name: Label the signing state
+        if: (steps.cla.outcome == 'success' || steps.cla.outcome == 'failure') && github.event.action != 'closed'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          # pull_request_target populates pull_request, issue_comment populates
+          # issue; a pull request is an issue, so the number is the same one.
+          PR: ${{ github.event.pull_request.number || github.event.issue.number }}
+          SIGNED: ${{ steps.cla.outcome == 'success' }}
+        run: |
+          if [ "$SIGNED" = "true" ]; then
+            add='cla: signed'; remove='cla: not signed'
+          else
+            add='cla: not signed'; remove='cla: signed'
+          fi
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" \
+            --add-label "$add" --remove-label "$remove"

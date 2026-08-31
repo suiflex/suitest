@@ -23,7 +23,8 @@ Before your first pull request can be merged, you must sign our
 [Contributor License Agreement](./CLA.md). It is a one-time step: when you open
 your first PR, the CLA bot comments with instructions and you sign by replying
 with a single comment on the PR. Your signature is recorded on the
-`cla-signatures` branch and covers all future contributions.
+`cla-signatures` branch and covers all future contributions. The PR carries a
+`cla: signed` or `cla: not signed` label showing where it stands.
 
 The CLA keeps the project's licensing flexible (see [`CLA.md`](./CLA.md) § 4)
 while guaranteeing your contributions always remain available under the
