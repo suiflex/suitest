@@ -22,7 +22,7 @@ jobs:
       # splitting the row between two bots. The CLA step itself keeps
       # GITHUB_TOKEN: it pushes to the cla-signatures branch of this
       # repository, which is this workflow's own token's job.
-      - uses: actions/create-github-app-token@v2
+      - uses: actions/create-github-app-token@v3
         id: app-token
         with:
           app-id: ${{ secrets.SUIFLEX_BOT_APP_ID }}
