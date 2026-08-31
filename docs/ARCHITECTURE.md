@@ -201,6 +201,7 @@ Details: [MCP_PLUGINS.md](./MCP_PLUGINS.md).
 | Browser-Use MCP | Browser automation | MCP stdio |
 | Playwright MCP | Browser automation | MCP stdio |
 | api-mcp / graphql-mcp / postgres-mcp / kubernetes-mcp | Built-in MCP servers | MCP stdio/SSE |
+| mcp-proxy (deploy-stack `mcp-relay`) | Exposes the stdio-only `@suiflex/suitest-mcp` over Streamable HTTP for remote clients | npm `mcp-proxy` in [`mcp-relay/Dockerfile`](../mcp-relay/Dockerfile) — X-API-Key front door, stdio child ([ROADMAP M4-33](./ROADMAP.md)) |
 | Sign in with ChatGPT | LLM credential for the workspace OpenAI config | `auth.openai.com` device-code / PKCE via httpx (`packages/core/chatgpt_oauth.py`) |
 | Google OAuth | SSO | FastAPI-Users OAuth client |
 | GitHub OAuth | SSO | FastAPI-Users OAuth client |

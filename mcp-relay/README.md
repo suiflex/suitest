@@ -1,64 +1,45 @@
-# Suitest over Streamable HTTP (MCP relay)
+# mcp-relay — Streamable HTTP front for the Suitest MCP server
 
-Suitest's own MCP server — `@suiflex/suitest-mcp` — speaks **only stdio** (its
-lifecycle server is a minimal NDJSON-over-pipes JSON-RPC process; see
-`packages/lifecycle/src/suitest_lifecycle/mcp_server.py`). That limits clients
-to boxes that can spawn the npm package locally.
-
-This directory ships a thin relay that exposes the same tools over the
-[Streamable HTTP](https://modelcontextprotocol.io) transport, so any MCP client
-can drive Suitest over HTTPS from anywhere.
+Suitest's own MCP server (`@suiflex/suitest-mcp`) speaks **stdio only**. This
+image wraps it behind [mcp-proxy](https://github.com/sparfenyuk/mcp-proxy),
+which exposes the same tools over the Streamable HTTP transport at `/mcp` —
+the deployment-facing documentation lives in
+[`docs/DEPLOYMENT.md` § 1.5](../docs/DEPLOYMENT.md) (reverse proxy & remote
+MCP access) and the acceptance criterion in
+[`docs/ROADMAP.md` M4-33](../docs/ROADMAP.md).
 
 ```
-MCP client ──HTTPS──▶ Caddy ──▶ mcp-relay (mcp-proxy, :4044) ──stdio──▶ suitest-mcp
-                                                                              │
-                                                                    http://api:4000
+MCP client ──HTTPS──▶ reverse proxy ──▶ mcp-relay (:4044) ──stdio──▶ suitest-mcp
+                                                            │
+                                                  http://api:4000
 ```
 
-## How it works
-
-- [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy) (npm) listens on
-  `/mcp` and translates Streamable-HTTP JSON-RPC into stdio frames.
-- The spawned child is the global `suitest-mcp` binary from
-  `@suiflex/suitest-mcp`; it inherits the relay's environment, so compose sets
-  `SUITEST_API_URL` / `SUITEST_API_KEY` and they reach Suitest's API.
-- Clients authenticate with `X-API-Key: <MCP_RELAY_TOKEN>` (configured on the
-  proxy via `--apiKey`). Combined with a Suitest API key, that's the remote
-  access boundary.
-
-## Files
+## Layout
 
 | Path | Purpose |
 |------|---------|
-| `Dockerfile` | `node:22-bookworm-slim` + `python3` (Suitest needs ≥3.11) + `mcp-proxy` + `@suiflex/suitest-mcp` |
-| `../compose.deploy.yml` | `mcp-relay` service wiring it into the stack |
+| `Dockerfile` | `node:22-bookworm-slim` + `python3` (Suitest needs ≥3.11 on PATH) + `mcp-proxy` + `@suiflex/suitest-mcp` |
+| `../compose.deploy.yml` | the `mcp-relay` service wiring it into the deploy stack |
 
-## Structured config for an MCP client
+## How it works
 
-```json
-{
-  "mcpServers": {
-    "suitest": {
-      "type": "streamable-http",
-      "url": "https://mcp.example.com/mcp",
-      "headers": {
-        "X-API-Key": "<MCP_RELAY_TOKEN>"
-      }
-    }
-  }
-}
-```
+- `mcp-proxy` (npm) listens on `:4044`, serves `/mcp` (Streamable HTTP,
+  protocol 2024-11-05 upstream), and translates JSON-RPC HTTP ↔ stdio frames.
+- The spawned child is the globally installed `suitest-mcp` binary; it
+  **inherits the relay's environment**, so compose-supplied
+  `SUITEST_API_URL` / `SUITEST_API_KEY` reach the Suitest API.
+- Clients authenticate with `X-API-Key: $MCP_RELAY_TOKEN` (`--apiKey`). This
+  relay token is **independent** of the Suitest API key: the first gates
+  clients → relay, the second gates relay → Suitest API.
+- `SUITEST_API_KEY` and `MCP_RELAY_TOKEN` are required (`${VAR:?}` in compose);
+  the relay refuses to boot half-configured.
 
-> Stanza shape varies by client; `type: "streamable-http"` / `"http"` is the
-> commonly accepted marker. The token and the Suitest API key are independent.
+## Operational notes
 
-## Notes / limits
-
-- **One stdio server per proxy process.** Stateful Streamable-HTTP keeps a
-  session open vs. Suitest's pooled runner (idle TTL 60s), so each connected
-  client holds a spawned `suitest-mcp`. Reconfigure pooling
-  (`SUITEST_MCP_MAX_SESSIONS_PER_WORKSPACE`) if you need many concurrent
-  remote agents.
+- **One stdio child per connected client.** Stateful Streamable-HTTP sessions
+  keep the child alive for the session TTL, so N concurrent remote agents ≈ N
+  `suitest-mcp` processes.
 - `mcp-proxy --streamEndpoint` defaults to `/mcp`.
-- The underlying server is MCP 2024-11-05; keep `mcp-proxy`'s default legacy
-  upstream protocol.
+- The `CMD` uses shell form so the container shell expands
+  `${MCP_RELAY_TOKEN}` from its environment at runtime (an exec-form CMD would
+  pass the literal string through).
