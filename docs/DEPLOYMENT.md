@@ -182,6 +182,31 @@ suitest.example.com {
 
 WebSocket & SSE are forwarded to `api` (handles the `Upgrade` header).
 
+#### Remote MCP access (mcp-relay)
+
+Suitest's own MCP server (`@suiflex/suitest-mcp`) speaks **stdio only** — the client must be able to spawn it on the machine that has the project under test. To let **remote** MCP clients (agent runtimes, IDEs on other hosts) drive Suitest over TLS, the deploy stack (`compose.deploy.yml`) ships an optional `mcp-relay` service: [mcp-proxy](https://github.com/sparfenyuk/mcp-proxy) fronts the same stdio server over the Streamable HTTP transport at `/mcp` (see [ROADMAP M4-33](./ROADMAP.md)).
+
+```caddy
+mcp.suitest.example.com {
+  reverse_proxy 127.0.0.1:4044   # compose publishes the relay on loopback only
+}
+```
+
+```json
+{
+  "mcpServers": {
+    "suitest": {
+      "url": "https://mcp.suitest.example.com/mcp",
+      "headers": { "X-API-Key": "<MCP_RELAY_TOKEN>" }
+    }
+  }
+}
+```
+
+- **Two independent secrets.** `SUITEST_API_KEY` (minted in the web UI, Settings → API keys) authorizes the relay's calls to the Suitest API; `MCP_RELAY_TOKEN` authorizes clients to the relay (`X-API-Key` header). Both are required — the relay refuses to start without them (`${VAR:?}` in compose).
+- The relay child inherits `SUITEST_API_URL`/`SUITEST_API_KEY` from compose, so tool calls hit the internal API; nothing but `/mcp` needs to be reachable.
+- The underlying server negotiates MCP protocol 2024-11-05; each connected client holds one stdio child for its session.
+
 ---
 
 ## 2. Mode 2 — Docker standalone (all-in-one)
