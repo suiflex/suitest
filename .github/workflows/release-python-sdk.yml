@@ -46,6 +46,19 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      - name: Tag matches package version
+        # release-please owns both versions, so this should never fire — it
+        # turns a hand-cut or stale tag into a red build instead of a PyPI
+        # release whose number disagrees with the code inside it.
+        if: github.event_name != 'pull_request'
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          TAG_VERSION="${RELEASE_TAG:-$GITHUB_REF_NAME}"
+          TAG_VERSION="${TAG_VERSION#pysdk-v}"
+          PKG_VERSION="$(grep -m1 '^version = ' "${{ matrix.package }}/pyproject.toml" | cut -d'"' -f2)"
+          [ "$TAG_VERSION" = "$PKG_VERSION" ] || {
+            echo "tag $TAG_VERSION != ${{ matrix.package }} $PKG_VERSION" >&2; exit 1; }
       - name: Build
         run: |
           python -m pip install --upgrade build twine
