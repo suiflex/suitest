@@ -13,7 +13,7 @@ name: release-python-sdk
 
 on:
   push:
-    tags: ["pysdk-v*"]
+    tags: ["pysdk-v*", "cli-v*"]
   pull_request:
     paths:
       - "sdk/python/**"
@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing Python SDK/CLI release tag to publish
+        description: Existing pysdk-v* or cli-v* release tag to publish
         required: true
         type: string
 
@@ -37,8 +37,10 @@ jobs:
         include:
           - package: "sdk/python"
             artifact: "dist-sdk"
+            tag_prefix: "pysdk-v"
           - package: "cli"
             artifact: "dist-cli"
+            tag_prefix: "cli-v"
     steps:
       - uses: actions/checkout@v7
         with:
@@ -50,12 +52,14 @@ jobs:
         # release-please owns both versions, so this should never fire — it
         # turns a hand-cut or stale tag into a red build instead of a PyPI
         # release whose number disagrees with the code inside it.
-        if: github.event_name != 'pull_request'
+        if: >-
+          startsWith(github.ref, format('refs/tags/{0}', matrix.tag_prefix)) ||
+          startsWith(inputs.tag, matrix.tag_prefix)
         env:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           TAG_VERSION="${RELEASE_TAG:-$GITHUB_REF_NAME}"
-          TAG_VERSION="${TAG_VERSION#pysdk-v}"
+          TAG_VERSION="${TAG_VERSION#${{ matrix.tag_prefix }}}"
           PKG_VERSION="$(grep -m1 '^version = ' "${{ matrix.package }}/pyproject.toml" | cut -d'"' -f2)"
           [ "$TAG_VERSION" = "$PKG_VERSION" ] || {
             echo "tag $TAG_VERSION != ${{ matrix.package }} $PKG_VERSION" >&2; exit 1; }
@@ -74,7 +78,9 @@ jobs:
 
   publish-sdk:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/pysdk-v') || github.event_name == 'workflow_dispatch'
+    if: >-
+      startsWith(github.ref, 'refs/tags/pysdk-v') ||
+      startsWith(inputs.tag, 'pysdk-v')
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -90,7 +96,9 @@ jobs:
 
   publish-cli:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/pysdk-v') || github.event_name == 'workflow_dispatch'
+    if: >-
+      startsWith(github.ref, 'refs/tags/cli-v') ||
+      startsWith(inputs.tag, 'cli-v')
     runs-on: ubuntu-latest
     environment: pypi-cli
     permissions:
