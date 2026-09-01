@@ -1,9 +1,17 @@
 name: release-please
 
-# Version + changelog automation for the three published npm packages:
-#   - packages/mcp-npx     → @suiflex/suitest-mcp  → tag mcp-v*      → release-mcp.yml
-#   - sdk/typescript       → @suiflex/suitest-sdk  → tag tssdk-v*    → release-ts-sdk.yml
-#   - packages/suitest-npx → @suiflex/suitest      → tag launcher-v* → release-launcher.yml
+# Version + changelog automation for every published artifact:
+#   - packages/mcp-npx     → @suiflex/suitest-mcp        → tag mcp-v*       → release-mcp.yml
+#   - packages/lifecycle   → suiflex-suitest-lifecycle   → tag lifecycle-v* → release-mcp.yml (publishes on mcp-v*)
+#   - sdk/typescript       → @suiflex/suitest-sdk        → tag tssdk-v*     → release-ts-sdk.yml
+#   - sdk/python           → suiflex-suitest-sdk         → tag pysdk-v*     → release-python-sdk.yml
+#   - cli                  → suiflex-suitest-cli         → tag cli-v*       → release-python-sdk.yml (publishes on pysdk-v*)
+#   - packages/suitest-npx → @suiflex/suitest            → tag launcher-v*  → release-launcher.yml + release-images.yml
+#
+# Two `linked-versions` groups keep artifacts that ship together on one
+# version: mcp+lifecycle and pysdk+cli. Each group member still gets its own
+# tag; the lifecycle-v* and cli-v* tags are inert markers, since the publish
+# workflows key off their group partner's tag.
 # A maintainer starts release preparation explicitly (workflow_dispatch) to
 # open/update a release PR. Merging that PR finalizes it automatically into a
 # tag + GitHub Release, which then triggers the matching publish workflow

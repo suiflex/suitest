@@ -188,9 +188,27 @@ than from memory, and open an issue before you start.
 ## Commit conventions
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/), and
-`release-please` parses them to generate changelogs and version bumps for three
-separately released components: `packages/mcp-npx`, `packages/suitest-npx` and
-`sdk/typescript`.
+`release-please` parses them to generate the changelog and version bump for
+every published artifact. Nothing is versioned by hand:
+
+| Path | Tag | Published as |
+|------|-----|--------------|
+| `packages/mcp-npx` | `mcp-v*` | npm `@suiflex/suitest-mcp` |
+| `packages/lifecycle` | `lifecycle-v*` | PyPI `suiflex-suitest-lifecycle` |
+| `sdk/typescript` | `tssdk-v*` | npm `@suiflex/suitest-sdk` |
+| `sdk/python` | `pysdk-v*` | PyPI `suiflex-suitest-sdk` |
+| `cli` | `cli-v*` | PyPI `suiflex-suitest-cli` |
+| `.` → `packages/suitest-npx` | `launcher-v*` | npm `@suiflex/suitest` + GHCR images |
+
+Two `linked-versions` groups keep artifacts that ship together on one version:
+`mcp` + `lifecycle` (the npm package vendors the lifecycle sources at
+`prepack`), and `pysdk` + `cli` (one `pysdk-v*` tag publishes both). Bumping
+either member bumps both, so a change to `packages/lifecycle` alone still
+produces a new `@suiflex/suitest-mcp` release.
+
+The remaining packages — `apps/*` and `packages/{core,db,mcp,shared,agent}` —
+are never published on their own; they ship inside the launcher bundle and
+their `version` fields are not maintained.
 
 - Types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`, `build`, `ci`
 - Subject ≤ 72 characters, imperative mood, no trailing period
