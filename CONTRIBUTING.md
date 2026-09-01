@@ -206,6 +206,19 @@ Two `linked-versions` groups keep artifacts that ship together on one version:
 either member bumps both, so a change to `packages/lifecycle` alone still
 produces a new `@suiflex/suitest-mcp` release.
 
+Two constraints on those groups are load-bearing, and both were learned the
+hard way:
+
+- **`merge: false` stays.** With merging on, the plugin folds a group into one
+  PR titled `chore(main): release <group> libraries`. That title carries no
+  `${component}` and no `${version}`, so the release stage cannot parse it, no
+  tag is cut, and every subsequent run aborts with *"There are untagged,
+  merged release PRs outstanding"* until the labels are cleared by hand.
+- **Group members stay on the same version line.** The plugin takes the
+  maximum across only the members that had commits in that cycle and forces it
+  onto the rest — a member sitting on an older line gets *downgraded*, not
+  left alone.
+
 The remaining packages — `apps/*` and `packages/{core,db,mcp,shared,agent}` —
 are never published on their own; they ship inside the launcher bundle and
 their `version` fields are not maintained.
