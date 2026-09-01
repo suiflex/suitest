@@ -6,12 +6,14 @@
     {
       "type": "linked-versions",
       "groupName": "mcp",
-      "components": ["mcp", "lifecycle"]
+      "components": ["mcp", "lifecycle"],
+      "merge": false
     },
     {
       "type": "linked-versions",
       "groupName": "pysdk",
-      "components": ["pysdk", "cli"]
+      "components": ["pysdk", "cli"],
+      "merge": false
     }
   ],
   "packages": {
