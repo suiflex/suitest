@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/suiflex/suitest/compare/mcp-v0.8.0...mcp-v0.8.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **release:** unjam release-please and repair the linked-versions setup ([ca78c97](https://github.com/suiflex/suitest/commit/ca78c97d8ed38d0fc0b253d5728b6028977bbeff))
+
 ## [0.8.0](https://github.com/suiflex/suitest/compare/mcp-v0.7.3...mcp-v0.8.0) (2026-08-15)
 
 
