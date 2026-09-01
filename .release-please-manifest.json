@@ -1,6 +1,6 @@
 {
   "packages/mcp-npx": "0.8.0",
-  "packages/lifecycle": "0.9.0",
+  "packages/lifecycle": "0.8.1",
   "sdk/typescript": "0.1.1",
   "sdk/python": "0.1.1",
   "cli": "0.1.1",
