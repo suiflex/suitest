@@ -1,6 +1,6 @@
 [project]
 name = "suiflex-suitest-lifecycle"
-version = "0.8.0"
+version = "0.9.0"
 description = "Suitest testing lifecycle — TestSprite-parity analyze→generate→start→wait→run→report"
 requires-python = ">=3.11"
 # No third-party runtime deps: the lifecycle core is stdlib-only so it can drive
