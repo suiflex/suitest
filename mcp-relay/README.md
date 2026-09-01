@@ -18,7 +18,7 @@ MCP client ──HTTPS──▶ reverse proxy ──▶ mcp-relay (:4044) ──
 
 | Path | Purpose |
 |------|---------|
-| `Dockerfile` | `node:22-bookworm-slim` + `python3` (Suitest needs ≥3.11 on PATH) + `mcp-proxy` + `@suiflex/suitest-mcp` |
+| `Dockerfile` | `node:22-bookworm-slim` + `python3`+`python3-pip` (Suitest needs ≥3.11 on PATH) + `playwright`+`requests` (pip, `--break-system-packages`) + Chromium via `playwright install --with-deps` + `mcp-proxy` + `@suiflex/suitest-mcp` — the black-box Playwright tools need the browser stack preinstalled: slim python3 ships no pip/ensurepip, and a runtime install would miss chromium's OS libraries |
 | `../compose.deploy.yml` | the `mcp-relay` service wiring it into the deploy stack |
 
 ## How it works
