@@ -2,26 +2,22 @@ name: release-please
 
 # Version + changelog automation for every published artifact:
 #   - packages/mcp-npx     → @suiflex/suitest-mcp        → tag mcp-v*       → release-mcp.yml
-#   - packages/lifecycle   → suiflex-suitest-lifecycle   → tag lifecycle-v* → release-mcp.yml (publishes on mcp-v*)
+#   - packages/lifecycle   → suiflex-suitest-lifecycle   → tag lifecycle-v* → release-mcp.yml
 #   - sdk/typescript       → @suiflex/suitest-sdk        → tag tssdk-v*     → release-ts-sdk.yml
 #   - sdk/python           → suiflex-suitest-sdk         → tag pysdk-v*     → release-python-sdk.yml
-#   - cli                  → suiflex-suitest-cli         → tag cli-v*       → release-python-sdk.yml (publishes on pysdk-v*)
+#   - cli                  → suiflex-suitest-cli         → tag cli-v*       → release-python-sdk.yml
 #   - packages/suitest-npx → @suiflex/suitest            → tag launcher-v*  → release-launcher.yml + release-images.yml
 #
-# Two `linked-versions` groups keep artifacts that ship together on one
-# version: mcp+lifecycle and pysdk+cli. Each group member still gets its own
-# tag; the lifecycle-v* and cli-v* tags are inert markers, since the publish
-# workflows key off their group partner's tag.
+# All six version independently — no `linked-versions` plugin. It was tried
+# and has no working mode here: merging on produces a group PR with no
+# ${component}/${version} in its title, so nothing can be tagged and every
+# later run aborts; merging off lets members land one at a time, and the
+# plugin then drags whichever member is ahead back down to the version of
+# whichever one had commits. See CONTRIBUTING.md before reintroducing it.
 #
-# Both groups set `merge: false`. With merging on, the plugin folds a group
-# into a single PR titled "chore(main): release <group> libraries", which has
-# no ${component} and no ${version} for the release stage to parse — the PR
-# merges, nothing is tagged, and every later run aborts with "There are
-# untagged, merged release PRs outstanding". Do not turn merging back on.
+# packages/mcp-npx vendors the lifecycle sources, and that coupling is
+# enforced by the `lifecycle-ships-with-mcp` job in ci.yml, not here.
 #
-# Keep the members of a group on the same version line. The plugin takes the
-# maximum across only the members that had commits this cycle and forces it
-# onto the rest, so a member left behind on an older line gets downgraded.
 # A maintainer starts release preparation explicitly (workflow_dispatch) to
 # open/update a release PR. Merging that PR finalizes it automatically into a
 # tag + GitHub Release, which then triggers the matching publish workflow

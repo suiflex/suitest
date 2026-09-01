@@ -200,24 +200,31 @@ every published artifact. Nothing is versioned by hand:
 | `cli` | `cli-v*` | PyPI `suiflex-suitest-cli` |
 | `.` → `packages/suitest-npx` | `launcher-v*` | npm `@suiflex/suitest` + GHCR images |
 
-Two `linked-versions` groups keep artifacts that ship together on one version:
-`mcp` + `lifecycle` (the npm package vendors the lifecycle sources at
-`prepack`), and `pysdk` + `cli` (one `pysdk-v*` tag publishes both). Bumping
-either member bumps both, so a change to `packages/lifecycle` alone still
-produces a new `@suiflex/suitest-mcp` release.
+The six components version independently. Each has its own line, its own tag,
+and its own release PR; a release PR is safe to merge on its own, and the
+others rebase themselves on the next run.
 
-Two constraints on those groups are load-bearing, and both were learned the
-hard way:
+`packages/mcp-npx` vendors the lifecycle sources at `prepack`, so a change to
+`packages/lifecycle` has to ship as a new `@suiflex/suitest-mcp` release too.
+CI enforces that: the `Lifecycle change bumps the npm package` job fails a PR
+that touches `packages/lifecycle` without touching `packages/mcp-npx`. A
+CHANGELOG or comment line in `packages/mcp-npx` is enough — it just has to
+give release-please a commit to attribute.
 
-- **`merge: false` stays.** With merging on, the plugin folds a group into one
-  PR titled `chore(main): release <group> libraries`. That title carries no
-  `${component}` and no `${version}`, so the release stage cannot parse it, no
-  tag is cut, and every subsequent run aborts with *"There are untagged,
-  merged release PRs outstanding"* until the labels are cleared by hand.
-- **Group members stay on the same version line.** The plugin takes the
-  maximum across only the members that had commits in that cycle and forces it
-  onto the rest — a member sitting on an older line gets *downgraded*, not
-  left alone.
+> **Do not reach for the `linked-versions` plugin to automate that coupling.**
+> It was tried and has no working mode here, both of them proven on `main`:
+>
+> - With merging on it folds the group into one PR titled
+>   `chore(main): release <group> libraries` — hardcoded in the plugin, not
+>   read from config. That title has no `${component}` and no `${version}`, so
+>   nothing can be tagged, the merged PRs keep the `autorelease: pending`
+>   label, and every later run aborts with *"There are untagged, merged
+>   release PRs outstanding"* until the labels are cleared by hand.
+> - With merging off each member gets a taggable PR, but they are then merged
+>   one at a time. `preconfigure()` takes the maximum across only the members
+>   that had commits that cycle and forces it onto the rest, so the moment one
+>   lands, the member that is ahead gets dragged back — merging lifecycle
+>   0.9.0 produced a follow-up PR proposing lifecycle 0.8.1.
 
 The remaining packages — `apps/*` and `packages/{core,db,mcp,shared,agent}` —
 are never published on their own; they ship inside the launcher bundle and
