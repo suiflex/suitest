@@ -1,6 +1,6 @@
 {
   "name": "@suiflex/suitest",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Suitest local bundle — one command runs the full local stack (dashboard + SQLite + MCP).",
   "license": "Apache-2.0",
   "repository": {
