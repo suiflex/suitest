@@ -28,7 +28,7 @@
       "extra-files": [
         {
           "type": "generic",
-          "path": "packages/lifecycle/src/suitest_lifecycle/__init__.py"
+          "path": "src/suitest_lifecycle/__init__.py"
         }
       ]
     },
@@ -44,7 +44,7 @@
       "extra-files": [
         {
           "type": "generic",
-          "path": "sdk/python/src/suitest_sdk/__init__.py"
+          "path": "src/suitest_sdk/__init__.py"
         }
       ]
     },
@@ -55,7 +55,7 @@
       "extra-files": [
         {
           "type": "generic",
-          "path": "cli/src/suitest_cli/__init__.py"
+          "path": "src/suitest_cli/__init__.py"
         }
       ]
     },
