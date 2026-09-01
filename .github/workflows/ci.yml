@@ -27,6 +27,8 @@ jobs:
       web: ${{ steps.filter.outputs.web }}
       mcp: ${{ steps.filter.outputs.mcp }}
       floor: ${{ steps.filter.outputs.floor }}
+      lifecycle: ${{ steps.filter.outputs.lifecycle }}
+      mcp_npx: ${{ steps.filter.outputs.mcp_npx }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -54,11 +56,41 @@ jobs:
               - 'packages/mcp-npx/**'
               - 'packages/lifecycle/**'
               - '.github/workflows/ci.yml'
+            lifecycle:
+              - 'packages/lifecycle/**'
+            mcp_npx:
+              - 'packages/mcp-npx/**'
             floor:
               - 'packages/mcp-npx/**'
               - 'packages/lifecycle/**'
               - 'packages/suitest-npx/**'
               - '.github/workflows/ci.yml'
+
+  # packages/mcp-npx vendors the lifecycle sources at prepack, so a lifecycle
+  # change that does not also touch packages/mcp-npx ships inside a new npm
+  # tarball under an unchanged version. release-please cannot see that
+  # coupling — the linked-versions plugin was tried and had no working mode —
+  # so the PR has to carry the mcp-npx bump itself.
+  lifecycle-ships-with-mcp:
+    name: Lifecycle change bumps the npm package
+    # release-please's own lifecycle PR touches only packages/lifecycle by
+    # design — it is the release, not a change that needs one.
+    if: >-
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.lifecycle == 'true' &&
+      !startsWith(github.head_ref, 'release-please--')
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: packages/mcp-npx must change too
+        if: needs.changes.outputs.mcp_npx != 'true'
+        run: |
+          echo "::error::This PR changes packages/lifecycle but not packages/mcp-npx." >&2
+          echo "packages/mcp-npx vendors the lifecycle sources at prepack, so the" >&2
+          echo "npm package would ship this change under an unchanged version." >&2
+          echo "Touch packages/mcp-npx in the same PR — a CHANGELOG or comment" >&2
+          echo "line is enough to make release-please cut a new mcp release." >&2
+          exit 1
 
   python-lint:
     name: Python lint (ruff + mypy)
