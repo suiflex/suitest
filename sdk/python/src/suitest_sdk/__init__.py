@@ -17,4 +17,4 @@ Example::
 from suitest_sdk.client import SuitestAPIError, SuitestClient
 
 __all__ = ["SuitestAPIError", "SuitestClient"]
-__version__ = "0.1.0"
+__version__ = "0.1.1"  # x-release-please-version
