@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.9.0](https://github.com/suiflex/suitest/compare/launcher-v0.8.0...launcher-v0.9.0) (2026-09-01)
+
+
+### Features
+
+* **deploy:** standalone self-host compose + Streamable-HTTP MCP relay ([db11f6e](https://github.com/suiflex/suitest/commit/db11f6e5191dc7d2bf11444433ca9aaa0b1a5735))
+
+
+### Bug Fixes
+
+* **deploy:** bake pip+playwright+chromium into mcp-relay image ([2cb1d0b](https://github.com/suiflex/suitest/commit/2cb1d0baa49b601bea070d15d69b9b9c1b743113))
+* **release:** always rewrite open release PRs ([040c44c](https://github.com/suiflex/suitest/commit/040c44c15edaf1d03a2acd9f127999392bec712c))
+* **release:** always rewrite open release PRs ([0a54ae2](https://github.com/suiflex/suitest/commit/0a54ae2eac57e3b2c7d24d8edfb24e196ab2ccd1))
+* **release:** correct drifted __version__ constants ([98618f2](https://github.com/suiflex/suitest/commit/98618f2d28392fdcaa7c6804b5bfb76a16ead873))
+* **release:** drop linked-versions, give each component its own tag ([95b9142](https://github.com/suiflex/suitest/commit/95b914214f6df277516cf79f96865440d734b84d))
+* **release:** drop the linked-versions plugin ([0edf080](https://github.com/suiflex/suitest/commit/0edf080fbb083c48f922df1ed234fcbdc635cf8b))
+* **release:** make the python extra-files package-relative ([62288ef](https://github.com/suiflex/suitest/commit/62288ef4442c53ee79c1752ff1530e987ad031a0))
+* **release:** stop linked-versions from merging its group PRs ([8a60292](https://github.com/suiflex/suitest/commit/8a602925942ac31627f31a8f35242585282be393))
+* **release:** unjam release-please and repair the linked-versions setup ([ca78c97](https://github.com/suiflex/suitest/commit/ca78c97d8ed38d0fc0b253d5728b6028977bbeff))
+
 ## [0.8.0](https://github.com/suiflex/suitest/compare/launcher-v0.7.0...launcher-v0.8.0) (2026-08-28)
 
 
