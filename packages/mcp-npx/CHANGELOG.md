@@ -1,12 +1,5 @@
 # Changelog
 
-## [0.2.0](https://github.com/suiflex/suitest/compare/mcp-v0.8.0...mcp-v0.2.0) (2026-09-01)
-
-
-### Miscellaneous Chores
-
-* **mcp:** Synchronize mcp versions
-
 ## [0.8.0](https://github.com/suiflex/suitest/compare/mcp-v0.7.3...mcp-v0.8.0) (2026-08-15)
 
 
