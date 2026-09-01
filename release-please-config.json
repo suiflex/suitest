@@ -2,20 +2,6 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "separate-pull-requests": true,
   "include-component-in-tag": true,
-  "plugins": [
-    {
-      "type": "linked-versions",
-      "groupName": "mcp",
-      "components": ["mcp", "lifecycle"],
-      "merge": false
-    },
-    {
-      "type": "linked-versions",
-      "groupName": "pysdk",
-      "components": ["pysdk", "cli"],
-      "merge": false
-    }
-  ],
   "packages": {
     "packages/mcp-npx": {
       "release-type": "node",
