@@ -12,6 +12,16 @@ name: release-please
 # version: mcp+lifecycle and pysdk+cli. Each group member still gets its own
 # tag; the lifecycle-v* and cli-v* tags are inert markers, since the publish
 # workflows key off their group partner's tag.
+#
+# Both groups set `merge: false`. With merging on, the plugin folds a group
+# into a single PR titled "chore(main): release <group> libraries", which has
+# no ${component} and no ${version} for the release stage to parse — the PR
+# merges, nothing is tagged, and every later run aborts with "There are
+# untagged, merged release PRs outstanding". Do not turn merging back on.
+#
+# Keep the members of a group on the same version line. The plugin takes the
+# maximum across only the members that had commits this cycle and forces it
+# onto the rest, so a member left behind on an older line gets downgraded.
 # A maintainer starts release preparation explicitly (workflow_dispatch) to
 # open/update a release PR. Merging that PR finalizes it automatically into a
 # tag + GitHub Release, which then triggers the matching publish workflow
