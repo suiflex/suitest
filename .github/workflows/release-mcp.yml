@@ -6,6 +6,11 @@ name: release-mcp
 #
 # npm uses OIDC Trusted Publishing; no long-lived NPM_TOKEN is required. PyPI
 # still uses PYPI_TOKEN. On PRs, the build + smoke + dry-run steps validate.
+#
+# The lifecycle version is no longer hand-edited: release-please links it to
+# the mcp version (`linked-versions` group "mcp"), so packages/lifecycle and
+# packages/mcp-npx always carry the same number and the publish step below
+# reads a version that release-please already bumped.
 
 on:
   push:

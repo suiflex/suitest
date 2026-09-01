@@ -2,6 +2,18 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "separate-pull-requests": true,
   "include-component-in-tag": true,
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "groupName": "mcp",
+      "components": ["mcp", "lifecycle"]
+    },
+    {
+      "type": "linked-versions",
+      "groupName": "pysdk",
+      "components": ["pysdk", "cli"]
+    }
+  ],
   "packages": {
     "packages/mcp-npx": {
       "release-type": "node",
@@ -9,10 +21,43 @@
       "package-name": "@suiflex/suitest-mcp",
       "extra-files": ["VERSION"]
     },
+    "packages/lifecycle": {
+      "release-type": "python",
+      "component": "lifecycle",
+      "package-name": "suiflex-suitest-lifecycle",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "packages/lifecycle/src/suitest_lifecycle/__init__.py"
+        }
+      ]
+    },
     "sdk/typescript": {
       "release-type": "node",
       "component": "tssdk",
       "package-name": "@suiflex/suitest-sdk"
+    },
+    "sdk/python": {
+      "release-type": "python",
+      "component": "pysdk",
+      "package-name": "suiflex-suitest-sdk",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "sdk/python/src/suitest_sdk/__init__.py"
+        }
+      ]
+    },
+    "cli": {
+      "release-type": "python",
+      "component": "cli",
+      "package-name": "suiflex-suitest-cli",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "cli/src/suitest_cli/__init__.py"
+        }
+      ]
     },
     ".": {
       "release-type": "simple",
