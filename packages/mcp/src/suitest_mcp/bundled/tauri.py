@@ -49,6 +49,7 @@ turns those into an MCP error result, which the generic client surfaces as
 from __future__ import annotations
 
 import asyncio
+import base64
 import contextlib
 import json
 import os
@@ -56,8 +57,15 @@ import time
 from typing import TYPE_CHECKING, Any, cast
 
 import httpx
-from mcp.types import EmbeddedResource, ImageContent, TextContent, Tool
+from mcp.types import (
+    BlobResourceContents,
+    EmbeddedResource,
+    ImageContent,
+    TextContent,
+    Tool,
+)
 
+from suitest_mcp.bundled._video import VIDEO_INTERVAL_MS, VIDEO_MAX_FRAMES, encode_video
 from suitest_mcp.bundled.in_process_runtime import register_bundled_builder
 
 if TYPE_CHECKING:
@@ -91,6 +99,11 @@ class TauriServer:
         self._base: str = f"http://{_HOST}:{_DEFAULT_PORT}"
         #: Set when launch spawned the process, so close only kills what it started.
         self._owns_process = False
+        #: Screen recording: frames sampled on a timer, encoded on stop.
+        self._video_frames: list[bytes] = []
+        self._video_task: asyncio.Task[None] | None = None
+        self._video_interval_ms = VIDEO_INTERVAL_MS
+        self._filming = False
 
     # -- BundledServer protocol ------------------------------------------------
 
@@ -125,6 +138,10 @@ class TauriServer:
             return [TextContent(type="text", text=await self._assert_text(arguments))]
         if name == "tauri.assert_visible":
             return [TextContent(type="text", text=await self._assert_visible(arguments))]
+        if name == "tauri.start_video":
+            return self._start_video(arguments)
+        if name == "tauri.stop_video":
+            return await self._stop_video()
         if name == "tauri.eval":
             return [TextContent(type="text", text=json.dumps(await self._eval(arguments)))]
         raise AssertionError(f"unknown tool: {name}")
@@ -232,6 +249,7 @@ class TauriServer:
         return session_id
 
     async def _stop(self) -> None:
+        await self._stop_sampling()
         if self._session_id is not None and self._client is not None:
             # Best-effort: the app may already be gone, and failing to close a
             # session must not mask whatever actually ended the test.
@@ -369,6 +387,77 @@ class TauriServer:
         payload = await self._get(f"/session/{self._session()}/screenshot")
         return str(payload.get("value", ""))
 
+    # -- screen recording ------------------------------------------------------
+
+    def _start_video(
+        self, arguments: dict[str, Any]
+    ) -> list[TextContent | ImageContent | EmbeddedResource]:
+        """Begin sampling the window.
+
+        A recording is the difference between a report that says a case passed
+        and one that shows what the app did — worth having when the failure is
+        "the wrong screen appeared for a moment".
+        """
+        if self._filming:
+            raise AssertionError("already filming — call `tauri.stop_video` first")
+        raw = arguments.get("interval_ms", VIDEO_INTERVAL_MS)
+        self._video_interval_ms = (
+            int(raw) if isinstance(raw, int) and raw > 0 else VIDEO_INTERVAL_MS
+        )
+        self._video_frames = []
+        self._session()  # fail here rather than inside the sampler
+        self._filming = True
+        self._video_task = asyncio.create_task(self._sample_frames())
+        return [TextContent(type="text", text=f"filming every {self._video_interval_ms}ms")]
+
+    async def _sample_frames(self) -> None:
+        """Screenshot the window on a timer until cancelled."""
+        while True:
+            try:
+                data = await self._screenshot()
+            except Exception:  # a frame lost to a busy UI must not end the recording
+                data = ""
+            if data:
+                with contextlib.suppress(ValueError, TypeError):
+                    self._video_frames.append(base64.b64decode(data, validate=False))
+            if len(self._video_frames) >= VIDEO_MAX_FRAMES:
+                return
+            await asyncio.sleep(self._video_interval_ms / 1000)
+
+    async def _stop_sampling(self) -> None:
+        # A sampler that finished on its own must not read as "never started".
+        self._filming = False
+        task, self._video_task = self._video_task, None
+        if task is None:
+            return
+        task.cancel()
+        # Teardown must not raise: a cancelled sampler still has to leave the
+        # session closable.
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await task
+
+    async def _stop_video(self) -> list[TextContent | ImageContent | EmbeddedResource]:
+        if not self._filming:
+            raise AssertionError("not filming — call `tauri.start_video` first")
+        await self._stop_sampling()
+        frames, self._video_frames = self._video_frames, []
+        if not frames:
+            raise AssertionError("no frames were captured")
+        video = await asyncio.to_thread(
+            encode_video, frames, self._video_interval_ms, tool="tauri.stop_video"
+        )
+        return [
+            TextContent(type="text", text=f"captured {len(frames)} frame(s)"),
+            EmbeddedResource(
+                type="resource",
+                resource=BlobResourceContents(
+                    uri="tauri://window/recording.mp4",
+                    mimeType="video/mp4",
+                    blob=base64.b64encode(video).decode(),
+                ),
+            ),
+        ]
+
 
 def _command_of(arguments: dict[str, Any]) -> list[str]:
     raw = arguments.get("command")
@@ -499,6 +588,25 @@ def _tool_catalog() -> list[Tool]:
                 "required": ["script"],
                 "properties": {"script": {"type": "string"}, "args": {"type": "array"}},
             },
+        ),
+        Tool(
+            name="tauri.start_video",
+            description=(
+                "Start recording the window by sampling screenshots. Pair with "
+                "tauri.stop_video, which attaches the MP4 to the run. Needs ffmpeg."
+            ),
+            input_schema={
+                "type": "object",
+                "properties": {"interval_ms": {"type": "integer"}},
+            },
+        ),
+        Tool(
+            name="tauri.stop_video",
+            description=(
+                "Stop filming and attach the MP4 to the run, so a case shows the "
+                "interaction rather than only its end state. Needs ffmpeg."
+            ),
+            input_schema={"type": "object", "properties": {}},
         ),
         Tool(
             name="tauri.screenshot",

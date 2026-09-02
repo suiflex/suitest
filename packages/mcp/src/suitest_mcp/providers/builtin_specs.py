@@ -251,6 +251,8 @@ BUILTIN_SPECS: list[McpProviderConfig] = [
                 "tauri.assert_visible",
                 "tauri.eval",
                 "tauri.screenshot",
+                "tauri.start_video",
+                "tauri.stop_video",
             ]
         },
         max_sessions=2,

@@ -8,6 +8,7 @@ anything was launched, and speaks W3C WebDriver correctly against a stub.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -222,11 +223,43 @@ async def test_screenshot_comes_back_as_an_image_block() -> None:
 async def test_launch_refuses_a_port_someone_else_is_serving() -> None:
     """Attaching to a stranger's window is worse than failing: the spawned
     process never binds, nobody notices, and every later step drives the wrong
-    app."""
-    server = build_tauri_server(_config())
-    server._client = httpx.AsyncClient(transport=httpx.MockTransport(_FakeDriver().handler))
-    with pytest.raises(AssertionError, match="already serving WebDriver"):
-        await server.call_tool("tauri.launch", {"command": ["/bin/true"], "timeout_seconds": 1})
+    app.
+
+    Uses a real listener rather than a mock transport, because launch builds its
+    own client and would discard one injected here — which is exactly how this
+    check could pass while testing nothing.
+    """
+
+    async def serve(_reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        body = b'{"value":{"ready":true}}'
+        writer.write(
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: "
+            + str(len(body)).encode()
+            + b"\r\nConnection: close\r\n\r\n"
+            + body
+        )
+        await writer.drain()
+        writer.close()
+
+    listener = await asyncio.start_server(serve, "127.0.0.1", 0)
+    port = listener.sockets[0].getsockname()[1]
+    try:
+        server = build_tauri_server(_config())
+        with pytest.raises(AssertionError, match="already serving WebDriver"):
+            await server.call_tool(
+                "tauri.launch",
+                {"command": ["/usr/bin/true"], "port": port, "timeout_seconds": 1},
+            )
+    finally:
+        listener.close()
+        await listener.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_stop_video_without_start_says_so() -> None:
+    server = _attached(_FakeDriver())
+    with pytest.raises(AssertionError, match=r"call `tauri\.start_video` first"):
+        await server.call_tool("tauri.stop_video", {})
 
 
 @pytest.mark.asyncio
