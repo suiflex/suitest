@@ -61,14 +61,12 @@ import json
 import os
 import shutil
 import socket
-import subprocess
-import tempfile
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 from mcp.types import BlobResourceContents, EmbeddedResource, ImageContent, TextContent, Tool
 
+from suitest_mcp.bundled._video import VIDEO_INTERVAL_MS, VIDEO_MAX_FRAMES, encode_video
 from suitest_mcp.bundled.in_process_runtime import BundledServer, register_bundled_builder
 
 if TYPE_CHECKING:
@@ -90,8 +88,6 @@ _HOST = "127.0.0.1"
 # Video sampling. Slint serves single frames, not a stream, so a "video" here is
 # screenshots on a timer stitched by ffmpeg. 5 fps is enough to read a drag or a
 # panel opening, and cheap enough not to perturb what it is filming.
-_VIDEO_INTERVAL_MS = 200
-_VIDEO_MAX_FRAMES = 900
 
 
 def _free_port() -> int:
@@ -187,7 +183,7 @@ class SlintServer:
         self._video_task: asyncio.Task[None] | None = None
         self._filming = False
         self._video_frames: list[bytes] = []
-        self._video_interval_ms = _VIDEO_INTERVAL_MS
+        self._video_interval_ms = VIDEO_INTERVAL_MS
 
     # ---------------------------------------------------------------- plumbing
 
@@ -562,7 +558,7 @@ class SlintServer:
                     with contextlib.suppress(ValueError, TypeError):
                         self._video_frames.append(base64.b64decode(block["data"], validate=False))
                     break
-            if len(self._video_frames) >= _VIDEO_MAX_FRAMES:
+            if len(self._video_frames) >= VIDEO_MAX_FRAMES:
                 return
             await asyncio.sleep(self._video_interval_ms / 1000)
 
@@ -577,58 +573,6 @@ class SlintServer:
         # busy UI, still has to leave the session closable.
         with contextlib.suppress(asyncio.CancelledError, Exception):
             await task
-
-    def _encode_video(self, frames: list[bytes]) -> bytes:
-        """PNG frames -> MP4, through ffmpeg on stdin.
-
-        H.264 in an MP4 is what the dashboard's `<video>` element plays. ffmpeg
-        is not vendored, so its absence is reported as the missing dependency it
-        is rather than as a broken step.
-        """
-        ffmpeg = shutil.which("ffmpeg")
-        if ffmpeg is None:
-            raise AssertionError(
-                "ffmpeg is not on PATH — `slint.stop_video` needs it to encode "
-                "the sampled frames; install it or drop the video steps"
-            )
-        fps = max(1, round(1000 / self._video_interval_ms))
-        # Written to a file, not a pipe: the MP4 muxer seeks back to finish its
-        # header, so `-f mp4 -` fails with "muxer does not support non seekable
-        # output".
-        with tempfile.TemporaryDirectory() as tmp:
-            target = Path(tmp) / "recording.mp4"
-            result = subprocess.run(  # fixed argv, no shell
-                [
-                    ffmpeg,
-                    "-hide_banner",
-                    "-loglevel",
-                    "error",
-                    "-y",
-                    "-f",
-                    "image2pipe",
-                    "-framerate",
-                    str(fps),
-                    "-i",
-                    "-",
-                    # yuv420p + even dimensions: what a browser will actually play.
-                    "-vf",
-                    "pad=ceil(iw/2)*2:ceil(ih/2)*2",
-                    "-pix_fmt",
-                    "yuv420p",
-                    "-c:v",
-                    "libx264",
-                    "-movflags",
-                    "+faststart",
-                    str(target),
-                ],
-                input=b"".join(frames),
-                capture_output=True,
-                check=False,
-            )
-            if result.returncode != 0 or not target.exists():
-                detail = result.stderr.decode(errors="replace").strip()[:400]
-                raise AssertionError(f"ffmpeg could not encode the frames: {detail}")
-            return target.read_bytes()
 
     @staticmethod
     def _text_of(properties: dict[str, Any]) -> str:
@@ -909,11 +853,11 @@ class SlintServer:
         if name == "slint.start_video":
             if self._filming:
                 raise AssertionError("already filming — call `slint.stop_video` first")
-            raw_interval = arguments.get("interval_ms", _VIDEO_INTERVAL_MS)
+            raw_interval = arguments.get("interval_ms", VIDEO_INTERVAL_MS)
             self._video_interval_ms = (
                 int(raw_interval)
                 if isinstance(raw_interval, int) and raw_interval > 0
-                else _VIDEO_INTERVAL_MS
+                else VIDEO_INTERVAL_MS
             )
             self._video_frames = []
             await self._window_handle()  # fail here, not inside the sampler
@@ -928,7 +872,9 @@ class SlintServer:
             frames, self._video_frames = self._video_frames, []
             if not frames:
                 raise AssertionError("no frames were captured")
-            video = await asyncio.to_thread(self._encode_video, frames)
+            video = await asyncio.to_thread(
+                encode_video, frames, self._video_interval_ms, tool="slint.stop_video"
+            )
             return [
                 TextContent(type="text", text=f"captured {len(frames)} frame(s)"),
                 EmbeddedResource(

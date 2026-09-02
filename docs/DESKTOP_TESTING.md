@@ -1,4 +1,4 @@
-# Desktop Testing (M14) — Design & slint-mcp Contract
+# Desktop Testing (M14) — Design, slint-mcp and tauri-mcp Contracts
 
 > Cross-links: [MCP_PLUGINS.md](./MCP_PLUGINS.md), [ROADMAP.md](./ROADMAP.md),
 > [DATA_MODEL.md](./DATA_MODEL.md), [DEPLOYMENT.md](./DEPLOYMENT.md),
@@ -28,18 +28,20 @@ assert text/visibility/value — exactly as browser steps drive the DOM.
 
 ---
 
-## 2. Three backends (M14-1 .. M14-3)
+## 2. Four backends (M14-1 .. M14-3, plus Tauri)
 
-Desktop automation is not one problem; it is three. Suitest ships **three
-provider configs** in `builtin_specs.py`. Two are external binaries resolved at
-runtime via `command_pin` (they stay **outside the image** — see
-[DEPLOYMENT.md](./DEPLOYMENT.md)); `slint-mcp` needs no binary at all.
+Desktop automation is not one problem. Suitest ships **four provider configs**
+in `builtin_specs.py`. Two name external binaries resolved at runtime via
+`command_pin` (they stay **outside the image** — see
+[DEPLOYMENT.md](./DEPLOYMENT.md)) and are **not implemented in this repo**;
+`slint-mcp` and `tauri-mcp` need no binary at all and are bundled in-process.
 
 | ID | M14 item | Driver | Transport | Best for |
 |----|----------|--------|-----------|----------|
 | `computer-use-mcp` | **M14-1** | Screen pixels + OS input | stdio, `command_pin` | Any legacy/native app; last-resort fallback |
 | `electron-mcp` | **M14-2** | Chrome DevTools Protocol inside Electron (Playwright `_electron`) | stdio, `command_pin` | Electron apps with real DOM |
 | `slint-mcp` | **M14-3** | Slint's own embedded MCP server | **bundled, in-process** | Slint apps (Rust, cross-platform, optionally headless) |
+| `tauri-mcp` | — | W3C WebDriver served inside the app (`tauri-plugin-wdio-webdriver`) | **bundled, in-process** | Tauri 2 apps on Windows, Linux **and macOS** |
 
 > **`slint-mcp` changed shape after this document was first written.** It was
 > specified as an external `slint-mcp` binary, and no such binary was ever
@@ -84,6 +86,65 @@ runner, so:
   a *sample target only* and is not modified).
 
 ---
+
+### 2.3 tauri-mcp: a standard protocol, and why that matters
+
+`tauri-mcp` (`suitest_mcp.bundled.tauri`) follows the same shape as `slint-mcp`
+— it owns the application process and bridges a stable `tauri.*` contract onto
+what the app already speaks — but the wire protocol is not bespoke. It is
+**W3C WebDriver**, served from inside the app by `tauri-plugin-wdio-webdriver`.
+
+Two consequences:
+
+* **macOS works.** The standalone `tauri-driver` binary drives the platform's
+  native WebDriver and exists only for Windows and Linux. An in-process server
+  sidesteps that, which is how the official `@wdio/tauri-service` supports
+  macOS too. There is no paid component and no external driver to install.
+* **Nothing is app-specific.** Any Tauri 2 app that registers the plugin is
+  drivable, and the app's own code never learns it is under test.
+
+The app under test must be built with the plugin registered — the same bargain
+Slint makes. Gate it on a cargo feature so a release build carries no server:
+
+```toml
+[features]
+wdio = ["dep:tauri-plugin-wdio-webdriver"]
+
+[dependencies]
+tauri-plugin-wdio-webdriver = { version = "1", optional = true }
+```
+
+```rust
+let builder = tauri::Builder::default();
+#[cfg(feature = "wdio")]
+let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
+```
+
+A `debug_assertions` gate is the alternative the plugin's own docs show, but it
+opens the port during any ordinary `tauri dev`; a feature does not.
+
+**Do not** add `wdio-webdriver:default` to `capabilities/*.json`. A build
+without the feature then fails with `Permission ... not found`, and the set
+grants no IPC anyway — the plugin is an HTTP server, not a command surface, and
+it comes up without being listed.
+
+Tools: `tauri.launch`, `tauri.close`, `tauri.click`, `tauri.type_text`,
+`tauri.get_text`, `tauri.assert_text`, `tauri.assert_visible`, `tauri.eval`,
+`tauri.screenshot`, `tauri.start_video`, `tauri.stop_video`. Selectors are W3C
+strategies — pass `css` or `xpath`.
+
+`tauri.screenshot` returns an MCP image block and `tauri.stop_video` an MP4
+resource, which the runner files as `SCREENSHOT` and `VIDEO` artifacts. Video
+needs `ffmpeg` on PATH, and is worth pairing with
+`SUITEST_EVIDENCE_RECORDING=1`: steps otherwise complete faster than the
+sampler, and a two-frame recording of a passing case tells nobody anything.
+
+`tauri.eval` is the seam onto Rust: the page's own
+`window.__TAURI_INTERNALS__.invoke` reaches real commands, so a step can assert
+on what the backend actually did rather than only on what the DOM shows.
+
+`tauri.launch` takes an optional `command`; omit it to attach to an app that is
+already running, which is what a local `tauri dev` session wants.
 
 ## 3. slint-mcp: selector grammar
 

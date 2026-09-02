@@ -101,6 +101,7 @@ _LAZY_MODULES: dict[str, str] = {
     "grpc-mcp": "suitest_mcp.bundled.grpc",
     # M14 desktop.
     "slint-mcp": "suitest_mcp.bundled.slint",
+    "tauri-mcp": "suitest_mcp.bundled.tauri",
 }
 
 

@@ -339,9 +339,10 @@ Tag `v1.0.0`. Announce on HN / Reddit / dev.to. Discord + community forum set up
 
 ## M14 — Desktop testing (5 weeks)
 
-- [x] **M14-1** `computer-use-mcp` integration (screen-level default for `FE_DESKTOP`)
-- [x] **M14-2** Generic desktop UI testing (Electron, Win32, macOS) — `electron-mcp` (CDP/DOM) + `computer-use-mcp` fallback
+- [ ] **M14-1** `computer-use-mcp` integration (screen-level default for `FE_DESKTOP`) — **config only**: `builtin_specs.py` registers the provider and routing defaults to it, but no `computer-use-mcp` binary or module exists in this repo, so a step that lands on the default fails at spawn
+- [ ] **M14-2** Generic desktop UI testing (Electron, Win32, macOS) — `electron-mcp` (CDP/DOM) + `computer-use-mcp` fallback — **config only**, same as M14-1
 - [x] **M14-3** Slint desktop testing via accessible tree — `slint-mcp` (headless software renderer); see [DESKTOP_TESTING.md](./DESKTOP_TESTING.md) and `examples/slint-demo/`
+- [x] **M14-4** Tauri 2 desktop testing over W3C WebDriver — `tauri-mcp`, bundled in-process against the app's embedded server; works on macOS, where `tauri-driver` does not exist
 
 ## M15 — Multi-agent swarm (6 weeks)
 

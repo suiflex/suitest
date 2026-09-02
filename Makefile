@@ -23,7 +23,10 @@ help: ## Show this help
 ##@ Python (uv)
 
 install: ## Install all Python deps + dev + pre-commit hooks
-	uv sync --all-extras --dev
+	# --all-packages, not just the root: without it the workspace members
+	# (suitest_mcp, suitest_api, ...) are never installed into .venv and every
+	# test that imports one fails at collection with ModuleNotFoundError.
+	uv sync --all-extras --dev --all-packages
 	@echo "--- frontend ---"
 	cd apps/web && pnpm install && cd ../..
 	@echo "--- pre-commit ---"

@@ -395,7 +395,7 @@ Lihat [Mulai dalam 3 Langkah](#mulai-dalam-3-langkah) di atas. Cukup satu comman
 **Ya.** Suitest self-host — data tidak pernah keluar dari server kamu. API key di-encrypt AES-GCM. Tidak ada telemetry wajib.
 
 ### ❓ Apakah Suitest bisa test selain browser?
-**Ya.** Suitest bisa test: browser (Playwright), API (HTTP/GraphQL/gRPC), database (Postgres/Mongo/MySQL), mobile (Appium), desktop (Slint/Electron/computer-use), infra (Kubernetes), dan MCP server lainnya.
+**Ya.** Suitest bisa test: browser (Playwright), API (HTTP/GraphQL/gRPC), database (Postgres/Mongo/MySQL), mobile (Appium), desktop (Slint, Tauri), infra (Kubernetes), dan MCP server lainnya.
 
 ### ❓ Bagaimana jika saya stuck / ada error?
 Lihat [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) atau buka issue di [GitHub Issues](https://github.com/suiflex/suitest/issues).
