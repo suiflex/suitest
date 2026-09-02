@@ -228,4 +228,35 @@ BUILTIN_SPECS: list[McpProviderConfig] = [
         spawn_timeout_seconds=120.0,
         call_timeout_seconds=60.0,
     ),
+    # Bundled in-process for the same reason as slint-mcp: the WebDriver server
+    # lives inside the application under test (tauri-plugin-wdio-webdriver), so
+    # there is no binary to install or pin. Unlike slint the wire protocol is a
+    # standard — W3C WebDriver — which is also why this works on macOS, where
+    # the standalone tauri-driver does not exist.
+    McpProviderConfig(
+        id="builtin:tauri-mcp",
+        workspace_id="_builtin_",
+        name="tauri-mcp",
+        kind="desktop",
+        transport=McpTransport.IN_PROCESS,
+        endpoint="in-process://tauri",
+        config_json={
+            "tools": [
+                "tauri.launch",
+                "tauri.close",
+                "tauri.click",
+                "tauri.type_text",
+                "tauri.get_text",
+                "tauri.assert_text",
+                "tauri.assert_visible",
+                "tauri.eval",
+                "tauri.screenshot",
+            ]
+        },
+        max_sessions=2,
+        # Cold-starting a bundled desktop app plus its webview is slow enough
+        # that the playwright-sized budget is the right order of magnitude.
+        spawn_timeout_seconds=120.0,
+        call_timeout_seconds=60.0,
+    ),
 ]
