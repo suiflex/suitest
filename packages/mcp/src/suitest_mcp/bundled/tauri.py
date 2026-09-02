@@ -150,6 +150,18 @@ class TauriServer:
 
         command = _command_of(arguments)
         if command:
+            # Refuse to spawn onto a port something else already answers.
+            # Without this the poll below succeeds against the stranger, the
+            # process we spawned fails to bind and is never noticed, and every
+            # later step drives someone else's window — which is how one
+            # crashed case silently poisons the cases after it.
+            # A previous case's app may still be releasing the socket, so give
+            # it a moment before calling it someone else's.
+            if not await self._port_free(grace_seconds=5.0):
+                raise AssertionError(
+                    f"something is already serving WebDriver on {self._base}. "
+                    "Stop it first, or omit `command` to attach to it on purpose."
+                )
             env = {
                 **os.environ,
                 **self._provider.env,
@@ -167,6 +179,21 @@ class TauriServer:
         await self._await_ready(timeout)
         self._session_id = await self._open_session()
         return f"session {self._session_id} on {self._base}"
+
+    async def _port_free(self, *, grace_seconds: float) -> bool:
+        """True once nothing answers WebDriver at the target port."""
+        deadline = time.monotonic() + grace_seconds
+        while True:
+            try:
+                response = await self._http().get(f"{self._base}/status", timeout=2.0)
+                answered = response.status_code == httpx.codes.OK
+            except httpx.HTTPError:
+                return True
+            if not answered:
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            await asyncio.sleep(0.25)
 
     async def _await_ready(self, budget_seconds: float) -> None:
         """Poll ``GET /status`` until the embedded server answers.

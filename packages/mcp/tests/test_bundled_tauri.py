@@ -219,6 +219,17 @@ async def test_screenshot_comes_back_as_an_image_block() -> None:
 
 
 @pytest.mark.asyncio
+async def test_launch_refuses_a_port_someone_else_is_serving() -> None:
+    """Attaching to a stranger's window is worse than failing: the spawned
+    process never binds, nobody notices, and every later step drives the wrong
+    app."""
+    server = build_tauri_server(_config())
+    server._client = httpx.AsyncClient(transport=httpx.MockTransport(_FakeDriver().handler))
+    with pytest.raises(AssertionError, match="already serving WebDriver"):
+        await server.call_tool("tauri.launch", {"command": ["/bin/true"], "timeout_seconds": 1})
+
+
+@pytest.mark.asyncio
 async def test_launch_without_a_server_explains_the_likely_cause() -> None:
     """The usual reason is an app built without the plugin, so say that rather
     than leaving a bare connection error."""
