@@ -130,7 +130,14 @@ it comes up without being listed.
 
 Tools: `tauri.launch`, `tauri.close`, `tauri.click`, `tauri.type_text`,
 `tauri.get_text`, `tauri.assert_text`, `tauri.assert_visible`, `tauri.eval`,
-`tauri.screenshot`. Selectors are W3C strategies — pass `css` or `xpath`.
+`tauri.screenshot`, `tauri.start_video`, `tauri.stop_video`. Selectors are W3C
+strategies — pass `css` or `xpath`.
+
+`tauri.screenshot` returns an MCP image block and `tauri.stop_video` an MP4
+resource, which the runner files as `SCREENSHOT` and `VIDEO` artifacts. Video
+needs `ffmpeg` on PATH, and is worth pairing with
+`SUITEST_EVIDENCE_RECORDING=1`: steps otherwise complete faster than the
+sampler, and a two-frame recording of a passing case tells nobody anything.
 
 `tauri.eval` is the seam onto Rust: the page's own
 `window.__TAURI_INTERNALS__.invoke` reaches real commands, so a step can assert

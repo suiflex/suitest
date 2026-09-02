@@ -138,7 +138,7 @@ These providers ship inside the main Suitest image (see [DEPLOYMENT.md](./DEPLOY
 | `computer-use-mcp` | desktop | stdio (Anthropic computer-use) | FE_DESKTOP (v1.x preview, v2 stable) | Desktop app tests — screen-level default | OS-level (VNC / X11 / Wayland) |
 | `electron-mcp` | desktop | stdio | FE_DESKTOP | Electron app tests via CDP DOM (Playwright `_electron`) | none |
 | `slint-mcp` | desktop | **bundled, in-process** | FE_DESKTOP | Slint app tests via accessible tree (headless-capable) | none |
-| `tauri-mcp` | desktop | **bundled, in-process** | FE_DESKTOP | Tauri 2 app tests over W3C WebDriver served inside the app | none |
+| `tauri-mcp` | desktop | **bundled, in-process** | FE_DESKTOP | Tauri 2 app tests over W3C WebDriver served inside the app; screenshots + MP4 recording | ffmpeg (video only) |
 | `jirac-mcp` | issue-tracker | stdio | EXTERNAL_TOOL | Jira issue tracker (file defect, transition, comment, JQL search) | cloud-token / DC PAT |
 | `github-mcp` | issue-tracker | stdio | EXTERNAL_TOOL | GitHub Issues + labels + comments | github-app-installation-token / PAT |
 
