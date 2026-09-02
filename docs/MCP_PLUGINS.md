@@ -517,6 +517,51 @@ steps:
     assertions: [ { jsonpath: "$.email", equals: "{{user.email}}" } ]
 ```
 
+### 10.6 Printable document — PDF content assertions
+
+Verifying a generated document needs no browser: request it and assert its text
+layer. The runner feeds the `http.request` envelope into each assertion as
+`result`, so a single step covers status, content type and body.
+
+```yaml
+case: Report prints with the expected content
+steps:
+  - name: Preview carries the draft watermark
+    target_kind: BE_REST
+    mcp_provider: api-http-mcp
+    tool: http.request
+    arguments: { method: GET, url: "{{api_base}}/reports/{{report_id}}/print?draft=true", headers: { Authorization: "Bearer {{token}}" } }
+    assertions:
+      - { tool: http.assert_status, arguments: { equals: 200 } }
+      - { tool: http.assert_header, arguments: { name: content-type, equals: "application/pdf" } }
+      - { tool: http.assert_pdf_text, arguments: { contains: ["DRAFT"] } }
+
+  - name: Final print carries the report body, not the watermark
+    mcp_provider: api-http-mcp
+    tool: http.request
+    arguments: { method: GET, url: "{{api_base}}/reports/{{report_id}}/print", headers: { Authorization: "Bearer {{token}}" } }
+    assertions:
+      - { tool: http.assert_header, arguments: { name: content-disposition, equals: "attachment; filename=report.pdf" } }
+      - { tool: http.assert_pdf_text, arguments: { page: 1, contains: ["Report No.", "Facility Data"], matches: "No\\.\\s*\\d+/\\d{4}" } }
+```
+
+The persisted `TestStep.code` for the first step is the same thing as a JSON
+envelope (DATA_MODEL.md §3.4) — this is what the step editor stores:
+
+```json
+{
+  "tool": "http.request",
+  "arguments": { "method": "GET", "url": "{{api_base}}/reports/{{report_id}}/print?draft=true" },
+  "assertions": [
+    { "tool": "http.assert_status", "arguments": { "equals": 200 } },
+    { "tool": "http.assert_pdf_text", "arguments": { "contains": ["DRAFT"] } }
+  ]
+}
+```
+
+Pair it with a `postgres-mcp` step asserting the same values in the database
+when the printed content must match stored data.
+
 ---
 
 ## 11. MCP tool browser (UI dev aid)
