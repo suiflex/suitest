@@ -16,6 +16,7 @@ dependencies = [
   "psycopg[binary]>=3.3.4",
   "psycopg-pool>=3.2",
   "jsonpath-ng>=1.6",
+  "pypdf>=6.1",
   "suitest-shared",
   "suitest-db",
   "suitest-core",

@@ -15,6 +15,8 @@ Tool surface (mirrored in :mod:`suitest_mcp.providers.builtin_specs`):
   (optionally) equals / regex-matches an expected value.
 * ``http.assert_header``     — assert a response header equals a value
   (case-insensitive name match).
+* ``http.assert_pdf_text``   — extract the text of a PDF response body and
+  assert it contains substrings / matches a regex.
 
 Assertion failures raise :class:`AssertionError`; the SDK's tool-call wrapper
 catches them and emits an MCP ``CallToolResult`` with ``isError=true``, which
@@ -27,6 +29,8 @@ of the session, instantiated lazily on first ``http.request`` and released by
 
 from __future__ import annotations
 
+import base64
+import io
 import json
 import re
 from typing import TYPE_CHECKING, Any, cast
@@ -34,6 +38,7 @@ from typing import TYPE_CHECKING, Any, cast
 import httpx
 from jsonpath_ng.ext import parse as jsonpath_parse
 from mcp.types import TextContent, Tool
+from pypdf import PdfReader
 
 if TYPE_CHECKING:
     from suitest_mcp.models import McpProviderConfig
@@ -73,6 +78,8 @@ class ApiHttpServer:
             return _assert_json_path(arguments)
         if name == "http.assert_header":
             return _assert_header(arguments)
+        if name == "http.assert_pdf_text":
+            return _assert_pdf_text(arguments)
         raise ValueError(f"unknown tool {name!r}")
 
     async def aclose(self) -> None:
@@ -134,6 +141,10 @@ class ApiHttpServer:
             "elapsed_ms": int(response.elapsed.total_seconds() * 1000),
             "url": str(response.url),
         }
+        if _is_binary(response.headers.get("content-type", "")):
+            # ``body_text`` is mojibake for binary payloads (PDF, images).
+            # Carry the raw bytes too so downstream assertions can parse them.
+            payload["body_base64"] = base64.b64encode(response.content).decode("ascii")
         return [TextContent(type="text", text=json.dumps(payload))]
 
 
@@ -192,6 +203,23 @@ def _tool_catalog() -> list[Tool]:
                     "path": {"type": "string"},
                     "equals": {},
                     "matches": {"type": "string"},
+                },
+            },
+        ),
+        Tool(
+            name="http.assert_pdf_text",
+            description=(
+                "Extract text from a PDF response body and assert it contains "
+                "every given substring and/or matches a regular expression."
+            ),
+            input_schema={
+                "type": "object",
+                "required": ["result"],
+                "properties": {
+                    "result": {"type": "object"},
+                    "contains": {"type": "array", "items": {"type": "string"}},
+                    "matches": {"type": "string"},
+                    "page": {"type": "integer", "description": "1-based page; default all"},
                 },
             },
         ),
@@ -278,3 +306,45 @@ def _require_result(args: dict[str, Any]) -> dict[str, Any]:
         if isinstance(parsed, dict):
             return cast("dict[str, Any]", parsed)
     raise AssertionError("`result` must be the http.request response envelope")
+
+
+def _is_binary(content_type: str) -> bool:
+    ct = content_type.split(";")[0].strip().lower()
+    return bool(ct) and not (
+        ct.startswith("text/")
+        or ct.endswith(("json", "xml", "javascript", "x-www-form-urlencoded"))
+    )
+
+
+def _pdf_text(result: dict[str, Any], page: int | None) -> str:
+    encoded = result.get("body_base64")
+    if not isinstance(encoded, str):
+        raise AssertionError("response has no binary body — did the endpoint return a PDF?")
+    pages = PdfReader(io.BytesIO(base64.b64decode(encoded))).pages
+    if page is None:
+        return "\n".join(p.extract_text() or "" for p in pages)
+    if not 1 <= page <= len(pages):
+        raise AssertionError(f"page {page} out of range (PDF has {len(pages)} pages)")
+    return pages[page - 1].extract_text() or ""
+
+
+def _assert_pdf_text(args: dict[str, Any]) -> list[TextContent]:
+    """Assert the extracted PDF text contains substrings / matches a regex.
+
+    Whitespace is normalized before the ``contains`` check: PDF extraction
+    breaks lines wherever the layout does, so a literal comparison against a
+    human-written phrase fails for reasons that have nothing to do with the
+    document being wrong.
+    """
+    result = _require_result(args)
+    page = args.get("page")
+    text = _pdf_text(result, int(page) if page is not None else None)
+    normalized = " ".join(text.split())
+    for needle in args.get("contains", []):
+        if " ".join(str(needle).split()) not in normalized:
+            raise AssertionError(f"pdf text does not contain {needle!r}")
+    if "matches" in args:
+        pattern = str(args["matches"])
+        if re.search(pattern, text) is None:
+            raise AssertionError(f"pdf text does not match /{pattern}/")
+    return [TextContent(type="text", text=json.dumps({"chars": len(text)}))]
