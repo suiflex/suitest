@@ -24,7 +24,7 @@ def _registry_with_builtins(workspace_id: str = "ws-1") -> McpRegistry:
 def test_registry_register_builtin_seeds_bundled_providers() -> None:
     reg = _registry_with_builtins()
     providers = {p.name for p in reg.list_for_workspace("ws-1")}
-    # 3 original (M1c) + 5 added in M2-10 + 3 desktop (M14) = 11.
+    # 3 original (M1c) + 5 added in M2-10 + 4 desktop (M14) = 12.
     assert providers == {
         "api-http-mcp",
         "playwright-mcp",
@@ -37,7 +37,27 @@ def test_registry_register_builtin_seeds_bundled_providers() -> None:
         "computer-use-mcp",
         "electron-mcp",
         "slint-mcp",
+        "tauri-mcp",
     }
+
+
+def test_routing_fe_desktop_explicit_tauri_wins() -> None:
+    """FE_DESKTOP defaults elsewhere, so a Tauri suite pins the provider per
+    step — the same way a Slint suite does."""
+    reg = _registry_with_builtins()
+    cfg = resolve_provider(
+        reg, workspace_id="ws-1", target_kind=TargetKind.FE_DESKTOP, explicit="tauri-mcp"
+    )
+    assert cfg.name == "tauri-mcp"
+
+
+def test_tauri_provider_is_bundled_in_process() -> None:
+    """In-process, not stdio: the WebDriver server lives inside the app under
+    test, so there is no external binary to install or pin."""
+    reg = _registry_with_builtins()
+    spec = reg.get("ws-1", "tauri-mcp")
+    assert spec.transport is McpTransport.IN_PROCESS
+    assert spec.endpoint == "in-process://tauri"
 
 
 def test_registry_get_reattributes_workspace_id() -> None:
