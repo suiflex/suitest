@@ -27,6 +27,7 @@ BUILTIN_SPECS: list[McpProviderConfig] = [
                 "http.assert_status",
                 "http.assert_json_path",
                 "http.assert_header",
+                "http.assert_pdf_text",
             ]
         },
         is_default_for_target={"BE_REST": True},
