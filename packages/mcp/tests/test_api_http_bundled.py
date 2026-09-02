@@ -80,6 +80,7 @@ async def test_list_tools_advertises_four_http_tools(server: ApiHttpServer) -> N
         "http.assert_status",
         "http.assert_json_path",
         "http.assert_header",
+        "http.assert_pdf_text",
     }
     for t in tools:
         assert t.description, f"{t.name} must have a description"
@@ -284,6 +285,7 @@ async def test_in_process_session_lists_tools(session: McpSession) -> None:
         "http.assert_status",
         "http.assert_json_path",
         "http.assert_header",
+        "http.assert_pdf_text",
     }
 
 
@@ -313,4 +315,105 @@ async def test_in_process_session_assertion_failure_surfaces_as_tool_failed(
             "http.assert_status",
             {"result": {"status": 500, "headers": {}}, "equals": 200},
             timeout_seconds=10.0,
+        )
+
+
+# ---------------------------------------------------------------------------
+# PDF body assertions
+# ---------------------------------------------------------------------------
+
+
+def _sample_pdf() -> bytes:
+    """A hand-rolled one-page PDF with two text lines — no writer library needed."""
+    stream = b"BT /F1 12 Tf 50 800 Td (Inspection Report) Tj 0 -20 Td (No. 42/2026) Tj ET"
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+        b"/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        b"<< /Length %d >>\nstream\n%s\nendstream" % (len(stream), stream),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n%s\nendobj\n" % (number, body)
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    for offset in offsets:
+        out += b"%010d 00000 n \n" % offset
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (
+        len(objects) + 1,
+        xref,
+    )
+    return bytes(out)
+
+
+@pytest_asyncio.fixture
+async def pdf_result(server: ApiHttpServer) -> dict[str, object]:
+    """Drive a real PDF response through ``http.request`` to get the envelope."""
+    with respx.mock(assert_all_called=True) as router:
+        router.get("https://example.test/report.pdf").mock(
+            return_value=httpx.Response(
+                200,
+                content=_sample_pdf(),
+                headers={"content-type": "application/pdf"},
+            )
+        )
+        out = await server.call_tool(
+            "http.request",
+            {"method": "GET", "url": "https://example.test/report.pdf"},
+        )
+    return json.loads(_text(out))
+
+
+async def test_request_carries_base64_body_for_binary_content(
+    pdf_result: dict[str, object],
+) -> None:
+    assert isinstance(pdf_result["body_base64"], str)
+
+
+async def test_request_omits_base64_body_for_json(server: ApiHttpServer) -> None:
+    with respx.mock(assert_all_called=True) as router:
+        router.get("https://example.test/ping").mock(
+            return_value=httpx.Response(200, json={"pong": True})
+        )
+        out = await server.call_tool(
+            "http.request", {"method": "GET", "url": "https://example.test/ping"}
+        )
+    assert "body_base64" not in json.loads(_text(out))
+
+
+async def test_assert_pdf_text_contains_passes(
+    server: ApiHttpServer, pdf_result: dict[str, object]
+) -> None:
+    out = await server.call_tool(
+        "http.assert_pdf_text",
+        {"result": pdf_result, "contains": ["Inspection Report"], "matches": r"No\.\s*\d+"},
+    )
+    assert json.loads(_text(out))["chars"] > 0
+
+
+async def test_assert_pdf_text_missing_substring_raises(
+    server: ApiHttpServer, pdf_result: dict[str, object]
+) -> None:
+    with pytest.raises(AssertionError, match="does not contain"):
+        await server.call_tool(
+            "http.assert_pdf_text", {"result": pdf_result, "contains": ["Nowhere"]}
+        )
+
+
+async def test_assert_pdf_text_page_out_of_range_raises(
+    server: ApiHttpServer, pdf_result: dict[str, object]
+) -> None:
+    with pytest.raises(AssertionError, match="out of range"):
+        await server.call_tool("http.assert_pdf_text", {"result": pdf_result, "page": 9})
+
+
+async def test_assert_pdf_text_on_non_binary_body_raises(server: ApiHttpServer) -> None:
+    with pytest.raises(AssertionError, match="no binary body"):
+        await server.call_tool(
+            "http.assert_pdf_text",
+            {"result": {"status": 200, "headers": {}, "body_text": "{}"}, "contains": ["x"]},
         )
