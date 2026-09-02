@@ -142,6 +142,8 @@ These providers ship inside the main Suitest image (see [DEPLOYMENT.md](./DEPLOY
 | `jirac-mcp` | issue-tracker | stdio | EXTERNAL_TOOL | Jira issue tracker (file defect, transition, comment, JQL search) | cloud-token / DC PAT |
 | `github-mcp` | issue-tracker | stdio | EXTERNAL_TOOL | GitHub Issues + labels + comments | github-app-installation-token / PAT |
 
+> `api-http-mcp` also asserts on binary responses: a response whose `Content-Type` is not textual carries `body_base64` in the envelope, and `http.assert_pdf_text` extracts the PDF's text (all pages, or one 1-based `page`) to assert `contains` substrings / a `matches` regex. Whitespace is normalized before the `contains` check — PDF text extraction breaks lines where the layout does. Scanned/image-only PDFs have no text layer; assert those visually instead.
+>
 > `api-http-mcp` runs **in-process** (same Python process as the runner). It is implemented as an MCP server with stdio transport but launched via an internal channel for zero subprocess overhead. All other built-ins spawn out-of-process for isolation.
 >
 > `jirac-mcp` bundled from `mulhamna/jira-commands@jira-mcp-v2.0.1`; `github-mcp` bundled from `github/github-mcp-server@v1.1.2`. See `DEPLOYMENT.md §15` for binary bundling Dockerfile pattern.
