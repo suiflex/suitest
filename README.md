@@ -395,7 +395,7 @@ See [Get Started in 3 Steps](#get-started-in-3-steps) above. Just one command: `
 **Yes.** Suitest is self-hosted — your data never leaves your server. API keys are encrypted with AES-GCM. No mandatory telemetry.
 
 ### ❓ Can Suitest test things other than browsers?
-**Yes.** Suitest can test: browsers (Playwright), APIs (HTTP/GraphQL/gRPC), databases (Postgres/Mongo/MySQL), mobile (Appium), desktop (Slint/Electron/computer-use), infrastructure (Kubernetes), and other MCP servers.
+**Yes.** Suitest can test: browsers (Playwright), APIs (HTTP/GraphQL/gRPC), databases (Postgres/Mongo/MySQL), mobile (Appium), desktop (Slint, Tauri), infrastructure (Kubernetes), and other MCP servers.
 
 ### ❓ What if I'm stuck / get an error?
 Check [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) or open an issue at [GitHub Issues](https://github.com/suiflex/suitest/issues).

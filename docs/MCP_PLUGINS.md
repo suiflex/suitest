@@ -2,7 +2,7 @@
 
 > Cross-links: [API.md](./API.md), [DATA_MODEL.md](./DATA_MODEL.md), [GENERATORS.md](./GENERATORS.md), [AI_AGENT.md](./AI_AGENT.md), [ARCHITECTURE.md](./ARCHITECTURE.md), [DEPLOYMENT.md](./DEPLOYMENT.md).
 
-> ⚠️ **PARTIAL.** Bundled providers built: `playwright`, `api-http`, `postgres`, `graphql`, `mysql`, `mongo`, `kubernetes`, and `grpc`, plus lifecycle-local `suitest.whitebox.v1` adapters for pytest and Vitest/Jest. M14 adds the desktop set: `computer-use-mcp`, `electron-mcp`, `slint-mcp` (configs registered; binaries resolve via `command_pin` — see [DESKTOP_TESTING.md](./DESKTOP_TESTING.md)). Documented-but-unbuilt: `browser-use`/`appium`/`jira`/`github` (later milestones). See [ROADMAP.md](./ROADMAP.md).
+> ⚠️ **PARTIAL.** Bundled providers built: `playwright`, `api-http`, `postgres`, `graphql`, `mysql`, `mongo`, `kubernetes`, and `grpc`, plus lifecycle-local `suitest.whitebox.v1` adapters for pytest and Vitest/Jest. M14 adds the desktop set: `slint-mcp` and `tauri-mcp` are **built and bundled in-process**; `computer-use-mcp` and `electron-mcp` are **configs only** — the binaries they name do not exist in this repo (see [DESKTOP_TESTING.md](./DESKTOP_TESTING.md)). Documented-but-unbuilt: `browser-use`/`appium`/`jira`/`github` (later milestones). See [ROADMAP.md](./ROADMAP.md).
 
 ---
 
@@ -137,7 +137,8 @@ These providers ship inside the main Suitest image (see [DEPLOYMENT.md](./DEPLOY
 | `appium-mcp` | mobile | stdio | FE_MOBILE | iOS / Android UI tests | appium server URL |
 | `computer-use-mcp` | desktop | stdio (Anthropic computer-use) | FE_DESKTOP (v1.x preview, v2 stable) | Desktop app tests — screen-level default | OS-level (VNC / X11 / Wayland) |
 | `electron-mcp` | desktop | stdio | FE_DESKTOP | Electron app tests via CDP DOM (Playwright `_electron`) | none |
-| `slint-mcp` | desktop | stdio | FE_DESKTOP | Slint app tests via accessible tree (headless-capable) | none |
+| `slint-mcp` | desktop | **bundled, in-process** | FE_DESKTOP | Slint app tests via accessible tree (headless-capable) | none |
+| `tauri-mcp` | desktop | **bundled, in-process** | FE_DESKTOP | Tauri 2 app tests over W3C WebDriver served inside the app | none |
 | `jirac-mcp` | issue-tracker | stdio | EXTERNAL_TOOL | Jira issue tracker (file defect, transition, comment, JQL search) | cloud-token / DC PAT |
 | `github-mcp` | issue-tracker | stdio | EXTERNAL_TOOL | GitHub Issues + labels + comments | github-app-installation-token / PAT |
 
@@ -158,7 +159,7 @@ Each `target_kind` resolves to a primary MCP plus an optional fallback. The runn
 | `BE_GRPC` | `grpc-mcp` | _none_ |
 | `FE_WEB` | `playwright-mcp` | `browser-use-mcp` |
 | `FE_MOBILE` | `appium-mcp` | _none_ |
-| `FE_DESKTOP` | `computer-use-mcp` | `electron-mcp` / `slint-mcp` (per step) |
+| `FE_DESKTOP` | `computer-use-mcp` | `electron-mcp` / `slint-mcp` / `tauri-mcp` (per step) |
 | `DATA` | `postgres-mcp` | _user must override per workspace_ |
 | `INFRA` | `kubernetes-mcp` | _none_ |
 | `CUSTOM` | _user must set per step or workspace_ | _none_ |
