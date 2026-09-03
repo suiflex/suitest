@@ -102,7 +102,127 @@ function silence(fn) {
   delete process.env.ANTIGRAVITY_CONFIG;
 }
 
-// 5. write into an empty claude-code config, then idempotency + conflict
+// 4b. hermes delegates with --command/--arg flags and one space-separated
+//     --env value (repeating the flag overwrites earlier pairs).
+{
+  const steps = install.CLIENTS.hermes.steps("suitest", ENV, false);
+  assert.deepStrictEqual(steps, [
+    ["mcp", "add", "suitest", "--command", "npx"],
+    ["mcp", "add", "suitest", "--arg", "-y"],
+    ["mcp", "add", "suitest", "--arg", "@suiflex/suitest-mcp"],
+    [
+      "mcp",
+      "add",
+      "suitest",
+      "--env",
+      "SUITEST_API_URL=http://localhost:4000 SUITEST_API_KEY=sk_test",
+    ],
+  ]);
+
+  const forced = install.CLIENTS.hermes.steps("suitest", ENV, true);
+  assert.deepStrictEqual(forced[0], ["mcp", "remove", "suitest"]);
+}
+
+// 4c. openclaw nests under mcp.servers and names the transport.
+{
+  const { entry, snippet } = install.serverSpec("openclaw", ENV);
+  assert.strictEqual(entry.transport, "stdio");
+  assert.strictEqual(entry.command, "npx");
+  assert.deepStrictEqual(entry.args, ["-y", "@suiflex/suitest-mcp"]);
+  assert.ok(snippet.mcp.servers.suitest, "snippet has mcp.servers.suitest");
+
+  const target = tmp("openclaw.json");
+  process.env.OPENCLAW_CONFIG = target;
+  // Preserve an unrelated existing entry to prove the merge is an upsert.
+  fs.writeFileSync(
+    target,
+    JSON.stringify({ mcp: { servers: { docs: { url: "https://example.test" } } } }),
+  );
+  silence(() => install.installClient("openclaw", {
+    name: "suitest",
+    scope: "global",
+    env: ENV,
+    print: false,
+    dryRun: false,
+    force: false,
+  }));
+  const written = JSON.parse(fs.readFileSync(target, "utf8"));
+  assert.strictEqual(written.mcp.servers.docs.url, "https://example.test");
+  assert.strictEqual(written.mcp.servers.suitest.transport, "stdio");
+  fs.rmSync(target, { force: true });
+  delete process.env.OPENCLAW_CONFIG;
+}
+
+// 4d. cline/roo write {type: stdio} into the VS Code extension profile when it
+//     exists, and skip with a notice when the extension never ran here.
+{
+  const { entry } = install.serverSpec("cline", ENV);
+  assert.strictEqual(entry.type, "stdio");
+  assert.strictEqual(entry.command, "npx");
+
+  const home = tmp("vscode-home");
+  const base = path.join(
+    home,
+    process.platform === "win32"
+      ? path.join("AppData", "Roaming", "Code", "User")
+      : process.platform === "darwin"
+        ? path.join("Library", "Application Support", "Code", "User")
+        : path.join(".config", "Code", "User"),
+  );
+  const ext = path.join(base, "globalStorage", "saoudrizwan.claude-dev");
+  fs.mkdirSync(ext, { recursive: true });
+
+  // The profile directory is discovered through os.homedir(), so point HOME
+  // (and USERPROFILE on Windows) at the fixture for the duration.
+  const prevHome = process.env.HOME;
+  const prevProfile = process.env.USERPROFILE;
+  process.env.HOME = home;
+  process.env.USERPROFILE = home;
+  try {
+    silence(() => install.installClient("cline", {
+      name: "suitest",
+      scope: "global",
+      env: ENV,
+      print: false,
+      dryRun: false,
+      force: false,
+    }));
+    const settings = JSON.parse(
+      fs.readFileSync(path.join(ext, "settings", "cline_mcp_settings.json"), "utf8"),
+    );
+    assert.strictEqual(settings.mcpServers.suitest.type, "stdio");
+
+    // Without the profile directory the install is skipped, not written.
+    fs.rmSync(path.join(base, "globalStorage"), { recursive: true, force: true });
+    let out = "";
+    const orig = process.stdout.write.bind(process.stdout);
+    process.stdout.write = (s) => {
+      out += s;
+      return true;
+    };
+    try {
+      install.installClient("roo", {
+        name: "suitest",
+        scope: "global",
+        env: ENV,
+        print: false,
+        dryRun: false,
+        force: false,
+      });
+    } finally {
+      process.stdout.write = orig;
+    }
+    assert.match(out, /\[skip\] roo/);
+  } finally {
+    if (prevHome === undefined) delete process.env.HOME;
+    else process.env.HOME = prevHome;
+    if (prevProfile === undefined) delete process.env.USERPROFILE;
+    else process.env.USERPROFILE = prevProfile;
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+}
+
+// 9. write into an empty claude-code config, then idempotency + conflict
 {
   const target = tmp("claude.json");
   process.env.CLAUDE_CODE_CONFIG = target;

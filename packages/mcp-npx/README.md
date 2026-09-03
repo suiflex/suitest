@@ -79,6 +79,10 @@ chosen client. Supported targets:
 | `opencode`        | `opencode.jsonc` |
 | `antigravity`     | `~/.gemini/antigravity/mcp_config.json` |
 | `antigravity-cli` | `~/.gemini/config/mcp_config.json` |
+| `hermes`          | delegates to `hermes mcp add` (`~/.hermes/config.yaml`) |
+| `openclaw`        | `~/.openclaw/openclaw.json` (`mcp.servers`) |
+| `cline`           | VS Code Cline `globalStorage` MCP settings |
+| `roo`             | VS Code Roo Code `globalStorage` MCP settings |
 | `generic-json`    | prints a portable snippet, writes nothing |
 
 Flags: `--name` (entry name, default `suitest`), `--api-url` / `--api-key`
