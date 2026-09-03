@@ -178,6 +178,49 @@ const CLIENTS = {
     targetPath: () =>
       homeConfig("ANTIGRAVITY_CLI_CONFIG", ".gemini/config/mcp_config.json"),
   },
+  hermes: {
+    kind: "delegated",
+    label: "hermes",
+    hint: "delegates to `hermes mcp add` (~/.hermes/config.yaml)",
+    program: "hermes",
+    steps: (name, env, force) => {
+      const steps = [];
+      if (force) steps.push(["mcp", "remove", name]);
+      steps.push(["mcp", "add", name, "--command", "npx"]);
+      for (const arg of NPX_ARGS) steps.push(["mcp", "add", name, "--arg", arg]);
+      // One --env flag with space-separated pairs: repeating the flag
+      // overwrites earlier pairs in some Hermes builds.
+      const pairs = Object.entries(env)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(" ");
+      if (pairs) steps.push(["mcp", "add", name, "--env", pairs]);
+      return steps;
+    },
+  },
+  openclaw: {
+    kind: "file",
+    label: "openclaw",
+    hint: "writes openclaw.json under mcp.servers",
+    key: "mcp.servers",
+    targetPath: () =>
+      homeConfig("OPENCLAW_CONFIG", ".openclaw/openclaw.json"),
+  },
+  cline: {
+    kind: "file",
+    label: "cline",
+    hint: "writes VS Code Cline globalStorage mcp settings",
+    key: "mcpServers",
+    targetPath: () =>
+      vscodeMcpSettings("saoudrizwan.claude-dev"),
+  },
+  roo: {
+    kind: "file",
+    label: "roo",
+    hint: "writes VS Code Roo Code globalStorage mcp settings",
+    key: "mcpServers",
+    targetPath: () =>
+      vscodeMcpSettings("rooveterinaryinc.roo-cline"),
+  },
   "generic-json": {
     kind: "snippet",
     label: "generic-json",
@@ -199,7 +242,16 @@ function serverSpec(client, env) {
     };
     return { entry, snippet: { mcp: { suitest: entry } } };
   }
-  if (client === "copilot-cli") {
+  if (client === "openclaw") {
+    // OpenClaw nests its registry under mcp.servers and names the transport.
+    const entry = { command: "npx", args: NPX_ARGS, env, transport: "stdio" };
+    return {
+      entry,
+      snippet: { mcp: { servers: { suitest: entry } } },
+    };
+  }
+  if (client === "cline" || client === "roo" || client === "copilot-cli") {
+    // VS Code extension settings require the transport to be explicit.
     const entry = { type: "stdio", command: "npx", args: NPX_ARGS, env };
     return { entry, snippet: { mcpServers: { suitest: entry } } };
   }
@@ -240,6 +292,30 @@ function stripJsonComments(input) {
     }
   }
   return out;
+}
+
+// Cline and Roo Code keep their MCP settings inside the VS Code per-extension
+// globalStorage tree. The directory is not created when the extension has
+// never run here — an invented profile tree would leave settings no editor
+// reads. Returns null so installClient can skip with a notice instead.
+function vscodeMcpSettings(extension) {
+  const home = os.homedir();
+  let base;
+  if (process.platform === "win32") {
+    base = path.join(home, "AppData", "Roaming", "Code", "User");
+  } else if (process.platform === "darwin") {
+    base = path.join(home, "Library", "Application Support", "Code", "User");
+  } else {
+    base = path.join(home, ".config", "Code", "User");
+  }
+  const dir = path.join(base, "globalStorage", extension);
+  return fs.existsSync(dir)
+    ? path.join(dir, "settings", "cline_mcp_settings.json")
+    : null;
+}
+
+function deepEqual(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function loadJsonObject(p) {
@@ -283,10 +359,6 @@ function shellJoin(args) {
   return args
     .map((a) => (/^[\w\-/.:=@]+$/.test(a) ? a : `'${a.replace(/'/g, "'\\''")}'`))
     .join(" ");
-}
-
-function deepEqual(a, b) {
-  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 // --- install one client ---------------------------------------------------
@@ -338,6 +410,13 @@ function installClient(clientId, { name, scope, env, print, dryRun, force }) {
 
   // file target
   const target = client.targetPath(scope);
+  if (!target) {
+    process.stdout.write(
+      `[skip] ${client.label}: VS Code extension profile not found — ` +
+        "open the extension once so it creates its settings, then re-run.\n",
+    );
+    return;
+  }
   const root = loadJsonObject(target);
   const bag = ensureObjectPath(root, client.key);
 
@@ -405,6 +484,12 @@ function doctor(only) {
       );
     } else if (client.kind === "file") {
       const p = client.targetPath("global");
+      if (!p) {
+        process.stdout.write(
+          `[info] ${client.label}: VS Code extension profile not found (skipped)\n`,
+        );
+        continue;
+      }
       process.stdout.write(
         fs.existsSync(p)
           ? `[ok] ${client.label} config exists: ${p}\n`
