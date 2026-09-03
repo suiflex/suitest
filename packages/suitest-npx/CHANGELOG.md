@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.0](https://github.com/suiflex/suitest/compare/launcher-v0.9.0...launcher-v0.10.0) (2026-09-03)
+
+
+### Features
+
+* **mcp:** add the tauri-mcp bundled provider ([54b70e7](https://github.com/suiflex/suitest/commit/54b70e77c3f1b5e36410553478ef4b1f154dd3a1))
+* **mcp:** assert text inside PDF responses in api-http-mcp ([6626485](https://github.com/suiflex/suitest/commit/6626485c5b9418cac223999d361ab212820d36aa))
+* **mcp:** record the window in tauri-mcp ([3e1ab8f](https://github.com/suiflex/suitest/commit/3e1ab8f79d486bda0fea1a71aee19ed81fa6f2a5))
+
+
+### Bug Fixes
+
+* **mcp:** refuse to spawn a Tauri app onto a port someone else serves ([9aec3a1](https://github.com/suiflex/suitest/commit/9aec3a1698af200570e716a5fb0355d8bd8e9bb3))
+
 ## [0.9.0](https://github.com/suiflex/suitest/compare/launcher-v0.8.0...launcher-v0.9.0) (2026-09-01)
 
 
