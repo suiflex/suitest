@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/suiflex/suitest/compare/mcp-v0.8.1...mcp-v0.9.0) (2026-09-03)
+
+
+### Features
+
+* **mcp:** add hermes, openclaw, cline, roo install targets ([0d6171e](https://github.com/suiflex/suitest/commit/0d6171eb6fd16dd786e48958cf9493069441c080))
+* **mcp:** add hermes, openclaw, cline, roo install targets ([90d704f](https://github.com/suiflex/suitest/commit/90d704f7e982aca2ea142dc37f81450823817490))
+
 ## [0.8.1](https://github.com/suiflex/suitest/compare/mcp-v0.8.0...mcp-v0.8.1) (2026-09-01)
 
 
