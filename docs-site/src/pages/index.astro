@@ -69,6 +69,15 @@ const softwareLd = JSON.stringify({
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
     <meta name="theme-color" content="#0a0a0a" />
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-RH105WWMNF" is:inline></script>
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-RH105WWMNF');
+    </script>
     <script type="application/ld+json" set:html={softwareLd} />
     <script>
       // Gate reveal-hidden styles behind a js class so no-JS visitors see content.
