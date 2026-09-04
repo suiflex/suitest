@@ -28,6 +28,15 @@ export default defineConfig({
       lastUpdated: true,
       head: [
         {
+          tag: "script",
+          attrs: { async: true, src: "https://www.googletagmanager.com/gtag/js?id=G-RH105WWMNF" },
+        },
+        {
+          tag: "script",
+          content:
+            "window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-RH105WWMNF');",
+        },
+        {
           tag: "meta",
           attrs: { property: "og:image", content: "https://suitest.suiflex.dev/og.png" },
         },
