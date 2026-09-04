@@ -1,0 +1,36 @@
+# Asks the organization's reviewing model to read this pull request, when
+# somebody comments `/review` on it. The workflow and the policy both live in
+# suiflex/Guardener; this file only says that the repository takes part.
+#
+# The gate is not involved. This posts a comment and creates no check run, so
+# nothing here can decide whether a pull request merges.
+name: Guardener Review
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  review:
+    # Four gates, and all four are load-bearing.
+    #
+    # `issue_comment` fires on issues as well as pull requests, and runs in this
+    # repository's context with a writable token on text anyone can write. The
+    # author_association check is what stops a stranger spending the model
+    # budget by typing two words: only the owner, an organization member, or an
+    # invited collaborator can ask. Guardener refuses any repository outside its
+    # registry as a last line, but that is a backstop, not this gate.
+    if: >-
+      github.repository_owner == 'suiflex' &&
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/review') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
+               github.event.comment.author_association)
+    uses: suiflex/Guardener/.github/workflows/review.yml@main
+    secrets:
+      app_id: ${{ secrets.GUARDENER_BOT_APP_ID }}
+      private_key: ${{ secrets.GUARDENER_BOT_PRIVATE_KEY }}
+      # Omit these three and `/review` answers that no model is configured.
+      model_url: ${{ secrets.GUARDENER_MODEL_URL }}
+      model_key: ${{ secrets.GUARDENER_MODEL_KEY }}
+      model: ${{ secrets.GUARDENER_MODEL }}
