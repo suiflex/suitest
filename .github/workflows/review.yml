@@ -34,3 +34,4 @@ jobs:
       model_url: ${{ secrets.GUARDENER_MODEL_URL }}
       model_key: ${{ secrets.GUARDENER_MODEL_KEY }}
       model: ${{ secrets.GUARDENER_MODEL }}
+      model_vomit: ${{ secrets.GUARDENER_MODEL_VOMIT }}
