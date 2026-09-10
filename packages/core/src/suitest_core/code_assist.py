@@ -56,17 +56,22 @@ _DEFAULT_TIER: Final = "legacy-tier"
 #: Where onboarding is driven from, for both variants.
 CLOUDCODE_ENDPOINT: Final = "https://cloudcode-pa.googleapis.com"
 
-# Antigravity's client is deliberately NOT bundled, unlike the Gemini CLI's.
+# Antigravity's client is bundled, like the Gemini CLI's.
 #
-# The difference is provenance, not shape. Google publishes the Gemini CLI's
-# client in its own repository with a comment saying it is fine to keep in git.
-# Nothing comparable exists for Antigravity: its client is only known because a
-# third party read it out of the IDE, so shipping it would be redistributing
-# someone else's reverse-engineering under Suitest's name.
+# It was held back on provenance grounds: Google publishes the Gemini CLI's
+# client itself, and nothing comparable was published for Antigravity. In
+# practice that left the provider unreachable — a sign-in that refuses by name
+# is not a provider — and the same pair is already shipped in the org's own
+# `arsy-code`, so withholding it here bought nothing.
 #
-# An operator who wants this provider supplies the pair themselves via
-# ``SUITEST_LLM_ANTIGRAVITY_OAUTH_CLIENT_ID`` / ``_SECRET``; the sign-in refuses
-# with ``OAUTH_CLIENT_UNSET`` until they do.
+# Neither value is a secret in the sense that matters: this is a Google Desktop
+# client, which is public by design, and PKCE is what actually secures the flow.
+# ``SUITEST_LLM_ANTIGRAVITY_OAUTH_CLIENT_ID`` / ``_SECRET`` still override, for
+# an operator who would rather register their own.
+ANTIGRAVITY_CLIENT_ID: Final = (
+    "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com"
+)
+ANTIGRAVITY_CLIENT_SECRET: Final = "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"
 
 
 class CodeAssistError(Exception):
@@ -95,7 +100,9 @@ class CodeAssistVariant:
     #: Envelope fields this variant sends beside ``project`` and ``model``.
     envelope_extra: dict[str, str] = field(default_factory=dict)
     #: ``ideType`` in the onboarding metadata, identifying the calling client.
-    ide_type: int = 9
+    #: Numeric for the Gemini CLI, a named enum for Antigravity — the endpoint
+    #: takes whichever form the client it is impersonating sends.
+    ide_type: int | str = 9
 
 
 _GOOGLE_SCOPES: Final = (
@@ -116,8 +123,8 @@ CODE_ASSIST_VARIANTS: Final[dict[str, CodeAssistVariant]] = {
     ),
     ANTIGRAVITY_PROVIDER: CodeAssistVariant(
         provider=ANTIGRAVITY_PROVIDER,
-        client_id="",
-        client_secret="",
+        client_id=ANTIGRAVITY_CLIENT_ID,
+        client_secret=ANTIGRAVITY_CLIENT_SECRET,
         # Antigravity asks for two scopes the Gemini CLI does not.
         scopes=(
             *_GOOGLE_SCOPES,
@@ -126,8 +133,13 @@ CODE_ASSIST_VARIANTS: Final[dict[str, CodeAssistVariant]] = {
         ),
         # Its own serving host; onboarding still runs against cloudcode-pa.
         api_endpoint="https://daily-cloudcode-pa.googleapis.com",
-        user_agent="antigravity-cockpit-tools",
+        # The serving host matches the User-Agent against the client it expects;
+        # a generic one answers 403 with a credential that is otherwise valid.
+        user_agent=(
+            "antigravity/hub/2.8.0 (aidev_client; os_type=darwin; arch=arm64; cl=963137146)"
+        ),
         envelope_extra={"userAgent": "antigravity", "requestType": "agent"},
+        ide_type="ANTIGRAVITY",
     ),
 }
 
@@ -147,7 +159,7 @@ def variant(provider: str) -> CodeAssistVariant:
     return found
 
 
-def client_metadata(spec: CodeAssistVariant) -> dict[str, int]:
+def client_metadata(spec: CodeAssistVariant) -> dict[str, int | str]:
     """The ``ClientMetadata`` the onboarding calls identify the caller with.
 
     ``platform`` is a numeric enum in the vendor's own protobuf; the mapping
@@ -165,7 +177,12 @@ def client_metadata(spec: CodeAssistVariant) -> dict[str, int]:
         platform_enum = 5
     else:
         platform_enum = 0
-    return {"ideType": spec.ide_type, "platform": platform_enum, "pluginType": 2}
+    metadata: dict[str, int | str] = {
+        "ideType": spec.ide_type,
+        "platform": platform_enum,
+        "pluginType": 2,
+    }
+    return metadata
 
 
 def _headers(access_token: str, spec: CodeAssistVariant) -> dict[str, str]:

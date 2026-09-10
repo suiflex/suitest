@@ -29,10 +29,10 @@ def test_the_two_variants_differ_only_where_they_have_to() -> None:
     cli = variant(CODE_ASSIST_PROVIDER)
     ag = variant(ANTIGRAVITY_PROVIDER)
 
-    # The Gemini CLI's client is bundled because Google publishes it;
-    # Antigravity's is not, because only a third party ever has.
+    # Both clients are bundled, and they are not the same registration.
     assert cli.client_id
-    assert ag.client_id == ""
+    assert ag.client_id
+    assert cli.client_id != ag.client_id
     # Antigravity asks for two scopes the Gemini CLI does not.
     assert set(cli.scopes) < set(ag.scopes)
     assert "cclog" in " ".join(ag.scopes)
@@ -43,6 +43,11 @@ def test_the_two_variants_differ_only_where_they_have_to() -> None:
     # Only Antigravity puts extra fields in the request envelope.
     assert cli.envelope_extra == {}
     assert ag.envelope_extra == {"userAgent": "antigravity", "requestType": "agent"}
+
+    # The serving host matches the User-Agent against the client it expects, so
+    # the two cannot share one.
+    assert cli.user_agent != ag.user_agent
+    assert ag.ide_type == "ANTIGRAVITY"
 
 
 def test_an_unknown_provider_has_no_variant() -> None:

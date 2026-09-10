@@ -228,18 +228,17 @@ async def test_projects_before_approval_is_refused() -> None:
 
 
 @pytest.mark.asyncio
-async def test_antigravity_is_unavailable_until_an_operator_brings_a_client() -> None:
-    """Nothing is bundled for it, and refusing by name beats a broken consent URL."""
-    from suitest_core.code_assist import ANTIGRAVITY_PROVIDER
+async def test_antigravity_signs_in_with_the_bundled_client() -> None:
+    """The provider is reachable out of the box; nothing has to be configured."""
+    from suitest_core.code_assist import ANTIGRAVITY_CLIENT_ID, ANTIGRAVITY_PROVIDER
 
     session = cast("AsyncSession", object())
     service = svc.GoogleOAuthService(
         session, _CTX, transport=httpx.MockTransport(_unused), variant_key=ANTIGRAVITY_PROVIDER
     )
 
-    with pytest.raises(svc.GoogleLoginError) as err:
-        await service.start(mode="paste", request_host="suitest.example.com")
-    assert err.value.code == "OAUTH_CLIENT_UNSET"
+    started = await service.start(mode="paste", request_host="suitest.example.com")
+    assert ANTIGRAVITY_CLIENT_ID in cast("str", started["authorize_url"])
 
 
 @pytest.mark.asyncio
