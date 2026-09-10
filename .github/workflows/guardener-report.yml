@@ -21,6 +21,10 @@ on:
 
 permissions:
   contents: read
+  # The workflow this calls reads the scan's artifact, which belongs to another
+  # workflow run. A called workflow cannot hold a permission its caller does not,
+  # so granting it there and not here is a startup failure, not a smaller grant.
+  actions: read
 
 jobs:
   report:
