@@ -65,17 +65,18 @@ def test_authorize_url_carries_the_expected_query() -> None:
         "code_challenge": "chal",
         "code_challenge_method": "S256",
         "id_token_add_organizations": "true",
+        "codex_cli_simplified_flow": "true",
         "state": "st",
     }
 
 
 def test_callback_port_must_be_allow_listed() -> None:
-    """Only 1455/1457 exist in the client's redirect-URI allow-list."""
+    """Only 1455 exists in the client's redirect-URI allow-list."""
     assert callback_redirect_uri(1455) == "http://localhost:1455/auth/callback"
-    assert callback_redirect_uri(1457) == "http://localhost:1457/auth/callback"
-    with pytest.raises(ChatGptOAuthError) as exc:
-        callback_redirect_uri(8000)
-    assert exc.value.code == "PORT_NOT_ALLOWED"
+    for rejected in (1457, 8000):
+        with pytest.raises(ChatGptOAuthError) as exc:
+            callback_redirect_uri(rejected)
+        assert exc.value.code == "PORT_NOT_ALLOWED"
 
 
 # --- token endpoint ---------------------------------------------------------
@@ -132,6 +133,7 @@ async def test_refresh_posts_json_and_tolerates_a_partial_response() -> None:
         "client_id": DEFAULT_CLIENT_ID,
         "grant_type": "refresh_token",
         "refresh_token": "rt",
+        "scope": ("openid profile email offline_access api.connectors.read api.connectors.invoke"),
     }
     assert tokens.access_token == "fresh"
     assert tokens.refresh_token is None

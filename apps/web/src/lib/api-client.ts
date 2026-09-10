@@ -604,7 +604,7 @@ export async function fetchLlmModels(workspaceId: string, provider: string): Pro
 
 // ---------------------------------------------------------------------------
 // Sign in with ChatGPT. `auto` resolves server-side: the browser redirect needs
-// port 1455/1457 on the caller's own machine, so a remote host gets a device
+// port 1455 on the caller's own machine, so a remote host gets a device
 // code to type instead.
 // ---------------------------------------------------------------------------
 
