@@ -51,6 +51,9 @@ _MODELS_PATH: Final = "/v1internal:fetchAvailableModels"
 #: Onboarding is a long-running operation; poll it rather than assume it is done.
 _ONBOARD_ATTEMPTS: Final = 10
 _ONBOARD_INTERVAL_S: Final = 5.0
+#: Statuses an account that has never used the product answers loadCodeAssist
+#: with, instead of 200-with-no-project. Onboarding is what clears them.
+_NOT_ONBOARDED: Final = frozenset({403, 404})
 _DEFAULT_TIER: Final = "legacy-tier"
 
 #: Where onboarding is driven from, for both variants.
@@ -103,6 +106,10 @@ class CodeAssistVariant:
     #: Numeric for the Gemini CLI, a named enum for Antigravity — the endpoint
     #: takes whichever form the client it is impersonating sends.
     ide_type: int | str = 9
+    #: Whether a denied ``loadCodeAssist`` means "never onboarded" rather than
+    #: "not allowed". Only Antigravity answers a first-time account that way;
+    #: for Gemini Code Assist a denial is a denial and must surface.
+    onboard_when_denied: bool = False
 
 
 _GOOGLE_SCOPES: Final = (
@@ -140,6 +147,7 @@ CODE_ASSIST_VARIANTS: Final[dict[str, CodeAssistVariant]] = {
         ),
         envelope_extra={"userAgent": "antigravity", "requestType": "agent"},
         ide_type="ANTIGRAVITY",
+        onboard_when_denied=True,
     ),
 }
 
@@ -216,12 +224,19 @@ async def load_code_assist(
 
     ``project_id`` is ``None`` when the account has no Code Assist project yet;
     :func:`onboard_user` provisions one.
+
+    Where the variant sets ``onboard_when_denied``, a 403/404 is read the same
+    way: that product answers a never-onboarded account with a denial rather
+    than 200-with-no-project, so surfacing it would fail every first sign-in.
+    Variants without the flag keep treating a denial as a denial.
     """
     response = await client.post(
         f"{endpoint.rstrip('/')}{_LOAD_PATH}",
         headers=_headers(access_token, spec),
         json={"metadata": client_metadata(spec)},
     )
+    if spec.onboard_when_denied and response.status_code in _NOT_ONBOARDED:
+        return None, _DEFAULT_TIER
     if response.status_code >= 400:
         raise CodeAssistError(
             "LOAD_FAILED", f"loadCodeAssist returned status {response.status_code}"
