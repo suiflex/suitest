@@ -6,10 +6,13 @@ import json
 from typing import TYPE_CHECKING
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import select
+from suitest_api.routers.agent_chat import _model_for
 from suitest_db.models.agent import AgentMessage, AgentSession
 from suitest_db.models.llm_config import LLMConfig
 from suitest_shared.domain.enums import AgentSessionKind
+from suitest_shared.schemas.agent_chat import ChatMessageInput, ChatRequest
 
 if TYPE_CHECKING:
     from api_harness import ApiDb
@@ -88,3 +91,37 @@ async def test_chat_streams_tokens_and_persists_session(api_db: ApiDb) -> None:
         ).all()
         assert len(msgs) == 2  # user + agent
         assert sess.status == "completed"
+
+
+# --- model override ---------------------------------------------------------
+
+
+def _request(model: str | None) -> ChatRequest:
+    return ChatRequest(messages=[ChatMessageInput(role="user", content="hi")], model=model)
+
+
+def _config(provider: str, model: str) -> LLMConfig:
+    return LLMConfig(workspace_id="ws", provider=provider, model=model, is_active=True)
+
+
+def test_no_override_uses_the_workspace_model() -> None:
+    assert _model_for(_request(None), _config("anthropic", "claude-opus-4-1")) == "claude-opus-4-1"
+
+
+def test_the_configured_model_always_passes() -> None:
+    """A workspace may be set to something the curated table has not caught up with."""
+    config = _config("anthropic", "claude-not-in-the-table")
+    assert _model_for(_request("claude-not-in-the-table"), config) == "claude-not-in-the-table"
+
+
+def test_a_model_the_provider_offers_is_accepted() -> None:
+    assert _model_for(_request("claude-haiku-4-5"), _config("anthropic", "claude-opus-4-1")) == (
+        "claude-haiku-4-5"
+    )
+
+
+def test_a_model_outside_the_catalog_is_refused() -> None:
+    """The panel picks from a list; anything else is a request forging a model."""
+    with pytest.raises(HTTPException) as err:
+        _model_for(_request("gpt-4o"), _config("anthropic", "claude-opus-4-1"))
+    assert err.value.status_code == 400

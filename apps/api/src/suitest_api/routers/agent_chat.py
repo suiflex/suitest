@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_core.capabilities import TierFlag
+from suitest_db.models.llm_config import LLMConfig
 from suitest_db.repositories.agent_sessions import AgentSessionRepo
 from suitest_db.repositories.llm_configs import LLMConfigRepo
 from suitest_shared.domain.enums import MessageRole
@@ -23,6 +24,7 @@ from suitest_api.auth.db import get_async_session
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
 from suitest_api.deps.tier import require_tier
 from suitest_api.services.agent_chat_service import AgentChatService
+from suitest_api.services.llm_config_service import MODEL_CATALOG
 from suitest_api.services.llm_credentials import resolve_for_config
 
 router = APIRouter(prefix="/api/v1", tags=["agent"])
@@ -30,6 +32,26 @@ router = APIRouter(prefix="/api/v1", tags=["agent"])
 
 def _format_sse(event: ChatSseEvent) -> str:
     return f"event: {event.kind}\ndata: {json.dumps(event.data)}\n\n"
+
+
+def _model_for(payload: ChatRequest, config: LLMConfig) -> str:
+    """The model this turn asks for: the panel's pick, or the workspace default.
+
+    The pick is checked against the provider's catalog rather than passed
+    through, so a request cannot name an arbitrary model on the workspace's
+    credential. The configured model always passes — a workspace may well be set
+    to something the curated table has not caught up with.
+    """
+    wanted = (payload.model or "").strip()
+    if not wanted or wanted == config.model:
+        return config.model
+    catalog = MODEL_CATALOG.get(config.provider.strip().lower(), [])
+    if wanted not in {str(entry["id"]) for entry in catalog}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"model {wanted!r} is not one this provider offers",
+        )
+    return wanted
 
 
 @router.post("/agent/chat")
@@ -48,6 +70,7 @@ async def agent_chat(
             detail="no active LLM configured for this workspace",
         )
 
+    model = _model_for(payload, config)
     credential = await resolve_for_config(session, config)
     ws_redis = getattr(request.app.state, "ws_redis", None)
 
@@ -61,7 +84,7 @@ async def agent_chat(
         async for event in svc.stream(
             payload,
             credential=credential,
-            model=config.model,
+            model=model,
             publish=publish,
         ):
             yield _format_sse(event).encode()
