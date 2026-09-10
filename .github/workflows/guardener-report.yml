@@ -1,0 +1,31 @@
+# Reports what guardener.yml found. The second half of the organization's
+# ForgeGuard gate; the workflow it calls lives in suiflex/Guardener.
+#
+# A separate file rather than another trigger on guardener.yml, and that is
+# forced rather than chosen: Guardener's `--fix` may only add files, never edit
+# them, so a second trigger bolted onto the gate's own workflow could not reach
+# the repositories that already have one.
+#
+# `workflow_run` because this half holds the credentials, and a pull request
+# from a fork runs with a read-only token that cannot create a check run. Waking
+# on the scan's completion instead puts it in this repository's context. It
+# never checks the pull request out.
+name: Guardener report
+
+on:
+  workflow_run:
+    # The name of the workflow above, which is what the run is called even
+    # though the work happens in a reusable workflow it calls.
+    workflows: ["Guardener"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    if: github.repository_owner == 'suiflex'
+    uses: suiflex/Guardener/.github/workflows/report.yml@main
+    secrets:
+      app_id: ${{ secrets.GUARDENER_BOT_APP_ID }}
+      private_key: ${{ secrets.GUARDENER_BOT_PRIVATE_KEY }}
