@@ -1,5 +1,5 @@
 import { Loader2, Send, ShieldAlert, Sparkles, Zap } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Gated } from "@/components/gating/Gated";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,18 @@ function AiPanelInner(): React.ReactElement {
 
   const [models, setModels] = useState<string[]>([]);
   const [model, setModel] = useState<string | null>(readModel);
+  // Membership is asked on every render and in the effects below, and the list
+  // is whatever the provider offers — so index it once per change rather than
+  // scanning it each time.
+  const offered = useMemo(() => new Set(models), [models]);
+  // The configured model may predate the catalog; it still belongs in the list.
+  const options = useMemo(
+    () =>
+      configuredModel !== null && !offered.has(configuredModel)
+        ? [configuredModel, ...models]
+        : models,
+    [configuredModel, offered, models],
+  );
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
@@ -120,8 +132,8 @@ function AiPanelInner(): React.ReactElement {
   }, [autoApprove]);
 
   useEffect(() => {
-    modelRef.current = model !== null && models.includes(model) ? model : null;
-  }, [model, models]);
+    modelRef.current = model !== null && offered.has(model) ? model : null;
+  }, [model, offered]);
 
   // The models this provider offers, for the picker. A provider with no
   // catalog (or a failed read) leaves the list empty and the header falls back
@@ -144,14 +156,14 @@ function AiPanelInner(): React.ReactElement {
   // Drop a remembered pick this provider does not offer — the workspace may
   // have been re-pointed at a different vendor since it was stored.
   useEffect(() => {
-    if (models.length === 0 || model === null || models.includes(model)) return;
+    if (models.length === 0 || model === null || offered.has(model)) return;
     setModel(null);
     try {
       localStorage.removeItem(MODEL_KEY);
     } catch {
       /* private mode — in-memory only */
     }
-  }, [models, model]);
+  }, [models, model, offered]);
 
   // Keep the newest turn / streamed token in view.
   useEffect(() => {
@@ -338,10 +350,7 @@ function AiPanelInner(): React.ReactElement {
                 data-testid="ai-panel-model"
                 className="min-w-0 max-w-[150px] truncate rounded border border-transparent bg-transparent font-mono text-[10.5px] text-fg-4 outline-none hover:border-border focus:border-accent"
               >
-                {(configuredModel && !models.includes(configuredModel)
-                  ? [configuredModel, ...models]
-                  : models
-                ).map((id) => (
+                {options.map((id) => (
                   <option key={id} value={id}>
                     {id}
                   </option>
