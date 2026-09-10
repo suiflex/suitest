@@ -56,7 +56,7 @@ _ONBOARD_INTERVAL_S: Final = 5.0
 _NOT_ONBOARDED: Final = frozenset({403, 404})
 _DEFAULT_TIER: Final = "legacy-tier"
 
-#: Where onboarding is driven from, for both variants.
+#: Gemini Code Assist's host, and the default for a variant that names none.
 CLOUDCODE_ENDPOINT: Final = "https://cloudcode-pa.googleapis.com"
 
 # Antigravity's client is bundled, like the Gemini CLI's.
@@ -90,8 +90,10 @@ class CodeAssistError(Exception):
 class CodeAssistVariant:
     """One product on the Code Assist protocol.
 
-    ``api_endpoint`` is where completions go; onboarding always runs against
-    :data:`CLOUDCODE_ENDPOINT`, which is shared.
+    ``api_endpoint`` is where this product is served — onboarding, its model
+    list and completions alike. It is not shared: Antigravity answers on its
+    own host, and driving its onboarding through Gemini Code Assist's host
+    provisions the account in the wrong place.
     """
 
     provider: str
@@ -218,7 +220,7 @@ async def load_code_assist(
     *,
     access_token: str,
     spec: CodeAssistVariant,
-    endpoint: str = CLOUDCODE_ENDPOINT,
+    endpoint: str | None = None,
 ) -> tuple[str | None, str]:
     """Return ``(project_id, tier_id)`` for the signed-in account.
 
@@ -231,7 +233,7 @@ async def load_code_assist(
     Variants without the flag keep treating a denial as a denial.
     """
     response = await client.post(
-        f"{endpoint.rstrip('/')}{_LOAD_PATH}",
+        f"{(endpoint or spec.api_endpoint).rstrip('/')}{_LOAD_PATH}",
         headers=_headers(access_token, spec),
         json={"metadata": client_metadata(spec)},
     )
@@ -264,7 +266,7 @@ async def onboard_user(
     access_token: str,
     spec: CodeAssistVariant,
     tier_id: str = _DEFAULT_TIER,
-    endpoint: str = CLOUDCODE_ENDPOINT,
+    endpoint: str | None = None,
     attempts: int = _ONBOARD_ATTEMPTS,
     sleep_s: float = _ONBOARD_INTERVAL_S,
 ) -> str:
@@ -278,7 +280,7 @@ async def onboard_user(
 
     for attempt in range(attempts):
         response = await client.post(
-            f"{endpoint.rstrip('/')}{_ONBOARD_PATH}",
+            f"{(endpoint or spec.api_endpoint).rstrip('/')}{_ONBOARD_PATH}",
             headers=_headers(access_token, spec),
             json={"tierId": tier_id, "metadata": client_metadata(spec)},
         )
@@ -314,7 +316,7 @@ async def resolve_account(
     *,
     access_token: str,
     spec: CodeAssistVariant,
-    endpoint: str = CLOUDCODE_ENDPOINT,
+    endpoint: str | None = None,
     sleep_s: float = _ONBOARD_INTERVAL_S,
 ) -> CodeAssistAccount:
     """Discover the account's project, provisioning one if it has none."""
@@ -338,7 +340,7 @@ async def fetch_available_models(
     *,
     access_token: str,
     spec: CodeAssistVariant,
-    endpoint: str = CLOUDCODE_ENDPOINT,
+    endpoint: str | None = None,
 ) -> list[str]:
     """List the model ids this account may call, newest surface first.
 
@@ -354,7 +356,7 @@ async def fetch_available_models(
 
     try:
         response = await client.post(
-            f"{endpoint.rstrip('/')}{_MODELS_PATH}",
+            f"{(endpoint or spec.api_endpoint).rstrip('/')}{_MODELS_PATH}",
             headers=_headers(access_token, spec),
             json={"metadata": client_metadata(spec)},
         )

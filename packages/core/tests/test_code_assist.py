@@ -205,6 +205,24 @@ async def test_a_rejected_load_surfaces_rather_than_returning_no_project() -> No
 
 
 @pytest.mark.asyncio
+async def test_each_product_is_onboarded_on_its_own_host() -> None:
+    """Antigravity is served elsewhere; onboarding it through the shared host
+    provisions the account in the wrong place."""
+    hosts: list[str] = []
+
+    def record(request: httpx.Request) -> httpx.Response:
+        hosts.append(str(request.url.host))
+        return httpx.Response(200, json={"cloudaicompanionProject": "p-1"})
+
+    for provider in (CODE_ASSIST_PROVIDER, ANTIGRAVITY_PROVIDER):
+        async with _client(record) as client:
+            await load_code_assist(client, access_token="t", spec=variant(provider))
+
+    assert hosts[0] == "cloudcode-pa.googleapis.com"
+    assert hosts[1] == "daily-cloudcode-pa.googleapis.com"
+
+
+@pytest.mark.asyncio
 async def test_antigravity_reads_a_denied_load_as_never_onboarded() -> None:
     """Its backend answers a first-time account with 403/404, not an empty project."""
     for status in (403, 404):
