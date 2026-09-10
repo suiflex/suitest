@@ -108,8 +108,10 @@ function AiPanelInner(): React.ReactElement {
   const threadEndRef = useRef<HTMLDivElement>(null);
   // Mirrors for the async stream callbacks, which capture stale state otherwise.
   const autoApproveRef = useRef(autoApprove);
-  // Mirrors `model` for the async stream callbacks, which capture stale state.
-  const modelRef = useRef(model);
+  // Mirrors the *effective* pick for the async stream callbacks, which capture
+  // stale state. Null unless the provider actually offers it: a pick remembered
+  // from a workspace on another vendor would otherwise be sent and refused.
+  const modelRef = useRef<string | null>(null);
   const pendingToolRef = useRef<ChatToolEvent | null>(null);
   const autoChainRef = useRef(0);
 
@@ -118,8 +120,8 @@ function AiPanelInner(): React.ReactElement {
   }, [autoApprove]);
 
   useEffect(() => {
-    modelRef.current = model;
-  }, [model]);
+    modelRef.current = model !== null && models.includes(model) ? model : null;
+  }, [model, models]);
 
   // The models this provider offers, for the picker. A provider with no
   // catalog (or a failed read) leaves the list empty and the header falls back

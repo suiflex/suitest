@@ -140,7 +140,7 @@ CODE_ASSIST_VARIANTS: Final[dict[str, CodeAssistVariant]] = {
             "https://www.googleapis.com/auth/cclog",
             "https://www.googleapis.com/auth/experimentsandconfigs",
         ),
-        # Its own serving host; onboarding still runs against cloudcode-pa.
+        # Its own serving host — onboarding and the model list go here too.
         api_endpoint="https://daily-cloudcode-pa.googleapis.com",
         # The serving host matches the User-Agent against the client it expects;
         # a generic one answers 403 with a credential that is otherwise valid.
