@@ -63,12 +63,14 @@ CLOUDCODE_ENDPOINT: Final = "https://cloudcode-pa.googleapis.com"
 #
 # It was held back on provenance grounds: Google publishes the Gemini CLI's
 # client itself, and nothing comparable was published for Antigravity. In
-# practice that left the provider unreachable — a sign-in that refuses by name
-# is not a provider — and the same pair is already shipped in the org's own
-# `arsy-code`, so withholding it here bought nothing.
+# practice that left the provider unreachable, and a sign-in that refuses by
+# name is not a provider.
 #
-# Neither value is a secret in the sense that matters: this is a Google Desktop
-# client, which is public by design, and PKCE is what actually secures the flow.
+# Neither value is a secret in the sense that matters: this is a Google
+# installed-app client, public by design — Google documents that such a client's
+# secret is not confidential — and PKCE is what actually secures the flow. The
+# same pair is already published in `can1357/oh-my-pi`, a public repository.
+#
 # ``SUITEST_LLM_ANTIGRAVITY_OAUTH_CLIENT_ID`` / ``_SECRET`` still override, for
 # an operator who would rather register their own.
 ANTIGRAVITY_CLIENT_ID: Final = (
