@@ -1366,6 +1366,18 @@
             "title": "Messages",
             "type": "array"
           },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
           "seed": {
             "anyOf": [
               {
@@ -23309,7 +23321,7 @@
     },
     "/api/v1/workspaces/{workspaceId}/llm-config/models": {
       "get": {
-        "description": "List the curated model catalog for ``provider`` (query param).",
+        "description": "List the models ``provider`` (query param) can be asked for.\n\nA Code Assist account is entitled to a list of its own, and Antigravity's\nchanges often enough that a curated table goes stale between releases \u2014 so\nthe account is asked when one is signed in, and the table is the fallback\nfor when that read fails or nothing is configured yet.",
         "operationId": "list_llm_models_api_v1_workspaces__workspaceId__llm_config_models_get",
         "parameters": [
           {
