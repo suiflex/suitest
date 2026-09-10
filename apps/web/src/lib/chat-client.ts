@@ -145,15 +145,21 @@ export async function streamChat(
   });
 
   if (!res.ok || res.body === null) {
-    let message = `Chat request failed (${res.status})`;
-    if (res.status === 409) message = "Configure an LLM in Settings → LLM to chat with the agent.";
+    // The server's own reason first: a 409 is not always "no LLM configured"
+    // and a 400 never is, so overwriting it with a fixed sentence is how a
+    // real cause (a rejected credential, a model this provider does not
+    // offer) reached the user as advice to configure something already set.
+    let message: string | null = null;
     try {
       const parsed = (await res.json()) as { detail?: string; message?: string };
-      message = parsed.detail ?? parsed.message ?? message;
+      message = parsed.detail ?? parsed.message ?? null;
     } catch {
-      /* non-JSON body — keep the generic message */
+      /* non-JSON body — fall through to the status-based message */
     }
-    handlers.onError?.(message);
+    if (message === null && res.status === 409) {
+      message = "Configure an LLM in Settings → LLM to chat with the agent.";
+    }
+    handlers.onError?.(message ?? `Chat request failed (${res.status})`);
     return;
   }
 
