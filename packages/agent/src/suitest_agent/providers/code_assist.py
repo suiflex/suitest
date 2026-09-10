@@ -20,6 +20,8 @@ The Gemini payload shape follows https://ai.google.dev/api/generate-content.
 from __future__ import annotations
 
 import json
+import time
+import uuid
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -38,6 +40,11 @@ if TYPE_CHECKING:
 _TIMEOUT = 120.0
 #: Gemini names the assistant turn "model"; sending "assistant" is rejected.
 _ROLE_MAP = {"user": "user", "assistant": "model", "tool": "user", "system": "system"}
+#: Envelope key a product sets when it speaks the agent dialect (Antigravity).
+#: Its backend wants a request id and per-call labels that plain Code Assist
+#: neither sends nor accepts, so this is what selects between the two shapes —
+#: the provider stays blind to which product it is, as the module says.
+_AGENT_REQUEST_TYPE = "requestType"
 
 
 class CodeAssistProvider:
@@ -65,7 +72,18 @@ class CodeAssistProvider:
 
     def _payload(self, call: ModelCall) -> dict[str, object]:
         """Wrap a Gemini request in the Code Assist envelope."""
-        return {**self._envelope, "model": call.model, "request": build_request(call)}
+        agent_dialect = _AGENT_REQUEST_TYPE in self._envelope
+        request = build_request(call, agent_dialect=agent_dialect)
+        payload: dict[str, object] = {
+            **self._envelope,
+            "model": call.model,
+            "request": request,
+        }
+        if agent_dialect:
+            # The backend rejects an agent request that does not identify itself;
+            # the id is per-call, so it cannot ride in the stored envelope.
+            payload["requestId"] = f"agent/suitest/{time.time_ns() // 1_000_000}/{uuid.uuid4().hex}"
+        return payload
 
     def _request_headers(self) -> dict[str, str]:
         return {
@@ -150,8 +168,13 @@ class CodeAssistProvider:
 # --- payload translation ----------------------------------------------------
 
 
-def build_request(call: ModelCall) -> dict[str, object]:
-    """Translate a :class:`ModelCall` into a Gemini ``GenerateContentRequest``."""
+def build_request(call: ModelCall, *, agent_dialect: bool = False) -> dict[str, object]:
+    """Translate a :class:`ModelCall` into a Gemini ``GenerateContentRequest``.
+
+    ``agent_dialect`` adds the two fields the Antigravity backend requires and
+    plain Code Assist does not take: routing labels naming the model family, and
+    a session id it buckets a conversation under.
+    """
     request: dict[str, object] = {
         "contents": _contents(call.messages),
         "generationConfig": {
@@ -162,10 +185,19 @@ def build_request(call: ModelCall) -> dict[str, object]:
     system = "\n\n".join(m.content for m in call.messages if m.role == "system" and m.content)
     if system:
         # System text is its own field here, not a turn in the conversation.
-        request["systemInstruction"] = {"parts": [{"text": system}]}
+        request["systemInstruction"] = {"role": "user", "parts": [{"text": system}]}
     declarations = _function_declarations(call.tools)
     if declarations:
         request["tools"] = [{"functionDeclarations": declarations}]
+    if agent_dialect:
+        # The backend routes Claude-family models down a different path and
+        # reads which one it is from the labels, not from `model`.
+        is_claude = "claude" in call.model.lower()
+        request["labels"] = {
+            "used_claude": str(is_claude).lower(),
+            "used_claude_conservative": str(is_claude).lower(),
+        }
+        request["sessionId"] = uuid.uuid4().hex
     return request
 
 
