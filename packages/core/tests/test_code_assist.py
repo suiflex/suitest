@@ -193,6 +193,8 @@ async def test_resolve_skips_onboarding_when_a_project_already_exists() -> None:
 
 @pytest.mark.asyncio
 async def test_a_rejected_load_surfaces_rather_than_returning_no_project() -> None:
+    """For Gemini Code Assist a denial is a denial — only Antigravity onboards past one."""
+
     def denied(request: httpx.Request) -> httpx.Response:
         return httpx.Response(403, json={"error": "nope"})
 
@@ -200,6 +202,22 @@ async def test_a_rejected_load_surfaces_rather_than_returning_no_project() -> No
         with pytest.raises(CodeAssistError) as err:
             await load_code_assist(client, access_token="t", spec=variant(CODE_ASSIST_PROVIDER))
     assert err.value.code == "LOAD_FAILED"
+
+
+@pytest.mark.asyncio
+async def test_antigravity_reads_a_denied_load_as_never_onboarded() -> None:
+    """Its backend answers a first-time account with 403/404, not an empty project."""
+    for status in (403, 404):
+
+        def denied(request: httpx.Request, code: int = status) -> httpx.Response:
+            return httpx.Response(code, json={"error": "nope"})
+
+        async with _client(denied) as client:
+            project, tier = await load_code_assist(
+                client, access_token="t", spec=variant(ANTIGRAVITY_PROVIDER)
+            )
+        assert project is None
+        assert tier
 
 
 @pytest.mark.asyncio
