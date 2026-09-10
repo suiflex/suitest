@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Gated } from "@/components/gating/Gated";
 import { Button } from "@/components/ui/button";
+import { fetchLlmModels } from "@/lib/api-client";
 import {
   fetchChatHistory,
   streamChat,
@@ -11,6 +12,7 @@ import {
   type ChatToolEvent,
 } from "@/lib/chat-client";
 import { providerLabel } from "@/lib/llm-vendors";
+import { useActiveWorkspace } from "@/stores/use-active-workspace";
 import { useCapabilities } from "@/stores/use-capabilities";
 
 /**
@@ -29,6 +31,9 @@ import { useCapabilities } from "@/stores/use-capabilities";
 
 const SESSION_KEY = "suitest.agentSessionId";
 const AUTO_APPROVE_KEY = "suitest.agentAutoApprove";
+/** Panel-local model pick. Deliberately not the workspace config: switching
+ *  models here must not move the runner and the generators with it. */
+const MODEL_KEY = "suitest.agentModel";
 /** Tools that mutate a case — only these need (or can be auto-) approved. */
 const MUTATION_TOOLS = new Set(["case.set_steps", "case.update_meta"]);
 /** Stop an auto-approve chain from running away across model rounds. */
@@ -39,6 +44,14 @@ function readAutoApprove(): boolean {
     return localStorage.getItem(AUTO_APPROVE_KEY) === "1";
   } catch {
     return false;
+  }
+}
+
+function readModel(): string | null {
+  try {
+    return localStorage.getItem(MODEL_KEY);
+  } catch {
+    return null;
   }
 }
 
@@ -76,8 +89,13 @@ function AiPanelInner(): React.ReactElement {
   const provider = capabilities?.llm?.provider
     ? providerLabel(capabilities.llm.provider)
     : "unknown";
-  const model = capabilities?.llm?.model ?? "—";
+  const configuredModel = capabilities?.llm?.model ?? null;
+  const providerKey = capabilities?.llm?.provider ?? null;
+  const workspaceId = useActiveWorkspace((s) => s.workspaceId);
   const autonomy = capabilities?.autonomy?.default ?? "manual";
+
+  const [models, setModels] = useState<string[]>([]);
+  const [model, setModel] = useState<string | null>(readModel);
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
@@ -90,12 +108,48 @@ function AiPanelInner(): React.ReactElement {
   const threadEndRef = useRef<HTMLDivElement>(null);
   // Mirrors for the async stream callbacks, which capture stale state otherwise.
   const autoApproveRef = useRef(autoApprove);
+  // Mirrors `model` for the async stream callbacks, which capture stale state.
+  const modelRef = useRef(model);
   const pendingToolRef = useRef<ChatToolEvent | null>(null);
   const autoChainRef = useRef(0);
 
   useEffect(() => {
     autoApproveRef.current = autoApprove;
   }, [autoApprove]);
+
+  useEffect(() => {
+    modelRef.current = model;
+  }, [model]);
+
+  // The models this provider offers, for the picker. A provider with no
+  // catalog (or a failed read) leaves the list empty and the header falls back
+  // to naming the configured model, as it did before there was a picker.
+  useEffect(() => {
+    if (!workspaceId || !providerKey) return;
+    let live = true;
+    void fetchLlmModels(workspaceId, providerKey)
+      .then((found) => {
+        if (live) setModels(found.map((m) => m.id));
+      })
+      .catch(() => {
+        if (live) setModels([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [workspaceId, providerKey]);
+
+  // Drop a remembered pick this provider does not offer — the workspace may
+  // have been re-pointed at a different vendor since it was stored.
+  useEffect(() => {
+    if (models.length === 0 || model === null || models.includes(model)) return;
+    setModel(null);
+    try {
+      localStorage.removeItem(MODEL_KEY);
+    } catch {
+      /* private mode — in-memory only */
+    }
+  }, [models, model]);
 
   // Keep the newest turn / streamed token in view.
   useEffect(() => {
@@ -114,6 +168,15 @@ function AiPanelInner(): React.ReactElement {
       setLoading(false);
     });
   }, []);
+
+  const pickModel = (next: string): void => {
+    setModel(next);
+    try {
+      localStorage.setItem(MODEL_KEY, next);
+    } catch {
+      /* private mode — in-memory only */
+    }
+  };
 
   const toggleAutoApprove = (): void => {
     setAutoApprove((prev) => {
@@ -213,7 +276,11 @@ function AiPanelInner(): React.ReactElement {
           onError: (message) => setError(message),
         },
         controller.signal,
-        { approvedTool: options?.approvedTool ?? null, sessionId: sessionRef.current },
+        {
+          approvedTool: options?.approvedTool ?? null,
+          sessionId: sessionRef.current,
+          model: modelRef.current,
+        },
       );
     } catch {
       setError("The chat stream was interrupted.");
@@ -259,12 +326,35 @@ function AiPanelInner(): React.ReactElement {
         </span>
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-[12.5px] font-semibold text-fg-1">Suitest Agent</span>
-          <span
-            className="truncate font-mono text-[10.5px] text-fg-4"
-            data-testid="ai-panel-subtitle"
-          >
-            {provider}:{model} · {autonomy}
-          </span>
+          {models.length > 0 ? (
+            <span className="flex min-w-0 items-center gap-1 font-mono text-[10.5px] text-fg-4">
+              <select
+                value={model ?? configuredModel ?? ""}
+                onChange={(e) => pickModel(e.target.value)}
+                aria-label="Model"
+                title={`${provider} · ${autonomy}`}
+                data-testid="ai-panel-model"
+                className="min-w-0 max-w-[150px] truncate rounded border border-transparent bg-transparent font-mono text-[10.5px] text-fg-4 outline-none hover:border-border focus:border-accent"
+              >
+                {(configuredModel && !models.includes(configuredModel)
+                  ? [configuredModel, ...models]
+                  : models
+                ).map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
+                ))}
+              </select>
+              <span className="shrink-0">· {autonomy}</span>
+            </span>
+          ) : (
+            <span
+              className="truncate font-mono text-[10.5px] text-fg-4"
+              data-testid="ai-panel-subtitle"
+            >
+              {provider}:{configuredModel ?? "—"} · {autonomy}
+            </span>
+          )}
         </div>
         {turns.length > 0 ? (
           <button
@@ -295,8 +385,8 @@ function AiPanelInner(): React.ReactElement {
               Agent
             </div>
             <p className="text-[12.5px] text-fg-3">
-              Ask about cases, runs, defects, or coverage — or ask me to edit a test
-              case and I&apos;ll propose the change for your approval.
+              Ask about cases, runs, defects, or coverage — or ask me to edit a test case and
+              I&apos;ll propose the change for your approval.
             </p>
           </div>
         ) : null}
