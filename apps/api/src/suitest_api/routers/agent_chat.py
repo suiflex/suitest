@@ -24,8 +24,8 @@ from suitest_api.auth.db import get_async_session
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
 from suitest_api.deps.tier import require_tier
 from suitest_api.services.agent_chat_service import AgentChatService
-from suitest_api.services.llm_config_service import MODEL_CATALOG
 from suitest_api.services.llm_credentials import resolve_for_config
+from suitest_api.services.model_catalog import MODEL_CATALOG
 
 router = APIRouter(prefix="/api/v1", tags=["agent"])
 

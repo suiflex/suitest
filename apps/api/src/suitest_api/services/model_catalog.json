@@ -1,0 +1,160 @@
+{
+  "google-vertex": [
+    {
+      "id": "google/gemini-2.5-pro",
+      "name": "Gemini 2.5 Pro",
+      "contextWindow": 1048576,
+      "maxOutput": 65536
+    },
+    {
+      "id": "google/gemini-2.5-flash",
+      "name": "Gemini 2.5 Flash",
+      "contextWindow": 1048576,
+      "maxOutput": 65536
+    }
+  ],
+  "anthropic": [
+    {
+      "id": "claude-opus-4-1",
+      "name": "Claude Opus 4.1",
+      "contextWindow": 200000,
+      "maxOutput": 32000
+    },
+    {
+      "id": "claude-sonnet-4-5",
+      "name": "Claude Sonnet 4.5",
+      "contextWindow": 200000,
+      "maxOutput": 8192
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "name": "Claude Haiku 4.5",
+      "contextWindow": 200000,
+      "maxOutput": 8192
+    }
+  ],
+  "openai": [
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "contextWindow": 128000,
+      "maxOutput": 16384
+    },
+    {
+      "id": "gpt-4o-mini",
+      "name": "GPT-4o mini",
+      "contextWindow": 128000,
+      "maxOutput": 16384
+    }
+  ],
+  "gemini": [
+    {
+      "id": "gemini-1.5-pro",
+      "name": "Gemini 1.5 Pro",
+      "contextWindow": 2000000,
+      "maxOutput": 8192
+    },
+    {
+      "id": "gemini-1.5-flash",
+      "name": "Gemini 1.5 Flash",
+      "contextWindow": 1000000,
+      "maxOutput": 8192
+    }
+  ],
+  "groq": [
+    {
+      "id": "llama-3.3-70b-versatile",
+      "name": "Llama 3.3 70B",
+      "contextWindow": 128000,
+      "maxOutput": 32768
+    }
+  ],
+  "openrouter": [
+    {
+      "id": "anthropic/claude-sonnet-4-5",
+      "name": "Claude Sonnet 4.5 (OR)",
+      "contextWindow": 200000,
+      "maxOutput": 8192
+    }
+  ],
+  "deepseek": [
+    {
+      "id": "deepseek-chat",
+      "name": "DeepSeek Chat",
+      "contextWindow": 64000,
+      "maxOutput": 8192
+    }
+  ],
+  "chatgpt": [
+    {
+      "id": "gpt-5-codex",
+      "name": "GPT-5 Codex",
+      "contextWindow": 400000,
+      "maxOutput": 128000
+    },
+    {
+      "id": "gpt-5",
+      "name": "GPT-5",
+      "contextWindow": 400000,
+      "maxOutput": 128000
+    },
+    {
+      "id": "gpt-5-mini",
+      "name": "GPT-5 mini",
+      "contextWindow": 400000,
+      "maxOutput": 128000
+    }
+  ],
+  "google-codeassist": [
+    {
+      "id": "gemini-2.5-pro",
+      "name": "Gemini 2.5 Pro",
+      "contextWindow": 1048576,
+      "maxOutput": 65536
+    },
+    {
+      "id": "gemini-2.5-flash",
+      "name": "Gemini 2.5 Flash",
+      "contextWindow": 1048576,
+      "maxOutput": 65536
+    }
+  ],
+  "antigravity": [
+    {
+      "id": "gemini-3-pro",
+      "name": "Gemini 3 Pro",
+      "contextWindow": 1048576,
+      "maxOutput": 65536
+    },
+    {
+      "id": "gemini-3-flash",
+      "name": "Gemini 3 Flash",
+      "contextWindow": 1048576,
+      "maxOutput": 65536
+    },
+    {
+      "id": "gemini-2.5-pro",
+      "name": "Gemini 2.5 Pro",
+      "contextWindow": 1048576,
+      "maxOutput": 65536
+    },
+    {
+      "id": "claude-sonnet-4-5",
+      "name": "Claude Sonnet 4.5",
+      "contextWindow": 200000,
+      "maxOutput": 64000
+    },
+    {
+      "id": "claude-opus-4-5",
+      "name": "Claude Opus 4.5",
+      "contextWindow": 200000,
+      "maxOutput": 64000
+    },
+    {
+      "id": "gpt-5",
+      "name": "GPT-5",
+      "contextWindow": 400000,
+      "maxOutput": 128000
+    }
+  ]
+}
