@@ -34,6 +34,12 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 _TIMEOUT = 120.0
+#: The backend grants the ChatGPT-plan entitlement to Codex-shaped clients, and
+#: reads which one from this header rather than the user agent.
+_ORIGINATOR = "codex_cli_rs"
+#: ``instructions`` may not be empty, and a ModelCall without a system turn
+#: leaves it so.
+_DEFAULT_INSTRUCTIONS = "You are a helpful coding assistant."
 #: Assistant turns carry output_text; everything the caller sends is input_text.
 _OUTPUT_ROLES = frozenset({"assistant"})
 
@@ -61,6 +67,7 @@ class ChatGptResponsesProvider:
         return {
             "Authorization": f"Bearer {self._token}",
             "Content-Type": "application/json",
+            "originator": _ORIGINATOR,
             **self._headers,
         }
 
@@ -139,18 +146,23 @@ class ChatGptResponsesProvider:
 
 def build_payload(call: ModelCall, *, stream: bool) -> dict[str, object]:
     """Translate a :class:`ModelCall` into a Responses API request."""
+    # System text is its own field here, not a turn in the input.
+    instructions = "\n\n".join(m.content for m in call.messages if m.role == "system" and m.content)
     payload: dict[str, object] = {
         "model": call.model,
         "input": _input_items(call.messages),
         "stream": stream,
+        "instructions": instructions or _DEFAULT_INSTRUCTIONS,
+        # The backend keeps no conversation of its own and rejects a request
+        # that asks it to; the caller replays the whole history every turn.
+        "store": False,
+        "include": [],
     }
-    instructions = "\n\n".join(m.content for m in call.messages if m.role == "system" and m.content)
-    if instructions:
-        # System text is its own field here, not a turn in the input.
-        payload["instructions"] = instructions
     tools = _tools(call.tools)
     if tools:
         payload["tools"] = tools
+        payload["tool_choice"] = "auto"
+        payload["parallel_tool_calls"] = True
     return payload
 
 
