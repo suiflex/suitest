@@ -29,6 +29,9 @@ class ChatRequest(BaseModel):
 
     messages: Annotated[list[ChatMessageInput], Field(min_length=1, max_length=100)]
     session_id: str | None = None
+    #: Ask this turn of one specific model instead of the workspace default.
+    #: Panel-local, so it never rewrites the workspace config the runner reads.
+    model: Annotated[str | None, Field(max_length=200)] = None
     seed: int | None = None
     approved_tool: ConfirmedTool | None = None
 
