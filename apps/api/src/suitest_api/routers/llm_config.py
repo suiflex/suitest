@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_core.chatgpt_oauth import ChatGptOAuthError
 from suitest_core.code_assist import CODE_ASSIST_VARIANTS, fetch_available_models
 from suitest_core.google_oauth import GoogleOAuthError
+from suitest_core.llm_credentials import CredentialError
 from suitest_shared.domain.enums import Role
 
 from suitest_api.auth.db import get_async_session
@@ -541,11 +542,16 @@ async def list_llm_models(
     config = await LLMConfigService(session, ctx).get_active()
     if config is None or config.provider.strip().lower() != key:
         return LLMModelsResponse(provider=provider, models=curated)
-    credential = await resolve_for_config(session, config)
-    async with httpx.AsyncClient(timeout=_MODELS_TIMEOUT) as client:
-        found = await fetch_available_models(
-            client, access_token=credential.api_key or "", spec=CODE_ASSIST_VARIANTS[key]
-        )
+    try:
+        credential = await resolve_for_config(session, config)
+        async with httpx.AsyncClient(timeout=_MODELS_TIMEOUT) as client:
+            found = await fetch_available_models(
+                client, access_token=credential.api_key or "", spec=CODE_ASSIST_VARIANTS[key]
+            )
+    except (CredentialError, httpx.HTTPError):
+        # A credential that cannot be resolved is worth surfacing where the user
+        # is trying to *use* it, not on the settings page's model dropdown.
+        found = []
     if not found:
         return LLMModelsResponse(provider=provider, models=curated)
     named = {str(m["id"]): m for m in curated}

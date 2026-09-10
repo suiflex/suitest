@@ -173,7 +173,8 @@ def build_request(call: ModelCall, *, agent_dialect: bool = False) -> dict[str, 
 
     ``agent_dialect`` adds the two fields the Antigravity backend requires and
     plain Code Assist does not take: routing labels naming the model family, and
-    a session id it buckets a conversation under.
+    a session id. The id is fresh per call — the reference client derives it the
+    same way, from a per-request key — so it identifies the call, not a thread.
     """
     request: dict[str, object] = {
         "contents": _contents(call.messages),
