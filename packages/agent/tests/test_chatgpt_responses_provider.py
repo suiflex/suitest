@@ -48,6 +48,7 @@ async def test_it_posts_to_responses_not_chat_completions() -> None:
         assert request.url.path.endswith("/responses")
         assert "/chat/completions" not in str(request.url)
         assert request.headers["chatgpt-account-id"] == "acc_1"
+        assert request.headers["originator"] == "codex_cli_rs"
         seen.update(json.loads(request.content))
         return _answer()
 
@@ -55,6 +56,9 @@ async def test_it_posts_to_responses_not_chat_completions() -> None:
 
     assert seen["model"] == "gpt-5.6"
     assert seen["stream"] is False
+    # The backend is stateless and rejects a request that asks it to remember.
+    assert seen["store"] is False
+    assert seen["include"] == []
     # `input` items, not `messages`.
     assert "messages" not in seen
     assert seen["input"] == [
@@ -74,6 +78,12 @@ def test_system_text_travels_as_instructions() -> None:
     )
     assert payload["instructions"] == "be brief"
     assert len(payload["input"]) == 1  # type: ignore[arg-type]
+
+
+def test_instructions_are_never_empty() -> None:
+    """The backend rejects a blank `instructions`, and a call may carry no system turn."""
+    payload = build_payload(_call(messages=[ChatMessage(role="user", content="hi")]), stream=False)
+    assert payload["instructions"]
 
 
 def test_an_assistant_turn_carries_output_text() -> None:
