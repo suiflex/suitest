@@ -46,13 +46,13 @@ from suitest_api.services.google_oauth_service import (
     LoginMode as GoogleLoginMode,
 )
 from suitest_api.services.llm_config_service import (
-    MODEL_CATALOG,
     LLMConfigError,
     LLMConfigService,
     api_key_hint,
     provider_tier,
 )
 from suitest_api.services.llm_credentials import resolve_for_config
+from suitest_api.services.model_catalog import MODEL_CATALOG
 from suitest_api.services.oauth_flows import OAuthLoginError
 
 if TYPE_CHECKING:
