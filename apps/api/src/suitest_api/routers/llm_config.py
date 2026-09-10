@@ -6,7 +6,7 @@ Surface (docs/API.md §3.14):
 * ``PUT    /workspaces/:id/llm-config``        — set/rotate provider + key (ADMIN+)
 * ``POST   /workspaces/:id/llm-config/test``   — provider round-trip health check
 * ``DELETE /workspaces/:id/llm-config``        — clear config; tier → ZERO (ADMIN+)
-* ``GET    /workspaces/:id/llm-config/models`` — model catalog for the provider
+* ``GET    /workspaces/:id/llm-config/models`` — models the provider can be asked for
 
 The write paths recompute ``workspace_capabilities`` (M3-3) so ``GET /capabilities``
 reflects the new tier, and best-effort publish a ``capability.changed`` WS event.
@@ -19,11 +19,19 @@ import json
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Literal
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_core.chatgpt_oauth import ChatGptOAuthError
+from suitest_core.code_assist import (
+    ANTIGRAVITY_PROVIDER,
+    CODE_ASSIST_PROVIDER,
+    CODE_ASSIST_VARIANTS,
+    fetch_available_models,
+)
 from suitest_core.google_oauth import GoogleOAuthError
+from suitest_core.llm_credentials import CHATGPT_PROVIDER
 from suitest_shared.domain.enums import Role
 
 from suitest_api.auth.db import get_async_session
@@ -48,6 +56,7 @@ from suitest_api.services.llm_config_service import (
     api_key_hint,
     provider_tier,
 )
+from suitest_api.services.llm_credentials import resolve_for_config
 from suitest_api.services.oauth_flows import OAuthLoginError
 
 if TYPE_CHECKING:
@@ -59,6 +68,9 @@ router = APIRouter(prefix="/api/v1", tags=["llm"])
 
 _ADMIN_ROLES = {Role.ADMIN, Role.OWNER}
 _NO_CONFIG = "no LLM config set for this workspace"
+#: Reading a model list must not hold the settings page open; the curated table
+#: is right there as a fallback.
+_MODELS_TIMEOUT = 10.0
 
 
 # --- model catalog ----------------------------------------------------------
@@ -137,6 +149,62 @@ _MODEL_CATALOG: dict[str, list[dict[str, object]]] = {
     ],
     "deepseek": [
         {"id": "deepseek-chat", "name": "DeepSeek Chat", "contextWindow": 64000, "maxOutput": 8192},
+    ],
+    # Reached by signing in, not by a key. The ChatGPT backend serves the models
+    # the subscription entitles the account to; these are the ones Codex offers.
+    CHATGPT_PROVIDER: [
+        {"id": "gpt-5-codex", "name": "GPT-5 Codex", "contextWindow": 400000, "maxOutput": 128000},
+        {"id": "gpt-5", "name": "GPT-5", "contextWindow": 400000, "maxOutput": 128000},
+        {"id": "gpt-5-mini", "name": "GPT-5 mini", "contextWindow": 400000, "maxOutput": 128000},
+    ],
+    CODE_ASSIST_PROVIDER: [
+        {
+            "id": "gemini-2.5-pro",
+            "name": "Gemini 2.5 Pro",
+            "contextWindow": 1048576,
+            "maxOutput": 65536,
+        },
+        {
+            "id": "gemini-2.5-flash",
+            "name": "Gemini 2.5 Flash",
+            "contextWindow": 1048576,
+            "maxOutput": 65536,
+        },
+    ],
+    # Antigravity fronts several vendors. This is the fallback the picker shows
+    # when the account's own list cannot be read; see `list_llm_models`.
+    ANTIGRAVITY_PROVIDER: [
+        {
+            "id": "gemini-3-pro",
+            "name": "Gemini 3 Pro",
+            "contextWindow": 1048576,
+            "maxOutput": 65536,
+        },
+        {
+            "id": "gemini-3-flash",
+            "name": "Gemini 3 Flash",
+            "contextWindow": 1048576,
+            "maxOutput": 65536,
+        },
+        {
+            "id": "gemini-2.5-pro",
+            "name": "Gemini 2.5 Pro",
+            "contextWindow": 1048576,
+            "maxOutput": 65536,
+        },
+        {
+            "id": "claude-sonnet-4-5",
+            "name": "Claude Sonnet 4.5",
+            "contextWindow": 200000,
+            "maxOutput": 64000,
+        },
+        {
+            "id": "claude-opus-4-5",
+            "name": "Claude Opus 4.5",
+            "contextWindow": 200000,
+            "maxOutput": 64000,
+        },
+        {"id": "gpt-5", "name": "GPT-5", "contextWindow": 400000, "maxOutput": 128000},
     ],
 }
 
@@ -597,7 +665,32 @@ async def cancel_google_login(
 async def list_llm_models(
     provider: str,
     ctx: TenantContext = Depends(require_workspace_membership),
+    session: AsyncSession = Depends(get_async_session),
 ) -> LLMModelsResponse:
-    """List the curated model catalog for ``provider`` (query param)."""
-    models = _MODEL_CATALOG.get(provider.strip().lower(), [])
-    return LLMModelsResponse(provider=provider, models=models)
+    """List the models ``provider`` (query param) can be asked for.
+
+    A Code Assist account is entitled to a list of its own, and Antigravity's
+    changes often enough that a curated table goes stale between releases — so
+    the account is asked when one is signed in, and the table is the fallback
+    for when that read fails or nothing is configured yet.
+    """
+    key = provider.strip().lower()
+    curated = _MODEL_CATALOG.get(key, [])
+    if key not in CODE_ASSIST_VARIANTS:
+        return LLMModelsResponse(provider=provider, models=curated)
+
+    config = await LLMConfigService(session, ctx).get_active()
+    if config is None or config.provider.strip().lower() != key:
+        return LLMModelsResponse(provider=provider, models=curated)
+    credential = await resolve_for_config(session, config)
+    async with httpx.AsyncClient(timeout=_MODELS_TIMEOUT) as client:
+        found = await fetch_available_models(
+            client, access_token=credential.api_key or "", spec=CODE_ASSIST_VARIANTS[key]
+        )
+    if not found:
+        return LLMModelsResponse(provider=provider, models=curated)
+    named = {str(m["id"]): m for m in curated}
+    return LLMModelsResponse(
+        provider=provider,
+        models=[named.get(model_id, {"id": model_id, "name": model_id}) for model_id in found],
+    )
