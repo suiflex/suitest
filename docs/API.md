@@ -785,8 +785,8 @@ for a Code Assist backend.
 `backend` decides what the one consent is spent on. `code_assist` asks for
 nothing further — the project is discovered from the account and stored as
 `google-codeassist` (or `antigravity`, when the sign-in was started with
-`{"variant":"antigravity"}`, which requires `SUITEST_LLM_ANTIGRAVITY_OAUTH_CLIENT_ID`
-/ `_SECRET` and answers **422** `OAUTH_CLIENT_UNSET` without them). `vertex`
+`{"variant":"antigravity"}`; a client is bundled for it, and
+`SUITEST_LLM_ANTIGRAVITY_OAUTH_CLIENT_ID` / `_SECRET` only override that). `vertex`
 requires `gcpProject` and `gcpLocation`,
 which are not cosmetic — its endpoint is built from them.
 Refused with **422** `NO_REFRESH_TOKEN` when Google returned none, which would

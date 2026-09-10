@@ -48,10 +48,8 @@ class Settings(BaseSettings):
     # confidential -- PKCE is what secures the flow.
     llm_google_oauth_client_id: str = Field(default=GOOGLE_DEFAULT_CLIENT_ID)
     llm_google_oauth_client_secret: str = Field(default=GOOGLE_DEFAULT_CLIENT_SECRET, repr=False)
-    # Antigravity has no bundled default, unlike the pair above. Google publishes
-    # the Gemini CLI's client itself; Antigravity's is only known because a third
-    # party read it out of the IDE, so an operator supplies their own or the
-    # provider stays unavailable.
+    # Antigravity ships a bundled client of its own (see suitest_core.code_assist);
+    # these only override it, for an operator who registered their own Desktop app.
     llm_antigravity_oauth_client_id: str = Field(default="")
     llm_antigravity_oauth_client_secret: str = Field(default="", repr=False)
     superadmin_email: str = Field(default="")

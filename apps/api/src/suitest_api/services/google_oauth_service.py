@@ -123,10 +123,11 @@ class GoogleOAuthService:
             # Gemini CLI does not, so it cannot ride on the sign-in above.
             spec = variant(variant_key)
             settings = get_settings()
-            # Antigravity ships no client of its own; the operator brings one.
-            self._client_id = spec.client_id or settings.llm_antigravity_oauth_client_id
+            # A client is bundled; the env pair overrides it for an operator
+            # who registered their own, so it is read first and not last.
+            self._client_id = settings.llm_antigravity_oauth_client_id or spec.client_id
             self._client_secret = (
-                spec.client_secret or settings.llm_antigravity_oauth_client_secret or None
+                settings.llm_antigravity_oauth_client_secret or spec.client_secret or None
             )
             self._scopes = spec.scopes
         # Only the tests pass a transport; production talks to the real issuer.

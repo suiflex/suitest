@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 from suitest_agent.providers.litellm_router import get_provider
-from suitest_core.code_assist import CODE_ASSIST_VARIANTS
+from suitest_core.code_assist import ANTIGRAVITY_PROVIDER, CODE_ASSIST_VARIANTS
 from suitest_core.llm_credentials import (
     CHATGPT_PROVIDER,
     GOOGLE_VERTEX_PROVIDER,
@@ -50,14 +50,15 @@ def _client_credentials(provider: str) -> tuple[str | None, str | None]:
         )
     spec = CODE_ASSIST_VARIANTS.get(key)
     if spec is not None:
-        # Each Code Assist product has its own registration. Antigravity ships
-        # none, so it falls through to what the operator configured.
-        if spec.client_id:
-            return spec.client_id, spec.client_secret
-        return (
-            settings.llm_antigravity_oauth_client_id or None,
-            settings.llm_antigravity_oauth_client_secret or None,
-        )
+        if key == ANTIGRAVITY_PROVIDER:
+            # Same precedence the sign-in used (GoogleOAuthService.__init__):
+            # refreshing against a different client than the one the tokens were
+            # issued to fails, and reads as a session that expires on its own.
+            return (
+                settings.llm_antigravity_oauth_client_id or spec.client_id or None,
+                settings.llm_antigravity_oauth_client_secret or spec.client_secret or None,
+            )
+        return spec.client_id or None, spec.client_secret or None
     return None, None
 
 
