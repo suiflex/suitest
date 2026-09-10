@@ -122,10 +122,16 @@ export async function streamChat(
   messages: ChatMessageInput[],
   handlers: ChatStreamHandlers,
   signal?: AbortSignal,
-  options?: { approvedTool?: ChatToolEvent | null; sessionId?: string | null },
+  options?: {
+    approvedTool?: ChatToolEvent | null;
+    sessionId?: string | null;
+    model?: string | null;
+  },
 ): Promise<void> {
   const body: Record<string, unknown> = { messages };
   if (options?.sessionId) body["session_id"] = options.sessionId;
+  // Panel-local pick. Absent means "whatever the workspace is configured with".
+  if (options?.model) body["model"] = options.model;
   if (options?.approvedTool?.call_id) {
     // Only the opaque call id crosses the wire — the server owns the arguments.
     body["approved_tool"] = { call_id: options.approvedTool.call_id };

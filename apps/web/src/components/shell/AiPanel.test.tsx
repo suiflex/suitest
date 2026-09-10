@@ -1,10 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { act } from "react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AiPanel } from "@/components/shell/AiPanel";
+import { fetchLlmModels } from "@/lib/api-client";
+import { useActiveWorkspace } from "@/stores/use-active-workspace";
 import { useCapabilities, type Capabilities } from "@/stores/use-capabilities";
+
+vi.mock("@/lib/api-client", () => ({ fetchLlmModels: vi.fn() }));
 
 const ZERO_CAPS: Capabilities = {
   tier: "ZERO",
@@ -74,7 +78,10 @@ describe("<AiPanel>", () => {
   afterEach(() => {
     act(() => {
       useCapabilities.setState({ capabilities: null, loading: true, error: null });
+      useActiveWorkspace.setState({ workspaceId: null });
     });
+    localStorage.removeItem("suitest.agentModel");
+    vi.mocked(fetchLlmModels).mockReset();
   });
 
   it("renders nothing in ZERO tier (ai_conversation disabled)", () => {
@@ -97,9 +104,7 @@ describe("<AiPanel>", () => {
   it("renders the empty-thread agent greeting", () => {
     setCaps(CLOUD_ASSIST_CAPS);
     render(<AiPanel />);
-    expect(screen.getByTestId("ai-panel-thread")).toHaveTextContent(
-      /or ask me to edit a test/i,
-    );
+    expect(screen.getByTestId("ai-panel-thread")).toHaveTextContent(/or ask me to edit a test/i);
   });
 
   it("renders an enabled composer (send gated until input typed)", () => {
@@ -116,6 +121,39 @@ describe("<AiPanel>", () => {
     // beforeEach already sets capabilities=null; do nothing.
     const { container } = render(<AiPanel />);
     expect(container.textContent).toBe("");
+  });
+
+  it("offers the provider's models and remembers the pick", async () => {
+    vi.mocked(fetchLlmModels).mockResolvedValue([
+      { id: "claude-sonnet-4-5" },
+      { id: "claude-haiku-4-5" },
+    ] as Awaited<ReturnType<typeof fetchLlmModels>>);
+    localStorage.removeItem("suitest.agentModel");
+    act(() => {
+      useActiveWorkspace.setState({ workspaceId: "ws_1" });
+    });
+    setCaps(CLOUD_ASSIST_CAPS);
+    render(<AiPanel />);
+
+    const picker = await screen.findByTestId("ai-panel-model");
+    expect(picker).toHaveValue("claude-sonnet-4-5");
+
+    await userEvent.selectOptions(picker, "claude-haiku-4-5");
+    expect(localStorage.getItem("suitest.agentModel")).toBe("claude-haiku-4-5");
+  });
+
+  it("keeps the plain subtitle when the provider has no model catalog", async () => {
+    vi.mocked(fetchLlmModels).mockResolvedValue([]);
+    act(() => {
+      useActiveWorkspace.setState({ workspaceId: "ws_1" });
+    });
+    setCaps(CLOUD_ASSIST_CAPS);
+    render(<AiPanel />);
+    await waitFor(() => expect(fetchLlmModels).toHaveBeenCalled());
+    expect(screen.getByTestId("ai-panel-subtitle")).toHaveTextContent(
+      "Anthropic:claude-sonnet-4-5 · assist",
+    );
+    expect(screen.queryByTestId("ai-panel-model")).toBeNull();
   });
 
   it("toggles auto-approve and surfaces the warning", async () => {
