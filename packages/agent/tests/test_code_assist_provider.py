@@ -148,6 +148,9 @@ async def test_antigravity_carries_its_extra_envelope_fields() -> None:
 
     assert seen["userAgent"] == "antigravity"
     assert seen["requestType"] == "agent"
+    # Per-call, so it cannot ride in the stored envelope — and the backend
+    # rejects an agent request that does not identify itself.
+    assert str(seen["requestId"]).startswith("agent/suitest/")
 
     # ...and the Code Assist envelope does not invent them.
     plain: dict[str, object] = {}
@@ -158,6 +161,7 @@ async def test_antigravity_carries_its_extra_envelope_fields() -> None:
 
     await _provider(plain_handler).complete(_call())
     assert "userAgent" not in plain
+    assert "requestId" not in plain
     assert "requestType" not in plain
 
 
