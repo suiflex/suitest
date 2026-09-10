@@ -633,7 +633,7 @@ Workspace-scoped LLM provider config. Secrets stored AES-GCM encrypted ([DATA_MO
 | POST | `/workspaces/:id/llm-config/chatgpt/login/:flowId/finish` | Store the approved sign-in as the active config |
 | DELETE | `/workspaces/:id/llm-config/chatgpt/login/:flowId` | Abandon the flow |
 
-**GET `/workspaces/:id/llm-config/models` response.** Returns array of model metadata for the workspace's currently-configured provider. Backed by LiteLLM `litellm.model_list` for providers that expose it, otherwise a hard-coded provider catalog shipped in `packages/agent/providers/model_catalog.py`. Empty array if tier=`ZERO` (no provider configured).
+**GET `/workspaces/:id/llm-config/models` response.** Returns array of model metadata for the provider named in the `provider` query param. Backed by a curated catalog in `apps/api/src/suitest_api/routers/llm_config.py`. For a Code Assist provider (`google-codeassist`, `antigravity`) whose sign-in is the workspace's active config, the account's own entitlement list is read first and the catalog is the fallback — Antigravity's set changes often enough that a shipped table goes stale. Empty array for a provider with no catalog entry.
 
 ```json
 {
