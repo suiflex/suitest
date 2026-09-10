@@ -13,8 +13,8 @@ Two login transports:
   alike. The auth service generates the PKCE pair, so the caller does not.
 * **browser callback** — ``generate_pkce`` + ``build_authorize_url``, with the
   redirect landing on ``http://localhost:<port>/auth/callback``. The port must
-  be one of :data:`CALLBACK_PORTS`: the client's redirect-URI allow-list holds
-  no other entry, so a normal application callback route cannot be used.
+  be :data:`CALLBACK_PORTS`: the client's redirect-URI allow-list holds no other
+  entry, so a normal application callback route cannot be used.
 
 Both end at ``exchange_code``. The resulting credential can be spent two ways:
 ``exchange_for_api_key`` trades the id token for a real OpenAI API key (billed at
@@ -64,8 +64,11 @@ __all__ = [
 ISSUER: Final = "https://auth.openai.com"
 #: Codex CLI's public client id (``codex-rs/login/src/auth/manager.rs``).
 DEFAULT_CLIENT_ID: Final = "app_EMoamEEZ73f0CkXaXp7hrann"
-#: The only ports in the client's redirect-URI allow-list, primary first.
-CALLBACK_PORTS: Final = (1455, 1457)
+#: The only port in the client's redirect-URI allow-list. 1457 used to be
+#: offered as a fallback, but the client never registered it, so a busy 1455
+#: turned into a ``redirect_uri_mismatch`` at the exchange instead of a clean
+#: "port in use" before the browser ever opened.
+CALLBACK_PORTS: Final = (1455,)
 #: Page where the user enters the device code.
 DEVICE_VERIFICATION_URL: Final = f"{ISSUER}/codex/device"
 
@@ -138,6 +141,10 @@ def build_authorize_url(
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
             "id_token_add_organizations": "true",
+            # The client is registered for the simplified flow; without this the
+            # issuer runs the older consent path and the code it hands back is
+            # not one this redirect can exchange.
+            "codex_cli_simplified_flow": "true",
             "state": state,
         }
     )
@@ -191,6 +198,10 @@ async def refresh_tokens(
             "client_id": client_id,
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
+            # Ask for the same scopes again: a refresh that names none is issued
+            # against whatever the issuer decides to keep, which is how a working
+            # login quietly loses `api.connectors.invoke` after a rotation.
+            "scope": _SCOPE,
         },
     )
     return _tokens_or_raise(response, "REFRESH_FAILED")

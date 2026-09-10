@@ -33,7 +33,7 @@ def _clear_flows() -> Iterator[None]:
     """Isolate the module-level flow store, and release the sockets behind it.
 
     Dropping the dict is not enough: a browser-mode flow owns a listener on a
-    fixed port, so a test that leaves one behind takes 1455/1457 away from every
+    fixed port, so a test that leaves one behind takes 1455 away from every
     test after it. That is the same leak this suite exists to guard against.
     """
     _shutdown_all()
@@ -64,7 +64,7 @@ async def _start(
 ) -> dict[str, object]:
     """Start a flow, skipping when the callback ports belong to someone else.
 
-    The ports are not ours to choose — the OAuth client allow-lists 1455/1457 —
+    The port is not ours to choose — the OAuth client allow-lists 1455 only —
     so a Suitest or Codex sign-in running on this machine owns them. Skip rather
     than report a failure that says nothing about the code.
     """

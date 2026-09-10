@@ -700,7 +700,7 @@ Codex's public client id, overridable via `SUITEST_CHATGPT_OAUTH_CLIENT_ID`.
 
 **POST `/chatgpt/login`** body `{ "mode": "auto" }` (`auto` | `device` | `browser`).
 `auto` resolves to `browser` only for a request arriving from localhost: the
-redirect has to land on port 1455/1457 of the machine the person is clicking on,
+redirect has to land on port 1455 of the machine the person is clicking on,
 because the OAuth client allow-lists no other redirect URI. Everything else gets
 the device code, which needs no listener.
 

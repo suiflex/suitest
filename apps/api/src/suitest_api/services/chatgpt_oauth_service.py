@@ -8,7 +8,7 @@ Two transports, picked by ``mode``:
 
 * ``device`` — the user opens a page and types a short code. No listener, no
   redirect URI, so it works whether Suitest runs on a laptop or behind a domain.
-* ``browser`` — the classic redirect, which needs a socket on port 1455/1457
+* ``browser`` — the classic redirect, which needs a socket on port 1455
   because the OAuth client allow-lists no other redirect URI. Only usable when
   the person clicking is on the same machine as the API process.
 
@@ -189,7 +189,7 @@ class ChatGptOAuthService:
         except OAuthLoginError as exc:
             raise ChatGptLoginError(
                 exc.code,
-                f"ports {CALLBACK_PORTS} are all in use; sign in with a device code instead",
+                f"port {CALLBACK_PORTS[0]} is in use; sign in with a device code instead",
             ) from exc
         flow.closers.append(server)
         return port
