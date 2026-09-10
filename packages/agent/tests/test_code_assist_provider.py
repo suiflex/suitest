@@ -71,7 +71,10 @@ def test_system_text_becomes_an_instruction_not_a_turn() -> None:
             ]
         )
     )
-    assert request["systemInstruction"] == {"parts": [{"text": "be brief\n\nand kind"}]}
+    assert request["systemInstruction"] == {
+        "role": "user",
+        "parts": [{"text": "be brief\n\nand kind"}],
+    }
     assert len(request["contents"]) == 1  # type: ignore[arg-type]
 
 
@@ -250,3 +253,14 @@ async def test_an_empty_response_does_not_crash_the_call() -> None:
     result = await _provider(empty).complete(_call())
     assert result.content == ""
     assert result.tool_calls == []
+
+
+def test_the_agent_dialect_adds_what_antigravity_requires() -> None:
+    """Antigravity's backend rejects an agent request without labels or a session."""
+    plain = build_request(_call())
+    assert "labels" not in plain
+    assert "sessionId" not in plain
+
+    agent = build_request(_call(model="claude-sonnet-4-5"), agent_dialect=True)
+    assert agent["labels"] == {"used_claude": "true", "used_claude_conservative": "true"}
+    assert agent["sessionId"]
