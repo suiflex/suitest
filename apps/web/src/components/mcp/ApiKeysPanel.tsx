@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeTime } from "@/lib/date";
 import { KeyRound, Trash2 } from "lucide-react";
 
 import { CopyButton } from "@/components/shared/CopyButton";
@@ -39,11 +39,11 @@ function KeyRow({
       <div className="flex shrink-0 items-center gap-4">
         <div className="hidden flex-col items-end sm:flex">
           <span className="font-mono text-[10.5px] text-fg-4">
-            created {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+            created {formatRelativeTime(item.created_at)}
           </span>
           <span className="font-mono text-[10.5px] text-fg-5">
             {item.last_used_at
-              ? `used ${formatDistanceToNow(new Date(item.last_used_at), { addSuffix: true })}`
+              ? `used ${formatRelativeTime(item.last_used_at)}`
               : "never used"}
           </span>
         </div>

@@ -185,3 +185,31 @@ async def test_create_local_schema_adds_columns_a_release_grew(tmp_path: Path) -
         assert "auth_method" in columns
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_utc_datetime_roundtrip_sqlite(tmp_path: Path) -> None:
+    """Issue #176: UtcDateTime must preserve timezone awareness and UTC on SQLite."""
+    from datetime import UTC, datetime
+
+    from suitest_db.types import UtcDateTime
+
+    metadata = MetaData()
+    t = Table(
+        "dt_probe",
+        metadata,
+        Column("id", String(32), primary_key=True),
+        Column("created_at", UtcDateTime),
+    )
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'dt_probe.db'}", future=True)
+    dt_input = datetime(2026, 9, 10, 10, 0, 0, tzinfo=UTC)
+    async with engine.begin() as conn:
+        await conn.run_sync(metadata.create_all)
+        await conn.execute(insert(t).values(id="x1", created_at=dt_input))
+        row = (await conn.execute(select(t.c.created_at).where(t.c.id == "x1"))).scalar_one()
+    await engine.dispose()
+
+    assert row is not None
+    assert row.tzinfo is not None
+    assert row.tzinfo == UTC
+    assert row == dt_input

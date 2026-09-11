@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeTime } from "@/lib/date";
 import {
   AlertTriangle,
   Bot,
@@ -177,7 +177,7 @@ function RecentRunsCard(): React.ReactElement {
                 <span>{formatDuration(r.duration_ms)}</span>
                 <span>
                   {r.started_at
-                    ? formatDistanceToNow(new Date(r.started_at), { addSuffix: true })
+                    ? formatRelativeTime(r.started_at)
                     : "—"}
                 </span>
               </div>
@@ -214,7 +214,7 @@ function AgentActivityCard(): React.ReactElement {
               <div className="text-fg-1">{entry.message}</div>
               <div className="font-mono text-[11px] text-fg-5">
                 {entry.actor} · {entry.action} ·{" "}
-                {formatDistanceToNow(new Date(entry.at), { addSuffix: true })}
+                {formatRelativeTime(entry.at)}
               </div>
             </li>
           ))}

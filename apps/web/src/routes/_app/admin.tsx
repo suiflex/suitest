@@ -3,6 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { CopyButton } from "@/components/shared/CopyButton";
+import { formatTimestamp } from "@/lib/date";
 import {
   Dialog,
   DialogContent,
@@ -142,7 +143,7 @@ function AdminScreen(): React.ReactElement {
                   <tr key={req.id} className="border-t border-border" data-testid="reset-request-row">
                     <td className="px-3 py-2 text-fg-1">{req.email}</td>
                     <td className="px-3 py-2 text-fg-3">
-                      {new Date(req.created_at).toLocaleString()}
+                      {formatTimestamp(req.created_at)}
                     </td>
                     <td className="px-3 py-2">
                       {req.resetLink ? (

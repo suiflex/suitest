@@ -3,8 +3,8 @@
  * Sync the bundled Python sources from packages/lifecycle into ./python.
  *
  * Runs on `prepack` so the published tarball always carries the exact
- * suitest_lifecycle tree from this commit. The module is stdlib-only, so
- * copying sources (minus caches/tests) is the whole "build".
+ * suitest_lifecycle tree from this commit (including UTC timestamp handling).
+ * The module is stdlib-only, so copying sources (minus caches/tests) is the whole "build".
  *
  * In an npm-installed copy (no monorepo around it) the source dir does not
  * exist — that's fine: ./python was already bundled in the tarball, so the

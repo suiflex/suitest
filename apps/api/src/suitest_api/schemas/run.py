@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from suitest_shared.domain.enums import (
     ArtifactKind,
     StepOutcome,
@@ -114,6 +114,13 @@ class RunLogItem(BaseModel):
     level: str
     message: str
     created_at: datetime = Field(serialization_alias="createdAt")
+
+    @field_validator("created_at", mode="after")
+    @classmethod
+    def _ensure_utc(cls, v: datetime) -> datetime:
+        if v.tzinfo is None:
+            return v.replace(tzinfo=UTC)
+        return v.astimezone(UTC)
 
 
 class RunLogPage(BaseModel):

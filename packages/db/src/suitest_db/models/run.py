@@ -10,14 +10,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from suitest_shared.domain.enums import ArtifactKind, RunStatus, RunTrigger, StepOutcome, Tier
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
-from suitest_db.types import PortableJSON
+from suitest_db.types import PortableJSON, UtcDateTime
 
 
 class Run(Base, TimestampMixin):
@@ -45,8 +45,8 @@ class Run(Base, TimestampMixin):
     status: Mapped[RunStatus] = mapped_column(
         SAEnum(RunStatus, name="run_status"), default=RunStatus.QUEUED, nullable=False
     )
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     duration_ms: Mapped[int | None] = mapped_column(Integer)
 
     # NEW — captured at run start so historical runs stay reproducible
@@ -76,8 +76,8 @@ class RunStep(Base, TimestampMixin):
     outcome: Mapped[StepOutcome] = mapped_column(
         SAEnum(StepOutcome, name="step_outcome"), nullable=False
     )
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     stdout: Mapped[str | None] = mapped_column(Text)
     stderr: Mapped[str | None] = mapped_column(Text)

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeTime } from "@/lib/date";
 import {
   AlertTriangle,
   BookText,
@@ -64,7 +64,7 @@ function DocCard({ doc }: { doc: Doc }): React.ReactElement {
   const Icon = KIND_ICON[doc.kind];
   const indexedRel =
     doc.indexed_at !== null && doc.indexed_at !== undefined
-      ? formatDistanceToNow(new Date(doc.indexed_at), { addSuffix: true })
+      ? formatRelativeTime(doc.indexed_at)
       : "never";
 
   return (

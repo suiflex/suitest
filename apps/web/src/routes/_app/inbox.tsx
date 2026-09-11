@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeTime } from "@/lib/date";
 import {
   AlertTriangle,
   Bot,
@@ -55,7 +55,7 @@ function NotificationCard({ item }: { item: InboxItem }): React.ReactElement {
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-[13px] font-semibold text-fg-1">{item.title}</h3>
           <span className="font-mono text-[10.5px] text-fg-5">
-            {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+            {formatRelativeTime(item.createdAt)}
           </span>
         </div>
         <p className="text-[12.5px] text-fg-3">{item.body}</p>

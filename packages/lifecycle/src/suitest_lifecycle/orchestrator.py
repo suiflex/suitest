@@ -104,7 +104,12 @@ def _today() -> str:
 
 
 def _now_iso() -> str:
-    return datetime.datetime.now().replace(microsecond=0).isoformat()
+    return (
+        datetime.datetime.now(datetime.UTC)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def _analyze(config: Config) -> CodeSummary:

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeTime } from "@/lib/date";
 import { AlertTriangle, Plug } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -101,7 +101,7 @@ function IntegrationCard({
       <footer className="flex items-center justify-between border-t border-border pt-2 font-mono text-[10.5px] text-fg-5">
         <span>
           {item.last_synced_at
-            ? `Synced ${formatDistanceToNow(new Date(item.last_synced_at), { addSuffix: true })}`
+            ? `Synced ${formatRelativeTime(item.last_synced_at)}`
             : "Never synced"}
         </span>
         {isMcp ? (
@@ -156,7 +156,7 @@ function McpProviderCard({ provider }: { provider: McpProvider }): React.ReactEl
         <span className="font-mono text-[11px] text-fg-4">{provider.kind}</span> target. Last
         checked{" "}
         {provider.last_checked_at
-          ? formatDistanceToNow(new Date(provider.last_checked_at), { addSuffix: true })
+          ? formatRelativeTime(provider.last_checked_at)
           : "never"}
         .
       </p>

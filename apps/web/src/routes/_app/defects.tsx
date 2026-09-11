@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeTime } from "@/lib/date";
 import { AlertTriangle, Bug, ExternalLink, Play } from "lucide-react";
 import { Suspense } from "react";
 import { useTranslation } from "react-i18next";
@@ -96,7 +96,7 @@ function DefectCard({ defect }: { defect: Defect }): React.ReactElement {
             {defect.public_id}
           </span>
           <span className="font-mono text-[10.5px] text-fg-5">
-            {formatDistanceToNow(new Date(defect.created_at), { addSuffix: true })}
+            {formatRelativeTime(defect.created_at)}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -161,7 +161,7 @@ function DefectCard({ defect }: { defect: Defect }): React.ReactElement {
       <footer className="flex flex-wrap items-center gap-3 border-t border-border pt-3 font-mono text-[11px] text-fg-4">
         <span>Component: {defect.component ?? "—"}</span>
         <span>Assignee: {defect.assignee_id ?? "—"}</span>
-        <span>Updated {formatDistanceToNow(new Date(defect.updated_at), { addSuffix: true })}</span>
+        <span>Updated {formatRelativeTime(defect.updated_at)}</span>
       </footer>
     </article>
   );

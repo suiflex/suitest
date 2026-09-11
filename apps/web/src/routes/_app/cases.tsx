@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { formatDistanceToNow } from "date-fns";
+import { formatRelativeTime } from "@/lib/date";
 import {
   AlertTriangle,
   ChevronDown,
@@ -1050,7 +1050,7 @@ function CaseBasicsTab({
         <Meta label="Suite" value={detail.suite_id} mono />
         <Meta
           label="Updated"
-          value={formatDistanceToNow(new Date(detail.updated_at), { addSuffix: true })}
+          value={formatRelativeTime(detail.updated_at)}
         />
         <Meta label="Key / slug" value={slugKey ?? "—"} mono />
         <Meta

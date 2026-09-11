@@ -442,7 +442,12 @@ def datetime_today() -> str:
 def datetime_now() -> str:
     import datetime
 
-    return datetime.datetime.now().replace(microsecond=0).isoformat()
+    return (
+        datetime.datetime.now(datetime.UTC)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 __all__ = [

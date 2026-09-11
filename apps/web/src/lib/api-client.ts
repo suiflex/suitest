@@ -1,6 +1,7 @@
 import axios, { type AxiosError, type AxiosInstance } from "axios";
 
 import type { components, paths } from "@/lib/api-types";
+import { parseUtcDate } from "@/lib/date";
 import { useActiveWorkspace } from "@/stores/use-active-workspace";
 
 export class ApiError extends Error {
@@ -916,7 +917,8 @@ export type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
 export function invitationStatus(inv: InvitationOut): InvitationStatus {
   if (inv.revoked_at) return "revoked";
   if (inv.accepted_at) return "accepted";
-  if (new Date(inv.expires_at).getTime() <= Date.now()) return "expired";
+  const exp = parseUtcDate(inv.expires_at);
+  if (exp && exp.getTime() <= Date.now()) return "expired";
   return "pending";
 }
 

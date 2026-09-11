@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { BrowserPreview } from "@/components/runs/BrowserPreview";
 import { StateDiff } from "@/components/runs/StateDiff";
+import { formatTimestamp } from "@/lib/date";
 import {
   fetchRun,
   fetchRunArtifacts,
@@ -171,7 +172,7 @@ export function RunReplayPage(): React.ReactElement {
                   label="Duration"
                   value={current?.duration_ms != null ? `${current.duration_ms} ms` : "—"}
                 />
-                <Row label="Started" value={current?.started_at ?? "—"} />
+                <Row label="Started" value={formatTimestamp(current?.started_at)} />
                 {current?.error_message ? (
                   <div className="pt-1">
                     <dt className="text-fg-4">Error</dt>

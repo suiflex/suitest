@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Database, Lock, Play, TrendingDown, TrendingUp } from "lucide-react";
 
 import { EmptyState } from "@/components/shared/EmptyState";
+import { formatTimestamp } from "@/lib/date";
 import {
   type EvalRunListItem,
   ApiError,
@@ -172,7 +173,7 @@ function RegressionChart({ runs }: { runs: EvalRunListItem[] }): React.ReactElem
             const delta = next ? run.scorePct - next.scorePct : 0;
             return (
               <tr key={run.id} className="border-t border-border">
-                <td className="py-1">{new Date(run.runAt).toLocaleString()}</td>
+                <td className="py-1">{formatTimestamp(run.runAt)}</td>
                 <td className="py-1">{run.suiteName}</td>
                 <td className="py-1">{run.scorePct}%</td>
                 <td className="py-1">

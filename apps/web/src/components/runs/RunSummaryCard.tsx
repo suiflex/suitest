@@ -1,6 +1,7 @@
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import type { components } from "@/lib/api-types";
 import { statusToBadge } from "@/lib/badge-maps";
+import { formatTimestamp } from "@/lib/date";
 import { formatDuration } from "@/lib/test-case-format";
 
 type RunDetail = components["schemas"]["RunDetail"];
@@ -9,15 +10,6 @@ interface RunSummaryCardProps {
   run: RunDetail | undefined;
 }
 
-function formatTimestamp(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString();
-  } catch {
-    return iso;
-  }
-}
 
 function coveragePercent(value: unknown): string {
   if (
