@@ -20,7 +20,7 @@ versions: read the changelog before every upgrade and keep backups current.
 |---------|-------|------|
 | `postgres` | `pgvector/pgvector:pg16` | primary database (Postgres 16 with the pgvector extension) |
 | `redis` | `redis:7-alpine` | run queue and cache, append-only persistence enabled |
-| `minio` + `minio-init` | `public.ecr.aws/chainguard/minio` + `public.ecr.aws/chainguard/minio-client:latest-dev` | S3-compatible artifact storage; the init job creates the bucket |
+| `minio` + `minio-init` | `public.ecr.aws/chainguard/minio:latest-dev` + `public.ecr.aws/chainguard/minio-client:latest-dev` | S3-compatible artifact storage; the init job creates the bucket |
 | `migrate` | `ghcr.io/suiflex/suitest-api` (prebuilt) | one-shot `alembic upgrade head`, runs before the API starts |
 | `api` | `ghcr.io/suiflex/suitest-api` (prebuilt) | REST API on port 4000, health at `/health` |
 | `runner` | `ghcr.io/suiflex/suitest-runner` (prebuilt) | executes test runs from the queue |

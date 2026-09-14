@@ -13,7 +13,7 @@ backing services.
 |---------|-------|------|---------|
 | `postgres` | `pgvector/pgvector:pg16` | 5432 | Primary database |
 | `redis` | `redis:7-alpine` | 6379 | Run queue (ARQ) |
-| `minio` | `public.ecr.aws/chainguard/minio` | 9000, 9001 | Artifact storage (screenshots, video) |
+| `minio` | `public.ecr.aws/chainguard/minio:latest-dev` | 9000, 9001 | Artifact storage (screenshots, video) |
 | `api` | `ghcr.io/suiflex/suitest-api` | 4000 | FastAPI backend |
 | `web` | `ghcr.io/suiflex/suitest-web` | 3000 | Web UI (nginx) |
 | `runner` | `ghcr.io/suiflex/suitest-runner` | none | ARQ worker, dispatches steps through MCP |

@@ -109,14 +109,14 @@ services:
     volumes: ["redisdata:/data"]
 
   minio:
-    image: public.ecr.aws/chainguard/minio:latest
+    image: public.ecr.aws/chainguard/minio:latest-dev
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${SUITEST_S3_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${SUITEST_S3_SECRET_KEY:-minioadmin}
     volumes: ["miniodata:/data"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9000/minio/health/ready"]
 
   # ── LOCAL tier add-on (opt-in via --profile local) ─────────────────────
   ollama:
