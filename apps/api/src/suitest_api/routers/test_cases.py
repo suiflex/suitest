@@ -780,8 +780,8 @@ async def reorder_test_case_steps(
 @router.post(
     "/test-cases/{case_id}/self-heal/propose",
     response_model=SelectorRepairPublic,
+    dependencies=[Depends(require_autonomy(AutonomyLevel.ASSIST))],
 )
-@require_autonomy(AutonomyLevel.ASSIST)
 async def propose_selector_repair(
     case_id: str,
     body: SelectorRepairRequest,
@@ -811,8 +811,8 @@ async def propose_selector_repair(
 @router.post(
     "/test-cases/{case_id}/self-heal/apply",
     response_model=SelectorRepairApplied,
+    dependencies=[Depends(require_autonomy(AutonomyLevel.ASSIST))],
 )
-@require_autonomy(AutonomyLevel.ASSIST)
 async def apply_selector_repair(
     case_id: str,
     body: SelectorRepairApplyRequest,

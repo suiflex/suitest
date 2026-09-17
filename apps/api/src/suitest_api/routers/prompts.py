@@ -119,9 +119,8 @@ async def get_prompt_detail(
     "/prompts/{prompt_name}/forks",
     response_model=PromptForkPublic,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(_FORK_ROLES))],
+    dependencies=[Depends(require_role(_FORK_ROLES)), Depends(require_llm_ready)],
 )
-@require_llm_ready
 async def create_prompt_fork(
     prompt_name: str,
     body: PromptForkCreate,
@@ -163,9 +162,8 @@ async def create_prompt_fork(
 @router.post(
     "/prompts/forks/{override_id}/activate",
     response_model=PromptForkPublic,
-    dependencies=[Depends(require_role(_FORK_ROLES))],
+    dependencies=[Depends(require_role(_FORK_ROLES)), Depends(require_llm_ready)],
 )
-@require_llm_ready
 async def activate_prompt_fork(
     override_id: str,
     ctx: TenantContext = Depends(require_workspace_membership),
@@ -192,9 +190,8 @@ async def activate_prompt_fork(
 @router.delete(
     "/prompts/forks/{override_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_role(_FORK_ROLES))],
+    dependencies=[Depends(require_role(_FORK_ROLES)), Depends(require_llm_ready)],
 )
-@require_llm_ready
 async def delete_prompt_fork(
     override_id: str,
     ctx: TenantContext = Depends(require_workspace_membership),
@@ -272,9 +269,8 @@ async def list_prompt_experiments(
     "/prompt-experiments",
     response_model=PromptExperimentPublic,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(_FORK_ROLES))],
+    dependencies=[Depends(require_role(_FORK_ROLES)), Depends(require_llm_ready)],
 )
-@require_llm_ready
 async def create_prompt_experiment(
     body: PromptExperimentCreateBody,
     ctx: TenantContext = Depends(require_workspace_membership),
@@ -328,9 +324,8 @@ async def create_prompt_experiment(
 @router.post(
     "/prompt-experiments/{experiment_id}/stop",
     response_model=PromptExperimentPublic,
-    dependencies=[Depends(require_role(_FORK_ROLES))],
+    dependencies=[Depends(require_role(_FORK_ROLES)), Depends(require_llm_ready)],
 )
-@require_llm_ready
 async def stop_prompt_experiment(
     experiment_id: str,
     ctx: TenantContext = Depends(require_workspace_membership),

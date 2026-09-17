@@ -245,8 +245,6 @@ def verify_credentials() -> str | None:
     tool publishes into). Any failure must abort the connection: a server that
     accepts empty or mismatched credentials silently drops all publishes.
 
-    The response must also report a validated workspace LLM. MCP execution is
-    unavailable until Settings → LLM has completed its connection test.
     """
     api_url = os.environ.get("SUITEST_API_URL", "").strip().rstrip("/")
     api_key = os.environ.get("SUITEST_API_KEY", "").strip()
@@ -260,14 +258,8 @@ def verify_credentials() -> str | None:
         headers={"Authorization": f"Bearer {api_key}"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=10) as response:
-            payload = json.loads(response.read())
-        llm_status = payload.get("llmStatus") if isinstance(payload, dict) else None
-        if llm_status != "ready":
-            return (
-                f"workspace LLM is {llm_status or 'not_configured'}; connect and validate it "
-                f"at {api_url}/settings before starting MCP"
-            )
+        with urllib.request.urlopen(req, timeout=10):
+            pass
         return None
     except urllib.error.HTTPError as exc:
         return f"SUITEST_API_KEY rejected by {api_url} (HTTP {exc.code}); refusing to start"

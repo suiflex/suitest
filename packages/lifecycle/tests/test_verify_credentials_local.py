@@ -1,4 +1,4 @@
-"""MCP startup requires Suitest credentials and a validated workspace LLM."""
+"""MCP startup requires valid Suitest credentials; LLM readiness is not required."""
 
 from __future__ import annotations
 
@@ -15,23 +15,9 @@ def test_credentials_are_required() -> None:
         assert "SUITEST_API_URL" in error
 
 
-def test_unvalidated_llm_stops_mcp() -> None:
+def test_valid_credentials_allow_mcp() -> None:
     response = mock.MagicMock()
-    response.__enter__.return_value.read.return_value = b'{"llmStatus":"validation_required"}'
-    with (
-        mock.patch.dict(
-            os.environ,
-            {"SUITEST_API_URL": "http://suitest", "SUITEST_API_KEY": "sk_suitest_test"},
-            clear=True,
-        ),
-        mock.patch("urllib.request.urlopen", return_value=response),
-    ):
-        assert "validation_required" in (verify_credentials() or "")
-
-
-def test_validated_llm_allows_mcp() -> None:
-    response = mock.MagicMock()
-    response.__enter__.return_value.read.return_value = b'{"llmStatus":"ready"}'
+    response.__enter__.return_value.read.return_value = b'{"workspaceId":"ws-1"}'
     with (
         mock.patch.dict(
             os.environ,

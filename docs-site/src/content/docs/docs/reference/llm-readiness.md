@@ -9,16 +9,17 @@ providers unlock the same feature surface after validation.
 
 ## Workspace states
 
-| `llm.status` | Meaning | MCP and runs |
-|---|---|---|
-| `not_configured` | No active workspace LLM configuration | Blocked |
-| `validation_required` | Saved or changed but not connection-tested | Blocked |
-| `ready` | Active configuration has a successful `last_validated_at` result | Enabled |
+| `llm.status` | Meaning | Runs & MCP | AI features |
+|---|---|---|---|
+| `not_configured` | No active workspace LLM configuration | Deterministic runs & tools enabled | Blocked |
+| `validation_required` | Saved or changed but not connection-tested | Deterministic runs & tools enabled | Blocked |
+| `ready` | Active configuration has a successful `last_validated_at` result | All runs & tools enabled | Enabled |
 
-Manual test case management, authentication, workspace management, and LLM
-settings remain available in every state. MCP discovery, tool invocation, run
-creation, reruns, runtime translation, and agent features require `ready`.
-
+Manual test case management, deterministic test execution (Playwright, API HTTP,
+Postgres, etc.), MCP operations, authentication, workspace management, and LLM
+settings remain available in every state. AI-specific workflows (agentic test
+generation, runtime step translation, AI defect diagnosis, and prompt experiments)
+require `ready`.
 ## Validation lifecycle
 
 Open **Settings, then LLM**, select a provider, enter its connection details,
@@ -36,10 +37,9 @@ operation returns `409 LLM_NOT_READY` when the workspace is not ready.
 ## MCP contract
 
 The MCP client receives only `SUITEST_API_URL` and `SUITEST_API_KEY`. At
-startup it calls `/api/v1/api-keys/whoami` and requires `llmStatus=ready`.
-Completions go through `/api/v1/llm/complete`, so provider credentials remain
-on the server. MCP client-provided inference and an offline MCP mode are not
-supported.
+startup it authenticates credentials via `/api/v1/api-keys/whoami`. Completions
+go through `/api/v1/llm/complete`, so provider credentials remain on the server.
+MCP client-provided inference and an offline MCP mode are not supported.
 
 ## Product packaging
 

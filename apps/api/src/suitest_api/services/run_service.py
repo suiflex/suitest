@@ -28,7 +28,6 @@ from suitest_shared.domain.enums import RunStatus, RunTrigger, StepOutcome
 from suitest_shared.schemas.responses import ArtifactOut, RunOut, SignedUrlOut
 
 from suitest_api.deps.scope import TenantContext
-from suitest_api.deps.tier import require_llm_ready
 from suitest_api.services.project_scope import project_belongs_to_workspace
 from suitest_api.services.test_case_validator import BUNDLED_MCP_PROVIDERS
 
@@ -120,7 +119,6 @@ class RunService:
             duration_ms=duration_ms,
         )
 
-    @require_llm_ready
     async def create_run(
         self,
         *,
@@ -333,7 +331,6 @@ class RunService:
         run.metadata_json = existing
         await self._session.flush()
 
-    @require_llm_ready
     async def clone_for_rerun(
         self,
         src: RunRow,

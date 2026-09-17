@@ -53,8 +53,7 @@ def _model_for(payload: ChatRequest, config: LLMConfig) -> str:
     return wanted
 
 
-@router.post("/agent/chat")
-@require_llm_ready
+@router.post("/agent/chat", dependencies=[Depends(require_llm_ready)])
 async def agent_chat(
     payload: ChatRequest,
     request: Request,

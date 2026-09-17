@@ -38,28 +38,21 @@ async def test_llm_and_autonomy_gates_fail_closed(monkeypatch: pytest.MonkeyPatc
     ctx = TenantContext(workspace_id="ws-1", user_id="user-1", role=Role.OWNER)
     session = AsyncSession()
 
-    @require_llm_ready
-    async def llm_endpoint(*, ctx: TenantContext, session: AsyncSession) -> bool:
-        return True
-
     with pytest.raises(HTTPException) as missing:
-        await llm_endpoint(ctx=ctx, session=session)
+        await require_llm_ready(ctx=ctx, session=session)
     assert missing.value.status_code == 409
 
     _LlmRepo.config = SimpleNamespace(last_validated_at=None)
     with pytest.raises(HTTPException) as unvalidated:
-        await llm_endpoint(ctx=ctx, session=session)
+        await require_llm_ready(ctx=ctx, session=session)
     assert unvalidated.value.detail["llmStatus"] == "validation_required"
 
     _LlmRepo.config = SimpleNamespace(last_validated_at=datetime.now(UTC))
-    assert await llm_endpoint(ctx=ctx, session=session)
+    assert await require_llm_ready(ctx=ctx, session=session) == ctx
 
-    @require_autonomy(AutonomyLevel.ASSIST)
-    async def autonomy_endpoint(*, ctx: TenantContext, session: AsyncSession) -> bool:
-        return True
-
+    autonomy_checker = require_autonomy(AutonomyLevel.ASSIST)
     with pytest.raises(HTTPException):
-        await autonomy_endpoint(ctx=ctx, session=session)
+        await autonomy_checker(ctx=ctx, session=session)
     _CapabilityRepo.level = AutonomyLevel.ASSIST
-    assert await autonomy_endpoint(ctx=ctx, session=session)
+    assert await autonomy_checker(ctx=ctx, session=session) == ctx
     await session.close()

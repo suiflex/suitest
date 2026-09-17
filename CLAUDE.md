@@ -72,7 +72,7 @@ Every doc has a build-status banner at the top (built vs spec M2–M4) — read 
 - All **DB access** goes through the repository pattern (`packages/db/repositories/*.py`)
 - **AES-GCM** for stored secrets via `packages/core/crypto`
 - **Audit log** every mutation (`packages/db/audit.py`)
-- Every MCP, run, or LLM endpoint must enforce `require_llm_ready` or `ensure_llm_ready`
+- Every LLM-dependent endpoint (agent generation, diagnosis, translation, prompts) must enforce `require_llm_ready` or `ensure_llm_ready`; deterministic test execution and standard MCP operations remain available without an LLM
 - Every LLM-dependent UI feature must be wrapped in `<Gated feature="...">`
 
 ---
@@ -211,19 +211,18 @@ Font: **Geist Sans** for UI, **Geist Mono** for code/IDs/numbers.
 Suitest has no model-provider capability tiers. A local model and a hosted model
 follow the same per-workspace lifecycle (see [CAPABILITY_TIERS.md](./docs/CAPABILITY_TIERS.md)):
 
-- `not_configured` — manual web TCM, auth, workspace management, and LLM Settings only
+- `not_configured` — manual web TCM, deterministic runs, auth, workspace management, and LLM Settings only
 - `validation_required` — a config is saved or changed but has not passed its connection test
-- `ready` — MCP execution, runs, and LLM features are enabled
+- `ready` — AI generation, agentic execution, self-healing, and LLM features are enabled
 
 The source of truth is the active encrypted `LLMConfig` and its persisted
 `last_validated_at`. Startup must not spend a completion merely to probe readiness.
 
 ### MANDATORY rules
 
-- Every MCP, run, or LLM endpoint declares its readiness requirement:
+- Every LLM-dependent endpoint declares its readiness requirement:
   ```python
-  @router.post("/agent/generate")
-  @require_llm_ready
+  @router.post("/agent/generate", dependencies=[Depends(require_llm_ready)])
   async def generate(..., ctx: TenantContext, session: AsyncSession):
       ...
   ```
@@ -233,9 +232,10 @@ The source of truth is the active encrypted `LLMConfig` and its persisted
     <GenerateModal />
   </Gated>
   ```
-- **Never assume an LLM is available** — manual web workflows must remain usable without one.
-- MCP calls, test runs, and LLM calls require a previously validated workspace LLM.
-- Agentic steps (with non-reversible side effects) need an autonomy gate: `require_autonomy(AutonomyLevel.ASSIST_OR_HIGHER)`
+- **Never assume an LLM is available** — manual web workflows, deterministic runs, and builtin MCP tools must remain usable without one.
+- Only LLM-dependent workflows (sampling, agentic translation, AI defect prose, prompt experiments) require a previously validated workspace LLM.
+- Deterministic test runs (Playwright, HTTP, Postgres, Slint) execute without an active LLM.
+- Agentic steps (with non-reversible side effects) need an autonomy gate: `require_autonomy(AutonomyLevel.ASSIST)`
 - Test manual no-LLM behavior first, then validated hosted and local providers.
 - MCP clients contain only `SUITEST_API_URL` and `SUITEST_API_KEY`; provider secrets stay server-side.
 - MCP sampling is forbidden. Model work goes through `/api/v1/llm/complete`.

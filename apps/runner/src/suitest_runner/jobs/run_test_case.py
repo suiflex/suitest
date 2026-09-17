@@ -33,7 +33,7 @@ import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 import httpx
 import structlog
@@ -67,6 +67,7 @@ if TYPE_CHECKING:
     from suitest_api.schemas.self_heal import SelectorRepairPublic
     from suitest_api.services.defect_auto_filer import DefectAutoFiler
     from suitest_db.models.case import TestStep
+    from suitest_db.models.run import Run
     from suitest_db.models.workspace_capability import WorkspaceCapability
 
 log = structlog.get_logger(__name__)
@@ -407,20 +408,854 @@ def _build_clear_highlight_script() -> str:
     )
 
 
+class _VideoManager:
+    def __init__(
+        self,
+        *,
+        video_mode: str,
+        video_size: dict[str, int],
+        viewport_dim: str,
+        target_pw_provider: str,
+        workspace_id: str,
+        run_id: str,
+        triggered_by: str | None,
+        overrides: dict[str, object] | None,
+        invoker: McpInvoker,
+        factory: Any,
+        ctx: dict[str, object],
+        case_public_ids: dict[str, str],
+    ) -> None:
+        self.video_mode = video_mode
+        self.video_size = video_size
+        self.viewport_dim = viewport_dim
+        self.target_pw_provider = target_pw_provider
+        self.workspace_id = workspace_id
+        self.run_id = run_id
+        self.triggered_by = triggered_by
+        self.overrides = overrides
+        self.invoker = invoker
+        self.factory = factory
+        self.ctx = ctx
+        self.case_public_ids = case_public_ids
+        self.active = False
+        self.active_case_id: str | None = None
+
+    async def start(self, case_id: str) -> None:
+        if self.video_mode not in ("on", "retain-on-failure") or self.active:
+            return
+        start_ctx = InvokeContext(
+            workspace_id=self.workspace_id,
+            run_id=self.run_id,
+            step_id=None,
+            actor_user_id=self.triggered_by,
+            target_kind=TargetKind.FE_WEB,
+            routing_overrides=self.overrides,
+        )
+        try:
+            vp_parts = self.viewport_dim.split("x")
+            vp_w = int(vp_parts[0]) if len(vp_parts) == 2 else 1920
+            vp_h = int(vp_parts[1]) if len(vp_parts) == 2 else 1080
+            await self.invoker.invoke(
+                explicit_provider=self.target_pw_provider,
+                tool="browser_resize",
+                arguments={"width": vp_w, "height": vp_h},
+                ctx=start_ctx,
+            )
+        except Exception as exc:
+            log.debug("runner.video.resize_before_video_skipped", case_id=case_id, error=str(exc))
+
+        try:
+            await self.invoker.invoke(
+                explicit_provider=self.target_pw_provider,
+                tool="browser_start_video",
+                arguments={"size": self.video_size},
+                ctx=start_ctx,
+            )
+            self.active = True
+            self.active_case_id = case_id
+        except Exception as exc:
+            log.warning("runner.video.start_failed", case_id=case_id, error=str(exc))
+
+    async def stop(
+        self,
+        case_id: str,
+        *,
+        has_failure: bool,
+        last_step_info: tuple[str, int] | None,
+    ) -> None:
+        if not self.active or self.active_case_id != case_id:
+            return
+        self.active = False
+        self.active_case_id = None
+        if self.video_mode not in ("on", "retain-on-failure"):
+            return
+        stop_ctx = InvokeContext(
+            workspace_id=self.workspace_id,
+            run_id=self.run_id,
+            step_id=None,
+            actor_user_id=self.triggered_by,
+            target_kind=TargetKind.FE_WEB,
+            routing_overrides=self.overrides,
+        )
+        try:
+            stop_res = await self.invoker.invoke(
+                explicit_provider=self.target_pw_provider,
+                tool="browser_stop_video",
+                arguments={},
+                ctx=stop_ctx,
+            )
+        except Exception as exc:
+            log.warning("runner.video.stop_failed", case_id=case_id, error=str(exc))
+            return
+
+        match = re.search(r"-\s*\[(?:Video|video)\]\(([^)]+)\)", stop_res.stdout)
+        if not match:
+            log.debug("runner.video.path_not_found", stdout=stop_res.stdout)
+            return
+
+        video_rel = match.group(1).strip()
+        video_path = Path(video_rel)
+        if not video_path.is_absolute():
+            video_path = Path.cwd() / video_path
+
+        should_keep = self.video_mode == "on" or (
+            self.video_mode == "retain-on-failure" and has_failure
+        )
+
+        try:
+            if should_keep and video_path.is_file():
+                raw_bytes = video_path.read_bytes()
+                if last_step_info is not None and raw_bytes:
+                    from suitest_runner.artifacts import upload_artifacts
+
+                    last_step_id, last_step_order = last_step_info
+                    case_pub = self.case_public_ids.get(case_id, "case")
+                    video_art = McpArtifact(
+                        kind="VIDEO",
+                        filename=f"{case_pub.lower()}-video.webm",
+                        content_type="video/webm",
+                        bytes=raw_bytes,
+                    )
+                    async with self.factory() as session:
+                        await upload_artifacts(
+                            session=session,
+                            ctx=self.ctx,
+                            run_id=self.run_id,
+                            run_step_id=last_step_id,
+                            step_order=last_step_order,
+                            artifacts=[video_art],
+                        )
+                        await session.commit()
+        except Exception as exc:
+            log.warning("runner.video.upload_failed", case_id=case_id, error=str(exc))
+        finally:
+            if video_path.is_file():
+                with contextlib.suppress(Exception):
+                    video_path.unlink()
+
+
+class _HighlightManager:
+    def __init__(
+        self,
+        *,
+        enabled: bool,
+        target_pw_provider: str,
+        workspace_id: str,
+        run_id: str,
+        triggered_by: str | None,
+        overrides: dict[str, object] | None,
+        invoker: McpInvoker,
+    ) -> None:
+        self.enabled = enabled
+        self.target_pw_provider = target_pw_provider
+        self.workspace_id = workspace_id
+        self.run_id = run_id
+        self.triggered_by = triggered_by
+        self.overrides = overrides
+        self.invoker = invoker
+
+    def _ctx(self, step_id: str, target_kind: Any) -> InvokeContext:
+        return InvokeContext(
+            workspace_id=self.workspace_id,
+            run_id=self.run_id,
+            step_id=step_id,
+            actor_user_id=self.triggered_by,
+            target_kind=TargetKind(target_kind),
+            routing_overrides=self.overrides,
+        )
+
+    async def pre_clear(self, step_id: str, target_kind: Any, is_web_step: bool) -> None:
+        if not self.enabled or not is_web_step:
+            return
+        try:
+            ctx = self._ctx(step_id, target_kind)
+            js = _build_clear_highlight_script()
+            await self.invoker.invoke(
+                explicit_provider=self.target_pw_provider,
+                tool="browser_evaluate",
+                arguments={"function": js, "script": js},
+                ctx=ctx,
+            )
+        except Exception as err:
+            log.debug("runner.highlight.pre_clear_failed", error=str(err))
+
+    async def apply(
+        self, step_id: str, target_kind: Any, is_web_step: bool, code: str | None
+    ) -> tuple[bool, str | None]:
+        if not self.enabled or not is_web_step or not code:
+            return False, None
+        try:
+            parsed = json.loads(code)
+            if isinstance(parsed, dict):
+                sel = _extract_target_selector(parsed)
+                if sel:
+                    ctx = self._ctx(step_id, target_kind)
+                    js = _build_highlight_script(sel)
+                    await self.invoker.invoke(
+                        explicit_provider=self.target_pw_provider,
+                        tool="browser_evaluate",
+                        arguments={"function": js, "script": js},
+                        ctx=ctx,
+                    )
+                    await asyncio.sleep(0.20)
+                    return True, sel
+        except Exception as exc:
+            log.debug("runner.highlight.failed", error=str(exc))
+        return False, None
+
+    async def reapply(self, step_id: str, target_kind: Any, target_sel: str | None) -> None:
+        if not self.enabled or not target_sel:
+            return
+        try:
+            ctx = self._ctx(step_id, target_kind)
+            js = _build_highlight_script(target_sel)
+            await self.invoker.invoke(
+                explicit_provider=self.target_pw_provider,
+                tool="browser_evaluate",
+                arguments={"function": js, "script": js},
+                ctx=ctx,
+            )
+            await asyncio.sleep(0.10)
+        except Exception as err:
+            log.debug("runner.highlight.reapply_failed", error=str(err))
+
+    async def post_clear(self, step_id: str, target_kind: Any) -> None:
+        if not self.enabled:
+            return
+        try:
+            ctx = self._ctx(step_id, target_kind)
+            js = _build_clear_highlight_script()
+            await self.invoker.invoke(
+                explicit_provider=self.target_pw_provider,
+                tool="browser_evaluate",
+                arguments={"function": js, "script": js},
+                ctx=ctx,
+            )
+        except Exception as err:
+            log.debug("runner.highlight.clear_failed", error=str(err))
+
+
+async def _maybe_capture_screenshot(
+    *,
+    result: StepResult,
+    is_web_step: bool,
+    screenshot_mode: str,
+    target_pw_provider: str,
+    test_step: Any,
+    invoker: McpInvoker,
+    workspace_id: str,
+    run_id: str,
+    triggered_by: str | None,
+    overrides: dict[str, object] | None,
+) -> None:
+    artifacts = result.mcp_result.artifacts if result.mcp_result is not None else []
+    has_shot = _has_screenshot_artifact(artifacts)
+    has_failure = result.outcome in (StepOutcome.FAIL, StepOutcome.ERROR)
+    should_capture = is_web_step and (
+        (not has_shot and screenshot_mode == "on")
+        or (has_failure and screenshot_mode in ("on", "only-on-failure"))
+    )
+    if not should_capture:
+        return
+    try:
+        if has_failure:
+            await asyncio.sleep(0.25)
+        else:
+            await asyncio.sleep(0.15)
+        shot_ctx = InvokeContext(
+            workspace_id=workspace_id,
+            run_id=run_id,
+            step_id=test_step.id,
+            actor_user_id=triggered_by,
+            target_kind=TargetKind(test_step.target_kind),
+            routing_overrides=overrides,
+        )
+        shot_res = await invoker.invoke(
+            explicit_provider=target_pw_provider if is_web_step else test_step.mcp_provider,
+            tool="browser_take_screenshot",
+            arguments={},
+            ctx=shot_ctx,
+        )
+        if shot_res.artifacts:
+            if result.mcp_result is None:
+                result.mcp_result = shot_res
+            else:
+                result.mcp_result.artifacts.extend(shot_res.artifacts)
+    except Exception as exc:
+        log.warning(
+            "runner.auto_screenshot.failed",
+            run_id=run_id,
+            step_id=test_step.id,
+            error=str(exc),
+        )
+
+
+async def _finalize_run(
+    *,
+    factory: Any,
+    redis_client: object,
+    invoker: McpInvoker,
+    run_id: str,
+    workspace_id: str,
+    headless_mode: bool,
+    clean_session: bool,
+    selection: list[Any],
+    summary: dict[str, int],
+    case_outcome: dict[str, str],
+    case_has_failure: dict[str, bool],
+    case_duration_ms: dict[str, int],
+    current_case_id: str | None,
+    t0: float,
+    cancelled: bool,
+) -> dict[str, object]:
+    total_planned_steps = len(selection)
+    duration_ms = int((time.perf_counter() - t0) * 1000)
+    failed_total = summary["failed"] + summary["errored"]
+    if cancelled:
+        final_status = RunStatus.CANCELLED
+    elif summary["total"] == 0:
+        log.warning("runner.run.empty_selection", run_id=run_id)
+        final_status = RunStatus.ERROR
+    elif summary["failed"] > 0:
+        final_status = RunStatus.FAIL
+    elif summary["errored"] > 0:
+        final_status = RunStatus.ERROR
+    else:
+        final_status = RunStatus.PASS
+
+    async with factory() as session:
+        completed_time = datetime.now(UTC)
+        await RunRepo(session).update_status(
+            run_id,
+            final_status,
+            completed_at=completed_time,
+            duration_ms=duration_ms,
+            total_steps=total_planned_steps,
+            passed_steps=summary["passed"],
+            failed_steps=failed_total,
+        )
+        executed_case_ids = {c_id for c_id, _, _ in selection if c_id}
+        if executed_case_ids:
+            status_whens = []
+            dur_whens = []
+            for c_id in executed_case_ids:
+                c_status = case_outcome.get(
+                    c_id,
+                    "FAIL" if case_has_failure.get(c_id, False) else "PASS",
+                )
+                if cancelled and c_id == current_case_id and not case_has_failure.get(c_id, False):
+                    c_status = "CANCELLED"
+                c_dur = case_duration_ms.get(c_id, 0)
+                status_whens.append((TestCase.id == c_id, c_status))
+                dur_whens.append((TestCase.id == c_id, c_dur))
+
+            await session.execute(
+                update(TestCase)
+                .where(TestCase.id.in_(executed_case_ids))
+                .values(
+                    last_run_id=run_id,
+                    last_run_at=completed_time,
+                    last_run_result=case(*status_whens, else_=TestCase.last_run_result),
+                    last_duration_ms=case(*dur_whens, else_=TestCase.last_duration_ms),
+                )
+            )
+        await session.commit()
+
+    await _publish(
+        redis_client,
+        run_id,
+        "run.completed",
+        {
+            "runId": run_id,
+            "status": final_status.value,
+            "totalSteps": total_planned_steps,
+            "passedSteps": summary["passed"],
+            "failedSteps": failed_total,
+            "durationMs": duration_ms,
+        },
+        factory=factory,
+    )
+
+    if summary["failed"] > 0 and not cancelled:
+        await _try_file_defect(factory, run_id)
+
+    if clean_session and hasattr(invoker, "pool") and hasattr(invoker.pool, "recycle_provider"):
+        try:
+            target_provider = (
+                f"builtin:playwright-mcp:{workspace_id}"
+                if headless_mode
+                else f"builtin:playwright-mcp:{workspace_id}:headed"
+            )
+            await invoker.pool.recycle_provider(target_provider)
+        except Exception as exc:
+            log.debug("runner.clean_session.final_recycle_failed", error=str(exc))
+
+    return {
+        "run_id": run_id,
+        "status": final_status.value,
+        "total": summary["total"],
+        "passed": summary["passed"],
+        "failed": summary["failed"],
+        "errored": summary["errored"],
+        "skipped": summary["skipped"],
+    }
+
+
+async def _init_run_record(
+    factory: Any,
+    registry: McpRegistry,
+    run_id: str,
+) -> (
+    tuple[
+        Run,
+        list[tuple[str, int, TestStep]],
+        dict[str, str],
+        str,
+        dict[str, object] | None,
+        StepTranslator | None,
+        bool,
+        str | None,
+    ]
+    | dict[str, str]
+):
+    async with factory() as session:
+        run_repo = RunRepo(session)
+        run, selection = await run_repo.get_with_selection(run_id)
+        if run is None:
+            log.warning("runner.job.missing_run", run_id=run_id)
+            return {"error": "RUN_NOT_FOUND", "run_id": run_id}
+
+        case_ids = {case_id for case_id, _, _ in selection}
+        case_public_ids: dict[str, str] = {}
+        if case_ids and hasattr(session, "execute"):
+            try:
+                cases_stmt = select(TestCase.id, TestCase.public_id).where(
+                    TestCase.id.in_(case_ids)
+                )
+                case_public_ids = dict(
+                    (str(r[0]), str(r[1])) for r in (await session.execute(cases_stmt)).all()
+                )
+            except Exception as exc:
+                log.debug("runner.case_public_ids.query_failed", error=str(exc))
+
+        project = await session.get(Project, run.project_id)
+        workspace_id = project.workspace_id if project is not None else None
+        if workspace_id is None:
+            log.warning("runner.job.missing_project", run_id=run_id)
+            await run_repo.update_status(run_id, RunStatus.FAIL)
+            await session.commit()
+            return {"error": "RUN_PROJECT_MISSING", "run_id": run_id}
+
+        if workspace_id not in registry._by_workspace:
+            await registry.load_for_workspace(session, workspace_id)
+
+        capability = await WorkspaceCapabilityRepo(session).get(workspace_id)
+        auto_self_heal = _auto_self_heal_enabled(capability)
+        overrides_raw = capability.features_json.get("routing_overrides") if capability else None
+        overrides: dict[str, object] | None = (
+            overrides_raw if isinstance(overrides_raw, dict) else None
+        )
+        triggered_by = run.triggered_by
+        translator = await _build_translator(session, workspace_id=workspace_id)
+
+        total_planned_steps = len(selection)
+        await run_repo.update_status(
+            run_id,
+            RunStatus.RUNNING,
+            started_at=datetime.now(UTC),
+            total_steps=total_planned_steps,
+            passed_steps=0,
+            failed_steps=0,
+        )
+        await session.commit()
+
+    return (
+        run,
+        selection,
+        case_public_ids,
+        workspace_id,
+        overrides,
+        translator,
+        auto_self_heal,
+        triggered_by,
+    )
+
+
+async def _execute_and_heal_step(
+    *,
+    invoker: McpInvoker,
+    test_step: TestStep,
+    case_id: str,
+    run_id: str,
+    workspace_id: str,
+    triggered_by: str | None,
+    overrides: dict[str, object] | None,
+    translator: StepTranslator | None,
+    auto_self_heal: bool,
+    factory: Any,
+    highlight_applied: bool,
+    target_sel: str | None,
+    highlight_mgr: _HighlightManager,
+    is_web_step: bool,
+    screenshot_mode: str,
+    target_pw_provider: str,
+) -> tuple[StepResult, bool, dict[str, object] | None]:
+    try:
+        result = await execute_step(
+            invoker=invoker,
+            test_step=test_step,
+            run_id=run_id,
+            workspace_id=workspace_id,
+            actor_user_id=triggered_by,
+            routing_overrides=overrides,
+            translator=translator,
+        )
+        selector_change_detected = is_selector_changed_failure(
+            test_step.code,
+            result.error_message,
+        )
+        self_heal_state: dict[str, object] | None = None
+        if auto_self_heal and result.outcome == StepOutcome.FAIL:
+            original_error = result.error_message
+            repair_proposal = await _try_auto_self_heal(
+                factory=factory,
+                test_step=test_step,
+                case_id=case_id,
+                workspace_id=workspace_id,
+                user_id=triggered_by,
+                result=result,
+            )
+            if repair_proposal is not None:
+                self_heal_state = {
+                    "failureKind": "selector_changed",
+                    "oldSelector": repair_proposal.old_selector,
+                    "newSelector": repair_proposal.new_selector,
+                    "retryCount": 1,
+                }
+                result = await execute_step(
+                    invoker=invoker,
+                    test_step=test_step,
+                    run_id=run_id,
+                    workspace_id=workspace_id,
+                    actor_user_id=triggered_by,
+                    routing_overrides=overrides,
+                    translator=translator,
+                )
+                self_heal_state["originalError"] = original_error or ""
+                self_heal_state["retryOutcome"] = result.outcome.value
+                self_heal_state["persisted"] = (
+                    await _persist_auto_self_heal(
+                        factory=factory,
+                        case_id=case_id,
+                        workspace_id=workspace_id,
+                        user_id=triggered_by,
+                        proposal=repair_proposal,
+                    )
+                    if result.outcome == StepOutcome.PASS
+                    else False
+                )
+
+        if highlight_applied and target_sel:
+            await highlight_mgr.reapply(test_step.id, test_step.target_kind, target_sel)
+
+        await _maybe_capture_screenshot(
+            result=result,
+            is_web_step=is_web_step,
+            screenshot_mode=screenshot_mode,
+            target_pw_provider=target_pw_provider,
+            test_step=test_step,
+            invoker=invoker,
+            workspace_id=workspace_id,
+            run_id=run_id,
+            triggered_by=triggered_by,
+            overrides=overrides,
+        )
+    finally:
+        if highlight_applied:
+            await highlight_mgr.post_clear(test_step.id, test_step.target_kind)
+    return result, selector_change_detected, self_heal_state
+
+
+async def _record_step_persistence(
+    *,
+    factory: Any,
+    ctx: dict[str, object],
+    redis_client: object,
+    run_id: str,
+    case_id: str,
+    step_order: int,
+    test_step: TestStep,
+    result: StepResult,
+    selector_change_detected: bool,
+    self_heal_state: dict[str, object] | None,
+    summary: dict[str, int],
+) -> tuple[bool, tuple[str, int]]:
+    cancelled = False
+    async with factory() as session:
+        run_step_repo = RunStepRepo(session)
+        state_snap = {
+            **(
+                dict(result.mcp_result.output)
+                if result.mcp_result is not None and result.mcp_result.output
+                else {}
+            ),
+            **({"failureKind": "selector_changed"} if selector_change_detected else {}),
+            **({"selfHeal": self_heal_state} if self_heal_state else {}),
+            **(
+                {"action": test_step.action, "description": test_step.action}
+                if test_step.action
+                else {}
+            ),
+        } or None
+        run_step = await run_step_repo.create_step(
+            run_id=run_id,
+            case_id=case_id,
+            step_order=step_order,
+            outcome=result.outcome,
+            started_at=result.started_at,
+            completed_at=result.completed_at,
+            duration_ms=result.duration_ms,
+            stdout=result.stdout or None,
+            stderr=result.stderr or None,
+            error_message=result.error_message,
+            state_snapshot=state_snap,
+        )
+        if result.mcp_result is not None and result.mcp_result.artifacts:
+            from suitest_runner.artifacts import upload_artifacts
+
+            await upload_artifacts(
+                session=session,
+                ctx=ctx,
+                run_id=run_id,
+                run_step_id=run_step.id,
+                step_order=step_order,
+                artifacts=result.mcp_result.artifacts,
+            )
+        if result.outcome == StepOutcome.FAIL:
+            auto_filer = ctx.get("defect_auto_filer")
+            typed_filer: DefectAutoFiler | None = (
+                cast("DefectAutoFiler", auto_filer) if _is_defect_auto_filer(auto_filer) else None
+            )
+            try:
+                await on_run_step_failed(
+                    auto_filer=typed_filer,
+                    run_step=run_step,
+                )
+            except Exception as exc:
+                log.warning("runner.step.fail.hook_error", reason=str(exc))
+        repo = RunRepo(session)
+        r_check = await repo.get_by_id(run_id)
+        if r_check is not None and r_check.status == RunStatus.CANCELLED:
+            cancelled = True
+        else:
+            await repo.update_status(
+                run_id,
+                RunStatus.RUNNING,
+                passed_steps=summary["passed"],
+                failed_steps=summary["failed"] + summary["errored"],
+            )
+        await session.commit()
+        last_step_info = (run_step.id, step_order)
+
+    if not cancelled:
+        await _publish(
+            redis_client,
+            run_id,
+            "run.step.completed",
+            {
+                "runId": run_id,
+                "stepIndex": step_order,
+                "outcome": result.outcome.value,
+                "durationMs": result.duration_ms,
+                "error": result.error_message,
+                "failureKind": ("selector_changed" if selector_change_detected else None),
+                "selfHeal": self_heal_state,
+            },
+            factory=factory,
+            run_step_id=run_step.id,
+        )
+    return cancelled, last_step_info
+
+
+def _update_outcomes(
+    *,
+    result: StepResult,
+    case_id: str,
+    summary: dict[str, int],
+    case_outcome: dict[str, str],
+    case_has_failure: dict[str, bool],
+    failed_case_ids: set[str],
+) -> None:
+    if result.outcome == StepOutcome.PASS:
+        summary["passed"] += 1
+        if case_id not in case_outcome:
+            case_outcome[case_id] = "PASS"
+    elif result.outcome == StepOutcome.FAIL:
+        summary["failed"] += 1
+        failed_case_ids.add(case_id)
+        case_has_failure[case_id] = True
+        case_outcome[case_id] = "FAIL"
+    elif result.outcome == StepOutcome.ERROR:
+        summary["errored"] += 1
+        failed_case_ids.add(case_id)
+        case_has_failure[case_id] = True
+        if case_outcome.get(case_id) != "FAIL":
+            case_outcome[case_id] = "ERROR"
+    elif result.outcome == StepOutcome.SKIP:
+        summary["skipped"] += 1
+        if case_id not in case_outcome:
+            case_outcome[case_id] = "SKIP"
+
+
+def _build_runtime_managers(
+    *,
+    run: Run,
+    workspace_id: str,
+    run_id: str,
+    triggered_by: str | None,
+    overrides: dict[str, object] | None,
+    registry: McpRegistry,
+    invoker: McpInvoker,
+    factory: Any,
+    ctx: dict[str, object],
+    case_public_ids: dict[str, str],
+) -> tuple[_VideoManager, _HighlightManager, str, str, bool, bool]:
+    playwright_cfg = (run.metadata_json or {}).get("playwright_config")
+    if not isinstance(playwright_cfg, dict):
+        playwright_cfg = {}
+    screenshot_mode = str(playwright_cfg.get("screenshot") or "only-on-failure")
+    highlight_steps = bool(
+        playwright_cfg.get("highlight_steps") or playwright_cfg.get("highlightSteps", False)
+    )
+    headless_mode = bool(playwright_cfg.get("headless", True))
+    video_mode = str(playwright_cfg.get("video") or "off")
+    if highlight_steps and headless_mode and screenshot_mode == "off" and video_mode == "off":
+        highlight_steps = False
+    video_quality = str(
+        playwright_cfg.get("video_quality") or playwright_cfg.get("videoQuality") or "1080p"
+    )
+    quality_sizes: dict[str, dict[str, int]] = {
+        "360p": {"width": 640, "height": 360},
+        "480p": {"width": 854, "height": 480},
+        "720p": {"width": 1280, "height": 720},
+        "1080p": {"width": 1920, "height": 1080},
+    }
+    video_size = quality_sizes.get(video_quality, {"width": 1920, "height": 1080})
+    clean_session = bool(
+        playwright_cfg.get(
+            "clean_session_between_cases",
+            playwright_cfg.get("cleanSessionBetweenCases", True),
+        )
+    )
+
+    raw_vp = playwright_cfg.get("viewport") or playwright_cfg.get("viewport_size")
+    if raw_vp and isinstance(raw_vp, str):
+        viewport_dim = raw_vp
+    elif raw_vp and isinstance(raw_vp, dict) and "width" in raw_vp and "height" in raw_vp:
+        viewport_dim = f"{raw_vp['width']}x{raw_vp['height']}"
+    else:
+        viewport_dim = "1920x1080"
+    registry.register_provider(
+        workspace_id,
+        build_playwright_provider(
+            workspace_id,
+            headless=headless_mode,
+            video=video_mode,
+            viewport_size=viewport_dim,
+        ),
+    )
+
+    target_pw_provider = (
+        f"builtin:playwright-mcp:{workspace_id}"
+        if headless_mode
+        else f"builtin:playwright-mcp:{workspace_id}:headed"
+    )
+
+    video_mgr = _VideoManager(
+        video_mode=video_mode,
+        video_size=video_size,
+        viewport_dim=viewport_dim,
+        target_pw_provider=target_pw_provider,
+        workspace_id=workspace_id,
+        run_id=run_id,
+        triggered_by=triggered_by,
+        overrides=overrides,
+        invoker=invoker,
+        factory=factory,
+        ctx=ctx,
+        case_public_ids=case_public_ids,
+    )
+    highlight_mgr = _HighlightManager(
+        enabled=highlight_steps,
+        target_pw_provider=target_pw_provider,
+        workspace_id=workspace_id,
+        run_id=run_id,
+        triggered_by=triggered_by,
+        overrides=overrides,
+        invoker=invoker,
+    )
+    return (
+        video_mgr,
+        highlight_mgr,
+        target_pw_provider,
+        screenshot_mode,
+        headless_mode,
+        clean_session,
+    )
+
+
+async def _handle_case_transition(
+    *,
+    case_id: str,
+    current_case_id: str | None,
+    video_mgr: _VideoManager,
+    case_has_failure: dict[str, bool],
+    last_run_step_by_case: dict[str, tuple[str, int]],
+    clean_session: bool,
+    invoker: McpInvoker,
+    target_pw_provider: str,
+) -> None:
+    if current_case_id is not None and case_id != current_case_id:
+        await video_mgr.stop(
+            current_case_id,
+            has_failure=case_has_failure.get(current_case_id, False),
+            last_step_info=last_run_step_by_case.get(current_case_id),
+        )
+        if clean_session and hasattr(invoker, "pool") and hasattr(invoker.pool, "recycle_provider"):
+            try:
+                await invoker.pool.recycle_provider(target_pw_provider)
+            except Exception as exc:
+                log.warning("runner.clean_session.recycle_failed", error=str(exc))
+
+
+async def _is_run_cancelled(factory: Any, run_id: str) -> bool:
+    async with factory() as session:
+        r_check = await RunRepo(session).get_by_id(run_id)
+        return r_check is not None and r_check.status == RunStatus.CANCELLED
+
+
 async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object]:
-    """Execute one test run.
-
-    Args:
-        ctx: ARQ-supplied per-job context. Must contain ``session_factory``,
-            ``redis``, ``invoker``, ``registry`` (wired by
-            :func:`suitest_runner.worker.startup`).
-        run_id: Public/internal ID of the run row to execute.
-
-    Returns:
-        Summary dict: ``{"run_id": ..., "status": "PASS"|"FAIL", "total": N,
-        "passed": ..., "failed": ..., "errored": ..., "skipped": ...}`` —
-        the shape the M1c WS gateway tests assert against.
-    """
+    """Execute one test run."""
     factory = ctx.get("session_factory")
     redis_client = ctx.get("redis")
     invoker = ctx.get("invoker")
@@ -433,69 +1268,23 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
         return {"error": "RUNNER_CTX_INVALID", "field": "registry"}
 
     tracer = get_tracer()
-
     with tracer.start_as_current_span(
         "runner.run_test_case",
         attributes={"job.queue": "suitest:runs", "run.id": run_id},
     ):
-        # --- load run + selection + workspace LLM -------------------------
-        async with factory() as session:
-            run_repo = RunRepo(session)
-            run, selection = await run_repo.get_with_selection(run_id)
-            if run is None:
-                log.warning("runner.job.missing_run", run_id=run_id)
-                return {"error": "RUN_NOT_FOUND", "run_id": run_id}
-
-            case_ids = {case_id for case_id, _, _ in selection}
-            case_public_ids: dict[str, str] = {}
-            if case_ids and hasattr(session, "execute"):
-                try:
-                    cases_stmt = select(TestCase.id, TestCase.public_id).where(
-                        TestCase.id.in_(case_ids)
-                    )
-                    case_public_ids = dict(
-                        (str(r[0]), str(r[1])) for r in (await session.execute(cases_stmt)).all()
-                    )
-                except Exception as exc:
-                    log.debug("runner.case_public_ids.query_failed", error=str(exc))
-
-            project = await session.get(Project, run.project_id)
-            workspace_id = project.workspace_id if project is not None else None
-            if workspace_id is None:
-                log.warning("runner.job.missing_project", run_id=run_id)
-                await run_repo.update_status(run_id, RunStatus.FAIL)
-                await session.commit()
-                return {"error": "RUN_PROJECT_MISSING", "run_id": run_id}
-
-            if workspace_id not in registry._by_workspace:
-                await registry.load_for_workspace(session, workspace_id)
-
-            capability = await WorkspaceCapabilityRepo(session).get(workspace_id)
-            auto_self_heal = _auto_self_heal_enabled(capability)
-            overrides_raw = (
-                capability.features_json.get("routing_overrides") if capability else None
-            )
-            overrides: dict[str, object] | None = (
-                overrides_raw if isinstance(overrides_raw, dict) else None
-            )
-            triggered_by = run.triggered_by
-
-            translator = await _build_translator(session, workspace_id=workspace_id)
-            if translator is None:
-                await run_repo.update_status(run_id, RunStatus.ERROR)
-                await session.commit()
-                return {"error": "LLM_NOT_READY", "run_id": run_id}
-
-            total_planned_steps = len(selection)
-            await run_repo.update_status(
-                run_id,
-                RunStatus.RUNNING,
-                started_at=datetime.now(UTC),
-                total_steps=total_planned_steps,
-                passed_steps=0,
-                failed_steps=0,
-            )
-            await session.commit()
+        init_res = await _init_run_record(factory, registry, run_id)
+        if isinstance(init_res, dict):
+            return init_res
+        (
+            run,
+            selection,
+            case_public_ids,
+            workspace_id,
+            overrides,
+            translator,
+            auto_self_heal,
+            triggered_by,
+        ) = init_res
 
         await _publish(
             redis_client,
@@ -505,54 +1294,24 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
             factory=factory,
         )
 
-        # --- per-step dispatch --------------------------------------------
-        playwright_cfg = (run.metadata_json or {}).get("playwright_config")
-        if not isinstance(playwright_cfg, dict):
-            playwright_cfg = {}
-        screenshot_mode = str(playwright_cfg.get("screenshot") or "only-on-failure")
-        highlight_steps = bool(
-            playwright_cfg.get("highlight_steps") or playwright_cfg.get("highlightSteps", False)
-        )
-        headless_mode = bool(playwright_cfg.get("headless", True))
-        video_mode = str(playwright_cfg.get("video") or "off")
-        # If running completely headless with no screenshots and no video, DOM highlighting
-        # cannot be viewed by anyone or captured anywhere. Bypass highlighting scripts to save
-        # redundant evaluate round-trips.
-        if highlight_steps and headless_mode and screenshot_mode == "off" and video_mode == "off":
-            highlight_steps = False
-        video_quality = str(
-            playwright_cfg.get("video_quality") or playwright_cfg.get("videoQuality") or "1080p"
-        )
-        quality_sizes: dict[str, dict[str, int]] = {
-            "360p": {"width": 640, "height": 360},
-            "480p": {"width": 854, "height": 480},
-            "720p": {"width": 1280, "height": 720},
-            "1080p": {"width": 1920, "height": 1080},
-        }
-        video_size = quality_sizes.get(video_quality, {"width": 1920, "height": 1080})
-        clean_session = bool(
-            playwright_cfg.get(
-                "clean_session_between_cases",
-                playwright_cfg.get("cleanSessionBetweenCases", True),
-            )
-        )
-
-        # Standard desktop viewport (1920x1080) preserves original full layout and prevents clipping.
-        raw_vp = playwright_cfg.get("viewport") or playwright_cfg.get("viewport_size")
-        if raw_vp and isinstance(raw_vp, str):
-            viewport_dim = raw_vp
-        elif raw_vp and isinstance(raw_vp, dict) and "width" in raw_vp and "height" in raw_vp:
-            viewport_dim = f"{raw_vp['width']}x{raw_vp['height']}"
-        else:
-            viewport_dim = "1920x1080"
-        registry.register_provider(
-            workspace_id,
-            build_playwright_provider(
-                workspace_id,
-                headless=headless_mode,
-                video=video_mode,
-                viewport_size=viewport_dim,
-            ),
+        (
+            video_mgr,
+            highlight_mgr,
+            target_pw_provider,
+            screenshot_mode,
+            headless_mode,
+            clean_session,
+        ) = _build_runtime_managers(
+            run=run,
+            workspace_id=workspace_id,
+            run_id=run_id,
+            triggered_by=triggered_by,
+            overrides=overrides,
+            registry=registry,
+            invoker=invoker,
+            factory=factory,
+            ctx=ctx,
+            case_public_ids=case_public_ids,
         )
 
         summary = {"total": 0, "passed": 0, "failed": 0, "errored": 0, "skipped": 0}
@@ -560,150 +1319,27 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
         cancelled = False
         failed_case_ids: set[str] = set()
         current_case_id: str | None = None
-        target_pw_provider = (
-            f"builtin:playwright-mcp:{workspace_id}"
-            if headless_mode
-            else f"builtin:playwright-mcp:{workspace_id}:headed"
-        )
-        video_recording_active = False
-        active_video_case_id: str | None = None
         last_run_step_by_case: dict[str, tuple[str, int]] = {}
         case_has_failure: dict[str, bool] = {}
         case_duration_ms: dict[str, int] = {}
         case_outcome: dict[str, str] = {}
 
-        async def _stop_video_recording(case_id: str) -> None:
-            nonlocal video_recording_active, active_video_case_id
-            if not video_recording_active or active_video_case_id != case_id:
-                return
-            video_recording_active = False
-            active_video_case_id = None
-            if video_mode not in ("on", "retain-on-failure"):
-                return
-            stop_ctx = InvokeContext(
-                workspace_id=workspace_id,
-                run_id=run_id,
-                step_id=None,
-                actor_user_id=triggered_by,
-                target_kind=TargetKind.FE_WEB,
-                routing_overrides=overrides,
-            )
-            try:
-                stop_res = await invoker.invoke(
-                    explicit_provider=target_pw_provider,
-                    tool="browser_stop_video",
-                    arguments={},
-                    ctx=stop_ctx,
-                )
-            except Exception as exc:
-                log.warning("runner.video.stop_failed", case_id=case_id, error=str(exc))
-                return
-
-            match = re.search(r"-\s*\[(?:Video|video)\]\(([^)]+)\)", stop_res.stdout)
-            if not match:
-                log.debug("runner.video.path_not_found", stdout=stop_res.stdout)
-                return
-
-            video_rel = match.group(1).strip()
-            video_path = Path(video_rel)
-            if not video_path.is_absolute():
-                video_path = Path.cwd() / video_path
-
-            should_keep = video_mode == "on" or (
-                video_mode == "retain-on-failure" and case_has_failure.get(case_id, False)
-            )
-
-            try:
-                if should_keep and video_path.is_file():
-                    raw_bytes = video_path.read_bytes()
-                    last_step_info = last_run_step_by_case.get(case_id)
-                    if last_step_info is not None and raw_bytes:
-                        from suitest_runner.artifacts import upload_artifacts
-
-                        last_step_id, last_step_order = last_step_info
-                        case_pub = case_public_ids.get(case_id, "case")
-                        video_art = McpArtifact(
-                            kind="VIDEO",
-                            filename=f"{case_pub.lower()}-video.webm",
-                            content_type="video/webm",
-                            bytes=raw_bytes,
-                        )
-                        async with factory() as session:
-                            await upload_artifacts(
-                                session=session,
-                                ctx=ctx,
-                                run_id=run_id,
-                                run_step_id=last_step_id,
-                                step_order=last_step_order,
-                                artifacts=[video_art],
-                            )
-                            await session.commit()
-            except Exception as exc:
-                log.warning("runner.video.upload_failed", case_id=case_id, error=str(exc))
-            finally:
-                if video_path.is_file():
-                    with contextlib.suppress(Exception):
-                        video_path.unlink()
-
-        async def _start_video_recording(case_id: str) -> None:
-            nonlocal video_recording_active, active_video_case_id
-            if video_mode not in ("on", "retain-on-failure"):
-                return
-            if video_recording_active:
-                return
-            start_ctx = InvokeContext(
-                workspace_id=workspace_id,
-                run_id=run_id,
-                step_id=None,
-                actor_user_id=triggered_by,
-                target_kind=TargetKind.FE_WEB,
-                routing_overrides=overrides,
-            )
-            try:
-                # Ensure browser viewport is at least viewport_dim (1920x1080 standard desktop)
-                # so modern web apps render full desktop layouts without truncation.
-                vp_parts = viewport_dim.split("x")
-                vp_w = int(vp_parts[0]) if len(vp_parts) == 2 else 1920
-                vp_h = int(vp_parts[1]) if len(vp_parts) == 2 else 1080
-                await invoker.invoke(
-                    explicit_provider=target_pw_provider,
-                    tool="browser_resize",
-                    arguments={"width": vp_w, "height": vp_h},
-                    ctx=start_ctx,
-                )
-            except Exception as exc:
-                log.debug(
-                    "runner.video.resize_before_video_skipped", case_id=case_id, error=str(exc)
-                )
-
-            try:
-                await invoker.invoke(
-                    explicit_provider=target_pw_provider,
-                    tool="browser_start_video",
-                    arguments={"size": video_size},
-                    ctx=start_ctx,
-                )
-                video_recording_active = True
-                active_video_case_id = case_id
-            except Exception as exc:
-                log.warning("runner.video.start_failed", case_id=case_id, error=str(exc))
-
         for case_id, step_order, test_step in selection:
-            if current_case_id is not None and case_id != current_case_id:
-                await _stop_video_recording(current_case_id)
-                if clean_session:
-                    try:
-                        if hasattr(invoker, "pool") and hasattr(invoker.pool, "recycle_provider"):
-                            await invoker.pool.recycle_provider(target_pw_provider)
-                    except Exception as exc:
-                        log.warning("runner.clean_session.recycle_failed", error=str(exc))
+            await _handle_case_transition(
+                case_id=case_id,
+                current_case_id=current_case_id,
+                video_mgr=video_mgr,
+                case_has_failure=case_has_failure,
+                last_run_step_by_case=last_run_step_by_case,
+                clean_session=clean_session,
+                invoker=invoker,
+                target_pw_provider=target_pw_provider,
+            )
             current_case_id = case_id
-            async with factory() as session:
-                r_check = await RunRepo(session).get_by_id(run_id)
-                if r_check is not None and r_check.status == RunStatus.CANCELLED:
-                    log.info("runner.job.cancelled_by_user", run_id=run_id)
-                    cancelled = True
-                    break
+            if await _is_run_cancelled(factory, run_id):
+                log.info("runner.job.cancelled_by_user", run_id=run_id)
+                cancelled = True
+                break
 
             if case_id in failed_case_ids:
                 log.info(
@@ -724,8 +1360,8 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                 or (test_step.mcp_provider and "playwright" in test_step.mcp_provider)
                 or not test_step.mcp_provider
             )
-            if is_web_step and not video_recording_active:
-                await _start_video_recording(case_id)
+            if is_web_step:
+                await video_mgr.start(case_id)
 
             summary["total"] += 1
             await _publish(
@@ -742,312 +1378,59 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                 factory=factory,
             )
 
-            # Clear any prior highlight at the start of every web step to prevent ghost highlights
-            if highlight_steps and is_web_step:
-                try:
-                    pre_clear_ctx = InvokeContext(
-                        workspace_id=workspace_id,
-                        run_id=run_id,
-                        step_id=test_step.id,
-                        actor_user_id=triggered_by,
-                        target_kind=TargetKind(test_step.target_kind),
-                        routing_overrides=overrides,
-                    )
-                    js_pre_clear = _build_clear_highlight_script()
-                    await invoker.invoke(
-                        explicit_provider=target_pw_provider,
-                        tool="browser_evaluate",
-                        arguments={"function": js_pre_clear, "script": js_pre_clear},
-                        ctx=pre_clear_ctx,
-                    )
-                except Exception as pre_clear_err:
-                    log.debug("runner.highlight.pre_clear_failed", error=str(pre_clear_err))
+            await highlight_mgr.pre_clear(test_step.id, test_step.target_kind, is_web_step)
+            highlight_applied, target_sel = await highlight_mgr.apply(
+                test_step.id, test_step.target_kind, is_web_step, test_step.code
+            )
 
-            highlight_applied = False
-            target_sel: str | None = None
-            if highlight_steps and is_web_step and test_step.code:
-                try:
-                    parsed_step = json.loads(test_step.code)
-                    if isinstance(parsed_step, dict):
-                        sel = _extract_target_selector(parsed_step)
-                        if sel:
-                            target_sel = sel
-                            h_ctx = InvokeContext(
-                                workspace_id=workspace_id,
-                                run_id=run_id,
-                                step_id=test_step.id,
-                                actor_user_id=triggered_by,
-                                target_kind=TargetKind(test_step.target_kind),
-                                routing_overrides=overrides,
-                            )
-                            js_highlight = _build_highlight_script(sel)
-                            await invoker.invoke(
-                                explicit_provider=target_pw_provider,
-                                tool="browser_evaluate",
-                                arguments={"function": js_highlight, "script": js_highlight},
-                                ctx=h_ctx,
-                            )
-                            highlight_applied = True
-                            # Allow CDP screencast and browser render pipeline to capture the highlight frame
-                            await asyncio.sleep(0.20)
-                except Exception as exc:
-                    log.debug("runner.highlight.failed", error=str(exc))
-
-            try:
-                result = await execute_step(
-                    invoker=invoker,
-                    test_step=test_step,
-                    run_id=run_id,
-                    workspace_id=workspace_id,
-                    actor_user_id=triggered_by,
-                    routing_overrides=overrides,
-                    translator=translator,
-                )
-                selector_change_detected = is_selector_changed_failure(
-                    test_step.code,
-                    result.error_message,
-                )
-                self_heal_state: dict[str, object] | None = None
-                if auto_self_heal and result.outcome == StepOutcome.FAIL:
-                    original_error = result.error_message
-                    repair_proposal = await _try_auto_self_heal(
-                        factory=factory,
-                        test_step=test_step,
-                        case_id=case_id,
-                        workspace_id=workspace_id,
-                        user_id=triggered_by,
-                        result=result,
-                    )
-                    if repair_proposal is not None:
-                        self_heal_state = {
-                            "failureKind": "selector_changed",
-                            "oldSelector": repair_proposal.old_selector,
-                            "newSelector": repair_proposal.new_selector,
-                            "retryCount": 1,
-                        }
-                        result = await execute_step(
-                            invoker=invoker,
-                            test_step=test_step,
-                            run_id=run_id,
-                            workspace_id=workspace_id,
-                            routing_overrides=overrides,
-                            translator=translator,
-                        )
-                        self_heal_state["originalError"] = original_error or ""
-                        self_heal_state["retryOutcome"] = result.outcome.value
-                        self_heal_state["persisted"] = (
-                            await _persist_auto_self_heal(
-                                factory=factory,
-                                case_id=case_id,
-                                workspace_id=workspace_id,
-                                user_id=triggered_by,
-                                proposal=repair_proposal,
-                            )
-                            if result.outcome == StepOutcome.PASS
-                            else False
-                        )
-
-                # Re-apply highlight on the target element before screenshot so post-action state
-                # (e.g. filled input text, button states) is accurately highlighted
-                if highlight_applied and target_sel:
-                    try:
-                        re_h_ctx = InvokeContext(
-                            workspace_id=workspace_id,
-                            run_id=run_id,
-                            step_id=test_step.id,
-                            actor_user_id=triggered_by,
-                            target_kind=TargetKind(test_step.target_kind),
-                            routing_overrides=overrides,
-                        )
-                        js_rehighlight = _build_highlight_script(target_sel)
-                        await invoker.invoke(
-                            explicit_provider=target_pw_provider,
-                            tool="browser_evaluate",
-                            arguments={"function": js_rehighlight, "script": js_rehighlight},
-                            ctx=re_h_ctx,
-                        )
-                        await asyncio.sleep(0.10)
-                    except Exception as re_err:
-                        log.debug("runner.highlight.reapply_failed", error=str(re_err))
-
-                artifacts = result.mcp_result.artifacts if result.mcp_result is not None else []
-                has_shot = _has_screenshot_artifact(artifacts)
-                has_failure = result.outcome in (StepOutcome.FAIL, StepOutcome.ERROR)
-                should_capture = is_web_step and (
-                    (not has_shot and screenshot_mode == "on")
-                    or (has_failure and screenshot_mode in ("on", "only-on-failure"))
-                )
-                if should_capture:
-                    try:
-                        if has_failure:
-                            # Grace wait to allow browser viewport / DOM render pipeline to settle
-                            await asyncio.sleep(0.25)
-                        else:
-                            # Allow DOM updates from executed action to render with highlight still active
-                            await asyncio.sleep(0.15)
-                        shot_ctx = InvokeContext(
-                            workspace_id=workspace_id,
-                            run_id=run_id,
-                            step_id=test_step.id,
-                            actor_user_id=triggered_by,
-                            target_kind=TargetKind(test_step.target_kind),
-                            routing_overrides=overrides,
-                        )
-                        shot_res = await invoker.invoke(
-                            explicit_provider=target_pw_provider
-                            if is_web_step
-                            else test_step.mcp_provider,
-                            tool="browser_take_screenshot",
-                            arguments={},
-                            ctx=shot_ctx,
-                        )
-                        if shot_res.artifacts:
-                            if result.mcp_result is None:
-                                result.mcp_result = shot_res
-                            else:
-                                result.mcp_result.artifacts.extend(shot_res.artifacts)
-                    except Exception as exc:
-                        log.warning(
-                            "runner.auto_screenshot.failed",
-                            run_id=run_id,
-                            step_id=test_step.id,
-                            error=str(exc),
-                        )
-            finally:
-                if highlight_applied:
-                    try:
-                        clear_ctx = InvokeContext(
-                            workspace_id=workspace_id,
-                            run_id=run_id,
-                            step_id=test_step.id,
-                            actor_user_id=triggered_by,
-                            target_kind=TargetKind(test_step.target_kind),
-                            routing_overrides=overrides,
-                        )
-                        js_clear = _build_clear_highlight_script()
-                        await invoker.invoke(
-                            explicit_provider=target_pw_provider,
-                            tool="browser_evaluate",
-                            arguments={"function": js_clear, "script": js_clear},
-                            ctx=clear_ctx,
-                        )
-                    except Exception as clear_err:
-                        log.debug("runner.highlight.clear_failed", error=str(clear_err))
+            result, selector_change_detected, self_heal_state = await _execute_and_heal_step(
+                invoker=invoker,
+                test_step=test_step,
+                case_id=case_id,
+                run_id=run_id,
+                workspace_id=workspace_id,
+                triggered_by=triggered_by,
+                overrides=overrides,
+                translator=translator,
+                auto_self_heal=auto_self_heal,
+                factory=factory,
+                highlight_applied=highlight_applied,
+                target_sel=target_sel,
+                highlight_mgr=highlight_mgr,
+                is_web_step=is_web_step,
+                screenshot_mode=screenshot_mode,
+                target_pw_provider=target_pw_provider,
+            )
 
             case_duration_ms[case_id] = case_duration_ms.get(case_id, 0) + int(
                 result.duration_ms or 0
             )
-            if result.outcome == StepOutcome.PASS:
-                summary["passed"] += 1
-                if case_id not in case_outcome:
-                    case_outcome[case_id] = "PASS"
-            elif result.outcome == StepOutcome.FAIL:
-                summary["failed"] += 1
-                failed_case_ids.add(case_id)
-                case_has_failure[case_id] = True
-                case_outcome[case_id] = "FAIL"
-            elif result.outcome == StepOutcome.ERROR:
-                summary["errored"] += 1
-                failed_case_ids.add(case_id)
-                case_has_failure[case_id] = True
-                if case_outcome.get(case_id) != "FAIL":
-                    case_outcome[case_id] = "ERROR"
-            elif result.outcome == StepOutcome.SKIP:
-                summary["skipped"] += 1
-                if case_id not in case_outcome:
-                    case_outcome[case_id] = "SKIP"
+            _update_outcomes(
+                result=result,
+                case_id=case_id,
+                summary=summary,
+                case_outcome=case_outcome,
+                case_has_failure=case_has_failure,
+                failed_case_ids=failed_case_ids,
+            )
 
-            async with factory() as session:
-                run_step_repo = RunStepRepo(session)
-                run_step = await run_step_repo.create_step(
-                    run_id=run_id,
-                    case_id=case_id,
-                    step_order=step_order,
-                    outcome=result.outcome,
-                    started_at=result.started_at,
-                    completed_at=result.completed_at,
-                    duration_ms=result.duration_ms,
-                    stdout=result.stdout or None,
-                    stderr=result.stderr or None,
-                    error_message=result.error_message,
-                    # M5-1: capture the normalized MCP output as the step's state
-                    # snapshot so time-travel replay can diff consecutive steps.
-                    state_snapshot={
-                        **(
-                            dict(result.mcp_result.output)
-                            if result.mcp_result is not None and result.mcp_result.output
-                            else {}
-                        ),
-                        **({"failureKind": "selector_changed"} if selector_change_detected else {}),
-                        **({"selfHeal": self_heal_state} if self_heal_state else {}),
-                        **(
-                            {
-                                "action": test_step.action,
-                                "description": test_step.action,
-                            }
-                            if test_step.action
-                            else {}
-                        ),
-                    }
-                    or None,
-                )
-                if result.mcp_result is not None and result.mcp_result.artifacts:
-                    # Task 13 wires this. Late import keeps the runner importable
-                    # without aioboto3 installed when artifact upload is disabled.
-                    from suitest_runner.artifacts import upload_artifacts
-
-                    await upload_artifacts(
-                        session=session,
-                        ctx=ctx,
-                        run_id=run_id,
-                        run_step_id=run_step.id,
-                        step_order=step_order,
-                        artifacts=result.mcp_result.artifacts,
-                    )
-                repo = RunRepo(session)
-                r_check = await repo.get_by_id(run_id)
-                if r_check is not None and r_check.status == RunStatus.CANCELLED:
-                    cancelled = True
-                else:
-                    await repo.update_status(
-                        run_id,
-                        RunStatus.RUNNING,
-                        passed_steps=summary["passed"],
-                        failed_steps=summary["failed"] + summary["errored"],
-                    )
-                await session.commit()
-                last_run_step_by_case[case_id] = (run_step.id, step_order)
-
+            cancelled, last_run_step_by_case[case_id] = await _record_step_persistence(
+                factory=factory,
+                ctx=ctx,
+                redis_client=redis_client,
+                run_id=run_id,
+                case_id=case_id,
+                step_order=step_order,
+                test_step=test_step,
+                result=result,
+                selector_change_detected=selector_change_detected,
+                self_heal_state=self_heal_state,
+                summary=summary,
+            )
             if cancelled:
                 log.info("runner.job.cancelled_by_user", run_id=run_id)
                 break
 
-            await _publish(
-                redis_client,
-                run_id,
-                "run.step.completed",
-                {
-                    "runId": run_id,
-                    "stepIndex": step_order,
-                    "outcome": result.outcome.value,
-                    "durationMs": result.duration_ms,
-                    "error": result.error_message,
-                    "failureKind": ("selector_changed" if selector_change_detected else None),
-                    "selfHeal": self_heal_state,
-                },
-                factory=factory,
-                run_step_id=run_step.id,
-            )
-
-            # Evidence recording mode: insert a small pause between steps so the
-            # session video (recorded by the playwright-mcp subprocess) is long
-            # enough to follow step-by-step. Gated on the flag so normal runs stay
-            # full-speed. Per-step timestamps + screenshots are already persisted
-            # (run_step.started_at/completed_at + step artifacts) and drive the
-            # web evidence timeline.
-            # TODO(evidence): also force a per-step screenshot + start a Playwright
-            # trace here once the invoker exposes a session-scoped tool call, so
-            # every step has a screenshot even when the step itself takes none.
             settings_obj = ctx.get("settings")
             if (
                 isinstance(settings_obj, RunnerSettings)
@@ -1055,34 +1438,6 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                 and settings_obj.evidence_pause_ms > 0
             ):
                 await asyncio.sleep(settings_obj.evidence_pause_ms / 1000)
-
-            if result.outcome == StepOutcome.FAIL:
-                # M1d-10: hand the failed step off to the defect auto-filer.
-                # The hook owns its own try/except so a degraded defect
-                # pipeline never blocks run completion. We swallow any
-                # exception that bubbles out of the hook itself for the
-                # same reason — orchestrator forward-progress is paramount.
-                auto_filer = ctx.get("defect_auto_filer")
-                # ``cast`` is intentional — the handler accepts a nominal
-                # ``DefectAutoFiler | None`` but mypy can't narrow ``object``
-                # to that type. :func:`_is_defect_auto_filer` is the runtime
-                # source of truth — non-conforming objects become ``None``.
-                typed_filer: DefectAutoFiler | None = (
-                    cast("DefectAutoFiler", auto_filer)
-                    if _is_defect_auto_filer(auto_filer)
-                    else None
-                )
-                try:
-                    await on_run_step_failed(
-                        auto_filer=typed_filer,
-                        run_step=run_step,
-                    )
-                except Exception as exc:
-                    log.warning(
-                        "runner.step.fail.hook_error",
-                        run_step_id=run_step.id,
-                        reason=str(exc),
-                    )
 
             if getattr(result, "is_fatal_infra", False):
                 log.error(
@@ -1093,116 +1448,30 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                 )
                 break
 
-        if current_case_id is not None and video_recording_active:
-            await _stop_video_recording(current_case_id)
-
-        # --- finalize -----------------------------------------------------
-        duration_ms = int((time.perf_counter() - t0) * 1000)
-        failed_total = summary["failed"] + summary["errored"]
-        if cancelled:
-            final_status = RunStatus.CANCELLED
-        elif summary["total"] == 0:
-            # A run that executed nothing is not a green run — reporting PASS
-            # here hid empty selections behind a passing badge (issue #109).
-            log.warning("runner.run.empty_selection", run_id=run_id)
-            final_status = RunStatus.ERROR
-        elif summary["failed"] > 0:
-            final_status = RunStatus.FAIL
-        elif summary["errored"] > 0:
-            final_status = RunStatus.ERROR
-        else:
-            final_status = RunStatus.PASS
-
-        async with factory() as session:
-            completed_time = datetime.now(UTC)
-            await RunRepo(session).update_status(
-                run_id,
-                final_status,
-                completed_at=completed_time,
-                duration_ms=duration_ms,
-                total_steps=total_planned_steps,
-                passed_steps=summary["passed"],
-                failed_steps=failed_total,
+        if current_case_id is not None and video_mgr.active:
+            await video_mgr.stop(
+                current_case_id,
+                has_failure=case_has_failure.get(current_case_id, False),
+                last_step_info=last_run_step_by_case.get(current_case_id),
             )
-            executed_case_ids = {c_id for c_id, _, _ in selection if c_id}
-            if executed_case_ids:
-                status_whens = []
-                dur_whens = []
-                for c_id in executed_case_ids:
-                    c_status = case_outcome.get(
-                        c_id,
-                        "FAIL" if case_has_failure.get(c_id, False) else "PASS",
-                    )
-                    if (
-                        cancelled
-                        and c_id == current_case_id
-                        and not case_has_failure.get(c_id, False)
-                    ):
-                        c_status = "CANCELLED"
-                    c_dur = case_duration_ms.get(c_id, 0)
-                    status_whens.append((TestCase.id == c_id, c_status))
-                    dur_whens.append((TestCase.id == c_id, c_dur))
 
-                await session.execute(
-                    update(TestCase)
-                    .where(TestCase.id.in_(executed_case_ids))
-                    .values(
-                        last_run_id=run_id,
-                        last_run_at=completed_time,
-                        last_run_result=case(
-                            *status_whens,
-                            else_=TestCase.last_run_result,
-                        ),
-                        last_duration_ms=case(
-                            *dur_whens,
-                            else_=TestCase.last_duration_ms,
-                        ),
-                    )
-                )
-            await session.commit()
-
-        await _publish(
-            redis_client,
-            run_id,
-            "run.completed",
-            {
-                "runId": run_id,
-                "status": final_status.value,
-                "totalSteps": total_planned_steps,
-                "passedSteps": summary["passed"],
-                "failedSteps": failed_total,
-                "durationMs": duration_ms,
-            },
+        return await _finalize_run(
             factory=factory,
+            redis_client=redis_client,
+            invoker=invoker,
+            run_id=run_id,
+            workspace_id=workspace_id,
+            headless_mode=headless_mode,
+            clean_session=clean_session,
+            selection=selection,
+            summary=summary,
+            case_outcome=case_outcome,
+            case_has_failure=case_has_failure,
+            case_duration_ms=case_duration_ms,
+            current_case_id=current_case_id,
+            t0=t0,
+            cancelled=cancelled,
         )
-
-        # --- best-effort defect filing ------------------------------------
-        # M1d-10 ships per-step defect filing via the ``on_run_step_failed``
-        # hook above; the old per-run filer below is retained as a no-op
-        # safety net until M2 deletes it.
-        if summary["failed"] > 0 and not cancelled:
-            await _try_file_defect(factory, run_id)
-
-        if clean_session and hasattr(invoker, "pool") and hasattr(invoker.pool, "recycle_provider"):
-            try:
-                target_provider = (
-                    f"builtin:playwright-mcp:{workspace_id}"
-                    if headless_mode
-                    else f"builtin:playwright-mcp:{workspace_id}:headed"
-                )
-                await invoker.pool.recycle_provider(target_provider)
-            except Exception as exc:
-                log.debug("runner.clean_session.final_recycle_failed", error=str(exc))
-
-        return {
-            "run_id": run_id,
-            "status": final_status.value,
-            "total": summary["total"],
-            "passed": summary["passed"],
-            "failed": summary["failed"],
-            "errored": summary["errored"],
-            "skipped": summary["skipped"],
-        }
 
 
 async def _publish(

@@ -29,9 +29,14 @@ def main():
     # Check for leaked sensitive/personal files
     for f in staged_files:
         if (
-            (f == ".env" or f.startswith(".env.") or f.endswith(".local") or "credentials.json" in f or ".suitest-dev" in f or f.endswith(".pem") or f.endswith(".key"))
-            and not f.endswith(".example")
-        ):
+            f == ".env"
+            or f.startswith(".env.")
+            or f.endswith(".local")
+            or "credentials.json" in f
+            or ".suitest-dev" in f
+            or f.endswith(".pem")
+            or f.endswith(".key")
+        ) and not f.endswith(".example"):
             errors.append(
                 f"❌ [ANTI-LEAK] Attempted to commit private/local file: '{f}'\n"
                 f"   -> Remedy: Unstage with 'git restore --staged {f}' and keep it in .gitignore."
@@ -48,7 +53,12 @@ def main():
                 if "block = false" in added or "block=false" in added:
                     tampered = True
                     reasons.append(f"Adding relaxation: '{added}'")
-                if 'mode = "lite"' in added or 'mode = "default"' in added or 'mode="lite"' in added or 'mode="default"' in added:
+                if (
+                    'mode = "lite"' in added
+                    or 'mode = "default"' in added
+                    or 'mode="lite"' in added
+                    or 'mode="default"' in added
+                ):
                     tampered = True
                     reasons.append(f"Lowering strictness mode: '{added}'")
         if tampered:

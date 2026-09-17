@@ -253,7 +253,6 @@ async def test_list_test_case_artifacts(api_db: ApiDb) -> None:
         name="Test Run",
         trigger=RunTrigger.MANUAL,
         status=RunStatus.PASS,
-        tier_at_runtime=Tier.LOCAL,
     )
     await api_db.add_all([run])
 
@@ -310,7 +309,6 @@ async def test_list_test_case_runs_includes_runs_without_artifacts(api_db: ApiDb
         name="Nomedia Run",
         trigger=RunTrigger.MANUAL,
         status=RunStatus.PASS,
-        tier_at_runtime=Tier.LOCAL,
         metadata_json={
             "playwright_config": {
                 "headless": True,
@@ -328,7 +326,6 @@ async def test_list_test_case_runs_includes_runs_without_artifacts(api_db: ApiDb
         name="Media Run",
         trigger=RunTrigger.MANUAL,
         status=RunStatus.PASS,
-        tier_at_runtime=Tier.LOCAL,
         metadata_json={
             "playwright_config": {
                 "headless": True,
@@ -400,7 +397,6 @@ async def test_get_test_case_falls_back_to_latest_run(api_db: ApiDb) -> None:
         name="Fallback Run",
         trigger=RunTrigger.MANUAL,
         status=RunStatus.PASS,
-        tier_at_runtime=Tier.LOCAL,
     )
     await api_db.add_all([run])
 

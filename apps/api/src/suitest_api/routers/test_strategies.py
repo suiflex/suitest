@@ -85,8 +85,11 @@ async def update_test_strategy(
     return result
 
 
-@router.post("/test-strategies/{strategy_id}/enrich", response_model=TestStrategyPublic)
-@require_llm_ready
+@router.post(
+    "/test-strategies/{strategy_id}/enrich",
+    response_model=TestStrategyPublic,
+    dependencies=[Depends(require_llm_ready)],
+)
 async def enrich_test_strategy(
     strategy_id: str,
     ctx: TenantContext = Depends(_writer_dep),

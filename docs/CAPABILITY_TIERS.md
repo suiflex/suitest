@@ -6,16 +6,17 @@
 
 ## Workspace states
 
-| `llm.status` | Meaning | MCP and runs |
-|---|---|---|
-| `not_configured` | No active workspace LLM configuration | blocked |
-| `validation_required` | Saved or changed but not connection-tested | blocked |
-| `ready` | Active configuration has `last_validated_at` | enabled |
+| `llm.status` | Meaning | Runs & MCP | AI features |
+|---|---|---|---|
+| `not_configured` | No active workspace LLM configuration | Deterministic runs & tools enabled | blocked |
+| `validation_required` | Saved or changed but not connection-tested | Deterministic runs & tools enabled | blocked |
+| `ready` | Active configuration has `last_validated_at` | All runs & tools enabled | enabled |
 
-Manual web TCM, authentication, workspace management, and LLM Settings remain
-available in every state. MCP discovery, connection tests, tool invocation, run
-creation, reruns, runtime translation, and agent features require `ready`.
-
+Manual web TCM, deterministic test execution (Playwright, API HTTP, Postgres,
+etc.), MCP provider operations, authentication, workspace management, and LLM
+Settings remain available in every state. AI-specific workflows (agentic test
+generation, runtime step translation, AI defect diagnosis, and prompt experiments)
+require `ready`.
 ## Source of truth
 
 The active `llm_configs` row is the source of truth. Provider credentials are
@@ -30,9 +31,8 @@ return `409 LLM_NOT_READY` with the current status and a Settings link.
 ## MCP contract
 
 The client config contains only `SUITEST_API_URL` and `SUITEST_API_KEY`. Startup
-calls `/api/v1/api-keys/whoami` and requires `llmStatus=ready`. LLM work is proxied
+authenticates credentials via `/api/v1/api-keys/whoami`. LLM work is proxied
 through `/api/v1/llm/complete`; MCP sampling and local fallback chains do not exist.
-
 ## Product packaging
 
 The current release is the free self-hosted product. “Suitest Cloud” is reserved

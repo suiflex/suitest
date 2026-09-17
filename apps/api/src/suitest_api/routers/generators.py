@@ -164,8 +164,7 @@ async def generate_openapi(
 # LLM-driven PRD → test-case generation (M3-6). The readiness
 # gate requires an active validated ``LLMConfig`` (409 ``LLM_NOT_READY`` otherwise). Streams
 # ``progress``/``case``/``complete`` (or a single ``error``) over SSE. QA+ gate.
-@router.post("/generators/prd")
-@require_llm_ready
+@router.post("/generators/prd", dependencies=[Depends(require_llm_ready)])
 async def generate_prd(
     payload: PrdGenerateRequest,
     ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
@@ -218,8 +217,7 @@ async def generate_prd(
 # LLM-driven semantic URL → FE_WEB journey generation (M3-7):
 # readiness requires an active validated ``LLMConfig`` (409). Decomposes an intent into
 # browser journeys driven by playwright-mcp. SSE. QA+ gate.
-@router.post("/generators/url-semantic")
-@require_llm_ready
+@router.post("/generators/url-semantic", dependencies=[Depends(require_llm_ready)])
 async def generate_url_semantic(
     payload: UrlSemanticGenerateRequest,
     ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
@@ -283,8 +281,7 @@ def _provider_target_kind(is_default_for_target: dict[str, object]) -> TargetKin
 # LLM-driven MCP tool-discovery → test-case generation (M3-9):
 # readiness requires an active validated ``LLMConfig`` (409). Targets a registered MCP
 # provider and proposes cases from its persisted tool catalog. SSE. QA+ gate.
-@router.post("/generators/mcp-discovery")
-@require_llm_ready
+@router.post("/generators/mcp-discovery", dependencies=[Depends(require_llm_ready)])
 async def generate_mcp_discovery(
     payload: McpDiscoveryGenerateRequest,
     ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
@@ -372,8 +369,7 @@ def _build_mcp_invoker(workspace_id: str, request: Request) -> McpInvoker:
 # Heuristic URL crawler → FE_WEB smoke + form suite. Drives ``playwright-mcp`` to BFS the
 # site and streams ``progress``/``case``/``complete`` over SSE. QA+ gate (it
 # creates DRAFT cases).
-@router.post("/generators/crawler")
-@require_llm_ready
+@router.post("/generators/crawler", dependencies=[Depends(require_llm_ready)])
 async def generate_crawler(
     payload: CrawlerGenerateRequest,
     request: Request,
@@ -430,8 +426,11 @@ async def generate_crawler(
 # three endpoints are QA+ (they create / mutate sessions + cases).
 
 
-@router.post("/generators/recorder/sessions", response_model=RecorderSessionStartResponse)
-@require_llm_ready
+@router.post(
+    "/generators/recorder/sessions",
+    response_model=RecorderSessionStartResponse,
+    dependencies=[Depends(require_llm_ready)],
+)
 async def start_recorder_session(
     payload: RecorderSessionStartRequest,
     request: Request,
@@ -460,8 +459,8 @@ async def start_recorder_session(
 @router.post(
     "/generators/recorder/sessions/{session_id}/finalize",
     response_model=TestCaseDetail,
+    dependencies=[Depends(require_llm_ready)],
 )
-@require_llm_ready
 async def finalize_recorder_session(
     session_id: str,
     payload: RecorderFinalizeRequest,
@@ -506,8 +505,8 @@ async def finalize_recorder_session(
 @router.delete(
     "/generators/recorder/sessions/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_llm_ready)],
 )
-@require_llm_ready
 async def cancel_recorder_session(
     session_id: str,
     request: Request,
