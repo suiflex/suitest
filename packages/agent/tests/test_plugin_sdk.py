@@ -33,7 +33,6 @@ def test_spec_valid_minimal() -> None:
         system_prompt="You are helpful.",
     )
     assert spec.name == "my-agent"
-    assert spec.requires_tier == "ZERO"
     assert spec.tool_whitelist == []
     assert spec.model_preference is None
 
@@ -60,30 +59,6 @@ def test_spec_invalid_name_uppercase() -> None:
         )
 
 
-def test_spec_invalid_requires_tier() -> None:
-    with pytest.raises(Exception, match="requires_tier"):
-        AgentPluginSpec(
-            name="my-agent",
-            version="1.0.0",
-            display_name="x",
-            description="x",
-            system_prompt="x",
-            requires_tier="ENTERPRISE",
-        )
-
-
-def test_spec_valid_cloud_tier() -> None:
-    spec = AgentPluginSpec(
-        name="my-cloud-agent",
-        version="2.1.0",
-        display_name="Cloud Agent",
-        description="Needs cloud.",
-        system_prompt="You use the cloud.",
-        requires_tier="CLOUD",
-    )
-    assert spec.requires_tier == "CLOUD"
-
-
 def test_spec_system_prompt_max_length() -> None:
     with pytest.raises(ValueError):
         AgentPluginSpec(
@@ -103,7 +78,6 @@ def test_spec_yaml_round_trip() -> None:
         description="Tests YAML.",
         system_prompt="You round-trip.",
         tool_whitelist=["api_http_mcp.call"],
-        requires_tier="LOCAL",
         author="test",
     )
     dumped = yaml.safe_dump(spec.model_dump())
@@ -290,7 +264,6 @@ def test_security_agent_spec() -> None:
     from security_agent import SecurityAgent
 
     assert SecurityAgent.spec.name == "security-agent"
-    assert SecurityAgent.spec.requires_tier == "CLOUD"
     assert "api_http_mcp.call" in SecurityAgent.spec.tool_whitelist
     assert SecurityAgent.spec.model_preference == "claude-sonnet-4-6"
 
@@ -299,7 +272,6 @@ def test_a11y_agent_spec() -> None:
     from a11y_agent import A11yAgent
 
     assert A11yAgent.spec.name == "a11y-agent"
-    assert A11yAgent.spec.requires_tier == "LOCAL"
     assert "playwright_mcp.navigate" in A11yAgent.spec.tool_whitelist
     assert A11yAgent.spec.model_preference == "claude-haiku-4-5-20251001"
 

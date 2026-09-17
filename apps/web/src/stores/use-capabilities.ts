@@ -2,10 +2,11 @@ import { create } from "zustand";
 
 import { api } from "@/lib/api-client";
 
-export type Tier = "ZERO" | "LOCAL" | "CLOUD";
+export type LlmStatus = "not_configured" | "validation_required" | "ready";
 export type AutonomyLevel = "manual" | "assist" | "semi_auto" | "auto";
 
 export interface LLMInfo {
+  status: LlmStatus;
   provider: string | null;
   model: string | null;
   base_url: string | null;
@@ -54,7 +55,6 @@ export interface AuthInfo {
 }
 
 export interface Capabilities {
-  tier: Tier;
   llm: LLMInfo;
   embeddings: EmbeddingsInfo;
   features: CapabilityFeatures;
@@ -113,10 +113,10 @@ export const useCapabilities = create<CapabilitiesState>((set) => ({
       // `index.html` (a string), or a mock fixture may return a partial body.
       // Reject anything that doesn't look like a capability snapshot so the
       // failure surfaces as a visible error state rather than a downstream
-      // "Cannot read properties of undefined" crash in TierBadge / Gated.
-      if (!data || typeof data !== "object" || !("tier" in data)) {
+      // "Cannot read properties of undefined" crash in status UI / Gated.
+      if (!data || typeof data !== "object" || !("llm" in data)) {
         throw new Error(
-          "Invalid capabilities response (expected JSON object with a `tier` field)",
+          "Invalid capabilities response (expected JSON object with an `llm` field)",
         );
       }
       set({ capabilities: data as Capabilities, loading: false });

@@ -14,7 +14,7 @@ import pytest
 from suitest_agent.prompts.loader import list_prompts, read_prompt
 from suitest_api.services.prompt_resolver import resolve_prompt
 from suitest_db.models.workspace_capability import WorkspaceCapability
-from suitest_shared.domain.enums import AutonomyLevel, Role, Tier
+from suitest_shared.domain.enums import AutonomyLevel, Role
 
 if TYPE_CHECKING:
     from api_harness import ApiDb
@@ -36,7 +36,6 @@ async def test_fork_overrides_then_delete_reverts(api_db: ApiDb) -> None:
         [
             WorkspaceCapability(
                 workspace_id=ws.id,
-                tier=Tier.CLOUD,
                 autonomy_level=AutonomyLevel.MANUAL,
                 features_json={},
             )

@@ -13,7 +13,7 @@
  *   PATCH /test-cases/:id/steps                — body: StepReplace { steps: [...] }
  *   PATCH /test-cases/:id/steps/reorder        — body: { stepIdsInOrder: string[] }
  *
- * ZERO-tier compatible: no LLM calls, no capability gating needed.
+ * Editing remains available without an LLM; execution is gated separately.
  */
 
 import {
@@ -44,7 +44,6 @@ import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { api, ApiError } from "@/lib/api-client";
 import { outcomeToBadge } from "@/lib/badge-maps";
-import { useCapabilities } from "@/stores/use-capabilities";
 import type { components } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
 
@@ -138,8 +137,6 @@ export function StepEditor({
   outcomeByOrder,
 }: StepEditorProps): React.ReactElement {
   const queryClient = useQueryClient();
-  const tier = useCapabilities((s) => s.capabilities?.tier);
-  const isZeroTier = tier === "ZERO";
   const [error, setError] = useState<StepEditorError | null>(null);
   const [repairStep, setRepairStep] = useState<DraftStep | null>(null);
 
@@ -180,18 +177,6 @@ export function StepEditor({
             : stepIndex !== undefined
               ? stepIndex + 1
               : undefined;
-
-        if (err.code === "STEPS_REQUIRE_CODE_IN_ZERO_LLM") {
-          setError({
-            code: err.code,
-            title: "Action Code Required in ZERO Tier",
-            message:
-              `Step #${stepOrder ?? (stepIndex !== undefined ? stepIndex + 1 : 1)} has an action description but no executable code. ` +
-              "ZERO tier cannot translate natural language into browser actions at runtime. Please provide executable Playwright/MCP code.",
-            stepIndex,
-          });
-          return;
-        }
 
         if (err.code === "MCP_PROVIDER_NOT_REGISTERED") {
           const name = typeof err.details?.name === "string" ? err.details.name : "";
@@ -309,28 +294,9 @@ export function StepEditor({
       // If any remaining steps are unpersisted drafts, defer sync to "Save steps"
       if (remaining.some((s) => !isPersisted(s.id))) return;
 
-      // If any remaining step has an action but no code in ZERO tier, defer sync
-      // so the user can delete/repair the other invalid steps without getting locked out
-      if (isZeroTier) {
-        const invalidIndex = remaining.findIndex(
-          (s) => s.action.trim().length > 0 && (!s.code || s.code.trim().length === 0),
-        );
-        if (invalidIndex !== -1) {
-          setError({
-            code: "STEPS_REQUIRE_CODE_IN_ZERO_LLM",
-            title: "Action Code Required in ZERO Tier",
-            message:
-              `Step #${invalidIndex + 1} has an action description but no executable code. ` +
-              "ZERO tier cannot translate natural language into browser actions at runtime. Please provide executable Playwright/MCP code.",
-            stepIndex: invalidIndex,
-          });
-          return;
-        }
-      }
-
       replaceStepsMutation.mutate(remaining);
     },
-    [steps, onStepsChange, isZeroTier, replaceStepsMutation],
+    [steps, onStepsChange, replaceStepsMutation],
   );
 
   // ------------------------------------------------------------------
@@ -459,7 +425,6 @@ export function StepEditor({
                   step={step}
                   index={idx}
                   disabled={saving}
-                  isZeroTier={isZeroTier}
                   hasError={error?.stepIndex === idx}
                   outcome={outcomeByOrder?.get(idx + 1)}
                   onFieldChange={handleFieldChange}
@@ -501,7 +466,6 @@ interface StepRowProps {
   step: DraftStep;
   index: number;
   disabled: boolean;
-  isZeroTier?: boolean | undefined;
   hasError?: boolean | undefined;
   outcome?: StepOutcome | undefined;
   onFieldChange: (stepId: string, field: keyof DraftStep, value: string) => void;
@@ -513,7 +477,6 @@ function StepRow({
   step,
   index,
   disabled,
-  isZeroTier,
   hasError,
   outcome,
   onFieldChange,
@@ -694,26 +657,13 @@ function StepRow({
                   ? "border-red/70 bg-red/[0.06] text-fg-1 placeholder:text-red/60 focus:ring-red/50"
                   : "border-border bg-bg-code text-fg-3 placeholder:text-fg-5 focus:ring-accent/40",
               )}
-              placeholder={
-                isZeroTier
-                  ? "// Required: executable MCP code in ZERO tier (e.g. {\"tool\": \"...\"})"
-                  : "// Optional: MCP step code"
-              }
+              placeholder="// Optional: MCP step code"
               value={step.code ?? ""}
               disabled={disabled}
               onChange={(e) => {
                 onFieldChange(step.id, "code", e.target.value);
               }}
             />
-            {hasError ? (
-              <div
-                data-testid="step-code-error-hint"
-                className="flex items-center gap-1 text-[11px] font-medium text-red"
-              >
-                <AlertCircle className="h-3 w-3 shrink-0" aria-hidden="true" />
-                <span>Executable code is required for this step in ZERO tier.</span>
-              </div>
-            ) : null}
           </div>
         </div>
       </div>

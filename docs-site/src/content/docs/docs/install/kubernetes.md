@@ -1,6 +1,6 @@
 ---
 title: Install on Kubernetes
-description: Deploy Suitest to Kubernetes with the bundled Helm chart, including an air-gapped LOCAL-tier configuration.
+description: Deploy Suitest to Kubernetes with the bundled Helm chart, including an air-gapped configuration.
 ---
 
 Suitest ships a Helm chart at `infra/helm/suitest/` for production and
@@ -62,7 +62,6 @@ deploys (the compose stack runs it as
 
 | Value | Default | Purpose |
 |-------|---------|---------|
-| `suitest.tier` | `zero` | Deployment tier label (`zero`, `local`) |
 | `suitest.autonomyDefault` | `manual` | Default autonomy level |
 | `image.registry` | `ghcr.io/suitest-dev` | Image registry. The published images live at `ghcr.io/suiflex` (pushed on `v*` releases), so set `image.registry: ghcr.io/suiflex` to pull them |
 | `image.apiRepository` / `webRepository` / `runnerRepository` | `suitest-api` / `suitest-web` / `suitest-runner` | Per-component image names |
@@ -128,7 +127,7 @@ networkPolicy:
 `egressCidrs` should list the CIDRs of your datastores. With the policy on,
 nothing else gets in or out.
 
-## Air-gapped install (LOCAL tier)
+## Air-gapped install
 
 The `values-airgapped.yaml` overlay configures a deployment with no outbound
 internet: images from an internal registry mirror, LLM inference from an
@@ -145,9 +144,6 @@ What the overlay changes:
 ```yaml
 image:
   registry: registry.internal:5000/suitest   # your in-cluster mirror
-
-suitest:
-  tier: local
 
 llm:
   enabled: true
@@ -186,5 +182,5 @@ the install section). Rollback with `helm rollback suitest <revision>`.
 
 - [Self-hosting guide](/docs/guides/self-hosting/): TLS, backups, operations
 - [Docker Compose install](/docs/install/docker/): single-host alternative
-- [Capability tiers](/docs/reference/tiers/): what LOCAL unlocks
+- [LLM readiness](/docs/reference/llm-readiness/): validate the workspace model before MCP and runs
 - [Environment reference](/docs/reference/environment/)

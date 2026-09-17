@@ -5,7 +5,7 @@ const tabs = [
   {
     id: "bundle",
     label: "One command",
-    note: "Full local platform: web dashboard + SQLite + IDE MCP wiring. No Docker, no cloud, no LLM key. Node 18+ and uv.",
+    note: "Full platform on your laptop: web dashboard + SQLite + IDE MCP wiring. Connect your workspace model in Settings before running tests. Node 18+ and uv.",
     code: `npx @suiflex/suitest onboard`,
   },
   {
@@ -26,7 +26,7 @@ open http://localhost:3000`,
   {
     id: "helm",
     label: "Helm",
-    note: "Kubernetes install. Air-gapped values file available for LOCAL tier.",
+    note: "Kubernetes install with an air-gapped configuration for cluster-hosted models.",
     code: `helm install suitest infra/helm/suitest \\
   -f infra/helm/suitest/values.yaml`,
   },

@@ -19,7 +19,7 @@ from suitest_db.models.case import TestCase, TestStep
 from suitest_db.repositories.agent_sessions import AgentSessionCreate, AgentSessionRepo
 from suitest_db.repositories.llm_configs import LLMConfigRepo
 from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
-from suitest_shared.domain.enums import AgentSessionKind, AutonomyLevel, Tier
+from suitest_shared.domain.enums import AgentSessionKind, AutonomyLevel
 
 from suitest_api.schemas.self_heal import (
     SelectorRepairApplied,
@@ -56,11 +56,7 @@ class SelfHealService:
 
     async def _require_human_repair_policy(self) -> None:
         capability = await WorkspaceCapabilityRepo(self._session).get(self._workspace_id)
-        if (
-            capability is None
-            or capability.tier is Tier.ZERO
-            or capability.autonomy_level is AutonomyLevel.MANUAL
-        ):
+        if capability is None or capability.autonomy_level is AutonomyLevel.MANUAL:
             raise SelfHealError(
                 "SELF_HEAL_REQUIRES_ASSIST",
                 "selector repair requires assist, semi_auto, or auto autonomy",

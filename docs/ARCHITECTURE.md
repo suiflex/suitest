@@ -2,6 +2,11 @@
 
 > Tech stack, services, and deployment topology for the Suitest **OSS pivot** (Python/FastAPI, MCP-native, BYO LLM). A diff against this doc is mandatory when adding/replacing components.
 
+> **Current readiness contract:** model-provider tiers and MCP sampling are removed.
+> MCP, runs, and AI require a validated workspace LLM and use the server LLM proxy.
+> Any older tier reference below is historical and is superseded by
+> [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md).
+
 > ℹ️ **Built today:** `apps/api`, `apps/runner`, `apps/web`, `packages/db|mcp|core|shared`. `packages/agent` LLM foundation is built (M3-1..M3-5): LiteLLM provider layer (lazy-imported, ZERO-safe) + deterministic mock, LangGraph state machines for the 4 modes, versioned prompts + drift guard, `LLMConfig` API/UI + tier refresh. LLM-driven generators (M3-6..M3-9), runtime translation (M3-10), diagnosis wiring (M3-11), chat/streaming (M3-12/13), cost+autonomy (M3-14..16), and the eval CI job are not built yet. See [ROADMAP.md](./ROADMAP.md).
 
 ---

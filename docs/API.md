@@ -2,6 +2,11 @@
 
 > REST endpoints + WebSocket events for Suitest OSS. All routes are mounted at `/api/v1/*` unless stated otherwise. Input/output is validated with **Pydantic v2** (see `packages/shared/schemas/`).
 
+> **Current readiness contract:** public responses expose `llm.status`, never a
+> model-provider tier. MCP and run endpoints return `409 LLM_NOT_READY` until the
+> saved workspace configuration has passed its connection test. Older tier
+> examples below are historical; generated OpenAPI is authoritative.
+
 > ℹ️ **Built today:** auth, workspaces, TCM CRUD, runs, defects, requirements, integrations, webhooks, analytics, capabilities, deterministic generators, MCP-provider CRUD, workspace LLM config, agents/eval, code export, and testing-strategy APIs. Build truth = `apps/api/src/suitest_api/routers/` + [ROADMAP.md](./ROADMAP.md).
 >
 > Cross-links: [DATA_MODEL.md](./DATA_MODEL.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md) · [MCP_PLUGINS.md](./MCP_PLUGINS.md) · [AUTONOMY.md](./AUTONOMY.md) · [GENERATORS.md](./GENERATORS.md).

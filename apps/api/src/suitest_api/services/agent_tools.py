@@ -14,7 +14,7 @@ explicit confirm round-trip carries ``execute: true``):
     ``case.set_steps``    — full ordered replace of the case's steps.
 
 Mutations re-use :class:`TestCaseService`, so tenant scoping, role checks,
-tier gating, ZERO-tier step validation, and audit logging all apply unchanged.
+LLM readiness, validation, and audit logging all apply unchanged.
 """
 
 from __future__ import annotations

@@ -11,7 +11,7 @@ from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.project import Project, Suite
 from suitest_db.models.workspace import Workspace
 from suitest_shared.domain.case import TestStep as DomainTestStep
-from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, TargetKind, Tier
+from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, TargetKind
 
 
 async def _suite(session: AsyncSession) -> Suite:
@@ -79,18 +79,18 @@ async def test_case_tag_unique(session: AsyncSession) -> None:
         await session.flush()
 
 
-def test_executable_computed_zero_tier() -> None:
+def test_executable_computed_without_llm() -> None:
     step = DomainTestStep(id="s", case_id="c", order=1, action="click", expected="ok")
-    assert step.executable(Tier.ZERO) is False
+    assert step.executable(False) is False
     step_with_code = DomainTestStep(
         id="s", case_id="c", order=1, action="", expected="ok", code="await page.click()"
     )
-    assert step_with_code.executable(Tier.ZERO) is True
+    assert step_with_code.executable(False) is True
 
 
-def test_executable_computed_cloud_tier() -> None:
+def test_executable_computed_with_llm() -> None:
     step = DomainTestStep(id="s", case_id="c", order=1, action="click", expected="ok")
-    assert step.executable(Tier.CLOUD) is True
+    assert step.executable(True) is True
 
 
 @pytest.mark.asyncio

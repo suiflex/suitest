@@ -30,8 +30,8 @@ async def export_uat_document(
 ) -> Response:
     """Build a Suitest-branded UAT sign-off PDF from the selected test cases.
 
-    Each case contributes its latest-run status + screenshot evidence. ZERO-tier,
-    deterministic. 404 when any case is outside this project/workspace.
+    Each case contributes its latest-run status + screenshot evidence. This is
+    deterministic and needs no LLM. 404 when any case is outside this workspace.
     """
     service = UatDocumentService(session)
     try:

@@ -1,4 +1,4 @@
-"""Pure UAT-document assembler — deterministic, ORM-free, ZERO-tier.
+"""Pure UAT-document assembler — deterministic, ORM-free, and LLM-free.
 
 Takes already-loaded structural inputs (``CaseInput``) and produces a
 ``UatDocument`` the renderer turns into a PDF. No DB, no IO — so it unit-tests

@@ -1,7 +1,7 @@
 {
-  "tier": "ZERO",
   "llm": {
-    "provider": "none",
+    "status": "not_configured",
+    "provider": null,
     "model": null,
     "base_url": null,
     "is_test_provider": false
@@ -14,10 +14,10 @@
   },
   "features": {
     "manual_tcm": true,
-    "deterministic_runner": true,
+    "deterministic_runner": false,
     "deterministic_generator_openapi": true,
-    "deterministic_generator_recorder": true,
-    "deterministic_generator_crawler": true,
+    "deterministic_generator_recorder": false,
+    "deterministic_generator_crawler": false,
     "ai_generation": false,
     "ai_execution_agentic": false,
     "ai_diagnose": false,

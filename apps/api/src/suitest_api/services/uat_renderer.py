@@ -3,7 +3,7 @@
 Chosen over WeasyPrint deliberately: the export must run both in Docker AND in the
 npx local bundle (uvicorn on a user laptop, deps from wheels). fpdf2 + Pillow are
 self-contained wheels; WeasyPrint would need native pango/cairo that a bare laptop
-lacks. Deterministic, ZERO-tier. Labels are a small in-module locale dict.
+lacks. Deterministic and LLM-free. Labels are a small in-module locale dict.
 
 Document structure (sign-off grade, mirrors sample-dokumen-uat.pdf plus the
 Suiflex brand cover):
@@ -611,7 +611,7 @@ def _signoff(pdf: _UatPdf, doc: UatDocument, labels: dict[str, str]) -> None:
 
 
 def render_pdf(doc: UatDocument) -> bytes:
-    """Render the document to PDF bytes (fpdf2). Pure, deterministic, ZERO-tier."""
+    """Render the document to PDF bytes (fpdf2). Pure, deterministic, and LLM-free."""
     labels = _LABELS.get(doc.locale, _LABELS["id"])
     doc = _encodable(doc)
     pdf = _UatPdf(labels, doc.title)

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from suitest_db.models.project import Project
 from suitest_db.models.run import Run
-from suitest_shared.domain.enums import RunStatus, RunTrigger, Tier
+from suitest_shared.domain.enums import RunStatus, RunTrigger
 
 if TYPE_CHECKING:
     from api_harness import ApiDb
@@ -19,7 +19,6 @@ def _run(project_id: str, public_id: str, **kw: object) -> Run:
         project_id=project_id,
         name="run",
         trigger=RunTrigger.MANUAL,
-        tier_at_runtime=Tier.ZERO,
         **kw,
     )
 

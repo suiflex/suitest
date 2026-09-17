@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
-from suitest_shared.domain.enums import RunStatus, RunTrigger, Tier
+from suitest_shared.domain.enums import RunStatus, RunTrigger
 
 from suitest_api.schemas.run import PlaywrightConfig as PlaywrightConfig
 
@@ -97,7 +97,6 @@ class RunPublic(BaseModel):
     env: str
     trigger: RunTrigger
     status: RunStatus
-    tier_at_runtime: Tier = Field(serialization_alias="tierAtRuntime")
     started_at: datetime | None = Field(serialization_alias="startedAt")
     completed_at: datetime | None = Field(serialization_alias="completedAt")
     duration_ms: int | None = Field(serialization_alias="durationMs")

@@ -42,7 +42,6 @@ from suitest_shared.domain.enums import (
     RunTrigger,
     Severity,
     StepOutcome,
-    Tier,
 )
 
 
@@ -148,7 +147,6 @@ async def make_run(
         name=name,
         trigger=RunTrigger.MANUAL,
         status=status,
-        tier_at_runtime=Tier.ZERO,
         branch=branch,
         env=env,
     )
@@ -282,12 +280,9 @@ async def make_workspace_capability(
     session: AsyncSession,
     *,
     workspace: Workspace,
-    tier: Tier = Tier.ZERO,
     autonomy: AutonomyLevel = AutonomyLevel.MANUAL,
 ) -> WorkspaceCapability:
-    cap = WorkspaceCapability(
-        workspace_id=workspace.id, tier=tier, autonomy_level=autonomy, features_json={}
-    )
+    cap = WorkspaceCapability(workspace_id=workspace.id, autonomy_level=autonomy, features_json={})
     session.add(cap)
     await session.flush()
     return cap

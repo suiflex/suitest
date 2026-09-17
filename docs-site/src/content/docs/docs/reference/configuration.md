@@ -149,7 +149,7 @@ Configures no-repo frontend testing from a URL. Present only for `mode: "fronten
 | `include` | string[] | `[]` | Extra routes to visit (useful for JS-only navigation the crawler cannot follow). |
 | `exclude` | string[] | `[]` | Routes to skip. |
 | `safeMode` | boolean | `true` | Skip destructive links/actions (delete, logout, billing, payment style controls). |
-| `ignoreTestIds` | boolean | `false` | Pretend the app has no `data-testid` convention so the heuristic locator tiers get exercised. |
+| `ignoreTestIds` | boolean | `false` | Pretend the app has no `data-testid` convention so fallback locator priorities get exercised. |
 
 ### `ui.selectors`
 

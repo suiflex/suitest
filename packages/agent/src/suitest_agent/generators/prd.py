@@ -12,7 +12,7 @@ translated to an MCP call at execution time (M3-10). ``mcp_provider`` /
 ``target_kind`` default from the request's ``default_target_kind`` so a generated
 case still routes deterministically before any translation.
 
-LLM-driven → CLOUD/LOCAL only. The caller resolves the provider from the
+LLM-driven. The caller resolves the provider from the validated
 workspace's active ``LLMConfig`` and owns reproducibility/cost persistence
 (``AgentSession``); this module is pure orchestration + mapping.
 """

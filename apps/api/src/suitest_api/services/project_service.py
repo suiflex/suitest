@@ -17,7 +17,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from sqlalchemy.exc import IntegrityError
-from suitest_core.capabilities import TierFlag
 from suitest_db.audit import write_audit
 from suitest_db.models.project import Project
 from suitest_db.repositories.projects import ProjectRepo
@@ -25,7 +24,6 @@ from suitest_db.repositories.suites import SuiteRepo
 from suitest_shared.schemas.responses import ProjectOut
 
 from suitest_api.deps.scope import TenantContext
-from suitest_api.deps.tier import require_tier
 from suitest_api.utils.slug import slugify
 
 if TYPE_CHECKING:
@@ -113,12 +111,10 @@ class ProjectService:
     def _session(self) -> AsyncSession:
         return self._repo.session
 
-    @require_tier(TierFlag.ANY)
     async def list(self) -> list[ProjectOut]:
         rows = await self._repo.list_by_workspace(self._ctx.workspace_id)
         return [ProjectOut.model_validate(r) for r in rows]
 
-    @require_tier(TierFlag.ANY)
     async def get_by_id(self, project_id: str) -> ProjectOut | None:
         row = await self._repo.get_active_by_id(project_id)
         if row is None or row.workspace_id != self._ctx.workspace_id:
@@ -150,7 +146,6 @@ class ProjectService:
             candidate = base[: 64 - len(_SLUG_RETRY_SUFFIX)] + _SLUG_RETRY_SUFFIX
         return candidate
 
-    @require_tier(TierFlag.ANY)
     async def create(self, body: ProjectCreate) -> ProjectWriteResult:
         """Create a project under the active workspace.
 
@@ -217,7 +212,6 @@ class ProjectService:
         if suite is None or suite.project_id != project_id:
             raise InvalidGatingSuiteError(suite_id=suite_id, project_id=project_id)
 
-    @require_tier(TierFlag.ANY)
     async def update(self, project_id: str, body: ProjectUpdate) -> ProjectWriteResult | None:
         """Patch metadata; ``gating_suite_id`` validated to be in-project.
 
@@ -284,7 +278,6 @@ class ProjectService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def soft_delete_with_cascade(
         self, project_id: str, *, confirm_cascade: bool
     ) -> ProjectWriteResult | None:
@@ -341,7 +334,6 @@ class ProjectService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def restore(self, project_id: str) -> ProjectWriteResult | None:
         """Clear ``deleted_at`` on the project (children stay tombstoned).
 

@@ -52,6 +52,9 @@ def test_serve_refuses_unreachable_url(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 class _OkResponse:
+    def read(self) -> bytes:
+        return b'{"workspaceId":"ws-1","llmStatus":"ready"}'
+
     def __enter__(self) -> _OkResponse:
         return self
 

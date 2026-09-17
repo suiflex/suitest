@@ -16,7 +16,7 @@ from suitest_api.services.prompt_resolver import resolve_and_pin
 from suitest_db.models.workspace_capability import WorkspaceCapability
 from suitest_db.repositories.prompt_experiments import PromptExperimentRepo
 from suitest_db.repositories.workspace_prompt_overrides import WorkspacePromptOverrideRepo
-from suitest_shared.domain.enums import AutonomyLevel, Role, Tier
+from suitest_shared.domain.enums import AutonomyLevel, Role
 
 if TYPE_CHECKING:
     from api_harness import ApiDb
@@ -50,7 +50,6 @@ async def test_experiment_routes_and_picks_winner(api_db: ApiDb) -> None:
         [
             WorkspaceCapability(
                 workspace_id=ws.id,
-                tier=Tier.CLOUD,
                 autonomy_level=AutonomyLevel.MANUAL,
                 features_json={},
             )

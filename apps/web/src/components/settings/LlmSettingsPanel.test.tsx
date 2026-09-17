@@ -17,7 +17,7 @@ function renderPanel(canWrite = true) {
 }
 
 describe("LlmSettingsPanel", () => {
-  it("shows ZERO-tier empty state when no config is set", async () => {
+  it("shows the empty state when no config is set", async () => {
     renderPanel();
     expect(await screen.findByTestId("llm-none")).toBeInTheDocument();
   });
@@ -41,10 +41,25 @@ describe("LlmSettingsPanel", () => {
   });
 
   it("runs a connection test and renders the result", async () => {
+    server.use(
+      http.get("*/api/v1/workspaces/ws_1/llm-config", () =>
+        HttpResponse.json({
+          id: "llmcfg_test",
+          provider: "mock",
+          model: "mock-1",
+          apiKeyHint: null,
+          config: {},
+          isActive: true,
+          status: "validation_required",
+          lastValidatedAt: null,
+          authMethod: "api_key",
+          oauthAccount: null,
+        }),
+      ),
+    );
     renderPanel();
     const user = userEvent.setup();
-    await screen.findByTestId("llm-none");
-    await user.type(screen.getByLabelText(/model/i), "mock-1");
+    await screen.findByTestId("llm-remove");
     await user.click(screen.getByTestId("llm-test"));
     const result = await screen.findByTestId("llm-test-result");
     expect(result).toHaveTextContent(/OK — mock-1/);
@@ -80,7 +95,7 @@ describe("LlmSettingsPanel", () => {
             apiKeyHint: null,
             config: {},
             isActive: true,
-            tier: "CLOUD",
+            status: "ready",
             lastValidatedAt: null,
             authMethod: "oauth",
             oauthAccount: "dev@example.com",
@@ -141,7 +156,7 @@ describe("LlmSettingsPanel", () => {
           apiKeyHint: "sk-a…7890",
           config: {},
           isActive: true,
-          tier: "CLOUD",
+          status: "validation_required",
           lastValidatedAt: null,
         }),
       ),
@@ -151,7 +166,7 @@ describe("LlmSettingsPanel", () => {
     const status = screen.getByTestId("llm-current-status");
     // Named for a person, not the raw provider key.
     expect(status).toHaveTextContent(/Anthropic/);
-    expect(status).toHaveTextContent(/CLOUD/);
+    expect(status).toHaveTextContent(/validation required/i);
   });
 
   it("signs in with Google on localhost by polling the loopback listener", async () => {
@@ -185,7 +200,7 @@ describe("LlmSettingsPanel", () => {
             model: "google/gemini-2.5-pro",
             config: {},
             isActive: true,
-            tier: "CLOUD",
+            status: "ready",
           });
         },
       ),
@@ -332,7 +347,7 @@ describe("LlmSettingsPanel", () => {
           model: "gemini-2.5-pro",
           config: {},
           isActive: true,
-          tier: "CLOUD",
+          status: "ready",
         });
       }),
     );
@@ -379,7 +394,7 @@ describe("LlmSettingsPanel", () => {
             model: "google/gemini-2.5-pro",
             config: {},
             isActive: true,
-            tier: "CLOUD",
+            status: "ready",
           });
         },
       ),
@@ -471,7 +486,7 @@ describe("LlmSettingsPanel", () => {
             model: "gemini-2.5-pro",
             config: {},
             isActive: true,
-            tier: "CLOUD",
+            status: "ready",
           });
         },
       ),
@@ -526,7 +541,7 @@ describe("LlmSettingsPanel", () => {
             model: "gemini-2.5-pro",
             config: {},
             isActive: true,
-            tier: "CLOUD",
+            status: "ready",
           });
         },
       ),

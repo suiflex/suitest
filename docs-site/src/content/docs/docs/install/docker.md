@@ -55,8 +55,7 @@ Then pull the prebuilt images and boot the stack (the compose file lives under
 `infra/docker/`, and every service is behind a profile, so pass both flags):
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml --profile zero pull
-docker compose -f infra/docker/docker-compose.yml --profile zero up -d
+make docker-up
 ```
 
 While the repository is private, `docker pull` from GHCR needs a login first:
@@ -89,9 +88,8 @@ cannot clobber an existing install.
 Onboarding is invite-only by default: from **Settings**, generate invite links
 for the rest of your team. There is no open sign-up page.
 
-The default tier is **ZERO**: no LLM is configured and no LLM call is ever
-made. Everything in the manual TCM and the deterministic runner works at this
-tier.
+Manual TCM is available after login. Before using MCP or starting a run, open
+**Settings, then LLM**, save a provider, and run **Test connection**.
 
 ## Key .env values
 
@@ -112,27 +110,15 @@ tier.
 :::note
 The LLM is not configured through env vars. Providers are set per workspace
 from the web UI (**Settings, then LLM**) and the key is AES-GCM encrypted at
-rest. See [Capability tiers](/docs/reference/tiers/).
+rest. See [LLM readiness](/docs/reference/llm-readiness/).
 :::
 
-## Profiles
+## Optional bundled model
 
-Every service carries a compose profile, so `up` without `--profile` starts
-nothing. Available profiles:
-
-| Profile | Adds | Use for |
-|---------|------|---------|
-| `zero` | the core six services | Default install, no LLM |
-| `cloud` | same containers as `zero` | Workspaces using a cloud LLM key |
-| `local` | `ollama` + a one-shot model pull | Air-gapped LOCAL-tier inference |
-| `demo` | Brewly demo app (port 8089) + demo seeder | The 30-second demo |
-
-Makefile shortcuts: `make docker-up` (zero), `make docker-up-local`,
-`make docker-up-cloud`.
-
-The `local` profile pulls a small instruct model (`qwen2.5:0.5b` by default,
-override with `SUITEST_LOCAL_SMOKE_MODEL`) into a named volume, so the download
-survives restarts.
+`make docker-up-local` starts the platform plus Ollama and pulls a small
+instruct model (`qwen2.5:0.5b` by default; override it with
+`SUITEST_LOCAL_SMOKE_MODEL`). Configure the Ollama URL in workspace Settings
+and validate the connection before running tests.
 
 ## Try the demo
 
@@ -146,8 +132,9 @@ seeds a runnable test suite generated from its PRD:
 - Web UI: <http://localhost:3000>, log in with `demo@suitest.dev` / `demo1234`
 - Brewly: <http://localhost:8089>
 
-Open **Test Cases**, pick the "Brewly" suite, and hit **Run** to watch API and
-browser steps execute against the live app with screenshots. No LLM key needed.
+Open **Settings, then LLM** and validate a provider. Then open **Test Cases**,
+pick the "Brewly" suite, and hit **Run** to watch API and browser steps execute
+against the live app with screenshots.
 
 ## Seed data
 
@@ -175,7 +162,7 @@ make docker-clean       # stop and DELETE volumes (destroys data)
 To pick up code changes, rebuild:
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml --profile zero up -d --build
+make docker-up-prod
 ```
 
 ## Connect your IDE
@@ -184,7 +171,7 @@ With the platform running, wire the MCP server to it so IDE-generated cases,
 runs, and evidence publish into the web TCM:
 
 ```bash
-npx -y @suiflex/suitest-mcp init --mode server \
+npx -y @suiflex/suitest-mcp init \
   --api-url http://localhost:4000 --api-key sk_suitest_xxx
 ```
 

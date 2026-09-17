@@ -2,7 +2,7 @@
 
 Thin IO layer over the pure assembler: repositories fetch cases/suites/steps/tags
 and each case's latest-run RunSteps + SCREENSHOT artifacts; artifact bytes become
-base64 data-URIs via file_storage. ZERO-tier, deterministic.
+base64 data-URIs via file_storage. Deterministic and LLM-free.
 """
 
 from __future__ import annotations
@@ -11,13 +11,11 @@ import base64
 from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from suitest_core.capabilities import TierFlag
 from suitest_db.repositories.runs import RunRepo
 from suitest_db.repositories.suites import SuiteRepo
 from suitest_db.repositories.test_cases import TestCaseRepo
 from suitest_shared.domain.enums import ArtifactKind, StepOutcome
 
-from suitest_api.deps.tier import require_tier
 from suitest_api.services import file_storage
 from suitest_api.services.uat_document import (
     CaseInput,
@@ -40,7 +38,6 @@ class UatDocumentService:
         self._suites = SuiteRepo(session)
         self._runs = RunRepo(session)
 
-    @require_tier(TierFlag.ANY)
     async def build_pdf(
         self,
         *,

@@ -1,7 +1,7 @@
 """Test case / step domain models (docs/DATA_MODEL.md §2.2).
 
 ``TestStep.executable`` is a **computed** domain method — it depends on the
-workspace tier at read time, so it is intentionally NOT a DB column (see
+workspace LLM readiness at read time, so it is intentionally NOT a DB column (see
 DATA_MODEL.md §3.4 / §5).
 """
 
@@ -19,7 +19,6 @@ from suitest_shared.domain.enums import (
     CaseStatus,
     Priority,
     TargetKind,
-    Tier,
 )
 
 
@@ -36,13 +35,11 @@ class TestStep(DomainModel):
     mcp_provider: str = "playwright-mcp"
     target_kind: TargetKind = TargetKind.FE_WEB
 
-    def executable(self, tier: Tier) -> bool:
-        """A step is executable iff it has explicit ``code`` (deterministic), OR
-        the workspace has an LLM tier (LOCAL/CLOUD) plus an ``action`` to translate.
-        """
+    def executable(self, llm_ready: bool) -> bool:
+        """A coded step is runnable; action-only steps require a validated LLM."""
         if self.code:
             return True
-        return tier in (Tier.LOCAL, Tier.CLOUD) and bool(self.action)
+        return llm_ready and bool(self.action)
 
 
 class TestCase(DomainModel):

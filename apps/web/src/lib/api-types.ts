@@ -672,10 +672,9 @@ export interface paths {
          * Diff Select
          * @description Select relevant test cases for a PR diff via LLM impact analysis (M6).
          *
-         *     At CLOUD/LOCAL tier the endpoint queries the active LLM to identify which
-         *     cases are most likely to catch regressions introduced by ``diff_text``.
-         *     At ZERO tier (or when no LLM is configured) it returns **all** cases in
-         *     the suite so CI always has a safe fallback.
+         *     With a validated workspace LLM the endpoint identifies cases most likely to
+         *     catch regressions introduced by ``diff_text``. Otherwise it returns **all**
+         *     cases in the suite so CI always has a safe fallback.
          *
          *     ``diff_text`` must not exceed 50 000 characters; a 400 is returned if it
          *     does.  The suite must belong to the caller's workspace; a 404 is returned
@@ -1410,8 +1409,8 @@ export interface paths {
          * Export Uat Document
          * @description Build a Suitest-branded UAT sign-off PDF from the selected test cases.
          *
-         *     Each case contributes its latest-run status + screenshot evidence. ZERO-tier,
-         *     deterministic. 404 when any case is outside this project/workspace.
+         *     Each case contributes its latest-run status + screenshot evidence. This is
+         *     deterministic and needs no LLM. 404 when any case is outside this workspace.
          */
         post: operations["export_uat_document_api_v1_projects__project_id__exports_uat_post"];
         delete?: never;
@@ -2015,7 +2014,7 @@ export interface paths {
          * Get Run Replay
          * @description Time-travel replay: ordered steps + per-step state delta (M5-1).
          *
-         *     Deterministic / ZERO-tier — the delta is a pure JSON diff between each step's
+         *     Deterministic and LLM-free — the delta is a pure JSON diff between each step's
          *     captured ``state_snapshot`` (normalized MCP output) and the previous step's.
          *     The first step has an empty delta (no prior state). 404 when cross-workspace.
          */
@@ -2039,7 +2038,7 @@ export interface paths {
          * Get Run Junit Report
          * @description Render a run as a JUnit XML report for CI consumption (Jenkins / GHA).
          *
-         *     Deterministic / ZERO-tier: each test case becomes one ``<testcase>`` rolled up
+         *     Deterministic and LLM-free: each test case becomes one ``<testcase>`` rolled up
          *     from its run steps (error > failure > skipped > passed). 404 when cross-workspace.
          *     Returned as ``application/xml`` so a CI job can pipe it into its test reporter.
          */
@@ -2294,7 +2293,7 @@ export interface paths {
          *
          *     Uses the configured local :class:`Embedder` (``SUITEST_EMBEDDINGS=fastembed``)
          *     to rank by cosine similarity; falls back to lexical scoring when embeddings
-         *     are disabled so ZERO-tier search still returns results.
+         *     are disabled so lexical search still returns results without an LLM.
          */
         get: operations["search_test_cases_api_v1_test_cases_search_get"];
         put?: never;
@@ -2444,9 +2443,8 @@ export interface paths {
          * Run Test Case Now
          * @description Ad-hoc shortcut: validate then delegate to M1c ``RunService.create_run``.
          *
-         *     Pre-flight re-runs :func:`validate_steps` against the CURRENT workspace tier
-         *     + strict-zero setting (a case authored under LOCAL/CLOUD that later flips to
-         *     ZERO+strict must not silently queue an unrunnable run). Validator failures
+         *     Pre-flight validates the selected case before delegating to the run service.
+         *     LLM readiness is enforced by the shared run gate. Validator failures
          *     surface through the same canonical envelope as ``POST /test-cases`` so the
          *     FE editor's error rendering doesn't fork. No ``runs`` row is created when
          *     pre-flight fails — the validator raises BEFORE we enter ``RunService.create_run``.
@@ -2746,7 +2744,7 @@ export interface paths {
         put?: never;
         /**
          * Create Workspace
-         * @description Create a workspace; the caller becomes its OWNER (bootstrap, ZERO-safe).
+         * @description Create a workspace; the caller becomes its OWNER without requiring an LLM.
          *
          *     No membership/role gate — a user with zero workspaces must be able to make
          *     their first one (dogfood blocker #1). Slug collisions return 409
@@ -2929,7 +2927,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Llm Config
-         * @description Clear the active config; tier downgrades to ZERO. 404 when none set.
+         * @description Clear the active config. 404 when none is set.
          */
         delete: operations["delete_llm_config_api_v1_workspaces__workspaceId__llm_config_delete"];
         options?: never;
@@ -3161,7 +3159,7 @@ export interface paths {
         put?: never;
         /**
          * Test Llm Config
-         * @description Round-trip a 1-token completion against the (proposed) provider.
+         * @description Round-trip a 1-token completion against the saved active provider.
          */
         post: operations["test_llm_config_api_v1_workspaces__workspaceId__llm_config_test_post"];
         delete?: never;
@@ -3438,7 +3436,7 @@ export interface paths {
         };
         /**
          * Get Capabilities Health
-         * @description Lightweight liveness probe: ``{tier, status, uptimeSec}`` (docs/API.md §3.0).
+         * @description Lightweight process liveness probe.
          */
         get: operations["get_capabilities_health_capabilities_health_get"];
         put?: never;
@@ -3609,7 +3607,7 @@ export interface components {
          * @description YAML-serialisable descriptor for a custom agent plugin (M8-1).
          *
          *     ``name`` must be a valid slug (kebab-case, no spaces) and unique within the
-         *     workspace. ``requires_tier`` gates which deployments may activate this plugin.
+         *     workspace. Agent plugins require the workspace LLM to be ready.
          */
         AgentPluginSpec: {
             /**
@@ -3642,12 +3640,6 @@ export interface components {
              * @description Unique slug (kebab-case). Used as the lookup key in the registry.
              */
             name: string;
-            /**
-             * Requires Tier
-             * @description Minimum tier required to activate. One of: 'ZERO', 'LOCAL', 'CLOUD'.
-             * @default ZERO
-             */
-            requires_tier: string;
             /**
              * System Prompt
              * @description System prompt injected ahead of the user turn. Max 4000 chars.
@@ -3747,6 +3739,7 @@ export interface components {
             key_id: string;
             /** Key Name */
             key_name: string;
+            llmStatus: components["schemas"]["LlmStatus"];
             /** Workspace Id */
             workspace_id: string;
         };
@@ -3854,7 +3847,7 @@ export interface components {
         };
         /**
          * AutonomyLevel
-         * @description Workspace autonomy dial. ZERO tier is locked to MANUAL.
+         * @description Workspace autonomy dial. A workspace without a ready LLM is manual.
          * @enum {string}
          */
         AutonomyLevel: "manual" | "assist" | "semi_auto" | "auto";
@@ -3870,11 +3863,11 @@ export interface components {
             /** Knownoverridekeys */
             knownOverrideKeys: string[];
             level: components["schemas"]["AutonomyLevel"];
+            llmStatus: components["schemas"]["LlmStatus"];
             /** Overrides */
             overrides: {
                 [key: string]: boolean;
             };
-            tier: components["schemas"]["Tier"];
             /** Updatedat */
             updatedAt?: string | null;
             /** Updatedby */
@@ -3882,7 +3875,7 @@ export interface components {
         };
         /**
          * AutonomySection
-         * @description Autonomy levels available + the recommended default for the tier.
+         * @description Autonomy levels available plus the recommended default.
          */
         AutonomySection: {
             /** Available */
@@ -4113,7 +4106,6 @@ export interface components {
             llm: components["schemas"]["LLMSection"];
             /** Mcpproviders */
             mcpProviders?: components["schemas"]["suitest_shared__schemas__capabilities__McpProviderPublic"][];
-            tier: components["schemas"]["Tier"];
             /** Version */
             version: string;
         };
@@ -4625,8 +4617,8 @@ export interface components {
             rationale: string | null;
             /** Selected Case Ids */
             selected_case_ids: string[];
-            /** Tier Used */
-            tier_used: string;
+            /** Selection Mode */
+            selection_mode: string;
         };
         /**
          * DocumentDetail
@@ -4697,7 +4689,7 @@ export interface components {
         };
         /**
          * EmbeddingsSection
-         * @description Embeddings backend info (independent of LLM tier).
+         * @description Embeddings backend info (independent of LLM readiness).
          */
         EmbeddingsSection: {
             /** Backend */
@@ -4865,7 +4857,7 @@ export interface components {
         };
         /**
          * FeaturesSection
-         * @description The 13 capability feature flags resolved from (tier, embeddings).
+         * @description The 13 capability feature flags resolved from readiness and embeddings.
          */
         FeaturesSection: {
             /** Ai Conversation */
@@ -5568,8 +5560,8 @@ export interface components {
             oauthAccount?: string | null;
             /** Provider */
             provider: string;
-            /** Tier */
-            tier: string;
+            /** Status */
+            status: string;
         };
         /**
          * LLMConfigWriteBody
@@ -5598,7 +5590,7 @@ export interface components {
         };
         /**
          * LLMSection
-         * @description LLM provider info. ``provider`` is ``"none"`` in ZERO tier.
+         * @description Workspace LLM provider and readiness.
          */
         LLMSection: {
             /** Base Url */
@@ -5611,7 +5603,9 @@ export interface components {
             /** Model */
             model?: string | null;
             /** Provider */
-            provider: string;
+            provider?: string | null;
+            /** @default not_configured */
+            status: components["schemas"]["LlmStatus"];
         };
         /** LLMTestError */
         LLMTestError: {
@@ -5667,6 +5661,12 @@ export interface components {
             /** Tokensout */
             tokensOut: number;
         };
+        /**
+         * LlmStatus
+         * @description Readiness of the workspace's active LLM configuration.
+         * @enum {string}
+         */
+        LlmStatus: "not_configured" | "validation_required" | "ready";
         /**
          * LoginFinishBody
          * @description ``api_key`` exchanges for a platform key; ``subscription`` keeps the tokens.
@@ -5761,7 +5761,7 @@ export interface components {
         };
         /**
          * McpDiscoveryGenerateRequest
-         * @description LLM-driven MCP tool-discovery generation (M3-9) — CLOUD/LOCAL only.
+         * @description LLM-driven MCP tool-discovery generation (M3-9); requires LLM readiness.
          *
          *     Targets a registered MCP provider by id; the agent explores its persisted
          *     tool catalog and proposes contract cases (happy + negative per tool). Steps
@@ -6305,7 +6305,7 @@ export interface components {
         };
         /**
          * PrdGenerateRequest
-         * @description LLM-driven PRD generation (M3-6) — CLOUD/LOCAL only.
+         * @description LLM-driven PRD generation (M3-6); requires a validated workspace LLM.
          *
          *     ``prd_text`` is the requirement / user story / free text. The agent extracts
          *     stories and drafts happy-path + edge cases. ``default_target_kind`` decides
@@ -6897,7 +6897,6 @@ export interface components {
             started_at?: string | null;
             status: components["schemas"]["RunStatus"];
             summary: components["schemas"]["RunSummary"];
-            tier_at_runtime: components["schemas"]["Tier"];
             trigger: components["schemas"]["RunTrigger"];
             /**
              * Updated At
@@ -7002,7 +7001,6 @@ export interface components {
             started_at?: string | null;
             status: components["schemas"]["RunStatus"];
             summary?: components["schemas"]["RunSummary"] | null;
-            tier_at_runtime: components["schemas"]["Tier"];
             trigger: components["schemas"]["RunTrigger"];
             /**
              * Updated At
@@ -7089,7 +7087,6 @@ export interface components {
             /** Startedat */
             startedAt: string | null;
             status: components["schemas"]["RunStatus"];
-            tierAtRuntime: components["schemas"]["Tier"];
             /** Totalsteps */
             totalSteps: number;
             trigger: components["schemas"]["RunTrigger"];
@@ -7345,9 +7342,8 @@ export interface components {
          * @description Body shape for ``POST /test-cases/:id/steps`` — ``order`` always ignored.
          *
          *     ``action`` MAY be empty here: the web StepEditor appends a blank draft
-         *     step for the user to fill in before saving. The ZERO-tier strict check
-         *     (``STEPS_REQUIRE_CODE_IN_ZERO_LLM``) still runs when the case is *run*,
-         *     and a full replace (PATCH) re-validates completeness — an empty step
+         *     step for the user to fill in before saving. A full replace (PATCH)
+         *     re-validates completeness — an empty step
          *     just cannot be executed while it is still a draft.
          */
         StepAppend: {
@@ -7376,9 +7372,8 @@ export interface components {
          * @description One step inside a :class:`TestCaseCreate` / :class:`StepReplace` payload.
          *
          *     ``order`` is honoured if provided; otherwise the service assigns sequential
-         *     1-based positions in array order. ``code`` MAY be omitted in CLOUD / LOCAL
-         *     tiers (or when ``workspace.strict_zero_validation=false``); ZERO tier with
-         *     strict validation rejects via ``STEPS_REQUIRE_CODE_IN_ZERO_LLM``.
+         *     1-based positions in array order. ``code`` may be omitted for manually
+         *     authored prose steps; the validated workspace LLM translates them at run time.
          */
         StepCreate: {
             /** Action */
@@ -7420,7 +7415,7 @@ export interface components {
          *
          *     Accepts the same shapes as the editor sends: a step whose ``action`` is
          *     empty is a user draft (never executable) and is stored as-is. Running the
-         *     case re-runs the ZERO-tier strict check per step; a persisted draft simply
+         *     case still requires a validated workspace LLM; an empty persisted draft
          *     fails at run time unless it is filled in first.
          */
         StepReplace: {
@@ -7430,10 +7425,10 @@ export interface components {
         /** StrategyAlternative */
         StrategyAlternative: {
             /**
-             * Requires Tier
-             * @enum {string}
+             * Requires Llm
+             * @default true
              */
-            requires_tier: "ZERO" | "LOCAL" | "CLOUD";
+            requires_llm: boolean;
             strategy: components["schemas"]["RecommendedStrategy"];
         };
         /** StrategyRisk */
@@ -7894,13 +7889,6 @@ export interface components {
          */
         TestingApproach: "BLACK_BOX" | "GRAY_BOX" | "WHITE_BOX";
         /**
-         * Tier
-         * @description Capability tier. The env base is always ZERO; LOCAL/CLOUD come from the
-         *     per-workspace LLM config (web UI).
-         * @enum {string}
-         */
-        Tier: "ZERO" | "LOCAL" | "CLOUD";
-        /**
          * TraceabilityMatrix
          * @description ``GET /traceability/matrix`` — grid view payload (docs/API.md §3.7).
          */
@@ -7927,7 +7915,7 @@ export interface components {
         };
         /**
          * UrlSemanticGenerateRequest
-         * @description LLM-driven semantic URL generation (M3-7) — CLOUD/LOCAL only.
+         * @description LLM-driven semantic URL generation (M3-7); requires a validated workspace LLM.
          *
          *     Decomposes a natural-language ``intent`` ("checkout flow") into FE_WEB
          *     journey cases on ``url``. Steps are agentic browser actions driven by
@@ -8164,11 +8152,6 @@ export interface components {
             region: string;
             /** Slug */
             slug: string;
-            /**
-             * Strict Zero Validation
-             * @default true
-             */
-            strict_zero_validation: boolean;
             /**
              * Updated At
              * Format: date-time
@@ -14480,11 +14463,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LLMConfigWriteBody"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

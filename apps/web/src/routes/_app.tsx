@@ -30,9 +30,8 @@ type ProjectsPage = components["schemas"]["Page_ProjectPublic_"];
  *      selection is persisted — this is what makes the `X-Workspace-Id`
  *      header non-empty on subsequent requests.
  *
- *   2. Awaits the capabilities fetch so descendant surfaces (TierBadge,
- *      Gated, AiPanel rail) render with the real tier on first paint
- *      instead of flashing ZERO and snapping to CLOUD.
+ *   2. Awaits the capabilities fetch so gated surfaces render with the real
+ *      LLM readiness state on first paint.
  */
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context, location }) => {
@@ -87,8 +86,7 @@ export const Route = createFileRoute("/_app")({
           }
         }
       }
-      // Capabilities boot — block render until we know the tier so the
-      // shell doesn't flash ZERO → CLOUD on first paint.
+      // Capabilities boot — block render until LLM readiness is known.
       if (useCapabilities.getState().capabilities === null) {
         await useCapabilities.getState().fetch();
       }
@@ -117,7 +115,7 @@ export const Route = createFileRoute("/_app")({
  * Below `md:` the sidebar becomes an overlay drawer toggled from the Topbar.
  */
 function AppLayout(): React.ReactElement {
-  const tier = useCapabilities((s) => s.capabilities?.tier);
+  const llmReady = useCapabilities((s) => s.capabilities?.llm.status === "ready");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const { data: user } = useCurrentUser();
@@ -182,7 +180,7 @@ function AppLayout(): React.ReactElement {
           <Outlet />
         </main>
       </div>
-      {tier !== "ZERO" ? <AiPanel /> : null}
+      {llmReady ? <AiPanel /> : null}
     </div>
   );
 }

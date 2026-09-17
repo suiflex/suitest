@@ -1,9 +1,6 @@
 """Test case read + write endpoints (docs/API.md §3.3) — scoped via suite -> project -> ws.
 
-Each ``TestStepPublic.executable`` is stamped from the workspace's effective tier:
-a step is executable when it has explicit ``code`` (deterministic), or the tier is
-LOCAL/CLOUD (action -> code translated at run time). The tier is resolved once per
-request via :func:`resolve_workspace_tier`.
+Each ``TestStepPublic.executable`` is stamped from workspace LLM readiness.
 
 Write surface (M1d-2) covers ``POST /test-cases``, ``PATCH /test-cases/:id``,
 ``PATCH /test-cases/:id/steps``, ``POST /test-cases/:id/steps``,
@@ -27,7 +24,7 @@ from typing import Annotated, Any
 from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from suitest_core.capabilities import TierFlag
+from suitest_core.capabilities import LlmStatus
 from suitest_db.models.case import TestStep
 from suitest_db.repositories.projects import ProjectRepo
 from suitest_db.repositories.runs import RunRepo
@@ -40,7 +37,6 @@ from suitest_shared.domain.enums import (
     Priority,
     Role,
     TestingApproach,
-    Tier,
 )
 from suitest_shared.schemas.pagination import Page, PageMeta
 
@@ -49,9 +45,8 @@ from suitest_api.deps.arq import get_arq
 from suitest_api.deps.role import require_role
 from suitest_api.deps.run_dispatch import dispatch_run
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
-from suitest_api.deps.tier import require_autonomy, require_tier
+from suitest_api.deps.tier import require_autonomy, workspace_llm_status
 from suitest_api.routers._pagination import decode_cursor_or_400, encode_next
-from suitest_api.routers._tier import resolve_workspace_tier
 from suitest_api.schemas.run import CaseArtifactPublic, CaseRunPublic
 from suitest_api.schemas.self_heal import (
     SelectorRepairApplied,
@@ -82,7 +77,6 @@ from suitest_api.services.test_case_service import (
     InvalidBulkTargetSuiteError,
     McpProviderNotRegisteredError,
     StepReorderMismatchError,
-    StepsRequireCodeError,
     TestCaseService,
 )
 from suitest_api.settings import get_settings
@@ -151,14 +145,14 @@ def _parse_if_unmodified_since(raw: str | None) -> datetime | None:
     return parsed
 
 
-def _step_executable(step: TestStep, tier: Tier) -> bool:
-    """Domain rule: executable iff explicit code, or LOCAL/CLOUD with an action."""
+def _step_executable(step: TestStep, llm_ready: bool) -> bool:
+    """A coded step is runnable; action-only steps need the workspace LLM."""
     if step.code:
         return True
-    return tier in (Tier.LOCAL, Tier.CLOUD) and bool(step.action)
+    return llm_ready and bool(step.action)
 
 
-def _step_public(step: TestStep, tier: Tier) -> TestStepPublic:
+def _step_public(step: TestStep, llm_ready: bool) -> TestStepPublic:
     return TestStepPublic(
         id=step.id,
         case_id=step.case_id,
@@ -169,7 +163,7 @@ def _step_public(step: TestStep, tier: Tier) -> TestStepPublic:
         data=step.data,
         mcp_provider=step.mcp_provider,
         target_kind=step.target_kind,
-        executable=_step_executable(step, tier),
+        executable=_step_executable(step, llm_ready),
     )
 
 
@@ -217,11 +211,11 @@ async def _refresh_steps_public(
     workspace_id: str,
     case_id: str,
 ) -> list[TestStepPublic]:
-    """Re-load + tier-stamp every step on ``case_id`` after a write."""
-    tier = await resolve_workspace_tier(request, session, workspace_id)
+    """Re-load and readiness-stamp every step after a write."""
+    llm_ready = await workspace_llm_status(session, workspace_id) is LlmStatus.READY
     repo = TestCaseRepo(session)
     steps = await repo.get_steps(case_id)
-    return [_step_public(s, tier) for s in steps]
+    return [_step_public(s, llm_ready) for s in steps]
 
 
 async def _detail_with_steps(
@@ -391,7 +385,7 @@ async def search_test_cases(
 
     Uses the configured local :class:`Embedder` (``SUITEST_EMBEDDINGS=fastembed``)
     to rank by cosine similarity; falls back to lexical scoring when embeddings
-    are disabled so ZERO-tier search still returns results.
+    are disabled so lexical search still returns results without an LLM.
     """
     from sqlalchemy import select
     from suitest_core.embeddings import get_embedder
@@ -463,7 +457,7 @@ async def get_test_case(
         # Defensive: ``get_by_id`` already filters tombstones but keeping the
         # explicit check makes the contract obvious if the repo changes.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
-    tier = await resolve_workspace_tier(request, session, ctx.workspace_id)
+    llm_ready = await workspace_llm_status(session, ctx.workspace_id) is LlmStatus.READY
     # ``case_id`` here may be the public id (``TC-1102``) resolved above via
     # ``get_by_public_id``; steps and tags are keyed by the INTERNAL id, so
     # re-key off ``case.id`` — using the raw path segment silently returned an
@@ -526,7 +520,7 @@ async def get_test_case(
         strategy_id=case.strategy_id,
         created_at=case.created_at,
         updated_at=case.updated_at,
-        steps=[_step_public(s, tier) for s in steps],
+        steps=[_step_public(s, llm_ready) for s in steps],
         tags=tags,
         automation_file_path=case.automation_file_path,
         automation_code=case.automation_code,
@@ -549,9 +543,9 @@ async def get_test_case_steps(
     internal_id = await _resolve_case_internal_id(session, ctx.workspace_id, case_id)
     if internal_id is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="test case not found")
-    tier = await resolve_workspace_tier(request, session, ctx.workspace_id)
+    llm_ready = await workspace_llm_status(session, ctx.workspace_id) is LlmStatus.READY
     steps: Sequence[TestStep] = await repo.get_steps(internal_id)
-    return [_step_public(s, tier) for s in steps]
+    return [_step_public(s, llm_ready) for s in steps]
 
 
 # ---------------------------------------------------------------------------
@@ -559,19 +553,9 @@ async def get_test_case_steps(
 # ---------------------------------------------------------------------------
 
 
-def _raise_step_validation(exc: StepsRequireCodeError | McpProviderNotRegisteredError) -> None:
+def _raise_step_validation(exc: McpProviderNotRegisteredError) -> None:
     """Translate a validator exception into the canonical envelope + status."""
     step_order = exc.step_index + 1
-    if isinstance(exc, StepsRequireCodeError):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_error_envelope(
-                "STEPS_REQUIRE_CODE_IN_ZERO_LLM",
-                f"Step #{step_order} has no executable code. "
-                "ZERO tier cannot translate action -> MCP call at runtime.",
-                {"stepIndex": exc.step_index, "stepOrder": step_order},
-            ),
-        )
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail=_error_envelope(
@@ -628,9 +612,6 @@ async def create_test_case(
     svc = _build_service(session, ctx)
     try:
         outcome = await svc.create(body)
-    except StepsRequireCodeError as exc:
-        await session.rollback()
-        _raise_step_validation(exc)
     except McpProviderNotRegisteredError as exc:
         await session.rollback()
         _raise_step_validation(exc)
@@ -702,9 +683,6 @@ async def replace_test_case_steps(
     except ConcurrentModificationError as exc:
         await session.rollback()
         _raise_concurrent(exc)
-    except StepsRequireCodeError as exc:
-        await session.rollback()
-        _raise_step_validation(exc)
     except McpProviderNotRegisteredError as exc:
         await session.rollback()
         _raise_step_validation(exc)
@@ -741,9 +719,6 @@ async def append_test_case_step(
     svc = _build_service(session, ctx)
     try:
         outcome = await svc.append_step(case_id, body)
-    except StepsRequireCodeError as exc:
-        await session.rollback()
-        _raise_step_validation(exc)
     except McpProviderNotRegisteredError as exc:
         await session.rollback()
         _raise_step_validation(exc)
@@ -806,7 +781,6 @@ async def reorder_test_case_steps(
     "/test-cases/{case_id}/self-heal/propose",
     response_model=SelectorRepairPublic,
 )
-@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
 @require_autonomy(AutonomyLevel.ASSIST)
 async def propose_selector_repair(
     case_id: str,
@@ -838,7 +812,6 @@ async def propose_selector_repair(
     "/test-cases/{case_id}/self-heal/apply",
     response_model=SelectorRepairApplied,
 )
-@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
 @require_autonomy(AutonomyLevel.ASSIST)
 async def apply_selector_repair(
     case_id: str,
@@ -882,9 +855,8 @@ async def run_test_case_now(
 ) -> AdHocRunResponse:
     """Ad-hoc shortcut: validate then delegate to M1c ``RunService.create_run``.
 
-    Pre-flight re-runs :func:`validate_steps` against the CURRENT workspace tier
-    + strict-zero setting (a case authored under LOCAL/CLOUD that later flips to
-    ZERO+strict must not silently queue an unrunnable run). Validator failures
+    Pre-flight validates the selected case before delegating to the run service.
+    LLM readiness is enforced by the shared run gate. Validator failures
     surface through the same canonical envelope as ``POST /test-cases`` so the
     FE editor's error rendering doesn't fork. No ``runs`` row is created when
     pre-flight fails — the validator raises BEFORE we enter ``RunService.create_run``.
@@ -900,9 +872,6 @@ async def run_test_case_now(
     svc = _build_service(session, ctx)
     try:
         run = await svc.trigger_adhoc_run(case_id)
-    except StepsRequireCodeError as exc:
-        await session.rollback()
-        _raise_step_validation(exc)
     except McpProviderNotRegisteredError as exc:
         await session.rollback()
         _raise_step_validation(exc)

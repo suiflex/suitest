@@ -1,12 +1,12 @@
-"""LLM config service (M3-2 + M3-3).
+"""Workspace LLM configuration and validation service.
 
 Owns the workspace BYO-LLM lifecycle: validate provider/key, persist the active
 ``LLMConfig`` (key AES-GCM encrypted), test the connection through the provider
-layer, and — the M3-3 half — recompute the materialised ``WorkspaceCapability``
-row so ``GET /capabilities`` flips tier the moment a key is set or cleared.
+layer, and recompute the materialised ``WorkspaceCapability`` row whenever LLM
+readiness changes.
 
-Never imports LiteLLM directly: connection tests go through
-``suitest_agent.providers`` so ZERO tier and the test suite stay import-clean.
+Never imports LiteLLM directly: connection tests go through the stored workspace
+configuration and ``suitest_agent.providers``.
 """
 
 from __future__ import annotations
@@ -16,12 +16,8 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from suitest_agent.providers.base import ChatMessage, ModelCall, ProviderError
-from suitest_agent.providers.litellm_router import get_provider
 from suitest_core.capabilities import (
     AutonomyLevel as CoreAutonomy,
-)
-from suitest_core.capabilities import (
-    Tier as CoreTier,
 )
 from suitest_core.capabilities import (
     compute_autonomy,
@@ -34,14 +30,14 @@ from suitest_core.code_assist import (
 from suitest_core.llm_credentials import (
     CHATGPT_PROVIDER,
     GOOGLE_VERTEX_PROVIDER,
-    OAUTH_BACKENDS,
+    CredentialError,
 )
 from suitest_core.oauth import StoredOAuthTokens
 from suitest_db.audit import write_audit
 from suitest_db.models.llm_config import AUTH_METHOD_API_KEY, AUTH_METHOD_OAUTH
 from suitest_db.repositories.llm_configs import LLMConfigCreate, LLMConfigRepo, LLMConfigUpdate
 from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
-from suitest_shared.domain.enums import AutonomyLevel, Tier
+from suitest_shared.domain.enums import AutonomyLevel
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,8 +45,8 @@ if TYPE_CHECKING:
 
     from suitest_api.deps.scope import TenantContext
 
-_LOCAL_PROVIDERS = frozenset({"ollama", "llamacpp", "vllm", "lmstudio"})
-_CLOUD_PROVIDERS = frozenset(
+_BASE_URL_REQUIRED_PROVIDERS = frozenset({"ollama", "llamacpp", "vllm", "lmstudio"})
+_SUPPORTED_PROVIDERS = frozenset(
     {
         "anthropic",
         "openai",
@@ -67,12 +63,12 @@ _CLOUD_PROVIDERS = frozenset(
         *CODE_ASSIST_VARIANTS,
     }
 )
-# CLOUD providers that authenticate without SUITEST_LLM_API_KEY (IAM / canned creds).
+# Providers that authenticate without a pasted API key (IAM, OAuth, or mock).
 _KEYLESS = frozenset(
     {"bedrock", "vertex", "mock", CHATGPT_PROVIDER, GOOGLE_VERTEX_PROVIDER, *CODE_ASSIST_VARIANTS}
 )
 # ``custom`` = any hosted OpenAI-compatible endpoint (gateway/router/proxy) the
-# user points at via base URL. CLOUD tier; API key optional (gateway-dependent);
+# user points at via base URL. Its API key is optional (gateway-dependent);
 # base URL required — there is no default endpoint to fall back to.
 _CUSTOM = "custom"
 
@@ -87,17 +83,7 @@ class LLMConfigError(Exception):
 
 
 def known_providers() -> frozenset[str]:
-    return _LOCAL_PROVIDERS | _CLOUD_PROVIDERS | {_CUSTOM}
-
-
-def provider_tier(provider: str) -> CoreTier:
-    """Map a provider key to the resolved :class:`Tier` (DATA_MODEL §4.1)."""
-    p = provider.strip().lower()
-    if p in {"", "none", "disabled"}:
-        return CoreTier.ZERO
-    if p in _LOCAL_PROVIDERS:
-        return CoreTier.LOCAL
-    return CoreTier.CLOUD
+    return _BASE_URL_REQUIRED_PROVIDERS | _SUPPORTED_PROVIDERS | {_CUSTOM}
 
 
 def api_key_hint(plaintext: str | None) -> str | None:
@@ -165,12 +151,12 @@ class LLMConfigService:
                 )
             if not (config or {}).get("project"):
                 raise LLMConfigError("MISSING_PROJECT", f"provider {p} requires config.project")
-        if p in _LOCAL_PROVIDERS and not base_url:
-            raise LLMConfigError("MISSING_BASE_URL", f"LOCAL provider {p} requires config.base_url")
+        if p in _BASE_URL_REQUIRED_PROVIDERS and not base_url:
+            raise LLMConfigError("MISSING_BASE_URL", f"provider {p} requires config.base_url")
         if p == _CUSTOM and not base_url:
             raise LLMConfigError("MISSING_BASE_URL", "custom provider requires config.base_url")
-        if p in _CLOUD_PROVIDERS and p not in _KEYLESS and not api_key:
-            raise LLMConfigError("MISSING_API_KEY", f"CLOUD provider {p} requires an api key")
+        if p in _SUPPORTED_PROVIDERS and p not in _KEYLESS and not api_key:
+            raise LLMConfigError("MISSING_API_KEY", f"provider {p} requires an api key")
 
     async def set_config(
         self,
@@ -223,6 +209,7 @@ class LLMConfigService:
             # and the provider layer could still pick it up.
             row.api_key_encrypted = api_key
             row.oauth_tokens_encrypted = tokens_json
+            row.last_validated_at = None
         else:
             row = await self._llm.create(
                 LLMConfigCreate(
@@ -236,7 +223,7 @@ class LLMConfigService:
                     oauth_tokens_encrypted=tokens_json,
                 )
             )
-        await self._refresh_capability(provider_tier(provider))
+        await self._refresh_capability(llm_ready=False)
         await write_audit(
             self._session,
             workspace_id=self._ctx.workspace_id,
@@ -251,12 +238,12 @@ class LLMConfigService:
         return row
 
     async def clear_config(self) -> bool:
-        """Deactivate the active config; tier returns to env/ZERO. Returns found."""
+        """Deactivate the active config. Returns whether one existed."""
         existing = await self.get_active()
         if existing is None:
             return False
         await self._llm.update(existing.id, LLMConfigUpdate(is_active=False))
-        await self._refresh_capability(CoreTier.ZERO)
+        await self._refresh_capability(llm_ready=False)
         await write_audit(
             self._session,
             workspace_id=self._ctx.workspace_id,
@@ -269,65 +256,59 @@ class LLMConfigService:
         await self._session.commit()
         return True
 
-    async def _refresh_capability(self, tier: CoreTier) -> None:
-        """Recompute the materialised ``WorkspaceCapability`` for ``tier`` (M3-3).
+    async def _refresh_capability(self, *, llm_ready: bool) -> None:
+        """Recompute feature and autonomy state after an LLM status change.
 
         Preserves non-flag entries in ``features_json`` (notably the M2-9
-        ``routing_overrides``) while overwriting the boolean feature flags. ZERO
-        forces autonomy back to MANUAL.
+        ``routing_overrides``) while overwriting the boolean feature flags. An
+        unavailable LLM forces autonomy back to MANUAL.
         """
         embeddings = resolve_embeddings()
-        flags = compute_features(tier, embeddings)
+        flags = compute_features(llm_ready, embeddings)
         current = await self._caps.get(self._ctx.workspace_id)
         merged: dict[str, object] = dict(current.features_json) if current else {}
         merged.update(flags)
 
-        if tier is CoreTier.ZERO:
+        if not llm_ready:
             autonomy = AutonomyLevel.MANUAL
         elif current is not None and current.autonomy_level is not AutonomyLevel.MANUAL:
             autonomy = current.autonomy_level
         else:
-            default = compute_autonomy(tier).default
+            default = compute_autonomy(True).default
             autonomy = AutonomyLevel(CoreAutonomy(default).value)
 
         await self._caps.upsert(
             self._ctx.workspace_id,
-            tier=Tier(tier.value),
             autonomy=autonomy,
             features=merged,
         )
 
-    async def test_connection(
-        self, *, provider: str, model: str, api_key: str | None, base_url: str | None
-    ) -> tuple[bool, int, str, str | None, str | None]:
-        """Round-trip a 1-token completion. Returns (ok, latency_ms, echo, code, msg).
+    async def test_connection(self) -> tuple[bool, int, str, str | None, str | None]:
+        """Validate the saved active config with a 1-token completion."""
+        active = await self.get_active()
+        if active is None:
+            return (
+                False,
+                0,
+                "",
+                "CONFIG_NOT_SAVED",
+                "Save the LLM configuration before testing it.",
+            )
 
-        An OAuth provider has no key to test with: its bearer, endpoint and any
-        account header live on the stored config, so the test resolves that
-        instead of the (empty) credential fields the form submitted.
-        """
-        extra_headers: dict[str, str] | None = None
-        if api_key is None and provider.strip().lower() in OAUTH_BACKENDS:
-            active = await self.get_active()
-            if active is None or active.provider != provider.strip().lower():
-                return (False, 0, "", "NOT_SIGNED_IN", "sign in before testing this provider")
-            from suitest_api.services.llm_credentials import resolve_for_config
+        from suitest_api.services.llm_credentials import provider_for_config
 
-            credential = await resolve_for_config(self._session, active)
-            api_key = credential.api_key
-            base_url = credential.base_url
-            extra_headers = credential.extra_headers or None
-
-        impl = get_provider(
-            provider, api_key=api_key, base_url=base_url, extra_headers=extra_headers
-        )
+        start = time.perf_counter()
+        try:
+            impl = await provider_for_config(self._session, active)
+        except CredentialError as exc:
+            latency = int((time.perf_counter() - start) * 1000)
+            return (False, latency, "", exc.code, exc.message)
         call = ModelCall(
-            model=model,
+            model=active.model,
             messages=[ChatMessage(role="user", content="ping")],
             max_tokens=1,
             temperature=0.0,
         )
-        start = time.perf_counter()
         try:
             result = await impl.complete(call)
         except ProviderError as exc:
@@ -335,10 +316,7 @@ class LLMConfigService:
             code = "PROVIDER_AUTH" if "auth" in exc.message.lower() else exc.code
             return (False, latency, "", code, exc.message)
         latency = int((time.perf_counter() - start) * 1000)
-        active = await self.get_active()
-        if active is not None:
-            await self._llm.update(
-                active.id, LLMConfigUpdate(last_validated_at=datetime.now(tz=UTC))
-            )
-            await self._session.commit()
+        await self._llm.update(active.id, LLMConfigUpdate(last_validated_at=datetime.now(tz=UTC)))
+        await self._refresh_capability(llm_ready=True)
+        await self._session.commit()
         return (True, latency, result.model, None, None)

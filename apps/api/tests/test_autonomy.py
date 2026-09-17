@@ -2,29 +2,39 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy import select
 from suitest_db.models.audit import AuditLog
+from suitest_db.models.llm_config import LLMConfig
 from suitest_db.models.workspace_capability import WorkspaceCapability
-from suitest_shared.domain.enums import AutonomyLevel, Role, Tier
+from suitest_shared.domain.enums import AutonomyLevel, Role
 
 if TYPE_CHECKING:
     from api_harness import ApiDb
 
 
-async def _capability(api_db: ApiDb, ws_id: str, *, tier: Tier) -> None:
-    await api_db.add_all(
-        [
-            WorkspaceCapability(
+async def _capability(api_db: ApiDb, ws_id: str, *, llm_ready: bool) -> None:
+    rows: list[object] = [
+        WorkspaceCapability(
+            workspace_id=ws_id,
+            autonomy_level=AutonomyLevel.MANUAL,
+            features_json={},
+        )
+    ]
+    if llm_ready:
+        rows.append(
+            LLMConfig(
                 workspace_id=ws_id,
-                tier=tier,
-                autonomy_level=AutonomyLevel.MANUAL,
-                features_json={},
+                provider="mock",
+                model="test-model",
+                is_active=True,
+                last_validated_at=datetime.now(UTC),
             )
-        ]
-    )
+        )
+    await api_db.add_all(rows)
 
 
 @pytest.mark.asyncio
@@ -43,11 +53,11 @@ async def test_get_defaults_manual(api_db: ApiDb) -> None:
 
 
 @pytest.mark.asyncio
-async def test_zero_tier_rejects_non_manual(api_db: ApiDb) -> None:
+async def test_missing_llm_rejects_non_manual(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="auto-zero@example.com")
     ws = await api_db.seed_workspace(slug="auto-zero-ws", name="auto-zero-ws")
     await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.ADMIN)
-    await _capability(api_db, ws.id, tier=Tier.ZERO)
+    await _capability(api_db, ws.id, llm_ready=False)
     async with api_db.client(user) as c:
         resp = await c.put(
             f"/api/v1/workspaces/{ws.id}/autonomy",
@@ -63,7 +73,7 @@ async def test_set_level_and_overrides_persists_and_audits(api_db: ApiDb) -> Non
     user = await api_db.seed_user(email="auto-set@example.com")
     ws = await api_db.seed_workspace(slug="auto-set-ws", name="auto-set-ws")
     await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.ADMIN)
-    await _capability(api_db, ws.id, tier=Tier.CLOUD)
+    await _capability(api_db, ws.id, llm_ready=True)
     async with api_db.client(user) as c:
         resp = await c.put(
             f"/api/v1/workspaces/{ws.id}/autonomy",
@@ -106,7 +116,7 @@ async def test_unknown_override_key_rejected(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="auto-unknown@example.com")
     ws = await api_db.seed_workspace(slug="auto-unknown-ws", name="auto-unknown-ws")
     await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.ADMIN)
-    await _capability(api_db, ws.id, tier=Tier.CLOUD)
+    await _capability(api_db, ws.id, llm_ready=True)
     async with api_db.client(user) as c:
         resp = await c.put(
             f"/api/v1/workspaces/{ws.id}/autonomy",
@@ -122,7 +132,7 @@ async def test_viewer_cannot_set(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="auto-viewer@example.com")
     ws = await api_db.seed_workspace(slug="auto-viewer-ws", name="V")
     await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.VIEWER)
-    await _capability(api_db, ws.id, tier=Tier.CLOUD)
+    await _capability(api_db, ws.id, llm_ready=True)
     async with api_db.client(user) as c:
         resp = await c.put(
             f"/api/v1/workspaces/{ws.id}/autonomy",

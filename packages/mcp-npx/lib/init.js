@@ -2,7 +2,7 @@
 
 /**
  * `suitest-mcp init` — zero-config onboarding. Detects the IDE + app framework,
- * asks local vs server, then writes `suitest.config.json` and the MCP config.
+ * asks for the Suitest server credentials, then writes both configs.
  *
  * The MCP config write is delegated to the EXISTING merge-safe writer
  * (`install.installClient`) — never a second writer. init only points that
@@ -91,40 +91,25 @@ async function runInit(opts) {
     fw = { framework: "unknown", mode: "frontend", baseUrl };
   }
 
-  // 3. Mode local/server
-  let mode = opts.mode;
-  if (!mode && !opts.yes) {
-    const pick = await ask(
-      "Mode: 1) Local (SQLite, no server)  2) Connect a server  [1]: ",
-      "1",
-    );
-    mode = pick === "2" ? "server" : "local";
+  if (opts.mode && opts.mode !== "server") {
+    throw new Error("local MCP mode was removed; connect to a Suitest server with an API key.");
   }
-  mode = mode || "local";
 
-  // 4. env block for the mcpServers entry
-  let serverEnv;
-  if (mode === "local") {
-    serverEnv = { SUITEST_MODE: "local" };
-  } else {
-    // Under --yes (CI/non-interactive) never block on stdin: flags only.
-    const apiUrl = opts.apiUrl
-      ? opts.apiUrl
-      : opts.yes
-        ? "http://localhost:4000"
-        : await ask("SUITEST_API_URL [http://localhost:4000]: ", "http://localhost:4000");
-    const apiKey = opts.apiKey
-      ? opts.apiKey
-      : opts.yes
-        ? ""
-        : await askSecret("SUITEST_API_KEY (sk_suitest_…): ");
-    if (!apiKey) {
-      throw new Error(
-        "server mode needs SUITEST_API_KEY — pass --api-key or run `login` first.",
-      );
-    }
-    serverEnv = { SUITEST_API_URL: apiUrl, SUITEST_API_KEY: apiKey };
+  // 3. MCP always talks to Suitest; workspace LLM readiness is checked at startup.
+  const apiUrl = opts.apiUrl
+    ? opts.apiUrl
+    : opts.yes
+      ? "http://localhost:4000"
+      : await ask("SUITEST_API_URL [http://localhost:4000]: ", "http://localhost:4000");
+  const apiKey = opts.apiKey
+    ? opts.apiKey
+    : opts.yes
+      ? ""
+      : await askSecret("SUITEST_API_KEY (sk_suitest_…): ");
+  if (!apiKey) {
+    throw new Error("SUITEST_API_KEY is required — pass --api-key or run `login` first.");
   }
+  const serverEnv = { SUITEST_API_URL: apiUrl, SUITEST_API_KEY: apiKey };
 
   // 5. Write both files
   const cfg = scaffoldConfig(cwd, {
@@ -136,7 +121,7 @@ async function runInit(opts) {
 
   return {
     ide,
-    mode,
+    mode: "server",
     framework: fw.framework,
     baseUrl: fw.baseUrl,
     configCreated: cfg.created,

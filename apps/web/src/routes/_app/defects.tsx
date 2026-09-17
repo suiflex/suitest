@@ -47,8 +47,7 @@ function statusBadgeForDefect(status: Defect["status"]): "fail" | "warn" | "neut
 }
 
 function DefectCard({ defect }: { defect: Defect }): React.ReactElement {
-  const tier = useCapabilities((s) => s.capabilities?.tier);
-  const showAgent = tier !== "ZERO";
+  const showAgent = useCapabilities((s) => s.capabilities?.llm.status === "ready");
   const navigate = useNavigate();
   const fetchDetail = useFetchDefectDetail();
 

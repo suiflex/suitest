@@ -26,7 +26,6 @@ from suitest_db.seed import (
 from suitest_shared.domain.enums import (
     AutonomyLevel,
     RunStatus,
-    Tier,
 )
 
 if TYPE_CHECKING:
@@ -96,8 +95,6 @@ async def test_seed_five_runs_with_correct_outcomes(session: AsyncSession) -> No
     assert by_status.get(RunStatus.PASS) == 2
     assert by_status.get(RunStatus.FAIL) == 2
     assert by_status.get(RunStatus.ERROR) == 1
-    # All runs captured tier_at_runtime=ZERO (CLAUDE.md ZERO-tier-first).
-    assert all(r.tier_at_runtime == Tier.ZERO for r in rows)
 
 
 @pytest.mark.asyncio
@@ -129,11 +126,10 @@ async def test_seed_nine_integrations_mixed_status(session: AsyncSession) -> Non
 
 
 @pytest.mark.asyncio
-async def test_seed_capability_zero_manual(session: AsyncSession) -> None:
+async def test_seed_capability_manual(session: AsyncSession) -> None:
     await Seeder(session).run_all()
     await session.commit()
 
     cap = await session.scalar(select(WorkspaceCapability))
     assert cap is not None
-    assert cap.tier == Tier.ZERO
     assert cap.autonomy_level == AutonomyLevel.MANUAL

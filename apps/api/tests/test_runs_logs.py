@@ -12,7 +12,7 @@ import pytest
 from suitest_db.models.project import Project
 from suitest_db.models.run import Run
 from suitest_db.models.run_step_log import RunStepLog
-from suitest_shared.domain.enums import RunTrigger, Tier
+from suitest_shared.domain.enums import RunTrigger
 
 if TYPE_CHECKING:
     from api_harness import ApiDb
@@ -29,7 +29,6 @@ async def test_logs_paginate_500(api_db: ApiDb) -> None:
         project_id=proj.id,
         name="r",
         trigger=RunTrigger.MANUAL,
-        tier_at_runtime=Tier.ZERO,
     )
     await api_db.add_all([run])
 

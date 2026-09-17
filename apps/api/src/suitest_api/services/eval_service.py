@@ -1,7 +1,7 @@
 """Eval harness (M4-8) — scores generator/diagnosis quality against golden fixtures.
 
 Runs the three fixture suites shipped under ``eval/fixtures`` (M4-8a) through
-DETERMINISTIC scorers so the harness is green at ZERO tier (DoD: eval must pass
+DETERMINISTIC scorers so the harness is green without an LLM (DoD: eval must pass
 in ZERO before any LLM enrichment):
 
 * ``prds`` — count derivable user-story cases ≥ ``min_cases``.

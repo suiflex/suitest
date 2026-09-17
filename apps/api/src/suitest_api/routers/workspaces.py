@@ -150,7 +150,7 @@ async def create_workspace(
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> WorkspacePublic:
-    """Create a workspace; the caller becomes its OWNER (bootstrap, ZERO-safe).
+    """Create a workspace; the caller becomes its OWNER without requiring an LLM.
 
     No membership/role gate — a user with zero workspaces must be able to make
     their first one (dogfood blocker #1). Slug collisions return 409
@@ -264,7 +264,6 @@ async def update_workspace(
             workspace_id,
             name=body.name,
             description=body.description,
-            strict_zero_validation=body.strict_zero_validation,
             mcp_routing_overrides=body.mcp_routing_overrides,
         )
     except WorkspaceServiceError as exc:

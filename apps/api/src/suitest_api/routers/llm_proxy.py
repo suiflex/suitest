@@ -6,8 +6,7 @@ session — the ``suitest test`` lifecycle uses its publish API key, so the
 provider key NEVER leaves the server (CLAUDE.md: all AI calls go through
 ``packages/agent``; LLM providers are per-workspace, AES-encrypted).
 
-Tier gating is implicit: a workspace with no active LLM config *is* ZERO tier
-and gets a 409 — the lifecycle degrades to its deterministic baseline.
+The endpoint rejects workspaces whose active LLM has not been validated.
 """
 
 from __future__ import annotations
@@ -56,10 +55,10 @@ async def llm_complete(
 ) -> LlmCompleteResponse:
     """Proxy one completion through the workspace's active LLM provider."""
     config = await LLMConfigRepo(session).get_active(ctx.workspace_id)
-    if config is None:
+    if config is None or config.last_validated_at is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="no active LLM configured for this workspace",
+            detail="a validated active LLM is required for this workspace",
         )
     provider = await provider_for_config(session, config)
     messages: list[ChatMessage] = []

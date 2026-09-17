@@ -12,7 +12,7 @@ from suitest_api.services.run_service import RunArtifactSignedUrlService, RunSer
 from suitest_db.models.project import Project
 from suitest_db.models.run import Artifact, Run
 from suitest_db.repositories.runs import RunSummary
-from suitest_shared.domain.enums import ArtifactKind, Role, RunStatus, RunTrigger, Tier
+from suitest_shared.domain.enums import ArtifactKind, Role, RunStatus, RunTrigger
 
 _NOW = datetime(2026, 5, 28, tzinfo=UTC)
 
@@ -37,7 +37,6 @@ def _run() -> Run:
         project_id="proj_1",
         name="nightly",
         trigger=RunTrigger.MANUAL,
-        tier_at_runtime=Tier.ZERO,
         env="staging",
         status=RunStatus.PASS,
         total_steps=3,

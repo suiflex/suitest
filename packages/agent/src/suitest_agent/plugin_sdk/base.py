@@ -17,14 +17,13 @@ from abc import ABC, abstractmethod
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 _SLUG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-_VALID_TIERS = frozenset({"ZERO", "LOCAL", "CLOUD"})
 
 
 class AgentPluginSpec(BaseModel):
     """YAML-serialisable descriptor for a custom agent plugin (M8-1).
 
     ``name`` must be a valid slug (kebab-case, no spaces) and unique within the
-    workspace. ``requires_tier`` gates which deployments may activate this plugin.
+    workspace. Agent plugins require the workspace LLM to be ready.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -66,19 +65,8 @@ class AgentPluginSpec(BaseModel):
             "Empty list means the agent handles all target kinds."
         ),
     )
-    requires_tier: str = Field(
-        default="ZERO",
-        description="Minimum tier required to activate. One of: 'ZERO', 'LOCAL', 'CLOUD'.",
-    )
     author: str | None = Field(default=None, description="Plugin author name or email.")
     homepage: str | None = Field(default=None, description="URL to plugin docs / repo.")
-
-    @field_validator("requires_tier")
-    @classmethod
-    def _validate_tier(cls, v: str) -> str:
-        if v not in _VALID_TIERS:
-            raise ValueError(f"requires_tier must be one of {sorted(_VALID_TIERS)}, got {v!r}")
-        return v
 
     @field_validator("name")
     @classmethod

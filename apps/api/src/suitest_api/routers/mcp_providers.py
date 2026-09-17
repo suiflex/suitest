@@ -47,11 +47,12 @@ from suitest_mcp.models import McpProviderConfig as ProbeConfig
 from suitest_mcp.models import McpTransport as ProbeTransport
 from suitest_mcp.providers.builtin_specs import BUILTIN_SPECS
 from suitest_mcp.routing import DEFAULT_ROUTING
-from suitest_shared.domain.enums import AutonomyLevel, McpTransport, Role, TargetKind, Tier
+from suitest_shared.domain.enums import AutonomyLevel, McpTransport, Role, TargetKind
 
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
+from suitest_api.deps.tier import ensure_llm_ready, require_llm_ready
 
 router = APIRouter(prefix="/api/v1", tags=["mcp"])
 
@@ -469,6 +470,7 @@ async def create_mcp_provider(
     config_json = _build_config_json(body.transport, body.endpoint, body.config_json)
     discovery: DiscoveryResult | None = None
     if body.validate_on_register:
+        await ensure_llm_ready(session, ctx.workspace_id)
         try:
             discovery = await discover_provider(
                 _probe_config(
@@ -519,12 +521,14 @@ async def create_mcp_provider(
 async def test_mcp_connection(
     body: McpProviderCreateBody,
     ctx: TenantContext = Depends(require_role(_WRITE_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
 ) -> McpProviderProbeResult:
     """Dry-run connect + ``tools/list`` without persisting (M2-7 register modal).
 
     Lets the UI flip the form's status pill before the user saves. Failures
     surface as ``422 MCP_REGISTRATION_FAILED``.
     """
+    await ensure_llm_ready(session, ctx.workspace_id)
     try:
         discovery = await discover_provider(
             _probe_config(
@@ -615,6 +619,7 @@ async def delete_mcp_provider(
 
 
 @router.post("/mcp/providers/{provider_id}/discover", response_model=McpProviderDetail)
+@require_llm_ready
 async def discover_mcp_provider(
     provider_id: str,
     ctx: TenantContext = Depends(require_role(_WRITE_ROLES)),
@@ -659,6 +664,7 @@ async def discover_mcp_provider(
 
 
 @router.post("/mcp/providers/{provider_id}/invoke", response_model=McpInvokeResult)
+@require_llm_ready
 async def invoke_mcp_provider(
     provider_id: str,
     body: McpInvokeBody,
@@ -825,7 +831,6 @@ async def put_mcp_routing(
     features["routing_overrides"] = new_overrides
     await repo.upsert(
         ctx.workspace_id,
-        tier=Tier(cap.tier) if cap else Tier.ZERO,
         autonomy=AutonomyLevel(cap.autonomy_level) if cap else AutonomyLevel.MANUAL,
         features=features,
     )

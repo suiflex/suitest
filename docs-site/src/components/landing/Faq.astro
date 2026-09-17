@@ -3,7 +3,7 @@
 const faqs = [
   {
     q: "Do I need an OpenAI or Anthropic API key?",
-    a: "No. The ZERO tier runs manual test management and deterministic tests with no LLM at all. When your MCP client supports sampling (Claude Code does), generation runs on the model subscription you already pay for. A provider API key is a third option, configured per workspace, never a requirement.",
+    a: "Not specifically. Manual test management works before an LLM is connected. To use MCP, runs, and AI workflows, connect and validate any supported provider in workspace settings: a hosted API, a self-hosted model, or a supported sign-in provider.",
   },
   {
     q: "What does Suitest cost?",
@@ -27,7 +27,7 @@ const faqs = [
   },
   {
     q: "What data leaves my machine?",
-    a: "In a self-hosted deployment, nothing. LLM calls only go to the provider you explicitly configure for the workspace, or nowhere at all in the ZERO tier.",
+    a: "Suitest sends LLM requests only to the provider explicitly configured for the workspace. Choose a self-hosted provider to keep inference on your infrastructure. Provider secrets stay encrypted on the Suitest server and are never sent to the MCP client.",
   },
   {
     q: "How does it run in CI?",

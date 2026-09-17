@@ -5,7 +5,7 @@ const modes = [
   {
     name: "Local bundle",
     who: "A solo developer, one laptop",
-    body: "The full platform in one command: web dashboard, API on SQLite, run supervisor, and your IDE's MCP config. No Docker, no LLM key.",
+    body: "The full platform in one command: web dashboard, API on SQLite, run supervisor, and your IDE's MCP config. No Docker; connect a workspace model before running tests.",
     code: "npx @suiflex/suitest onboard",
     link: "/docs/install/local-bundle/",
     linkLabel: "Local bundle guide",
@@ -21,7 +21,7 @@ const modes = [
   {
     name: "Kubernetes",
     who: "Platform teams, air-gapped environments",
-    body: "Helm chart with values for the LOCAL tier, so generation and diagnosis can run on cluster-hosted models with zero egress.",
+    body: "Helm chart for production, including cluster-hosted models for generation and diagnosis with zero egress.",
     code: "helm install suitest infra/helm/suitest \\\n  -f infra/helm/suitest/values.yaml",
     link: "/docs/install/kubernetes/",
     linkLabel: "Kubernetes guide",

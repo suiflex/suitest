@@ -23,7 +23,7 @@ from suitest_db.models.case import TestCase
 from suitest_db.public_id import generate_public_id, set_workspace_id
 from suitest_db.repositories.runs import RunCreate, RunRepo
 from suitest_db.repositories.test_cases import TestCaseCreate, TestCaseRepo
-from suitest_shared.domain.enums import CaseSource, RunTrigger, Tier
+from suitest_shared.domain.enums import CaseSource, RunTrigger
 
 
 @pytest.mark.asyncio
@@ -70,7 +70,6 @@ async def test_generate_public_id_increments_per_workspace_prefix(
             project_id=project_a.id,
             name="run-0",
             trigger=RunTrigger.MANUAL,
-            tier_at_runtime=Tier.ZERO,
         ),
         workspace_id=ws_a.id,
     )

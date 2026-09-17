@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Go from zero to your first agent-generated test run in about ten minutes, with or without a Suitest server.
+description: Connect Suitest to your IDE and run your first generated test in about ten minutes.
 ---
 
 This is the 10-minute path: pick an install route, run one setup command,
@@ -11,13 +11,11 @@ restart your IDE, and ask the agent to test your app.
 | Route | What you get | Needs |
 |-------|--------------|-------|
 | **Local bundle** | The full platform on your laptop — dashboard + SQLite + MCP wiring in one command, no Docker | Node 18+, uv |
-| **MCP server only** | Your IDE agent generates and runs tests; results stay on disk in your repo | Node 18+, Python 3.11+ |
+| **MCP client setup** | Your IDE agent connects to an existing Suitest workspace | Node 18+, Python 3.11+, API URL + key |
 | **Full platform (server)** | Everything above on Postgres + object storage, shared by the whole team | Docker |
 
-Solo and want the dashboard? `npx @suiflex/suitest onboard` does all of
-Route 1 for you and boots the dashboard — see
-[Local bundle](/docs/install/local-bundle/). Otherwise start with the MCP
-server; you can add a platform later and reconnect with one command.
+Solo and want the dashboard? `npx @suiflex/suitest onboard` boots it locally
+and creates the API credentials — see [Local bundle](/docs/install/local-bundle/).
 
 ## Route 1: MCP server in your IDE
 
@@ -34,8 +32,7 @@ npx -y @suiflex/suitest-mcp init
 SvelteKit, Astro, Remix, Qwik, Gatsby, CRA, Vite, Vue, Angular) and backend
 across Node (Express, NestJS, Fastify, Koa, Hapi, AdonisJS), Python (Django,
 FastAPI, Flask), Ruby (Rails), PHP (Laravel), Go (Gin, Echo, Fiber), and Rust
-(Actix Web, Axum, Rocket) — then asks one question: local or server. Pick
-**local** for now; it needs no API key.
+(Actix Web, Axum, Rocket). It asks for the Suitest API URL and key.
 
 It writes two files:
 
@@ -45,6 +42,9 @@ It writes two files:
 
 Full flag reference and per-IDE details:
 [Install the MCP server](/docs/install/mcp-server/).
+
+Before restarting the IDE, open **Settings, then LLM** in Suitest and validate
+the workspace provider. MCP startup stops when the workspace is not ready.
 
 ### 2. Restart your IDE
 
@@ -103,7 +103,7 @@ run history, evidence playback, defects, and analytics.
 ```bash
 git clone https://github.com/suiflex/suitest && cd suitest
 cp .env.example .env    # set secrets + super-admin, see the install guide
-docker compose -f infra/docker/docker-compose.yml --profile zero up -d
+make docker-up
 ```
 
 Open <http://localhost:3000> and log in with the super-admin credentials from
@@ -112,15 +112,14 @@ your `.env`. Full walkthrough, including every `.env` value worth changing:
 
 ### 2. Connect your IDE to it
 
-Create an API key in the web UI, then re-run init in server mode:
+Configure and validate an LLM, create an API key in the web UI, then run init:
 
 ```bash
-npx -y @suiflex/suitest-mcp init --mode server \
+npx -y @suiflex/suitest-mcp init \
   --api-url http://localhost:4000 --api-key sk_suitest_xxx
 ```
 
-From now on, the same agent workflow publishes cases, runs, and evidence into
-the web TCM instead of keeping them only on disk.
+The agent workflow publishes cases, runs, and evidence into the web TCM.
 
 ### 3. Same first prompt
 

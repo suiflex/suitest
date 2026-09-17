@@ -3,7 +3,7 @@
 Role rules (mirrors ``docs/API.md §3.1``):
 
 * ``PATCH /workspaces/:id`` (General):
-  - ``name`` / ``description`` / ``strict_zero_validation`` / ``mcp_routing_overrides``
+  - ``name`` / ``description`` / ``mcp_routing_overrides``
     require ``ADMIN`` or ``OWNER``.
   - ``slug`` is **immutable** — POSTing it raises ``IMMUTABLE_SLUG`` (400) at
     the router (the DTO already forbids the field; the router converts the
@@ -32,7 +32,6 @@ from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from suitest_core.capabilities import TierFlag
 from suitest_db.audit import write_audit
 from suitest_db.models.tenancy import Membership
 from suitest_db.models.workspace import Workspace
@@ -42,16 +41,14 @@ from suitest_db.repositories.workspace_members import (
     create_placeholder_user,
 )
 from suitest_db.repositories.workspaces import WorkspaceRepo
-from suitest_shared.domain.enums import AutonomyLevel, Role, Tier
+from suitest_shared.domain.enums import AutonomyLevel, Role
 from suitest_shared.schemas.responses import WorkspaceOut
 
 from suitest_api.deps.scope import TenantContext
-from suitest_api.deps.tier import require_tier
 from suitest_api.utils.slug import slugify
 
 # ``WorkspaceOut`` (shared package) covers the M1a list/detail summary surface.
-# The Settings General-tab response carries ``strict_zero_validation`` +
-# ``mcp_routing_overrides`` in addition — the router serialises those via
+# The Settings General-tab response carries ``mcp_routing_overrides`` — the router serialises it via
 # :class:`WorkspaceDetail` (defined in :mod:`suitest_api.schemas.workspace`).
 # The service returns the ORM row so the router can pick whichever DTO matches
 # the endpoint. We re-export :class:`WorkspaceOut` so callers can keep validating
@@ -182,7 +179,6 @@ async def _next_workspace_slug(repo: WorkspaceRepo, requested: str | None, *, na
     return candidate
 
 
-@require_tier(TierFlag.ANY)
 async def create_workspace_for_user(
     session: AsyncSession,
     *,
@@ -191,7 +187,7 @@ async def create_workspace_for_user(
     slug: str | None,
     region: str | None = None,
 ) -> WorkspaceCreateResult:
-    """Create a workspace owned by ``user_id`` and seed a ZERO-tier capability.
+    """Create a workspace owned by ``user_id`` and seed no-LLM capabilities.
 
     Bootstrap path (``POST /workspaces``): a freshly-registered or invited user
     has no workspace, so this is how they get their first one entirely from the
@@ -219,7 +215,6 @@ async def create_workspace_for_user(
     session.add(
         WorkspaceCapability(
             workspace_id=workspace.id,
-            tier=Tier.ZERO,
             autonomy_level=AutonomyLevel.MANUAL,
             features_json={},
         )
@@ -259,12 +254,10 @@ class WorkspaceService:
 
     # -- reads ---------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def list_for_user(self) -> list[WorkspaceOut]:
         rows = await self._repo.list_for_user(uuid.UUID(self._ctx.user_id))
         return [WorkspaceOut.model_validate(r) for r in rows]
 
-    @require_tier(TierFlag.ANY)
     async def get_by_id_for_user(self, workspace_id: str) -> WorkspaceOut | None:
         rows = await self._repo.list_for_user(uuid.UUID(self._ctx.user_id))
         for r in rows:
@@ -293,14 +286,12 @@ class WorkspaceService:
 
     # -- PATCH /workspaces/:id ----------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def update_settings(
         self,
         workspace_id: str,
         *,
         name: str | None,
         description: str | None,
-        strict_zero_validation: bool | None,
         mcp_routing_overrides: dict[str, str] | None,
     ) -> WorkspaceWriteResult | None:
         """Apply the General-tab patch. Returns ``None`` for unknown / soft-deleted ws.
@@ -321,12 +312,6 @@ class WorkspaceService:
         if name is not None and ws.name != name:
             ws.name = name
             changed.append("name")
-        if (
-            strict_zero_validation is not None
-            and ws.strict_zero_validation != strict_zero_validation
-        ):
-            ws.strict_zero_validation = strict_zero_validation
-            changed.append("strict_zero_validation")
         if mcp_routing_overrides is not None and dict(ws.mcp_routing_overrides) != dict(
             mcp_routing_overrides
         ):
@@ -366,7 +351,6 @@ class WorkspaceService:
 
     # -- POST /workspaces/:id/members ---------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def invite_member(
         self, workspace_id: str, *, email: str, role: Role
     ) -> MemberWriteResult | None:
@@ -420,7 +404,6 @@ class WorkspaceService:
 
     # -- PATCH /workspaces/:id/members/:user_id -----------------------------
 
-    @require_tier(TierFlag.ANY)
     async def change_member_role(
         self, workspace_id: str, user_id: uuid.UUID, *, role: Role
     ) -> MemberWriteResult | None:
@@ -472,7 +455,6 @@ class WorkspaceService:
 
     # -- DELETE /workspaces/:id/members/:user_id ----------------------------
 
-    @require_tier(TierFlag.ANY)
     async def remove_member(
         self, workspace_id: str, user_id: uuid.UUID
     ) -> MemberWriteResult | None:
@@ -518,7 +500,6 @@ class WorkspaceService:
 
     # -- DELETE /workspaces/:id ---------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def initiate_delete(
         self, workspace_id: str, *, confirm_slug: str
     ) -> WorkspaceDeleteResult | None:

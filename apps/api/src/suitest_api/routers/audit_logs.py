@@ -5,8 +5,8 @@ pagination (opaque base64 of ``(created_at, id)``), full filter set
 (``action`` glob, ``resource_type`` exact, ``user_id`` exact, ``from`` / ``to``
 inclusive datetime range, ``limit`` ≤ 200), and ADMIN+ role gating.
 
-ZERO-tier compatible — no ``require_tier(...)`` introduced. Cross-workspace
-isolation is enforced by ``require_workspace_membership`` (only resolves the
+This manual read surface does not require an LLM. Cross-workspace isolation is
+enforced by ``require_workspace_membership`` (only resolves the
 tenant context after a membership lookup on ``X-Workspace-Id``); the repository
 query additionally constrains every row to ``ctx.workspace_id`` so a cursor
 forged from another workspace's row simply returns an empty page rather than

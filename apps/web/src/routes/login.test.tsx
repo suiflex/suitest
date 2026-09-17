@@ -44,8 +44,7 @@ function renderLogin(initialPath = "/login"): { queryClient: QueryClient } {
  */
 function mockOAuth(enabled: boolean): void {
   const caps: Capabilities = {
-    tier: "ZERO",
-    llm: { provider: null, model: null, base_url: null, is_test_provider: false },
+    llm: { status: "not_configured", provider: null, model: null, base_url: null, is_test_provider: false },
     embeddings: { enabled: false, backend: "none", model: null, dim: null },
     features: {
       manual_tcm: true,

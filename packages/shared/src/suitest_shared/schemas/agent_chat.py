@@ -3,7 +3,7 @@
 ``POST /agent/chat`` accepts a message history and streams the assistant reply as
 SSE token frames (``event: token``), emitting a ``tool`` frame (mirrored on the
 WS gateway) when the model requests a tool call, and a terminal ``done`` frame
-with the full content + usage. CLOUD/LOCAL only.
+with the full content + usage. Requires a validated workspace LLM.
 """
 
 from __future__ import annotations

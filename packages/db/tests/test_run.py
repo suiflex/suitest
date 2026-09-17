@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.ids import new_id
 from suitest_db.models.case import TestCase
@@ -16,7 +15,6 @@ from suitest_shared.domain.enums import (
     RunStatus,
     RunTrigger,
     StepOutcome,
-    Tier,
 )
 
 
@@ -49,25 +47,10 @@ async def _run(session: AsyncSession, project: Project) -> Run:
         name="Run",
         trigger=RunTrigger.MANUAL,
         status=RunStatus.QUEUED,
-        tier_at_runtime=Tier.ZERO,
     )
     session.add(run)
     await session.flush()
     return run
-
-
-@pytest.mark.asyncio
-async def test_run_requires_tier_at_runtime(session: AsyncSession) -> None:
-    project = await _project(session)
-    run = Run(
-        public_id=f"R-{new_id()}",
-        project_id=project.id,
-        name="Run",
-        trigger=RunTrigger.MANUAL,
-    )  # tier_at_runtime omitted
-    session.add(run)
-    with pytest.raises(IntegrityError):
-        await session.flush()
 
 
 @pytest.mark.asyncio
@@ -147,7 +130,6 @@ async def test_run_metadata_json_roundtrip(session: AsyncSession) -> None:
         project_id=project.id,
         name="Run",
         trigger=RunTrigger.MANUAL,
-        tier_at_runtime=Tier.ZERO,
         metadata_json={"k": "v"},
     )
     session.add(run)

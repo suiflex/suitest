@@ -21,7 +21,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { LanguageSwitcher } from "@/components/shell/LanguageSwitcher";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
-import { TierBadge } from "@/components/shared/TierBadge";
+import { LlmStatusBadge } from "@/components/shared/LlmStatusBadge";
 import { Button } from "@/components/ui/button";
 import {
   CommandDialog,
@@ -221,7 +221,7 @@ export function Topbar({
             </a>
           </IconTip>
 
-          <TierBadge />
+          <LlmStatusBadge />
 
           {/* + New (disabled in M1b) */}
           <Tooltip>

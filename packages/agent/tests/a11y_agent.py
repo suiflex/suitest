@@ -1,7 +1,6 @@
 """A11yAgent — example plugin for WCAG 2.2 accessibility checks (M8-2).
 
-Registers under name ``a11y-agent``.  Requires LOCAL tier (runs fine on a local
-model).  Focuses on ARIA labels, contrast ratios, keyboard navigation, and
+Registers under name ``a11y-agent``. Focuses on ARIA labels, contrast ratios, keyboard navigation, and
 WCAG 2.2 compliance.
 
 To activate, ship the class in an installed package and declare the entry point::
@@ -49,7 +48,6 @@ class A11yAgent(AgentPluginBase):
         ],
         model_preference="claude-haiku-4-5-20251001",
         target_kind_filter=["FE_WEB", "FE_MOBILE"],
-        requires_tier="LOCAL",
         author="Suitest OSS contributors",
         homepage="https://github.com/suiflex/suitest",
     )

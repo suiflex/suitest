@@ -16,8 +16,7 @@ import { Topbar } from "@/components/shell/Topbar";
 import { useCapabilities, type Capabilities } from "@/stores/use-capabilities";
 
 const ZERO_CAPS: Capabilities = {
-  tier: "ZERO",
-  llm: { provider: "none", model: null, base_url: null, is_test_provider: false },
+  llm: { status: "not_configured", provider: null, model: null, base_url: null, is_test_provider: false },
   embeddings: { enabled: false, backend: "none", model: null, dim: null },
   features: {
     manual_tcm: true,
@@ -102,9 +101,9 @@ describe("<Topbar>", () => {
     });
   });
 
-  it("renders the tier badge slot from useCapabilities", async () => {
+  it("renders the LLM status badge slot", async () => {
     await renderTopbar("/dashboard");
-    expect(screen.getByTestId("tier-badge")).toHaveTextContent("ZERO");
+    expect(screen.getByTestId("llm-status-badge")).toHaveTextContent("LLM not connected");
   });
 
   it("links the sponsor icons out to GitHub Sponsors and Saweria", async () => {

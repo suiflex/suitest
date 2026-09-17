@@ -1,12 +1,12 @@
 ---
 title: Local bundle (one command)
-description: Run the full Suitest platform on your laptop with one command — web dashboard, SQLite, and MCP wiring. No Docker, no cloud services, no LLM key.
+description: Run the full Suitest platform on your laptop with one command — web dashboard, SQLite, and MCP wiring.
 ---
 
 `@suiflex/suitest` boots the entire platform locally: the web dashboard, an
 API on SQLite, a run supervisor, and your IDE's MCP config — wired together
-by a single command. No Docker, no Postgres, no S3, no LLM API key (test
-generation uses MCP sampling through your IDE agent).
+by a single command. No Docker, Postgres, or S3 is required. Configure and
+validate a workspace LLM before starting MCP or a run.
 
 ```bash
 npx @suiflex/suitest onboard
@@ -50,6 +50,7 @@ npx @suiflex/suitest onboard
    entry into your IDE's MCP config (Claude Code, Cursor, or Windsurf),
    pointed at the local API with the minted key.
 
+Open the dashboard, configure and validate an LLM under **Settings, then LLM**.
 Then restart your IDE, start your app, and prompt the agent:
 
 > Test my app at http://localhost:3000

@@ -5,8 +5,7 @@ Business rules:
 - Duplicate active name within a workspace → DuplicateAgentDefinitionError (→ 409).
 - Deactivation is soft (is_active=False); history is preserved for audit.
 - All mutations emit an explicit write_audit row.
-- The service is ZERO-tier-compatible: registering/listing definitions requires no LLM.
-  Individual agents may declare requires_tier; enforcement is at invocation time.
+- Registering and listing definitions requires no LLM; invocation does.
 """
 
 from __future__ import annotations
@@ -21,8 +20,6 @@ from suitest_db.repositories.agent_definitions import (
     AgentDefinitionCreate,
     AgentDefinitionRepo,
 )
-
-from suitest_api.deps.tier import require_tier
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,18 +49,15 @@ class AgentDefinitionService:
         self._session = session
         self._repo = AgentDefinitionRepo(session)
 
-    @require_tier()  # ZERO-compatible — no LLM needed to store definitions
     async def list_definitions(self, workspace_id: str) -> list[AgentDefinition]:
         """Return all active definitions for the workspace, newest first."""
         rows = await self._repo.list_active(workspace_id)
         return list(rows)
 
-    @require_tier()
     async def get_definition(self, workspace_id: str, name: str) -> AgentDefinition | None:
         """Return the active definition for ``name``, or ``None``."""
         return await self._repo.get_active_by_name(workspace_id, name)
 
-    @require_tier()
     async def register_definition(
         self,
         *,
@@ -101,7 +95,6 @@ class AgentDefinitionService:
         )
         return row
 
-    @require_tier()
     async def update_definition(
         self,
         *,
@@ -131,7 +124,6 @@ class AgentDefinitionService:
         )
         return row
 
-    @require_tier()
     async def deactivate_definition(
         self,
         *,

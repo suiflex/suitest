@@ -30,7 +30,7 @@ from fakeredis import aioredis as fake_aioredis
 from redis.asyncio import Redis as AsyncRedis
 from suitest_mcp.errors import McpToolFailed
 from suitest_mcp.models import McpToolResult
-from suitest_shared.domain.enums import AutonomyLevel, RunStatus, StepOutcome, TargetKind, Tier
+from suitest_shared.domain.enums import AutonomyLevel, RunStatus, StepOutcome, TargetKind
 
 # Disable OpenTelemetry exporter by default in tests — guards against a
 # BatchSpanProcessor thread leaking out of import-time setup.
@@ -99,10 +99,9 @@ def _make_run(run_id: str = "run-1", project_id: str = "proj-1") -> MagicMock:
 
 
 def _make_capability(workspace_id: str = "ws-1") -> MagicMock:
-    """Build a WorkspaceCapability stand-in pinned to ZERO tier."""
+    """Build a WorkspaceCapability stand-in."""
     cap = MagicMock()
     cap.workspace_id = workspace_id
-    cap.tier = Tier.ZERO
     cap.autonomy_level = AutonomyLevel.MANUAL
     cap.features_json = {}
     return cap
@@ -208,6 +207,11 @@ def _install_repo_stubs(
     monkeypatch.setattr(job_mod, "RunRepo", _FakeRunRepo)
     monkeypatch.setattr(job_mod, "WorkspaceCapabilityRepo", _FakeWorkspaceCapRepo)
     monkeypatch.setattr(job_mod, "RunStepRepo", _FakeRunStepRepo)
+
+    async def _ready_translator(_session: object, *, workspace_id: str) -> MagicMock:
+        return MagicMock(name=f"translator-{workspace_id}")
+
+    monkeypatch.setattr(job_mod, "_build_translator", _ready_translator)
 
 
 class _FakeRegistry:
@@ -361,9 +365,8 @@ def stub_ctx_empty(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
 def stub_ctx_auto_self_heal(
     monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[dict[str, object], _RecordingRedis]:
-    """One selector failure repaired and retried to PASS at CLOUD/auto."""
+    """One selector failure repaired and retried to PASS at auto autonomy."""
     capability = _make_capability()
-    capability.tier = Tier.CLOUD
     capability.autonomy_level = AutonomyLevel.AUTO
     capability.features_json = {}
     step = _make_step(
@@ -410,7 +413,6 @@ def stub_ctx_selector_fail(
 ) -> tuple[dict[str, object], _RecordingRedis]:
     """A non-auto selector failure is classified without mutation or retry."""
     capability = _make_capability()
-    capability.tier = Tier.CLOUD
     capability.autonomy_level = AutonomyLevel.SEMI_AUTO
     step = _make_step(
         "s0",

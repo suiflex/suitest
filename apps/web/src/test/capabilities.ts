@@ -3,19 +3,24 @@ import { act } from "react";
 import { useCapabilities, type Capabilities } from "@/stores/use-capabilities";
 
 /**
- * ZERO tier (no LLM) — the safe default. Agent surfaces collapse to empty
+ * No configured LLM — the safe default. Agent surfaces collapse to empty
  * states and AI auto-actions are disabled.
  */
 export const ZERO_CAPS: Capabilities = {
-  tier: "ZERO",
-  llm: { provider: "none", model: null, base_url: null, is_test_provider: false },
+  llm: {
+    status: "not_configured",
+    provider: null,
+    model: null,
+    base_url: null,
+    is_test_provider: false,
+  },
   embeddings: { enabled: false, backend: "none", model: null, dim: null },
   features: {
     manual_tcm: true,
-    deterministic_runner: true,
+    deterministic_runner: false,
     deterministic_generator_openapi: true,
-    deterministic_generator_recorder: true,
-    deterministic_generator_crawler: true,
+    deterministic_generator_recorder: false,
+    deterministic_generator_crawler: false,
     ai_generation: false,
     ai_execution_agentic: false,
     ai_diagnose: false,
@@ -31,12 +36,11 @@ export const ZERO_CAPS: Capabilities = {
 };
 
 /**
- * CLOUD tier with all AI features enabled. Used to assert that AI surfaces
- * render in non-ZERO tiers.
+ * Validated LLM with all AI features enabled.
  */
 export const CLOUD_CAPS: Capabilities = {
-  tier: "CLOUD",
   llm: {
+    status: "ready",
     provider: "anthropic",
     model: "claude-opus-4-7",
     base_url: null,

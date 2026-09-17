@@ -28,7 +28,6 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, NamedTuple
 
-from suitest_core.capabilities import TierFlag
 from suitest_db.audit import write_audit
 from suitest_db.repositories.defects import DefectCreate as DefectCreateRow
 from suitest_db.repositories.defects import DefectRepo
@@ -41,7 +40,6 @@ from suitest_shared.domain.enums import DefectStatus, DiagnosisKind, Severity
 from suitest_shared.schemas.responses import DefectOut
 
 from suitest_api.deps.scope import TenantContext
-from suitest_api.deps.tier import require_tier
 from suitest_api.schemas.defect import DefectCreate, DefectUpdate
 
 if TYPE_CHECKING:
@@ -129,7 +127,6 @@ class DefectService:
     # Read path
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def list(
         self,
         *,
@@ -149,7 +146,6 @@ class DefectService:
         )
         return [DefectOut.model_validate(r) for r in rows]
 
-    @require_tier(TierFlag.ANY)
     async def get_by_id(self, defect_id: str) -> DefectOut | None:
         row = await self._repo.get_by_id(defect_id)
         if row is None or row.workspace_id != self._ctx.workspace_id:
@@ -181,7 +177,6 @@ class DefectService:
     # Write path (M1d-9)
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def create(self, body: DefectCreate) -> DefectWriteResult:
         """Manual file — generates ``SUIT-N`` via the public-id listener."""
         if body.test_case_id is not None and not await self._test_case_in_scope(body.test_case_id):
@@ -239,7 +234,6 @@ class DefectService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def update(self, defect_id: str, body: DefectUpdate) -> DefectWriteResult | None:
         """Patch a defect; enforces the status-transition matrix.
 
@@ -312,7 +306,6 @@ class DefectService:
             ws_payload=ws_payload,
         )
 
-    @require_tier(TierFlag.ANY)
     async def sync_external(self, defect_id: str) -> None:
         """Force-push current state to the configured tracker.
 

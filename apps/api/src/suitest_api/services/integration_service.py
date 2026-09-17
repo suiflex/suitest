@@ -32,7 +32,6 @@ import json
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from suitest_core.capabilities import TierFlag
 from suitest_db.audit import write_audit
 from suitest_db.models.defect import Defect, ExternalIssue
 from suitest_db.models.integration import Integration
@@ -42,7 +41,6 @@ from suitest_shared.domain.enums import DefectStatus, IntegrationKind
 from suitest_shared.schemas.responses import IntegrationOut
 
 from suitest_api.deps.scope import TenantContext
-from suitest_api.deps.tier import require_tier
 from suitest_api.integrations.base import (
     AdapterAuthError,
     AdapterError,
@@ -177,12 +175,10 @@ class IntegrationService:
     # Read path (M1a)
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def list(self, *, kind: IntegrationKind | None = None) -> list[IntegrationOut]:
         rows = await self._repo.list_by_workspace(self._ctx.workspace_id, kind=kind)
         return [_to_out(r) for r in rows]
 
-    @require_tier(TierFlag.ANY)
     async def get_by_id(self, integration_id: str) -> IntegrationOut | None:
         row = await self._repo.get_by_id(integration_id)
         if row is None or row.workspace_id != self._ctx.workspace_id:
@@ -203,7 +199,6 @@ class IntegrationService:
     # Write path (M1d-19)
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def create(
         self,
         *,
@@ -262,7 +257,6 @@ class IntegrationService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def update(
         self,
         integration_id: str,
@@ -328,7 +322,6 @@ class IntegrationService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def delete(self, integration_id: str) -> IntegrationWriteResult | None:
         """Hard-delete an integration row (no soft delete per plan-05b M1d-19)."""
         row = await self._load_in_scope(integration_id)
@@ -362,7 +355,6 @@ class IntegrationService:
     # Test connection (post-save — adapter resolved from registry)
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def test_connection(self, integration_id: str) -> ConnectionTestResult | None:
         """Invoke the registered adapter's ``test_connection`` against ``integration_id``.
 
@@ -432,7 +424,6 @@ class IntegrationService:
     # Sync external (issue-tracker only)
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def sync_external(self, integration_id: str) -> SyncResult | None:
         """Refetch external status for every defect linked to ``integration_id``.
 

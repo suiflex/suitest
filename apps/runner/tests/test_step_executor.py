@@ -4,7 +4,7 @@ We mock the :class:`suitest_mcp.invoker.McpInvoker` entirely — the executor's
 job is just envelope parsing, dispatch, and outcome mapping, so the test
 surface is the four-way decision tree:
 
-* no code at ZERO → SKIP with ``NO_LLM_FOR_AGENTIC_STEP``;
+* no code and no translator → SKIP with ``NO_LLM_FOR_AGENTIC_STEP``;
 * well-formed code + happy invoker → PASS;
 * invoker raises :class:`McpToolFailed` → FAIL;
 * unparseable code → ERROR.
@@ -23,7 +23,7 @@ import pytest
 from suitest_mcp.errors import McpToolFailed
 from suitest_mcp.models import McpToolResult
 from suitest_runner.executors.step_executor import execute_step
-from suitest_shared.domain.enums import StepOutcome, TargetKind, Tier
+from suitest_shared.domain.enums import StepOutcome, TargetKind
 
 pytestmark = pytest.mark.asyncio
 
@@ -47,8 +47,7 @@ def _step(
     return step
 
 
-async def test_no_code_zero_skip() -> None:
-    """ZERO tier + no code = skip with the documented marker reason."""
+async def test_no_code_without_translator_skips() -> None:
     inv = MagicMock()
     inv.invoke = AsyncMock()
     result = await execute_step(
@@ -57,7 +56,6 @@ async def test_no_code_zero_skip() -> None:
         run_id="r",
         workspace_id="w",
         actor_user_id="u",
-        tier=Tier.ZERO,
         routing_overrides=None,
     )
     assert result.outcome == StepOutcome.SKIP
@@ -79,7 +77,6 @@ async def test_with_code_passes() -> None:
         run_id="r",
         workspace_id="w",
         actor_user_id="u",
-        tier=Tier.ZERO,
         routing_overrides=None,
     )
     assert result.outcome == StepOutcome.PASS
@@ -99,7 +96,6 @@ async def test_failed_assertion_marks_fail() -> None:
         run_id="r",
         workspace_id="w",
         actor_user_id="u",
-        tier=Tier.ZERO,
         routing_overrides=None,
     )
     assert result.outcome == StepOutcome.FAIL
@@ -117,7 +113,6 @@ async def test_invalid_json_marks_error() -> None:
         run_id="r",
         workspace_id="w",
         actor_user_id="u",
-        tier=Tier.ZERO,
         routing_overrides=None,
     )
     assert result.outcome == StepOutcome.ERROR
@@ -138,7 +133,6 @@ async def test_legacy_browser_tools_are_normalized() -> None:
         run_id="r",
         workspace_id="w",
         actor_user_id="u",
-        tier=Tier.ZERO,
         routing_overrides=None,
     )
     assert result.outcome == StepOutcome.PASS
@@ -168,7 +162,6 @@ async def test_legacy_browser_assert_text_uses_snapshot() -> None:
         run_id="r",
         workspace_id="w",
         actor_user_id="u",
-        tier=Tier.ZERO,
         routing_overrides=None,
     )
     assert result.outcome == StepOutcome.PASS
@@ -196,7 +189,6 @@ async def test_no_code_llm_tier_without_translator_skips() -> None:
         run_id="r",
         workspace_id="w",
         actor_user_id="u",
-        tier=Tier.CLOUD,
         routing_overrides=None,
         translator=None,
     )
@@ -223,7 +215,6 @@ async def test_translator_translates_then_invokes() -> None:
         run_id="r",
         workspace_id="w",
         actor_user_id="u",
-        tier=Tier.CLOUD,
         routing_overrides=None,
         translator=translator,
     )
@@ -246,7 +237,6 @@ async def test_translator_returns_none_skips() -> None:
         run_id="r",
         workspace_id="w",
         actor_user_id="u",
-        tier=Tier.CLOUD,
         routing_overrides=None,
         translator=translator,
     )
@@ -270,7 +260,6 @@ async def test_translator_raises_errors() -> None:
         run_id="r",
         workspace_id="w",
         actor_user_id="u",
-        tier=Tier.CLOUD,
         routing_overrides=None,
         translator=translator,
     )
@@ -322,7 +311,6 @@ async def test_browser_lock_step_execution_marks_error_and_fatal_infra() -> None
         run_id="r",
         workspace_id="w",
         actor_user_id="u",
-        tier=Tier.ZERO,
         routing_overrides=None,
     )
     assert result.outcome == StepOutcome.ERROR

@@ -1,15 +1,15 @@
-"""Workspace LLM config — Settings → LLM (M3-2) + tier refresh (M3-3).
+"""Workspace LLM config — Settings → LLM.
 
 Surface (docs/API.md §3.14):
 
 * ``GET    /workspaces/:id/llm-config``        — active config, key redacted
 * ``PUT    /workspaces/:id/llm-config``        — set/rotate provider + key (ADMIN+)
 * ``POST   /workspaces/:id/llm-config/test``   — provider round-trip health check
-* ``DELETE /workspaces/:id/llm-config``        — clear config; tier → ZERO (ADMIN+)
+* ``DELETE /workspaces/:id/llm-config``        — clear config (ADMIN+)
 * ``GET    /workspaces/:id/llm-config/models`` — models the provider can be asked for
 
-The write paths recompute ``workspace_capabilities`` (M3-3) so ``GET /capabilities``
-reflects the new tier, and best-effort publish a ``capability.changed`` WS event.
+The write paths recompute ``workspace_capabilities`` so ``GET /capabilities``
+reflects LLM readiness, and best-effort publish a ``capability.changed`` WS event.
 Keys are write-only: requests accept ``apiKey``, responses only ever return a hint.
 """
 
@@ -30,6 +30,7 @@ from suitest_core.llm_credentials import CredentialError
 from suitest_shared.domain.enums import Role
 
 from suitest_api.auth.db import get_async_session
+from suitest_api.capabilities import llm_status
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
 from suitest_api.services.chatgpt_oauth_service import (
@@ -49,7 +50,6 @@ from suitest_api.services.llm_config_service import (
     LLMConfigError,
     LLMConfigService,
     api_key_hint,
-    provider_tier,
 )
 from suitest_api.services.llm_credentials import resolve_for_config
 from suitest_api.services.model_catalog import MODEL_CATALOG
@@ -83,7 +83,7 @@ class LLMConfigPublic(BaseModel):
     api_key_hint: str | None = Field(default=None, alias="apiKeyHint")
     config: dict[str, object] = Field(default_factory=dict)
     is_active: bool = Field(alias="isActive")
-    tier: str
+    status: str
     last_validated_at: str | None = Field(default=None, alias="lastValidatedAt")
     #: ``api_key`` or ``oauth`` — how this config authenticates.
     auth_method: str = Field(alias="authMethod")
@@ -248,20 +248,22 @@ def _to_public(row: LLMConfig) -> LLMConfigPublic:
         api_key_hint=api_key_hint(row.api_key_encrypted),
         config=dict(row.config_json or {}),
         is_active=row.is_active,
-        tier=provider_tier(row.provider).value,
+        status=llm_status(row).value,
         last_validated_at=row.last_validated_at.isoformat() if row.last_validated_at else None,
         auth_method=row.auth_method,
         oauth_account=tokens.email if tokens is not None else None,
     )
 
 
-async def _publish_capability_changed(request: Request, workspace_id: str, tier: str) -> None:
+async def _publish_capability_changed(
+    request: Request, workspace_id: str, llm_status_value: str
+) -> None:
     """Best-effort ``capability.changed`` WS event. Never raises into the request."""
     redis = getattr(request.app.state, "ws_redis", None)
     publish = getattr(redis, "publish", None)
     if publish is None:
         return
-    payload = json.dumps({"event": "capability.changed", "tier": tier})
+    payload = json.dumps({"event": "capability.changed", "llmStatus": llm_status_value})
     try:
         await publish(f"workspace:{workspace_id}", payload)
     except Exception:
@@ -301,25 +303,20 @@ async def put_llm_config(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": exc.code, "message": exc.message},
         ) from exc
-    await _publish_capability_changed(request, ctx.workspace_id, provider_tier(body.provider).value)
+    await _publish_capability_changed(request, ctx.workspace_id, "validation_required")
     return _to_public(row)
 
 
 @router.post("/workspaces/{workspaceId}/llm-config/test", response_model=LLMTestResult)
 async def test_llm_config(
-    body: LLMConfigWriteBody,
+    request: Request,
     ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
     session: AsyncSession = Depends(get_async_session),
 ) -> LLMTestResult:
-    """Round-trip a 1-token completion against the (proposed) provider."""
-    base_url = body.config.get("base_url")
-    ok, latency, echo, code, msg = await LLMConfigService(session, ctx).test_connection(
-        provider=body.provider,
-        model=body.model,
-        api_key=body.api_key,
-        base_url=base_url if isinstance(base_url, str) else None,
-    )
+    """Round-trip a 1-token completion against the saved active provider."""
+    ok, latency, echo, code, msg = await LLMConfigService(session, ctx).test_connection()
     if ok:
+        await _publish_capability_changed(request, ctx.workspace_id, "ready")
         return LLMTestResult(ok=True, latency_ms=latency, model_echo=echo)
     return LLMTestResult(
         ok=False,
@@ -334,11 +331,11 @@ async def delete_llm_config(
     ctx: TenantContext = Depends(require_role(_ADMIN_ROLES)),
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
-    """Clear the active config; tier downgrades to ZERO. 404 when none set."""
+    """Clear the active config. 404 when none is set."""
     cleared = await LLMConfigService(session, ctx).clear_config()
     if not cleared:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_NO_CONFIG)
-    await _publish_capability_changed(request, ctx.workspace_id, "ZERO")
+    await _publish_capability_changed(request, ctx.workspace_id, "not_configured")
 
 
 @router.post("/workspaces/{workspaceId}/llm-config/chatgpt/login", response_model=LoginStart)
@@ -385,7 +382,7 @@ async def finish_chatgpt_login(
     service = ChatGptOAuthService(session, ctx)
     with _login_errors():
         row = await service.finish(flowId, credential_mode=body.credential_mode, model=body.model)
-    await _publish_capability_changed(request, ctx.workspace_id, provider_tier(row.provider).value)
+    await _publish_capability_changed(request, ctx.workspace_id, "validation_required")
     return _to_public(row)
 
 
@@ -504,7 +501,7 @@ async def finish_google_login(
             project=body.project,
             location=body.location,
         )
-    await _publish_capability_changed(request, ctx.workspace_id, provider_tier(row.provider).value)
+    await _publish_capability_changed(request, ctx.workspace_id, "validation_required")
     return _to_public(row)
 
 

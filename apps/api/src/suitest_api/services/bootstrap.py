@@ -12,7 +12,7 @@ from suitest_db.models.tenancy import Membership
 from suitest_db.models.user import User
 from suitest_db.models.workspace import Workspace
 from suitest_db.models.workspace_capability import WorkspaceCapability
-from suitest_shared.domain.enums import AutonomyLevel, Role, Tier
+from suitest_shared.domain.enums import AutonomyLevel, Role
 
 from suitest_api.settings import Settings
 
@@ -53,7 +53,6 @@ async def bootstrap_first_install_superadmin(session: AsyncSession, settings: Se
     session.add(
         WorkspaceCapability(
             workspace_id=workspace.id,
-            tier=Tier.ZERO,
             autonomy_level=AutonomyLevel.MANUAL,
             features_json={},
         )

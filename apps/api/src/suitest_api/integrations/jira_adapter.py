@@ -289,7 +289,7 @@ class JiraAdapter:
         * anything else → :class:`AdapterRemoteError`
         """
         # Local import: keeps ``suitest_mcp`` off the ``apps/api`` import graph
-        # for environments that don't ship the MCP runtime (e.g. ZERO-tier
+        # for environments that don't ship the MCP runtime (e.g. lightweight
         # builds that compile out the runner). Production wiring imports it
         # once at lifespan time when constructing the production client.
         from suitest_mcp.errors import McpError, McpToolTimeout

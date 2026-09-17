@@ -52,7 +52,6 @@ from suitest_shared.domain.enums import (
     Severity,
     StepOutcome,
     TargetKind,
-    Tier,
 )
 
 # ---------------------------------------------------------------------------
@@ -393,7 +392,6 @@ def _make_run(*, run_id: str = "run_1", project_id: str = "proj_1") -> Run:
         env="staging",
         trigger=RunTrigger.MANUAL,
         status=RunStatus.RUNNING,
-        tier_at_runtime=Tier.ZERO,
     )
 
 

@@ -1,7 +1,6 @@
-"""M3-2 + M3-3 tests — ``/api/v1/workspaces/:id/llm-config`` + tier refresh.
+"""Workspace LLM configuration and readiness tests.
 
-Uses the ``mock`` provider (a CLOUD-tier sentinel) so connection tests round-trip
-the deterministic MockProvider with no network. Requires Postgres (api_db).
+Uses the deterministic ``mock`` provider. Requires Postgres (api_db).
 """
 
 from __future__ import annotations
@@ -37,7 +36,7 @@ async def test_get_returns_404_when_unset(api_db: ApiDb) -> None:
 
 
 @pytest.mark.asyncio
-async def test_put_mock_sets_active_and_flips_tier(api_db: ApiDb) -> None:
+async def test_put_mock_requires_validation(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="llm-set@example.com", slug="llm-set")
     async with api_db.client(user) as c:
         put = await c.put(
@@ -49,13 +48,12 @@ async def test_put_mock_sets_active_and_flips_tier(api_db: ApiDb) -> None:
         body = put.json()
         assert body["provider"] == "mock"
         assert body["isActive"] is True
-        assert body["tier"] == "CLOUD"
+        assert body["status"] == "validation_required"
         assert body["apiKeyHint"] is None
 
-        # M3-3: /capabilities reflects the new tier for this workspace.
         caps = await c.get("/capabilities", headers=_h(ws.id))
-        assert caps.json()["tier"] == "CLOUD"
-        assert caps.json()["features"]["ai_generation"] is True
+        assert caps.json()["llm"]["status"] == "validation_required"
+        assert caps.json()["features"]["ai_generation"] is False
 
 
 @pytest.mark.asyncio
@@ -89,19 +87,26 @@ async def test_put_cloud_without_key_is_422(api_db: ApiDb) -> None:
 async def test_test_connection_mock_ok(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="llm-test@example.com", slug="llm-test")
     async with api_db.client(user) as c:
+        await c.put(
+            f"/api/v1/workspaces/{ws.id}/llm-config",
+            headers=_h(ws.id),
+            json={"provider": "mock", "model": "mock-1"},
+        )
         resp = await c.post(
             f"/api/v1/workspaces/{ws.id}/llm-config/test",
             headers=_h(ws.id),
-            json={"provider": "mock", "model": "mock-1"},
         )
     assert resp.status_code == 200
     body = resp.json()
     assert body["ok"] is True
     assert body["modelEcho"] == "mock-1"
+    async with api_db.client(user) as c:
+        caps = await c.get("/capabilities", headers=_h(ws.id))
+    assert caps.json()["llm"]["status"] == "ready"
 
 
 @pytest.mark.asyncio
-async def test_delete_clears_and_downgrades_to_zero(api_db: ApiDb) -> None:
+async def test_delete_clears_llm_readiness(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="llm-del@example.com", slug="llm-del")
     async with api_db.client(user) as c:
         await c.put(
@@ -112,7 +117,7 @@ async def test_delete_clears_and_downgrades_to_zero(api_db: ApiDb) -> None:
         delete = await c.delete(f"/api/v1/workspaces/{ws.id}/llm-config", headers=_h(ws.id))
         assert delete.status_code == 204
         caps = await c.get("/capabilities", headers=_h(ws.id))
-        assert caps.json()["tier"] == "ZERO"
+        assert caps.json()["llm"]["status"] == "not_configured"
         assert caps.json()["features"]["ai_generation"] is False
         gone = await c.get(f"/api/v1/workspaces/{ws.id}/llm-config", headers=_h(ws.id))
         assert gone.status_code == 404

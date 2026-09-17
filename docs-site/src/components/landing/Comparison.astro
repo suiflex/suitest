@@ -8,7 +8,7 @@ type Mark = "yes" | "no" | "partial";
 
 const rows: { label: string; suitest: Mark; testsprite: Mark; playwright: Mark; testrail: Mark }[] = [
   { label: "Open source, self-hosted", suitest: "yes", testsprite: "no", playwright: "yes", testrail: "no" },
-  { label: "Works with zero LLM key", suitest: "yes", testsprite: "no", playwright: "yes", testrail: "yes" },
+  { label: "Manual TCM before connecting an LLM", suitest: "yes", testsprite: "no", playwright: "yes", testrail: "yes" },
   { label: "Test management UI (cases, suites, history)", suitest: "yes", testsprite: "partial", playwright: "no", testrail: "yes" },
   { label: "Deterministic, replayable runs", suitest: "yes", testsprite: "partial", playwright: "yes", testrail: "no" },
   { label: "Agent generates and runs tests from the IDE", suitest: "yes", testsprite: "yes", playwright: "partial", testrail: "no" },

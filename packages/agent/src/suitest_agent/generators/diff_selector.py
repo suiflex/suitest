@@ -5,13 +5,13 @@ Two public surfaces:
 1. :func:`parse_diff` — pure Python, ZERO-compatible, no LLM.
    Converts a unified diff string into a list of :class:`ChangedFile` objects.
 
-2. :func:`select_relevant_cases` — CLOUD/LOCAL only (caller must gate).
+2. :func:`select_relevant_cases` — requires a validated provider (caller gates).
    Given changed files + available test-case summaries, asks the LLM which
    cases are worth running for this PR and returns a :class:`DiffSelectionResult`.
 
 Design notes:
   - ``parse_diff`` has no side effects and holds no state.  It is safe to call
-    at ZERO tier; the service layer calls it before the tier branch.
+    without an LLM; the service layer calls it before its readiness branch.
   - ``select_relevant_cases`` intentionally takes a :class:`LLMProvider`
     (Protocol) so the test suite can inject :class:`MockProvider` without any
     network or env var.
@@ -79,8 +79,8 @@ class DiffSelectionResult(BaseModel):
 
     selected_case_ids: list[str]
     rationale: str
-    all_case_ids: list[str]  # full set; caller uses this at ZERO tier
-    tier_used: str  # "llm" | "fallback_full"
+    all_case_ids: list[str]  # full set used by the no-LLM fallback
+    selection_mode: str  # "llm" | "fallback_full"
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +164,7 @@ def parse_diff(diff_text: str) -> list[ChangedFile]:
 
 
 # ---------------------------------------------------------------------------
-# LLM selector (CLOUD/LOCAL only — caller must enforce tier gate)
+# LLM selector (caller must enforce readiness)
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT: Final = """\
@@ -229,7 +229,7 @@ async def select_relevant_cases(
 ) -> DiffSelectionResult:
     """Ask the LLM which test cases are relevant for the given diff.
 
-    CLOUD/LOCAL only — callers MUST have already enforced tier gating.
+    Callers MUST have already enforced LLM readiness.
 
     When the LLM returns unparseable JSON or an empty selection the function
     falls back to ALL case ids so no coverage is accidentally lost.
@@ -244,7 +244,7 @@ async def select_relevant_cases(
             selected_case_ids=[],
             rationale="No test cases available in the suite.",
             all_case_ids=[],
-            tier_used="llm",
+            selection_mode="llm",
         )
 
     if not changed_files:
@@ -252,7 +252,7 @@ async def select_relevant_cases(
             selected_case_ids=all_ids,
             rationale="Empty diff — returning full suite as a precaution.",
             all_case_ids=all_ids,
-            tier_used="llm",
+            selection_mode="llm",
         )
 
     user_msg = _build_user_message(changed_files, available_cases)
@@ -298,5 +298,5 @@ async def select_relevant_cases(
         selected_case_ids=selected_ids,
         rationale=rationale,
         all_case_ids=all_ids,
-        tier_used="llm",
+        selection_mode="llm",
     )

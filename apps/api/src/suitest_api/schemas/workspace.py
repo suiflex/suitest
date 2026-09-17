@@ -63,7 +63,6 @@ class WorkspaceDetail(WorkspacePublic):
     model_config = ConfigDict(from_attributes=True)
 
     description: str | None = None
-    strict_zero_validation: bool = True
     mcp_routing_overrides: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -117,7 +116,6 @@ class WorkspaceUpdate(BaseModel):
 
     name: str | None = Field(default=None, min_length=1, max_length=128)
     description: str | None = Field(default=None, max_length=1024)
-    strict_zero_validation: bool | None = None
     mcp_routing_overrides: dict[str, str] | None = None
 
 

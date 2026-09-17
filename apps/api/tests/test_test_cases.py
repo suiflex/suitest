@@ -14,7 +14,6 @@ from suitest_shared.domain.enums import (
     CaseSource,
     CaseStatus,
     TargetKind,
-    Tier,
 )
 
 if TYPE_CHECKING:
@@ -195,7 +194,6 @@ async def test_get_test_case_step_executable_zero_tier(api_db: ApiDb) -> None:
         [
             WorkspaceCapability(
                 workspace_id=ws.id,
-                tier=Tier.CLOUD,
                 autonomy_level=AutonomyLevel.ASSIST,
                 features_json={},
             )

@@ -2,7 +2,7 @@
 
 > Vision, personas, and scope of each Suitest screen. Read this first before writing code for a new feature.
 
-> ℹ️ **VISION doc — describes full v1.0+ product.** Built today: M0–M1e (manual TCM + ZERO-tier deterministic runs + local auth/invite). AI/generators/journeys assuming LLM target M2–M4. Build status: [ROADMAP.md](./ROADMAP.md).
+> ℹ️ **VISION doc — describes full v1.0+ product.** The current readiness contract in [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md) supersedes historical tier wording later in this document.
 >
 > OSS pivot (2026-05-26): Suitest is now **open-source, self-host, BYO-LLM**.
 
@@ -12,24 +12,27 @@
 
 > **"QA is not a bottleneck, but an accelerator. Your stack, your LLM, your data."**
 
-**Suitest is an open-source, self-hostable testing platform with capability tiering: manual TCM works without any LLM; AI features activate automatically once users configure their own LLM provider (Anthropic, OpenAI, Gemini, Ollama, llama.cpp, ... — 100+ providers via LiteLLM).**
+**Suitest is an open-source, self-hostable testing platform: manual TCM works without any LLM; MCP execution, runs, and AI features activate after the workspace saves and validates its own LLM provider (Anthropic, OpenAI, Gemini, Ollama, llama.cpp, ... via LiteLLM).**
 
 Universal MCP-as-plugin means Suitest is more powerful than TestSprite: it can test APIs (HTTP/GraphQL/gRPC), frontends (Playwright/browser-use), mobile (Appium), databases (Postgres/Mongo/MySQL), infrastructure (Kubernetes), or any MCP server the user installs. Not just the browser.
 
-**Three deployment modes:**
+**One self-hosted product, three LLM readiness states:**
 
-| Tier | Trigger | AI features | TCM + runner |
-|------|---------|-------------|--------------|
-| **ZERO** | `SUITEST_LLM_PROVIDER=none` or unset | OFF | ✓ full manual TCM, deterministic runner, MCP plugins, deterministic generators (OpenAPI/Recorder/Crawler), rule-based defect triage |
-| **LOCAL** | Ollama / llama.cpp / vLLM / LM Studio | ✓ full, via local model — **air-gapped friendly** | ✓ full |
-| **CLOUD** | Anthropic / OpenAI / Gemini / Groq / OpenRouter / Bedrock / Vertex / ... | ✓ full | ✓ full |
+| Status | Trigger | Available |
+|------|---------|-------------|
+| `not_configured` | no active workspace provider | login, Settings, manual TCM |
+| `validation_required` | provider saved or changed | login, Settings, manual TCM; connection test available |
+| `ready` | connection test succeeded | MCP, runs, and AI features |
+
+Provider location does not change the product surface. **Suitest Cloud** is the
+future hosted collaboration service and is **Coming Soon**; it is not an LLM tier.
 
 Output: **Time-to-Market (TTM)** goes down, **release confidence** goes up, **QA team focuses on strategy**, all without SaaS lock-in and without sending data across regulatory boundaries.
 
 Competitive positioning (brief — see memo §1 for the full matrix):
-- **vs TestRail/Zephyr** — Suitest ZERO already has everything they have (manual TCM, traceability) PLUS deterministic runner + MCP. Free + OSS.
+- **vs TestRail/Zephyr** — Suitest adds a universal MCP runner and traceability to manual TCM. Free + OSS.
 - **vs bare Playwright** — Suitest uses Playwright (via MCP) but adds a TCM layer + traceability + multi-target (not just browser).
-- **vs TestSprite** — TestSprite is vendor lock-in (their LLM, their cloud). Suitest is BYO-LLM, self-host, universal MCP plugin (test API/DB/Infra/Mobile, not just browser). The CLOUD/LOCAL tiers are even more powerful.
+- **vs TestSprite** — Suitest is BYO-LLM, self-host, and uses universal MCP plugins for API/DB/infra/mobile targets, not just browser testing.
 
 ---
 

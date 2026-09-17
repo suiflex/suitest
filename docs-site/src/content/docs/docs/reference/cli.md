@@ -8,7 +8,7 @@ Suitest ships three command-line surfaces. They serve different jobs:
 | Surface | Invocation | Job |
 |---|---|---|
 | npx launcher | `npx -y @suiflex/suitest-mcp` | Start the MCP server, onboard an IDE, run CI |
-| Lifecycle CLI | `suitest` (from `suiflex-suitest-lifecycle`) | Zero-tier blackbox runs and the config-driven lifecycle, local |
+| Lifecycle CLI | `suitest` (from `suiflex-suitest-lifecycle`) | Blackbox runs and the config-driven lifecycle |
 | Platform CLI | `suitest` (from the `cli/` package) | Talk to a running Suitest server: trigger runs, list cases and MCP providers |
 
 :::caution
@@ -42,15 +42,13 @@ Zero-config onboarding: detects your IDE and app framework, writes `suitest.conf
 | Flag | Values | Meaning |
 |---|---|---|
 | `--ide` | `claude-code` \| `cursor` \| `windsurf` | Target IDE (skip auto-detection) |
-| `--mode` | `local` \| `server` | Local mode needs no API key; server mode publishes to a Suitest server |
 | `--base-url` | URL | App URL when the framework cannot be auto-detected |
-| `--api-url` | URL | Suitest server URL (server mode) |
-| `--api-key` | key | Suitest API key (server mode) |
+| `--api-url` | URL | Suitest server URL |
+| `--api-key` | key | Suitest API key |
 | `--yes`, `-y` | | Accept detected defaults, no prompts (CI / scripts) |
 
 ```bash
-npx -y @suiflex/suitest-mcp init --ide claude-code --mode local --yes
-npx -y @suiflex/suitest-mcp init --ide cursor --mode server \
+npx -y @suiflex/suitest-mcp init --ide cursor \
   --api-url https://suitest.example.com --api-key sk_suitest_... --yes
 ```
 
@@ -91,7 +89,7 @@ Exit codes: `0` all tests passed, `1` at least one test failed, `2` infrastructu
 
 ## Lifecycle CLI (`suitest`, Python)
 
-Installed by the `suiflex-suitest-lifecycle` package (also runnable as `python -m suitest_lifecycle.cli`). Stdlib argparse, no LLM required.
+Installed by the `suiflex-suitest-lifecycle` package (also runnable as `python -m suitest_lifecycle.cli`). It is separate from MCP startup and its workspace readiness check.
 
 ### `suitest zero blackbox` / `suitest zero ui`
 

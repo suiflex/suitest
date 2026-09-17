@@ -98,29 +98,6 @@ async def test_patch_workspace_slug_returns_400_immutable(api_db: ApiDb) -> None
 
 
 @pytest.mark.asyncio
-async def test_patch_workspace_strict_zero_validation_toggle(api_db: ApiDb) -> None:
-    user, ws = await _seed_workspace_with_role(
-        api_db, slug="patch-strict", role=Role.OWNER, email="patch-strict@example.com"
-    )
-    async with api_db.client(user) as c:
-        resp = await c.patch(
-            f"/api/v1/workspaces/{ws.id}",
-            json={"strict_zero_validation": False},
-            headers={"X-Workspace-Id": ws.id},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["strict_zero_validation"] is False
-
-        resp2 = await c.patch(
-            f"/api/v1/workspaces/{ws.id}",
-            json={"strict_zero_validation": True},
-            headers={"X-Workspace-Id": ws.id},
-        )
-        assert resp2.status_code == 200
-        assert resp2.json()["strict_zero_validation"] is True
-
-
-@pytest.mark.asyncio
 async def test_patch_workspace_qa_role_returns_403(api_db: ApiDb) -> None:
     user, ws = await _seed_workspace_with_role(
         api_db, slug="patch-qa", role=Role.QA, email="patch-qa@example.com"

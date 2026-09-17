@@ -14,7 +14,7 @@ import DemoReel from "../components/landing/DemoReel.astro";
 import Features from "../components/landing/Features.astro";
 import AgentTools from "../components/landing/AgentTools.astro";
 import DeployModes from "../components/landing/DeployModes.astro";
-import Tiers from "../components/landing/Tiers.astro";
+import LlmReadiness from "../components/landing/LlmReadiness.astro";
 import CiAction from "../components/landing/CiAction.astro";
 import Comparison from "../components/landing/Comparison.astro";
 import Faq from "../components/landing/Faq.astro";
@@ -23,7 +23,7 @@ import Closing from "../components/landing/Closing.astro";
 const siteUrl = "https://suitest.suiflex.dev";
 const title = "Suitest: Open-Source, MCP-Native Testing Platform";
 const description =
-  "Self-hosted QA platform for IDE agents: generate, run, and publish E2E tests with video evidence from Claude Code or Cursor. Works with or without an LLM.";
+  "Self-hosted QA platform for IDE agents: connect your workspace LLM, then generate, run, and publish E2E tests with video evidence from Claude Code or Cursor.";
 const ogImage = `${siteUrl}/og.png`;
 
 const softwareLd = JSON.stringify({
@@ -96,7 +96,7 @@ const softwareLd = JSON.stringify({
       <Features />
       <AgentTools />
       <DeployModes />
-      <Tiers />
+      <LlmReadiness />
       <CiAction />
       <Comparison />
       <Faq />

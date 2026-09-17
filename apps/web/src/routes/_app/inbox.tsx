@@ -80,9 +80,9 @@ function NotificationCard({ item }: { item: InboxItem }): React.ReactElement {
 
 function InboxList(): React.ReactElement {
   const { data } = useInbox("all");
-  const tier = useCapabilities((s) => s.capabilities?.tier);
+  const llmReady = useCapabilities((s) => s.capabilities?.llm.status === "ready");
   const visible = data.items.filter((item) => {
-    if (tier === "ZERO") return isZeroSafeKind(item.kind);
+    if (!llmReady) return isZeroSafeKind(item.kind);
     return true;
   });
 

@@ -32,7 +32,7 @@ Prefer a Python-native route? The same server ships on PyPI:
 uvx --from suiflex-suitest-lifecycle suitest-mcp
 ```
 
-## Zero-config setup: `init`
+## Guided setup: `init`
 
 The fastest way to wire everything up is `init`. Run it in the root of the
 project you want to test:
@@ -71,36 +71,28 @@ When it finishes, restart your IDE and tell the agent: "test my app".
 | Flag | Values | Purpose |
 |------|--------|---------|
 | `--ide` | `claude-code`, `cursor`, `windsurf` | Skip IDE detection |
-| `--mode` | `local`, `server` | Skip the local/server prompt |
 | `--base-url` | URL | App base URL when the framework cannot be auto-detected |
-| `--api-url` | URL | Suitest server API URL (server mode, default `http://localhost:4000`) |
-| `--api-key` | `sk_suitest_...` | Suitest server API key (server mode) |
+| `--api-url` | URL | Suitest server API URL (default `http://localhost:4000`) |
+| `--api-key` | `sk_suitest_...` | Suitest server API key |
 | `--yes`, `-y` | | Accept detected defaults, never prompt (CI and scripts) |
 
-### Local vs server mode
+### Server connection
 
-`init` asks one question: local or server.
-
-- **Local** writes `SUITEST_MODE=local` into the generated MCP entry and asks
-  for no credentials. Test cases, runs, and reports stay on disk under
-  `suitest-output/` in your project. No Suitest server is required.
-- **Server** writes `SUITEST_API_URL` and `SUITEST_API_KEY` into the entry so
-  cases, runs, and evidence publish into the web TCM of a
-  [self-hosted Suitest server](/docs/install/docker/).
+`init` writes `SUITEST_API_URL` and `SUITEST_API_KEY` into the MCP entry so
+cases, runs, and evidence publish into the web TCM of a
+[self-hosted Suitest server](/docs/install/docker/). MCP startup verifies the
+key and requires the workspace LLM status to be `ready`.
 
 :::note
-In server mode an API key is required. With `--yes` (non-interactive), `init`
+An API key is required. With `--yes` (non-interactive), `init`
 fails unless you pass `--api-key`. Create keys in the Suitest web UI.
 :::
 
 ### Non-interactive examples
 
 ```bash
-# Local mode, Claude Code, no prompts
-npx -y @suiflex/suitest-mcp init --ide claude-code --mode local --yes
-
-# Server mode, Cursor, credentials on the command line
-npx -y @suiflex/suitest-mcp init --ide cursor --mode server \
+# Cursor, credentials on the command line
+npx -y @suiflex/suitest-mcp init --ide cursor \
   --api-url https://suitest.example.com --api-key sk_suitest_xxx --yes
 ```
 
@@ -182,8 +174,6 @@ to `.mcp.json` in your project root (or `~/.claude.json` for a global entry):
 }
 ```
 
-For local mode, replace the `env` block with `{ "SUITEST_MODE": "local" }`.
-
 ### Cursor
 
 `init` writes the project-scoped `./.cursor/mcp.json`; `install --client
@@ -195,7 +185,10 @@ cursor` writes the global `~/.cursor/mcp.json`. Manual config:
     "suitest": {
       "command": "npx",
       "args": ["-y", "@suiflex/suitest-mcp"],
-      "env": { "SUITEST_MODE": "local" }
+      "env": {
+        "SUITEST_API_URL": "http://localhost:4000",
+        "SUITEST_API_KEY": "sk_suitest_xxx"
+      }
     }
   }
 }
@@ -232,14 +225,13 @@ shape:
 
 | Variable | Purpose |
 |----------|---------|
-| `SUITEST_MODE` | `local` keeps all results on disk under `suitest-output/` |
-| `SUITEST_API_URL` | Suitest server API URL (server mode) |
-| `SUITEST_API_KEY` | Suitest server API key (server mode) |
+| `SUITEST_API_URL` | Suitest server API URL; required at startup |
+| `SUITEST_API_KEY` | Suitest server API key; required at startup |
 | `SUITEST_PYTHON` | Path to a Python 3.11+ interpreter, if not on `PATH` |
 
-`SUITEST_API_URL` and `SUITEST_API_KEY` are optional. Without them the tools
-still work and results stay local; with them, cases, runs, and evidence land in
-the web TCM.
+The API URL and key are required. Provider credentials are not placed in the
+MCP config; the Suitest API reads the validated workspace LLM configuration
+and proxies completions without exposing its secret.
 
 :::tip
 There is also a `ci` subcommand (`npx -y @suiflex/suitest-mcp ci`) that runs

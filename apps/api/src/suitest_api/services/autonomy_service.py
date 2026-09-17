@@ -19,10 +19,12 @@ from suitest_core.autonomy import (
     validate_overrides,
 )
 from suitest_core.capabilities import AutonomyLevel as CoreAutonomy
-from suitest_core.capabilities import resolve_capabilities
+from suitest_core.capabilities import LlmStatus
 from suitest_db.audit import write_audit
 from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
-from suitest_shared.domain.enums import AutonomyLevel, Tier
+from suitest_shared.domain.enums import AutonomyLevel
+
+from suitest_api.deps.tier import workspace_llm_status
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -53,14 +55,14 @@ class AutonomyView:
         level: AutonomyLevel,
         overrides: dict[str, bool],
         effective: dict[str, bool],
-        tier: Tier,
+        llm_status: LlmStatus,
         updated_at: datetime | None,
         updated_by: str | None,
     ) -> None:
         self.level = level
         self.overrides = overrides
         self.effective = effective
-        self.tier = tier
+        self.llm_status = llm_status
         self.updated_at = updated_at
         self.updated_by = updated_by
 
@@ -71,23 +73,15 @@ class AutonomyService:
         self._ctx = ctx
         self._caps = WorkspaceCapabilityRepo(session)
 
-    async def _resolved_tier(self) -> Tier:
-        row = await self._caps.get(self._ctx.workspace_id)
-        if row is not None:
-            return Tier(row.tier)
-        return Tier(resolve_capabilities().tier.value)
-
     async def get(self) -> AutonomyView:
         """Return the current level + overrides + computed effective map."""
         row = await self._caps.get(self._ctx.workspace_id)
         if row is None:
-            tier = Tier(resolve_capabilities().tier.value)
             level = AutonomyLevel.MANUAL
             overrides: dict[str, bool] = {}
             updated_at = None
             updated_by = None
         else:
-            tier = Tier(row.tier)
             level = row.autonomy_level
             raw = row.features_json.get(_OVERRIDES_KEY, {})
             overrides = {k: bool(v) for k, v in raw.items()} if isinstance(raw, dict) else {}
@@ -97,11 +91,12 @@ class AutonomyService:
         effective = compute_effective(
             AutonomyConfig(level=CoreAutonomy(level.value), overrides=overrides)
         )
+        llm_state = await workspace_llm_status(self._session, self._ctx.workspace_id)
         return AutonomyView(
             level=level,
             overrides=overrides,
             effective=effective,
-            tier=tier,
+            llm_status=llm_state,
             updated_at=updated_at,
             updated_by=updated_by,
         )
@@ -110,11 +105,11 @@ class AutonomyService:
         self, *, level: AutonomyLevel, overrides: dict[str, bool], reason: str | None
     ) -> AutonomyView:
         """Persist a new autonomy config (validated + audited). ADMIN+ only."""
-        tier = await self._resolved_tier()
-        if tier is Tier.ZERO and level is not AutonomyLevel.MANUAL:
+        llm_state = await workspace_llm_status(self._session, self._ctx.workspace_id)
+        if llm_state is not LlmStatus.READY and level is not AutonomyLevel.MANUAL:
             raise AutonomyError(
                 "AUTONOMY_REQUIRES_LLM",
-                "ZERO tier only supports manual autonomy; configure an LLM first",
+                "manual autonomy is required until the workspace LLM is validated",
             )
         try:
             validate_overrides(overrides)
@@ -131,7 +126,6 @@ class AutonomyService:
 
         await self._caps.upsert(
             self._ctx.workspace_id,
-            tier=tier,
             autonomy=level,
             features=features,
         )

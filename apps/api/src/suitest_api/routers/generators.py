@@ -1,8 +1,8 @@
 """Generator endpoints (M2) — hosts the rule-based target classifier and, in
 later tasks, the deterministic + LLM-driven generation endpoints.
 
-``POST /generators/classify`` is pure rules (NO LLM) so it runs in every tier
-(``TierFlag.ANY``). It returns the recommended :class:`TargetKind`, MCP provider
+``POST /generators/classify`` is pure rules (no LLM). It returns the recommended
+:class:`TargetKind`, MCP provider
 name + strategy. The provider ``id`` is resolved by name *within the caller's
 workspace only* — if the named provider is registered in another workspace it
 stays ``null`` (no cross-tenant leak).
@@ -24,7 +24,6 @@ from suitest_agent.generators.recorder import (
     RecorderSessionManager,
     RecorderSessionNotFound,
 )
-from suitest_core.capabilities import TierFlag
 from suitest_db.repositories.generator_runs import GeneratorRunRepo
 from suitest_db.repositories.llm_configs import LLMConfigRepo
 from suitest_db.repositories.mcp_providers import McpProviderRepo
@@ -52,7 +51,7 @@ from suitest_shared.schemas.generator_input import (
 from suitest_api.auth.db import async_session_maker, get_async_session
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext
-from suitest_api.deps.tier import require_tier
+from suitest_api.deps.tier import require_llm_ready
 from suitest_api.routers.test_cases import _detail_with_steps
 from suitest_api.schemas.test_case import TestCaseDetail
 from suitest_api.services.generator_service import (
@@ -72,12 +71,8 @@ def _format_sse(event: GeneratorSseEvent) -> str:
     return f"event: {event.kind}\ndata: {json.dumps(event.data)}\n\n"
 
 
-# Deterministic classifier runs in every tier. ``require_tier`` is a no-op
-# recorder in M1a (it stamps the required ``TierFlag`` on the wrapped coroutine
-# so M3 enforcement finds the gate) — it wraps the handler rather than acting as
-# a FastAPI ``Depends`` dependency.
+# The deterministic classifier does not require an LLM or MCP execution.
 @router.post("/generators/classify", response_model=ClassificationResult)
-@require_tier(TierFlag.ANY)
 async def classify_input(
     payload: GenerationInput,
     ctx: TenantContext = Depends(require_role({Role.QA, Role.ADMIN, Role.OWNER})),
@@ -106,11 +101,10 @@ def _build_generator_service(
     )
 
 
-# Deterministic OpenAPI → contract-suite generation. Pure rules (NO LLM) so it
-# runs in every tier (``TierFlag.ANY``). Streams ``progress``/``case``/``complete``
+# Deterministic OpenAPI → contract-suite generation. Pure rules (no LLM).
+# Streams ``progress``/``case``/``complete``
 # (or a single ``error``) over SSE. Generation creates DRAFT cases → QA+ gate.
 @router.post("/generators/openapi")
-@require_tier(TierFlag.ANY)
 async def generate_openapi(
     payload: OpenApiGenerateRequest,
     ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
@@ -167,18 +161,18 @@ async def generate_openapi(
     )
 
 
-# LLM-driven PRD → test-case generation (M3-6). CLOUD/LOCAL only: the real tier
-# gate is an active ``LLMConfig`` (409 ``LLM_NOT_CONFIGURED`` when absent). Streams
+# LLM-driven PRD → test-case generation (M3-6). The readiness
+# gate requires an active validated ``LLMConfig`` (409 ``LLM_NOT_READY`` otherwise). Streams
 # ``progress``/``case``/``complete`` (or a single ``error``) over SSE. QA+ gate.
 @router.post("/generators/prd")
-@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+@require_llm_ready
 async def generate_prd(
     payload: PrdGenerateRequest,
     ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
     session: AsyncSession = Depends(get_async_session),
 ) -> StreamingResponse:
     """Generate DRAFT cases from a PRD / user story via the LLM agent (SSE)."""
-    # Tier gate: an LLM must be configured + active for this workspace. Without
+    # The readiness decorator guarantees an active validated workspace LLM.
     # one the workspace is effectively ZERO → reject before opening the stream.
     config = await LLMConfigRepo(session).get_active(ctx.workspace_id)
     if config is None:
@@ -221,11 +215,11 @@ async def generate_prd(
     )
 
 
-# LLM-driven semantic URL → FE_WEB journey generation (M3-7). CLOUD/LOCAL only:
-# the real tier gate is an active ``LLMConfig`` (409). Decomposes an intent into
+# LLM-driven semantic URL → FE_WEB journey generation (M3-7):
+# readiness requires an active validated ``LLMConfig`` (409). Decomposes an intent into
 # browser journeys driven by playwright-mcp. SSE. QA+ gate.
 @router.post("/generators/url-semantic")
-@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+@require_llm_ready
 async def generate_url_semantic(
     payload: UrlSemanticGenerateRequest,
     ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
@@ -286,11 +280,11 @@ def _provider_target_kind(is_default_for_target: dict[str, object]) -> TargetKin
     return TargetKind.CUSTOM
 
 
-# LLM-driven MCP tool-discovery → test-case generation (M3-9). CLOUD/LOCAL only:
-# the real tier gate is an active ``LLMConfig`` (409). Targets a registered MCP
+# LLM-driven MCP tool-discovery → test-case generation (M3-9):
+# readiness requires an active validated ``LLMConfig`` (409). Targets a registered MCP
 # provider and proposes cases from its persisted tool catalog. SSE. QA+ gate.
 @router.post("/generators/mcp-discovery")
-@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+@require_llm_ready
 async def generate_mcp_discovery(
     payload: McpDiscoveryGenerateRequest,
     ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
@@ -375,12 +369,11 @@ def _build_mcp_invoker(workspace_id: str, request: Request) -> McpInvoker:
     )
 
 
-# Heuristic URL crawler → FE_WEB smoke + form suite. Pure heuristics (NO LLM) so
-# it runs in every tier (``TierFlag.ANY``). Drives ``playwright-mcp`` to BFS the
+# Heuristic URL crawler → FE_WEB smoke + form suite. Drives ``playwright-mcp`` to BFS the
 # site and streams ``progress``/``case``/``complete`` over SSE. QA+ gate (it
 # creates DRAFT cases).
 @router.post("/generators/crawler")
-@require_tier(TierFlag.ANY)
+@require_llm_ready
 async def generate_crawler(
     payload: CrawlerGenerateRequest,
     request: Request,
@@ -431,14 +424,14 @@ async def generate_crawler(
 # M2 Task 4 — live browser recorder
 # ---------------------------------------------------------------------------
 #
-# Deterministic event→step mapping (NO LLM) → ``TierFlag.ANY``. A session opens
+# Deterministic event→step mapping. A session opens
 # a Playwright-MCP recording, events stream over the WS gateway (``recorder:<id>``
 # room), and ``/finalize`` converts the captured log into a DRAFT TestCase. All
 # three endpoints are QA+ (they create / mutate sessions + cases).
 
 
 @router.post("/generators/recorder/sessions", response_model=RecorderSessionStartResponse)
-@require_tier(TierFlag.ANY)
+@require_llm_ready
 async def start_recorder_session(
     payload: RecorderSessionStartRequest,
     request: Request,
@@ -468,7 +461,7 @@ async def start_recorder_session(
     "/generators/recorder/sessions/{session_id}/finalize",
     response_model=TestCaseDetail,
 )
-@require_tier(TierFlag.ANY)
+@require_llm_ready
 async def finalize_recorder_session(
     session_id: str,
     payload: RecorderFinalizeRequest,
@@ -514,7 +507,7 @@ async def finalize_recorder_session(
     "/generators/recorder/sessions/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@require_tier(TierFlag.ANY)
+@require_llm_ready
 async def cancel_recorder_session(
     session_id: str,
     request: Request,
@@ -538,9 +531,8 @@ async def cancel_recorder_session(
 # ---------------------------------------------------------------------------
 # M6-1 — Diff-aware test selection
 # ---------------------------------------------------------------------------
-# LLM-driven diff → case selection (M6-3). CLOUD/LOCAL: the real gate is an
-# active LLMConfig (falls back to full-run at ZERO tier automatically via the
-# service). Non-streaming JSON response. QA+ gate (reads suite + cases).
+# LLM-driven diff → case selection (M6-3). It falls back to the full suite when
+# no validated workspace LLM exists. Non-streaming JSON response.
 
 
 class DiffSelectRequest(BaseModel):
@@ -555,7 +547,7 @@ class DiffSelectResponse(BaseModel):
 
     selected_case_ids: list[str]
     rationale: str | None
-    tier_used: str  # "llm" | "fallback_full"
+    selection_mode: str  # "llm" | "fallback_full"
     parsed_files_count: int
 
 
@@ -563,7 +555,6 @@ class DiffSelectResponse(BaseModel):
     "/generators/diff-select",
     response_model=DiffSelectResponse,
 )
-@require_tier(TierFlag.ANY)
 async def diff_select(
     payload: DiffSelectRequest,
     ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
@@ -571,10 +562,9 @@ async def diff_select(
 ) -> DiffSelectResponse:
     """Select relevant test cases for a PR diff via LLM impact analysis (M6).
 
-    At CLOUD/LOCAL tier the endpoint queries the active LLM to identify which
-    cases are most likely to catch regressions introduced by ``diff_text``.
-    At ZERO tier (or when no LLM is configured) it returns **all** cases in
-    the suite so CI always has a safe fallback.
+    With a validated workspace LLM the endpoint identifies cases most likely to
+    catch regressions introduced by ``diff_text``. Otherwise it returns **all**
+    cases in the suite so CI always has a safe fallback.
 
     ``diff_text`` must not exceed 50 000 characters; a 400 is returned if it
     does.  The suite must belong to the caller's workspace; a 404 is returned
@@ -618,7 +608,7 @@ async def diff_select(
 
     return DiffSelectResponse(
         selected_case_ids=result.selected_case_ids,
-        rationale=result.rationale if result.tier_used == "llm" else None,
-        tier_used=result.tier_used,
+        rationale=result.rationale if result.selection_mode == "llm" else None,
+        selection_mode=result.selection_mode,
         parsed_files_count=len(changed_files),
     )

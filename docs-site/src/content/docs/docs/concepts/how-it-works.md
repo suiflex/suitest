@@ -23,13 +23,13 @@ bootstrap -> analyze / crawl -> plan -> generate cases -> run -> evidence -> pub
 
 3. **Plan.** The analysis becomes a testing plan. Planning is rule based and deterministic; when your workspace has an LLM configured, a Markdown PRD can drive the plan instead.
 
-4. **Generate cases.** The plan becomes structured test cases (title, slug, steps, expected results) plus executable Playwright specs. Deterministic generators (OpenAPI parser, browser recorder, crawler based generation) work at every tier; an LLM adds richer cases and code generation on top. See [Capability tiers](/docs/reference/tiers/).
+4. **Generate cases.** The plan becomes structured test cases (title, slug, steps, expected results) plus executable Playwright specs. Suitest uses the validated workspace LLM for planning and code generation. See [LLM readiness](/docs/reference/llm-readiness/).
 
 5. **Run.** Execution is always deterministic. On the platform, the runner dispatches each test step through an MCP provider: `playwright` for real browser steps, `api-http` for HTTP calls, `postgres` for database verification. Live status streams to the run detail page over WebSocket, and runs can be cancelled or rerun. The runner is the only component that decides pass or fail. Never the LLM.
 
 6. **Evidence.** Screenshots, per test video, DOM snapshots, console logs, and network captures are uploaded to object storage and attached to the exact run step that produced them. See [Evidence](/docs/concepts/evidence/).
 
-7. **Publish.** Optionally, cases, runs, and evidence are persisted to your Suitest instance using an API key. Without a key everything still works; results stay local under `suitest-output/`.
+7. **Publish.** Cases, runs, and evidence are persisted to your Suitest instance using the API key supplied to the MCP process.
 
 8. **Report.** The run is condensed into something a human, or an agent, actually reads: a structured report from the CLI and MCP tools, plus dashboards, pass rate analytics, and a traceability matrix in the web app. Failures can auto file rule based defects.
 
@@ -81,7 +81,7 @@ suitest test --config suitest.config.json
 suitest mcp
 ```
 
-Set `SUITEST_API_URL` and `SUITEST_API_KEY` to publish results to your instance; omit them to keep everything local. See the [CLI reference](/docs/reference/cli/) and [CI with GitHub Actions](/docs/guides/ci-github-action/).
+Set `SUITEST_API_URL` and `SUITEST_API_KEY` to connect to your instance. MCP startup also verifies that the workspace LLM is ready. See the [CLI reference](/docs/reference/cli/) and [CI with GitHub Actions](/docs/guides/ci-github-action/).
 
 ## Architecture
 
@@ -145,23 +145,16 @@ Each test step declares a `target_kind` (for example `FE_WEB`, `BE_REST`, `DATA`
 
 Bundled providers ship in the image and are pre registered in every workspace: `playwright`, `api-http`, and `postgres` are the primary three, with `graphql`, `mysql`, `mongo`, `kubernetes`, and `grpc` also available. You can register your own MCP servers from the dashboard.
 
-## Deterministic core, optional AI
+## LLM readiness
 
-Suitest is AI assisted, not AI dependent. The deterministic pipeline (crawl, generate, run, evidence, report) is fully functional with no LLM at all. Configuring an LLM for your workspace stacks AI features on top: PRD driven planning, LLM code generation, failure diagnosis, and agent chat.
-
-| Stage | Without an LLM (ZERO tier) | With an LLM (LOCAL / CLOUD) |
-|-------|----------------------------|------------------------------|
-| Analyze | Full: deterministic crawl, OpenAPI, DOM | Same, plus semantic understanding |
-| Plan | Rule based plan | PRD driven planning |
-| Generate | Recorder, crawler, OpenAPI generators | Plus LLM code generation and richer cases |
-| Run | Full, always deterministic | Identical: AI never decides pass or fail |
-| Evidence | Full | Identical |
-| Report | Full | Plus AI diagnosis |
-
-The right column never replaces the left; it only adds to it. How the tier is resolved and what each tier unlocks is covered in [Capability tiers](/docs/reference/tiers/).
+Manual test case management remains available before a model is connected.
+The MCP lifecycle and runs start only after the workspace has a validated LLM.
+Execution stays deterministic: MCP providers and assertions decide pass or
+fail, while the LLM handles planning, code generation, runtime translation,
+and diagnosis. See [LLM readiness](/docs/reference/llm-readiness/).
 
 :::tip
-The fastest way to see the pipeline end to end is the [getting started guide](/docs/guides/getting-started/): one blackbox run against a URL, no repo and no LLM required.
+The fastest way to see the pipeline end to end is the [getting started guide](/docs/guides/getting-started/): connect a provider, then run one blackbox test against a URL with no repository required.
 :::
 
 ## Next steps

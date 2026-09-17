@@ -590,7 +590,7 @@ export interface LlmConfigPublic {
   apiKeyHint: string | null;
   config: Record<string, unknown>;
   isActive: boolean;
-  tier: "ZERO" | "LOCAL" | "CLOUD";
+  status: "not_configured" | "validation_required" | "ready";
   lastValidatedAt: string | null;
   /** How the config authenticates: a pasted key, or Sign in with ChatGPT. */
   authMethod: "api_key" | "oauth";
@@ -640,9 +640,8 @@ export async function putLlmConfig(
 
 export async function testLlmConfig(
   workspaceId: string,
-  body: LlmConfigWriteBody,
 ): Promise<LlmTestResult> {
-  const res = await api.post<LlmTestResult>(`/workspaces/${workspaceId}/llm-config/test`, body);
+  const res = await api.post<LlmTestResult>(`/workspaces/${workspaceId}/llm-config/test`);
   return res.data;
 }
 
@@ -879,7 +878,7 @@ export interface AutonomyState {
   level: AutonomyLevel;
   overrides: Record<string, boolean>;
   effective: Record<string, boolean>;
-  tier: "ZERO" | "LOCAL" | "CLOUD";
+  llmStatus: "not_configured" | "validation_required" | "ready";
   knownOverrideKeys: string[];
   updatedAt: string | null;
   updatedBy: string | null;

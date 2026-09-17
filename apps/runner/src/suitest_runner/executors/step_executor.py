@@ -21,12 +21,9 @@ Step ``code`` envelope (DATA_MODEL.md §3.4):
       ]
     }
 
-Empty ``code`` is *allowed* at ZERO tier: such steps are descriptive-only
-(manual TCM), so we ``SKIP`` them with a stable reason string. At LOCAL/CLOUD
-the same shape is reserved for the M3 agentic translator which converts the
-prose ``action`` into a tool call on the fly — for now we ``SKIP`` with a
-``TODO(M3)`` marker so the orchestrator keeps a clean run record without
-fabricating a synthetic tool call.
+Empty ``code`` is valid for manual TCM. During a run the validated workspace LLM
+translates the prose ``action`` into a tool call; if readiness disappeared after
+queueing, execution fails closed.
 """
 
 from __future__ import annotations
@@ -42,7 +39,7 @@ from typing import TYPE_CHECKING
 import structlog
 from suitest_mcp.errors import McpToolFailed, McpToolTimeout
 from suitest_mcp.invoker import InvokeContext
-from suitest_shared.domain.enums import StepOutcome, TargetKind, Tier
+from suitest_shared.domain.enums import StepOutcome, TargetKind
 
 if TYPE_CHECKING:
     from suitest_db.models.case import TestStep as TestStepRow
@@ -164,7 +161,6 @@ async def execute_step(
     run_id: str,
     workspace_id: str,
     actor_user_id: str | None,
-    tier: Tier,
     routing_overrides: dict[str, object] | None,
     translator: StepTranslator | None = None,
 ) -> StepResult:
@@ -172,9 +168,9 @@ async def execute_step(
 
     Decision tree:
 
-    * ``code`` empty + (``tier=ZERO`` or no translator) → ``SKIP`` with
+    * ``code`` empty + no translator → ``SKIP`` with
       ``NO_LLM_FOR_AGENTIC_STEP``.
-    * ``code`` empty + LLM tier + translator → translate ``action`` → tool call
+    * ``code`` empty + translator → translate ``action`` → tool call
       (M3-10); untranslatable → ``SKIP`` ``AGENTIC_TRANSLATE_FAILED``.
     * ``code`` not valid JSON → ``ERROR`` with ``INVALID_STEP_CODE``.
     * Tool call raises :class:`McpToolTimeout` → ``ERROR`` ``MCP_TOOL_TIMEOUT``.
@@ -213,10 +209,9 @@ async def execute_step(
 
     parsed: object
     if not test_step.code:
-        # Agentic step: no deterministic code. At ZERO (or when no translator was
-        # wired) it stays descriptive-only → SKIP. At LOCAL/CLOUD the M3-10
-        # translator converts the prose ``action`` into a tool call on the fly.
-        if tier == Tier.ZERO or translator is None:
+        # Agentic step: no deterministic code. A missing translator means the
+        # workspace LLM became unavailable after run creation.
+        if translator is None:
             return _done(
                 StepOutcome.SKIP,
                 msg="NO_LLM_FOR_AGENTIC_STEP: step has no code",

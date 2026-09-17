@@ -52,7 +52,6 @@ from suitest_shared.domain.enums import (
     Severity,
     StepOutcome,
     TargetKind,
-    Tier,
 )
 
 from suitest_db.engine import lifespan_engine
@@ -658,7 +657,6 @@ class Seeder:
                         project_id=project.id,
                         name=spec.name,
                         trigger=RunTrigger.CI_PUSH,
-                        tier_at_runtime=Tier.ZERO,
                         branch=spec.branch,
                         status=spec.status,
                     ),
@@ -855,7 +853,6 @@ class Seeder:
         if existing is None:
             existing = WorkspaceCapability(
                 workspace_id=ws.id,
-                tier=Tier.ZERO,
                 autonomy_level=AutonomyLevel.MANUAL,
                 features_json={},
             )

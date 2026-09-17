@@ -7,8 +7,8 @@ Surface (docs/AUTONOMY.md §6):
 
 Level + overrides persist on ``workspace_capabilities`` (level column +
 ``features_json['autonomy_overrides']``). ``effective`` is server-computed from
-level + overrides for the UI's convenience. Validation: ZERO tier accepts only
-``manual`` (``400 AUTONOMY_REQUIRES_LLM``); unknown override keys are
+level + overrides for the UI's convenience. A workspace without a ready LLM
+accepts only ``manual`` (``400 AUTONOMY_REQUIRES_LLM``); unknown override keys are
 ``400 UNKNOWN_OVERRIDE_KEY``.
 """
 
@@ -20,7 +20,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_core.autonomy import KNOWN_OVERRIDE_KEYS
-from suitest_shared.domain.enums import AutonomyLevel, Role, Tier
+from suitest_core.capabilities import LlmStatus
+from suitest_shared.domain.enums import AutonomyLevel, Role
 
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.role import require_role
@@ -40,7 +41,7 @@ class AutonomyResponse(BaseModel):
     level: AutonomyLevel
     overrides: dict[str, bool]
     effective: dict[str, bool]
-    tier: Tier
+    llm_status: LlmStatus = Field(alias="llmStatus")
     known_override_keys: list[str] = Field(alias="knownOverrideKeys")
     updated_at: datetime | None = Field(default=None, alias="updatedAt")
     updated_by: str | None = Field(default=None, alias="updatedBy")
@@ -61,7 +62,7 @@ def _to_response(view: AutonomyView) -> AutonomyResponse:
         level=view.level,
         overrides=view.overrides,
         effective=view.effective,
-        tier=view.tier,
+        llm_status=view.llm_status,
         known_override_keys=sorted(KNOWN_OVERRIDE_KEYS),
         updated_at=view.updated_at,
         updated_by=view.updated_by,

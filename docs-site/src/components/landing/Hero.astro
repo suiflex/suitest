@@ -43,7 +43,7 @@ import mcpPkg from "../../../../packages/mcp-npx/package.json";
     </div>
 
     <div class="hero-term" data-reveal>
-      <!-- Real CLI: `suitest zero blackbox`. Output below is sample data. -->
+      <!-- Example agent-driven Suitest run. Output below is sample data. -->
       <div class="term" id="hero-terminal" aria-label="Example Suitest run">
         <div class="term-bar">
           <span class="term-title">suitest</span>
@@ -56,11 +56,11 @@ import mcpPkg from "../../../../packages/mcp-npx/package.json";
 
 <script>
   // Typewriter for the hero terminal. Plays once when visible.
-  // Lines mirror a real `suitest zero blackbox` session (sample output).
+  // Lines mirror an agent-driven Suitest session (sample output).
   type Line = { text: string; cls?: string; typed?: boolean; delay?: number };
 
   const LINES: Line[] = [
-    { text: "$ suitest zero blackbox --url http://localhost:3000 --prd PRD.md", cls: "cmd", typed: true },
+    { text: "$ suitest run --url http://localhost:3000 --prd PRD.md", cls: "cmd", typed: true },
     { text: "connected to target", cls: "ok", delay: 350 },
     { text: "crawled 14 routes, 3 forms, 2 auth flows", cls: "ok", delay: 500 },
     { text: "generated 12 test cases from PRD", cls: "ok", delay: 450 },

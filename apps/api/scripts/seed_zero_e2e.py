@@ -34,7 +34,7 @@ from suitest_db.models.user import User
 from suitest_db.models.workspace import Workspace
 from suitest_db.models.workspace_capability import WorkspaceCapability
 from suitest_db.public_id import set_workspace_id
-from suitest_shared.domain.enums import AutonomyLevel, CaseSource, Role, TargetKind, Tier
+from suitest_shared.domain.enums import AutonomyLevel, CaseSource, Role, TargetKind
 
 # Public, non-secret e2e fixture credentials (local dogfood DB only). Mirrored in
 # apps/web/e2e/realbackend/*.spec.ts.
@@ -79,7 +79,6 @@ async def _ensure_workspace(
         session.add(
             WorkspaceCapability(
                 workspace_id=ws.id,
-                tier=Tier.ZERO,
                 autonomy_level=AutonomyLevel.MANUAL,
                 features_json={},
             )
@@ -225,7 +224,6 @@ async def seed() -> str:
                 session.add(
                     WorkspaceCapability(
                         workspace_id=workspace.id,
-                        tier=Tier.ZERO,
                         autonomy_level=AutonomyLevel.MANUAL,
                         features_json={},
                     )

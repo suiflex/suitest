@@ -17,7 +17,7 @@ model output nor natural-language text can authorize a write (AUTONOMY.md §3
 ``conversation_can_mutate`` hard rail). A write also requires ``QA``-or-higher
 role and ``assist``-or-higher workspace autonomy, checked server-side here.
 
-CLOUD/LOCAL only; the router rejects ZERO / no-LLM with 409 before streaming.
+The router rejects a workspace without a validated LLM with 409 before streaming.
 """
 
 from __future__ import annotations

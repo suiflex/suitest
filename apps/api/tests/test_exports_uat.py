@@ -8,7 +8,7 @@ import pytest
 from suitest_db.models.case import TestCase, TestStep
 from suitest_db.models.project import Project, Suite
 from suitest_db.models.run import Run, RunStep
-from suitest_shared.domain.enums import CaseSource, RunStatus, RunTrigger, StepOutcome, Tier
+from suitest_shared.domain.enums import CaseSource, RunStatus, RunTrigger, StepOutcome
 
 if TYPE_CHECKING:
     from api_harness import ApiDb
@@ -74,7 +74,6 @@ async def test_uat_export_200_with_run(api_db: ApiDb) -> None:
         project_id=proj.id,
         name="smoke",
         trigger=RunTrigger.MANUAL,
-        tier_at_runtime=Tier.ZERO,
         status=RunStatus.PASS,
     )
     await api_db.add_all([run])

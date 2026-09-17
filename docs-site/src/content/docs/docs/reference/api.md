@@ -109,7 +109,7 @@ See [Evidence](/docs/concepts/evidence/) for where artifacts are stored and how 
 
 ## Generators
 
-Deterministic generators work at the ZERO tier; PRD and semantic generators need a workspace LLM.
+Generator availability is exposed by `/capabilities`; MCP-driven generation requires a validated workspace LLM.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -136,12 +136,12 @@ Deterministic generators work at the ZERO tier; PRD and semantic generators need
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/capabilities` | Effective tier + feature flags (root path, no `/api/v1` prefix) |
+| GET | `/capabilities` | LLM readiness + feature flags (root path, no `/api/v1` prefix) |
 | GET | `/capabilities/health` | Capability health probe |
 | GET | `/api/v1/workspaces/{workspaceId}/llm-config` | Read the workspace LLM configuration |
 | PUT | `/api/v1/workspaces/{workspaceId}/llm-config` | Set the workspace LLM provider |
 | POST | `/api/v1/workspaces/{workspaceId}/llm-config/test` | Test the configured provider |
-| DELETE | `/api/v1/workspaces/{workspaceId}/llm-config` | Remove the LLM configuration (back to ZERO) |
+| DELETE | `/api/v1/workspaces/{workspaceId}/llm-config` | Remove the LLM configuration; MCP and runs become unavailable |
 | GET | `/api/v1/workspaces/{workspaceId}/llm-config/models` | List available models for the provider |
 | GET | `/api/v1/mcp/providers` | List MCP providers |
 | GET | `/api/v1/mcp/providers/{provider_id}` | Provider detail |

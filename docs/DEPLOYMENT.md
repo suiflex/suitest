@@ -1,6 +1,10 @@
 # docs/DEPLOYMENT.md
 
-> How to deploy Suitest OSS in 3 modes: single-host docker-compose, standalone all-in-one container, and Helm chart for k8s production. For architecture context read [ARCHITECTURE.md](./ARCHITECTURE.md). For capability tiers (ZERO/LOCAL/CLOUD) read [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md).
+> How to deploy Suitest OSS in 3 modes: single-host docker-compose, standalone all-in-one container, and Helm chart for k8s production. For architecture context read [ARCHITECTURE.md](./ARCHITECTURE.md). For LLM readiness read [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md).
+>
+> Suitest Cloud means the future Suitest-hosted collaboration deployment and is
+> **Coming Soon**. It is not a model-provider tier. Older tier references below
+> are historical and must not be used as deployment configuration.
 >
 > ℹ️ **Built today:** the §1.1 quickstart, the compose stack (`infra/docker/docker-compose.yml` — the authoritative file; web on **3000**, API on **4000**, tag pinned via `SUITEST_IMAGE_TAG`), the all-in-one image `ghcr.io/suiflex/suitest`, and the in-repo chart `infra/helm/suitest` (no migration hook — see the docs-site Kubernetes guide). The annotated YAML/env excerpts and the OCI-chart/HPA sections below are the M3–M4 **target spec** and diverge from the shipped files in places (port numbers, `SUITEST_VERSION`, `SUITEST_LLM_*`). Note: the shipped platform has **no `SUITEST_LLM_*` env vars** — the LLM is configured per workspace in the web UI.
 >

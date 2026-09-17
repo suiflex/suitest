@@ -1,12 +1,7 @@
-"""/capabilities — public, no auth required (docs/API.md §3.0, CAPABILITY_TIERS §10).
+"""Public workspace capability discovery.
 
-``GET /capabilities`` returns the env-resolved base capabilities (stashed on
-``app.state.capabilities`` at startup). When an ``X-Workspace-Id`` header names an
-existing workspace, the workspace ``WorkspaceCapability`` + active ``LLMConfig`` +
-``McpProvider`` rows are overlaid (DB wins over env). An unknown workspace id
-silently returns the base — no 404, since this endpoint is fetched pre-login.
-
-``GET /capabilities/health`` is a lightweight liveness probe carrying tier + uptime.
+The workspace header selects the active LLM configuration. Unknown or absent
+workspace ids return the unauthenticated base used by the login page.
 """
 
 from __future__ import annotations
@@ -67,8 +62,7 @@ async def get_capabilities(
 
 @router.get("/capabilities/health", response_model_by_alias=True)
 async def get_capabilities_health(request: Request) -> dict[str, object]:
-    """Lightweight liveness probe: ``{tier, status, uptimeSec}`` (docs/API.md §3.0)."""
-    base = _base_capabilities(request)
+    """Lightweight process liveness probe."""
     started_at = getattr(request.app.state, "started_at", None)
     uptime = int(time.monotonic() - started_at) if isinstance(started_at, float) else 0
-    return {"tier": base.tier.value, "status": "ok", "uptimeSec": uptime}
+    return {"status": "ok", "uptimeSec": uptime}

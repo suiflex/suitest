@@ -18,7 +18,7 @@ The local contract is `suitest.whitebox.v1`.
 
 - A repository with tests the framework can already run on its own
 - One of the reference adapters: **pytest**, **Vitest**, **Jest**
-- No LLM, no API key — this is ZERO tier
+- A Suitest API key and a validated workspace LLM
 
 If `<repo>/.venv` exists, the pytest adapter runs your tests with **that**
 interpreter, so they import your dependencies. Suitest only provisions pytest

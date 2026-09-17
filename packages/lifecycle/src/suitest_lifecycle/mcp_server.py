@@ -13,9 +13,7 @@ from __future__ import annotations
 
 import json
 import os
-import queue
 import sys
-import threading
 import urllib.error
 import urllib.request
 from typing import TYPE_CHECKING, TextIO, cast
@@ -27,29 +25,14 @@ if TYPE_CHECKING:
 
 PROTOCOL_VERSION = "2024-11-05"
 
-# Responses to requests the SERVER sends to the client (sampling/createMessage)
-# land here, keyed by the request id. sampling.py waits on the condition.
-_client_responses: dict[object, dict[str, object]] = {}
-_client_response_event = threading.Condition()
-_stdout_lock = threading.Lock()
 _out_stream: TextIO | None = None  # set by serve()
 
 
 def _write_message(message: dict[str, object]) -> None:
-    """Thread-safe write to the client stream (handler + sampling share it)."""
+    """Write one JSON-RPC message to the client stream."""
     assert _out_stream is not None
-    with _stdout_lock:
-        _out_stream.write(json.dumps(message) + "\n")
-        _out_stream.flush()
-
-
-# Capabilities the client declared at initialize (e.g. sampling). Sampling is
-# only usable when the client advertised it.
-_client_capabilities: dict[str, object] = {}
-
-
-def client_supports_sampling() -> bool:
-    return "sampling" in _client_capabilities
+    _out_stream.write(json.dumps(message) + "\n")
+    _out_stream.flush()
 
 
 # Run tools accept the explicit recreate opt-in (goal: recreate NEVER happens
@@ -189,11 +172,6 @@ def handle(message: dict[str, object]) -> dict[str, object] | None:
     method = message.get("method")
     req_id = message.get("id")
     if method == "initialize":
-        params = message.get("params") or {}
-        caps = params.get("capabilities") if isinstance(params, dict) else None
-        _client_capabilities.clear()
-        if isinstance(caps, dict):
-            _client_capabilities.update(caps)
         return _ok(
             req_id,
             {
@@ -267,12 +245,9 @@ def verify_credentials() -> str | None:
     tool publishes into). Any failure must abort the connection: a server that
     accepts empty or mismatched credentials silently drops all publishes.
 
-    Local mode (``SUITEST_MODE=local``) runs against on-disk SQLite + artifacts
-    with no server and no API key, so the credential gate is skipped entirely
-    (P0 items #1/#3).
+    The response must also report a validated workspace LLM. MCP execution is
+    unavailable until Settings → LLM has completed its connection test.
     """
-    if os.environ.get("SUITEST_MODE", "").strip().lower() == "local":
-        return None
     api_url = os.environ.get("SUITEST_API_URL", "").strip().rstrip("/")
     api_key = os.environ.get("SUITEST_API_KEY", "").strip()
     if not api_url or not api_key:
@@ -285,8 +260,15 @@ def verify_credentials() -> str | None:
         headers={"Authorization": f"Bearer {api_key}"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=10):
-            return None
+        with urllib.request.urlopen(req, timeout=10) as response:
+            payload = json.loads(response.read())
+        llm_status = payload.get("llmStatus") if isinstance(payload, dict) else None
+        if llm_status != "ready":
+            return (
+                f"workspace LLM is {llm_status or 'not_configured'}; connect and validate it "
+                f"at {api_url}/settings before starting MCP"
+            )
+        return None
     except urllib.error.HTTPError as exc:
         return f"SUITEST_API_KEY rejected by {api_url} (HTTP {exc.code}); refusing to start"
     except (urllib.error.URLError, OSError) as exc:
@@ -301,38 +283,13 @@ def serve(stdin: TextIO = sys.stdin, stdout: TextIO = sys.stdout) -> None:
         sys.stderr.write(f"suitest-mcp: {error}\n")
         raise SystemExit(1)
 
-    # A reader thread parses stdin so a running tool (which may send a
-    # sampling/createMessage request and block on the client's reply) never
-    # starves stdin: responses to server-sent requests are routed straight to
-    # _client_responses; everything else is queued for the dispatcher below.
-    incoming: queue.Queue[dict[str, object] | None] = queue.Queue()
-
-    def _reader() -> None:
-        for line in stdin:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                message = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(message, dict):
-                continue
-            # A reply to a request the server sent: has id, no method.
-            if "method" not in message and "id" in message:
-                with _client_response_event:
-                    _client_responses[message["id"]] = message
-                    _client_response_event.notify_all()
-                continue
-            incoming.put(message)
-        incoming.put(None)  # EOF sentinel
-
-    threading.Thread(target=_reader, daemon=True).start()
-
-    while True:
-        message = incoming.get()
-        if message is None:
-            return
+    for line in stdin:
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(message, dict):
+            continue
         response = handle(message)
         if response is not None:
             _write_message(response)

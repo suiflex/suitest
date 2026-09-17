@@ -70,7 +70,6 @@ export function RunSummaryCard({ run }: RunSummaryCardProps): React.ReactElement
           <span className="font-mono text-[12px] text-fg-3">{run.public_id}</span>
           <span className="font-mono text-[11px] text-fg-5">via {run.trigger}</span>
         </div>
-        <span className="font-mono text-[11px] text-fg-5">tier={run.tier_at_runtime}</span>
       </div>
       <h2 className="text-[18px] font-semibold leading-tight tracking-[-.01em] text-fg-1">
         {run.name}

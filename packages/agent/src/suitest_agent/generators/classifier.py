@@ -1,9 +1,9 @@
 """Rule-based target classifier (M2 Task 1).
 
-Pure, deterministic, NO LLM — runs in every capability tier. Given a
+Pure, deterministic, NO LLM. Given a
 :class:`GenerationInput`, returns a :class:`ClassificationResult` describing the
 most likely :class:`TargetKind`, the recommended MCP provider name, and a
-generation strategy (plus tier-gated alternatives). First matching rule wins.
+generation strategy (plus LLM-gated alternatives). First matching rule wins.
 
 Every other M2 generator consults this to pick its default routing.
 
@@ -37,14 +37,12 @@ _K8S_KIND_RE: Final = re.compile(
 
 
 # Per-rule result constants: target kind, confidence, default MCP provider,
-# strategy, and (strategy, requires_tier) alternative pairs. Keyed by rule
+# strategy, and alternative strategies. Keyed by rule
 # label (NOT TargetKind — ``prd_text`` and ``custom`` both map to CUSTOM).
 _RULE_RESULTS: Final[
     dict[
         str,
-        tuple[
-            TargetKind, float, str, RecommendedStrategy, tuple[tuple[RecommendedStrategy, str], ...]
-        ],
+        tuple[TargetKind, float, str, RecommendedStrategy, tuple[RecommendedStrategy, ...]],
     ]
 ] = {
     "be_rest": (
@@ -52,7 +50,7 @@ _RULE_RESULTS: Final[
         0.95,
         "api-http-mcp",
         RecommendedStrategy.OPENAPI_GENERATOR,
-        ((RecommendedStrategy.PRD_PARSING, "CLOUD"),),
+        (RecommendedStrategy.PRD_PARSING,),
     ),
     "be_graphql": (
         TargetKind.BE_GRAPHQL,
@@ -67,20 +65,19 @@ _RULE_RESULTS: Final[
         0.7,
         "playwright-mcp",
         RecommendedStrategy.URL_CRAWLER,
-        ((RecommendedStrategy.RECORDER, "ZERO"), (RecommendedStrategy.URL_SEMANTIC, "CLOUD")),
+        (RecommendedStrategy.RECORDER, RecommendedStrategy.URL_SEMANTIC),
     ),
     "fe_mobile": (TargetKind.FE_MOBILE, 0.95, "appium-mcp", RecommendedStrategy.URL_CRAWLER, ()),
     "data": (TargetKind.DATA, 0.95, "postgres-mcp", RecommendedStrategy.OPENAPI_GENERATOR, ()),
     "infra": (TargetKind.INFRA, 0.85, "kubernetes-mcp", RecommendedStrategy.OPENAPI_GENERATOR, ()),
     # Free-form text — no canonical MIXED kind, so map to CUSTOM + PRD parsing.
-    # PRD parsing is LLM-driven (CLOUD/LOCAL); the deterministic fallback is
-    # the recorder, which works in ZERO tier.
+    # PRD parsing is LLM-driven; the recorder is an alternative.
     "prd_text": (
         TargetKind.CUSTOM,
         0.6,
         "playwright-mcp",
         RecommendedStrategy.PRD_PARSING,
-        ((RecommendedStrategy.RECORDER, "ZERO"),),
+        (RecommendedStrategy.RECORDER,),
     ),
     "custom": (TargetKind.CUSTOM, 0.3, "playwright-mcp", RecommendedStrategy.RECORDER, ()),
 }
@@ -102,7 +99,7 @@ def _result(rule: str, rationale: str, *, mcp_name: str | None = None) -> Classi
         confidence=confidence,
         recommended_mcp=RecommendedMcp(name=mcp_name if mcp_name is not None else default_mcp),
         recommended_strategy=strategy,
-        alternatives=[StrategyAlternative(strategy=s, requires_tier=tier) for s, tier in alt_pairs],
+        alternatives=[StrategyAlternative(strategy=strategy) for strategy in alt_pairs],
         rationale=rationale,
     )
 

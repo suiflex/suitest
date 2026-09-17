@@ -5,16 +5,16 @@ description: Test any running web app without repo access. Discover, crawl, gene
 
 Blackbox mode tests a web app you can reach but whose code you do not have: a
 staging URL, a third-party app, a legacy system. A URL, test credentials, and
-a crawl scope are enough. The engine is deterministic, needs no LLM and no API
-key, and is exposed three ways: the `suitest zero blackbox` CLI, the
-`blackbox_*` MCP tools, and the config-driven lifecycle.
+a crawl scope are enough. The engine is exposed through the standalone
+`suitest zero blackbox` CLI, the `blackbox_*` MCP tools, and the config-driven
+lifecycle. MCP usage requires a validated workspace LLM and Suitest API key.
 
 ## What the engine does
 
 1. Opens a real Chromium and loads the target URL.
 2. Detects the login form heuristically from labels, placeholders, `name`,
    `type`, `autocomplete`, ARIA attributes, and button text. `data-testid` is
-   only the first-priority selector tier, never a requirement.
+   only the first selector priority, never a requirement.
 3. Logs in, verifies the redirect, and records the error region on failure.
 4. Crawls navbar, sidebar, and menu routes (BFS) with caps (`maxDepth`,
    `maxRoutes`). Safe mode is on by default: delete, remove, logout, billing,
@@ -96,7 +96,7 @@ Locators are chosen in priority order:
 7. stable CSS path
 8. XPath (last resort only)
 
-Set `crawl.ignoreTestIds: true` to disable tier 1, which is useful for
+Set `crawl.ignoreTestIds: true` to disable the first selector priority, which is useful for
 validating that a suite keeps working on apps with no testid convention.
 
 ## Configuration
@@ -182,10 +182,10 @@ failure fails the run stage. Results never stay local silently.
 
 ## Guarantees and limits
 
-- Zero mode needs no LLM and no API key.
+- The standalone CLI can run without a Suitest server; MCP tools require a Suitest API key and validated workspace LLM.
 - Safe mode is on by default; destructive links are recorded in
   `skippedRoutes` and never visited.
 - Removing every testid from an app must not break login or generation;
-  testids are only selector tier 1.
+  testids are only the first selector priority.
 - SPA routes reachable only via a JavaScript `navigate()` call with no
   `<a href>` are not yet discovered.

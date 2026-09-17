@@ -22,10 +22,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import select
-from suitest_core.capabilities import TierFlag
 from suitest_db.audit import coerce_user_id, write_audit
 from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.project import Suite
@@ -37,16 +36,14 @@ from suitest_db.repositories.projects import ProjectRepo
 from suitest_db.repositories.runs import RunRepo
 from suitest_db.repositories.suites import SuiteRepo
 from suitest_db.repositories.test_cases import TestCaseRepo
-from suitest_db.repositories.workspaces import WorkspaceRepo
-from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, RunTrigger, Tier
+from suitest_shared.domain.enums import CaseSource, CaseStatus, Priority, RunTrigger
 from suitest_shared.schemas.responses import TestCaseDetailOut, TestCaseOut, TestStepOut
 from suitest_shared.text import derive_slug, derive_title
 
 from suitest_api.deps.scope import TenantContext
-from suitest_api.deps.tier import require_tier
 from suitest_api.services.project_scope import project_belongs_to_workspace
 from suitest_api.services.run_service import RunService
-from suitest_api.services.test_case_validator import _StepLike, validate_steps
+from suitest_api.services.test_case_validator import validate_steps
 
 if TYPE_CHECKING:
     from suitest_api.schemas.test_case import (
@@ -190,7 +187,6 @@ class TestCaseService:
     # Read path (M1a)
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def list(
         self,
         suite_id: str,
@@ -217,7 +213,6 @@ class TestCaseService:
         )
         return [TestCaseOut.model_validate(r) for r in rows]
 
-    @require_tier(TierFlag.ANY)
     async def get_by_id_with_steps(self, case_id: str) -> TestCaseDetailOut | None:
         row = await self._repo.get_by_id(case_id)
         if row is None or not await self._suite_in_scope(row.suite_id):
@@ -230,23 +225,6 @@ class TestCaseService:
     # ------------------------------------------------------------------
     # Helpers shared by the write methods
     # ------------------------------------------------------------------
-
-    async def _resolve_tier_and_settings(self) -> tuple[Tier, bool]:
-        """Return ``(tier, strict_zero_validation)`` for the active workspace.
-
-        Tier resolves via :class:`WorkspaceCapability` (defaults to
-        :attr:`Tier.ZERO` when no overlay exists — matches the read-side
-        ``resolve_workspace_tier`` semantics). ``strict_zero_validation`` is a
-        plain column on :class:`Workspace` (M1d-1 migration) — defaults to
-        ``true`` so existing workspaces inherit the stricter behaviour.
-        """
-        from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
-
-        capability = await WorkspaceCapabilityRepo(self._session).get(self._ctx.workspace_id)
-        tier = Tier(capability.tier) if capability is not None else Tier.ZERO
-        workspace = await WorkspaceRepo(self._session).get_by_id(self._ctx.workspace_id)
-        strict = bool(workspace.strict_zero_validation) if workspace is not None else True
-        return tier, strict
 
     async def _registered_mcp_names(self) -> set[str]:
         """Return the set of MCP provider names registered for the workspace.
@@ -305,7 +283,6 @@ class TestCaseService:
     # Write path (M1d-2)
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def create(self, body: TestCaseCreate) -> CaseWriteResult | None:
         """Create a test case + steps + tags atomically.
 
@@ -319,14 +296,8 @@ class TestCaseService:
         ):
             return None
 
-        tier, strict = await self._resolve_tier_and_settings()
         registered = await self._registered_mcp_names()
-        validate_steps(
-            body.steps,
-            tier=tier,
-            strict_zero_validation=strict,
-            registered_mcp_names=registered,
-        )
+        validate_steps(body.steps, registered_mcp_names=registered)
 
         case = TestCase(
             workspace_id=self._ctx.workspace_id,
@@ -401,7 +372,6 @@ class TestCaseService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def update(
         self,
         case_id: str,
@@ -490,7 +460,6 @@ class TestCaseService:
             is not None
         )
 
-    @require_tier(TierFlag.ANY)
     async def replace_steps(
         self,
         case_id: str,
@@ -512,14 +481,8 @@ class TestCaseService:
             return None
         self._check_if_unmodified_since(case, if_unmodified_since)
 
-        tier, strict = await self._resolve_tier_and_settings()
         registered = await self._registered_mcp_names()
-        validate_steps(
-            steps,
-            tier=tier,
-            strict_zero_validation=strict,
-            registered_mcp_names=registered,
-        )
+        validate_steps(steps, registered_mcp_names=registered)
 
         await self._repo.delete_steps(case.id)
         rebuilt: list[TestStep] = []
@@ -568,7 +531,6 @@ class TestCaseService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def append_step(self, case_id: str, step: StepAppend) -> CaseWriteResult | None:
         """Append one step using ``SELECT MAX(order) FOR UPDATE`` for race safety.
 
@@ -581,14 +543,8 @@ class TestCaseService:
         if case is None:
             return None
 
-        tier, strict = await self._resolve_tier_and_settings()
         registered = await self._registered_mcp_names()
-        validate_steps(
-            [step],
-            tier=tier,
-            strict_zero_validation=strict,
-            registered_mcp_names=registered,
-        )
+        validate_steps([step], registered_mcp_names=registered)
 
         next_order = await self._repo.next_step_order_locked(case.id)
         new_step = TestStep(
@@ -626,7 +582,6 @@ class TestCaseService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def reorder_steps(
         self,
         case_id: str,
@@ -697,15 +652,13 @@ class TestCaseService:
             None,
         )
 
-    @require_tier(TierFlag.ANY)
     async def trigger_adhoc_run(self, case_id: str) -> RunRow | None:
         """Validate + enqueue a one-case run via M1c :class:`RunService.create_run`.
 
-        Pre-flight re-runs the per-step validator against the workspace's
-        CURRENT tier + strict-zero flag — a case authored under a permissive
-        tier that later flips to ZERO+strict must not silently run. Failure
-        bubbles the typed validator exception untouched (router maps to the
-        canonical envelope) and NO ``runs`` row is created.
+        Pre-flight re-runs per-step validation. The shared run gate separately
+        requires the workspace LLM to remain validated. Failure bubbles the
+        typed validator exception untouched (router maps to the canonical
+        envelope) and no ``runs`` row is created.
 
         Cross-workspace / soft-deleted case ids return ``None`` so the router
         translates to 404 without an enumeration oracle.
@@ -719,17 +672,8 @@ class TestCaseService:
             return None  # pragma: no cover — scope check already loaded suite
 
         steps = await self._repo.get_steps(case.id)
-        tier, strict = await self._resolve_tier_and_settings()
         registered = await self._registered_mcp_names()
-        # ``TestStep`` carries the ``code`` + ``mcp_provider`` attrs the
-        # validator's ``_StepLike`` protocol describes — explicit cast keeps
-        # mypy happy under its invariant ``Sequence`` view of ORM rows.
-        validate_steps(
-            cast("Sequence[_StepLike]", steps),
-            tier=tier,
-            strict_zero_validation=strict,
-            registered_mcp_names=registered,
-        )
+        validate_steps(steps, registered_mcp_names=registered)
 
         run_service = RunService(self._ctx, RunRepo(self._session), self._project_repo)
         run = await run_service.create_run(
@@ -758,7 +702,6 @@ class TestCaseService:
         )
         return run
 
-    @require_tier(TierFlag.ANY)
     async def duplicate(self, case_id: str) -> CaseWriteResult | None:
         """Clone the case + all its steps + tags into the SAME suite.
 
@@ -840,7 +783,6 @@ class TestCaseService:
     # M1d-7 bulk update
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def bulk_update(
         self,
         body: object,
@@ -1005,7 +947,6 @@ class TestCaseService:
     # M1d-3 soft delete + restore
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def soft_delete(self, case_id: str) -> CaseLifecycleResult | None:
         """Tombstone an active test case.
 
@@ -1047,7 +988,6 @@ class TestCaseService:
             transitioned=True,
         )
 
-    @require_tier(TierFlag.ANY)
     async def restore(self, case_id: str) -> CaseLifecycleResult | None:
         """Revive a tombstoned test case.
 
@@ -1116,7 +1056,6 @@ class StepReorderMismatchError(Exception):
 # module — keeps the import surface narrow for the (already long) router file.
 from suitest_api.services.test_case_validator import (  # noqa: E402
     McpProviderNotRegisteredError,
-    StepsRequireCodeError,
 )
 
 __all__ = [
@@ -1130,7 +1069,6 @@ __all__ = [
     "InvalidBulkTargetSuiteError",
     "McpProviderNotRegisteredError",
     "StepReorderMismatchError",
-    "StepsRequireCodeError",
     "TestCaseService",
 ]
 

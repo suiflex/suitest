@@ -10,6 +10,10 @@
 
 **MCP (Model Context Protocol)** is the Anthropic-originated open standard for connecting LLMs and runtimes to typed external tools. It is multi-provider, multi-transport, and language-agnostic. In Suitest, MCP is **not** a browser-automation shim — it is the **first-class plugin layer for all testing**.
 
+Suitest starts MCP only when the workspace has a validated active LLM. The client
+holds only `SUITEST_API_URL` and `SUITEST_API_KEY`; model credentials stay encrypted
+on the server and completions use `/api/v1/llm/complete`. MCP sampling is unsupported.
+
 Key implications:
 
 - **Every step that touches an external system goes through an MCP server.** Browser clicks, API requests, DB queries, K8s assertions, gRPC calls — all flow through a typed tool.

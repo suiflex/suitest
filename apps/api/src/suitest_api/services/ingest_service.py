@@ -36,7 +36,6 @@ from suitest_shared.domain.enums import (
     RunTrigger,
     StepOutcome,
     TargetKind,
-    Tier,
 )
 from suitest_shared.text import derive_slug, derive_title
 
@@ -551,7 +550,6 @@ async def ingest_run(
                 project_id=project_id,
                 name=body.name,
                 trigger=RunTrigger.AGENT,
-                tier_at_runtime=Tier.ZERO,
                 env=body.env,
                 branch=body.branch,
                 commit_sha=body.commit_sha,

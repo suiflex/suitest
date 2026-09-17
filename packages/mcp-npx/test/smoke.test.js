@@ -38,7 +38,7 @@ const stub = http.createServer((req, res) => {
     req.url === "/api/v1/api-keys/whoami" &&
     req.headers.authorization === `Bearer ${SMOKE_KEY}`;
   res.writeHead(ok ? 200 : 401, { "content-type": "application/json" });
-  res.end(ok ? '{"workspaceId":"smoke"}' : '{"detail":"invalid key"}');
+  res.end(ok ? '{"workspaceId":"smoke","llmStatus":"ready"}' : '{"detail":"invalid key"}');
 });
 
 stub.listen(0, "127.0.0.1", () => {

@@ -21,7 +21,6 @@ from suitest_shared.domain.enums import (
     RunStatus,
     RunTrigger,
     StepOutcome,
-    Tier,
 )
 
 _NOW = datetime(2026, 5, 28, tzinfo=UTC)
@@ -47,7 +46,6 @@ def _run(run_id: str) -> Run:
         project_id="proj_1",
         name=run_id,
         trigger=RunTrigger.MANUAL,
-        tier_at_runtime=Tier.ZERO,
         status=RunStatus.PASS,
     )
     r.created_at = _NOW

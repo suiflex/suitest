@@ -3,7 +3,7 @@
 Maps each Suitest test CASE in a run to one JUnit ``<testcase>``, rolling up its
 ``RunStep`` outcomes: ERROR if any step errored, FAILURE if any step failed,
 SKIPPED if every step skipped/pending, else PASS. ``time`` is the summed step
-duration. Pure + deterministic + ZERO-tier — a function of the persisted run
+duration. Pure, deterministic, and LLM-free — a function of the persisted run
 steps, no LLM. Output is Jenkins / GitHub-Actions consumable so a Suitest run can
 gate a CI pipeline (``<testsuites><testsuite><testcase>``).
 
@@ -75,7 +75,7 @@ class _CaseRollup:
 
         ERROR wins over FAIL (an erroring step is a harder fault than an assertion
         failure). A case is ``skipped`` only when NO step produced a real outcome
-        (every step skipped/pending) — e.g. a ZERO-tier run of a prose-only case.
+        (every step skipped/pending).
         """
         if self._errored:
             return "error"

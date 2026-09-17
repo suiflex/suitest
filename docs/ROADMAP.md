@@ -1,6 +1,12 @@
 # docs/ROADMAP.md
 
-> Milestones for Suitest OSS. **ZERO-tier first**: every feature must work in ZERO mode before AI/LLM enrichment is added. Every PR references one acceptance criterion (`Closes #M2-3`). Work sequentially within a milestone.
+> Milestones for Suitest OSS. Manual TCM works without an LLM; MCP execution and runs require a validated workspace LLM. Every PR references one acceptance criterion (`Closes #M2-3`). Work sequentially within a milestone.
+
+> **2026-09-17 product pivot (current contract):** ZERO / LOCAL / CLOUD capability tiers and MCP sampling are removed. Provider location no longer changes product behavior. MCP authenticates with `SUITEST_API_URL` + `SUITEST_API_KEY`, verifies `llmStatus=ready`, and uses `/llm/complete`. “Suitest Cloud” now means only the future hosted collaboration service (**Coming Soon**); Enterprise is separate. Historical milestone wording below does not override this contract.
+
+## Current acceptance criterion
+
+- [x] **PIVOT-1** Replace capability tiers and MCP sampling with validated workspace-LLM readiness; preserve login, Settings, and manual TCM without an LLM; gate MCP and runs; reserve Cloud for hosted collaboration.
 
 Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md), [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md), [MCP_PLUGINS.md](./MCP_PLUGINS.md), [AUTONOMY.md](./AUTONOMY.md), [GENERATORS.md](./GENERATORS.md), [DEPLOYMENT.md](./DEPLOYMENT.md).
 
@@ -10,9 +16,9 @@ Cross-reference: [PRODUCT.md](./PRODUCT.md), [ARCHITECTURE.md](./ARCHITECTURE.md
 
 ## Phases
 
-- **v1.0** = M0 → M4. Public OSS launch readiness. ZERO tier complete, CLOUD + LOCAL tier online, SDK/CLI shipped.
-- **v1.x** = M5 → M9. Tier B polish features post-launch.
-- **v2.x** = M10 → M16. Testing intelligence + Tier C agentic features.
+- **v1.0** = M0 → M4. Public OSS launch readiness, BYO-LLM integration, SDK/CLI.
+- **v1.x** = M5 → M9. Product polish and hosted Cloud collaboration planning.
+- **v2.x** = M10 → M16. Testing intelligence and agentic features.
 
 ---
 

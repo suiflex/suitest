@@ -29,7 +29,7 @@ from suitest_db.models.tenancy import Membership
 from suitest_db.models.user import User
 from suitest_db.models.workspace import Workspace
 from suitest_db.models.workspace_capability import WorkspaceCapability
-from suitest_shared.domain.enums import AutonomyLevel, Role, Tier
+from suitest_shared.domain.enums import AutonomyLevel, Role
 
 # Owner user for the dogfood workspace.
 USER_EMAIL = "dev@suitest.local"
@@ -78,7 +78,6 @@ async def seed() -> tuple[str, str]:
                 session.add(
                     WorkspaceCapability(
                         workspace_id=ws.id,
-                        tier=Tier.ZERO,
                         autonomy_level=AutonomyLevel.MANUAL,
                         features_json={},
                     )

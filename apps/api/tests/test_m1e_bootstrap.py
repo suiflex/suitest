@@ -14,7 +14,7 @@ from suitest_db.models.tenancy import Membership
 from suitest_db.models.user import User
 from suitest_db.models.workspace import Workspace
 from suitest_db.models.workspace_capability import WorkspaceCapability
-from suitest_shared.domain.enums import Role, Tier
+from suitest_shared.domain.enums import Role
 
 
 def _settings(email: str = "root@example.com", password: str = "secret123") -> Settings:
@@ -58,7 +58,6 @@ async def test_bootstrap_creates_superadmin_workspace_membership_and_capability(
             select(WorkspaceCapability).where(WorkspaceCapability.workspace_id == workspace.id)
         )
         assert capability is not None
-        assert capability.tier == Tier.ZERO
 
 
 @pytest.mark.asyncio

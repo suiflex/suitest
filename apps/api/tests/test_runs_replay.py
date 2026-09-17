@@ -14,7 +14,7 @@ from suitest_api.services.replay_service import compute_state_delta
 from suitest_db.models.case import TestCase
 from suitest_db.models.project import Project, Suite
 from suitest_db.models.run import Run, RunStep
-from suitest_shared.domain.enums import CaseSource, RunTrigger, StepOutcome, Tier
+from suitest_shared.domain.enums import CaseSource, RunTrigger, StepOutcome
 
 if TYPE_CHECKING:
     from api_harness import ApiDb
@@ -61,7 +61,6 @@ async def test_replay_endpoint_returns_per_step_delta(api_db: ApiDb) -> None:
         project_id=proj.id,
         name="r",
         trigger=RunTrigger.MANUAL,
-        tier_at_runtime=Tier.ZERO,
     )
     await api_db.add_all([run])
     await api_db.add_all(

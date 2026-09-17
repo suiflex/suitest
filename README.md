@@ -2,6 +2,9 @@
 
 # Suitest — A Testing Platform That Works for Everyone
 
+> **Suitest Cloud collaboration is Coming Soon.** The current product is the free,
+> self-hosted platform. Every supported model provider unlocks the same features.
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo-dark.svg">
@@ -53,20 +56,20 @@
 
 ### Who uses Suitest?
 
-| Profile | Needs | Best tier |
-|---------|-------|-----------|
-| 👩‍💻 **QA Engineer** | Manage test cases, run automatically, track defects | **ZERO** (free) or **CLOUD** (with AI) |
-| 👨‍💻 **Developer** | Ensure PRs are safe to merge, cross-cutting tests | **CLOUD** (for CI pipelines) |
-| 📋 **Product Manager** | See release readiness before deploy | **ZERO** or **CLOUD** (viewer) |
-| 🏦 **IT / Infrastructure** | Self-host for compliance (bank, healthcare, government) | **ZERO** → **LOCAL** (Ollama on-prem) |
-| 🚀 **Startup / Indie Dev** | Free, no subscription, no vendor lock-in | **ZERO** (forever) or **CLOUD** (spot-use) |
+| Profile | Needs | How Suitest helps |
+|---------|-------|-------------------|
+| 👩‍💻 **QA Engineer** | Manage test cases, run automatically, track defects | TCM, MCP runner, evidence, defects |
+| 👨‍💻 **Developer** | Ensure PRs are safe to merge, cross-cutting tests | CI workflows and mixed-target tests |
+| 📋 **Product Manager** | See release readiness before deploy | Readiness, analytics, and traceability |
+| 🏦 **IT / Infrastructure** | Self-host for compliance | BYO infrastructure, model, and data |
+| 🚀 **Startup / Indie Dev** | Avoid subscriptions and vendor lock-in | Free self-hosted platform with BYO LLM |
 
 ---
 
 ## Why use Suitest?
 
 ### vs TestRail / Zephyr
-TestRail is paid ($30/user/month) and has no automated runner. **Suitest ZERO already has everything TestRail has + automated runner + MCP plugins — for free.**
+TestRail is paid ($30/user/month) and has no automated runner. **Suitest combines TCM, an automated runner, and MCP plugins in one free self-hosted platform.**
 
 ### vs Playwright (standalone)
 Playwright can only test browsers. **Suitest uses Playwright as one of many plugins** + adds TCM layer + traceability + multi-target (not just browsers).
@@ -118,7 +121,8 @@ After installation, Suitest will give you a web address (usually `http://localho
 3. Click **"+ New Suite"** → give it a name (a collection of test cases)
 4. Click **"+ New Case"** → create your first test case
 5. Add **steps** — each step has an action (click a button, fill a form, etc.)
-6. Click **"Run"** → the test will run automatically
+6. Open **Settings → LLM**, save a provider, and click **Test connection**
+7. Click **"Run"** → the test will run automatically
 
 > 💡 **First time?** Check out the [interactive demo](http://localhost:3000) after running `make demo` — it comes with pre-built test cases ready to go.
 
@@ -172,7 +176,7 @@ npx -y @suiflex/suitest-mcp
 }
 ```
 
-> 💡 **`SUITEST_API_URL` and `SUITEST_API_KEY` are optional.** Without them, results are saved locally in the `suitest-output/` folder.
+> 💡 **`SUITEST_API_URL` and `SUITEST_API_KEY` are required.** MCP startup verifies the key and stops until the workspace LLM has been validated in Settings. Provider credentials stay on the Suitest server.
 
 ### 3. 🐳 Full Platform — Docker Compose
 
@@ -234,68 +238,36 @@ make dev       # start API (:4000) + web (:3000) + runner together
 
 ---
 
-## Tiers: ZERO, LOCAL, CLOUD
+## One Suitest product
 
-Suitest has 3 capability levels. **You don't need AI to use Suitest.**
+Suitest is one free, self-hosted product. Login, workspace management, LLM
+Settings, and manual Test Case Management work before an LLM is connected.
 
-### 🟢 ZERO — Free, No AI Required
+MCP execution, test runs, and AI features start after an administrator saves and
+validates a workspace LLM in **Settings → LLM**. Ollama, llama.cpp, vLLM, LM
+Studio, Anthropic, OpenAI, Gemini, Groq, OpenRouter, and custom
+OpenAI-compatible endpoints all unlock the same product features.
 
-**When:** No LLM is configured (default)
-
-**What you get:**
-- ✅ Full Test Case Management (manual)
-- ✅ Automated Runner via MCP (Playwright, API, Postgres, etc.)
-- ✅ Live run logs via WebSocket
-- ✅ Screenshot & video evidence
-- ✅ Rule-based defect tracking
-- ✅ Traceability matrix
-- ✅ Analytics dashboard
-- ✅ CI/CD webhooks (GitHub, GitLab, Jira, Slack)
-- ✅ Deterministic generators (OpenAPI, Browser Recorder, URL Crawler)
-- ✅ Blackbox DOM engine (test web apps from just a URL)
-
-> 💡 **This tier is already very powerful.** It can replace TestRail + Playwright in a single platform.
-
-### 🟡 LOCAL — AI on Your Own Hardware
-
-**When:** LLM configured = Ollama / llama.cpp / vLM / LM Studio
-
-**What's added:**
-- ✅ AI test generation (from PRDs, URLs, or MCP discovery)
-- ✅ AI failure diagnosis (auto-categorize: FLAKE / REGRESSION / ENVIRONMENT / TEST_BUG)
-- ✅ Conversational testing (chat with AI to generate tests)
-- ✅ Air-gapped friendly (no internet required)
-
-### 🔵 CLOUD — AI via Cloud Provider
-
-**When:** LLM configured = Anthropic / OpenAI / Gemini / Groq / OpenRouter / etc.
-
-**What's added:**
-- ✅ Everything in LOCAL
-- ✅ 100+ LLM providers via LiteLLM
-- ✅ Cost tracking + budget guard
-- ✅ Custom OpenAI-compatible base URL (gateways, routers, proxies)
-
-> 💡 **LOCAL and CLOUD tiers are activated from the web UI: Settings → LLM.** No need to edit env files.
+Suitest Cloud is the future Suitest-hosted collaboration service. It is **Coming
+Soon** and is separate from the model provider you connect.
 
 ---
 
-## Your First Test (No AI Needed)
+## Your First Test
 
 From a fresh install, you can bootstrap and run a real browser test:
 
-1. **Log in** (super-admin email/password)
-2. **Create a project and suite** — the Test Cases screen will guide you
-3. **Create a test case** — "New case", add steps. Each step targets an MCP provider (e.g. `playwright-mcp`)
-4. **Click "Run"** — the runner executes each step via MCP (Playwright drives a real browser)
-5. **See results** — the run detail page shows live status → PASS/FAIL
-6. **Triage** — failed tests auto-create defects; mark a suite as "gating" to block deploys
+1. **Log in** and create a project, suite, and manual test case.
+2. Open **Settings → LLM**, save a provider, and run **Test connection**.
+3. Add executable steps targeting an MCP provider such as `playwright-mcp`.
+4. **Click "Run"** — the runner executes each step through MCP.
+5. Review live status, evidence, and defects on the run detail page.
 
 > 💡 **This entire journey is tested with a real Playwright suite** — `make e2e-real`
 
 ---
 
-## Enable AI (Optional)
+## Connect Your LLM
 
 LLMs are configured **per workspace from the web UI** — `Settings → LLM` — not via env files.
 
@@ -303,17 +275,17 @@ LLMs are configured **per workspace from the web UI** — `Settings → LLM` —
 1. Go to **Settings → LLM**
 2. Choose a provider (Anthropic, OpenAI, Gemini, Groq, Ollama, etc.)
 3. Enter your API key (encrypted with AES-GCM, never shown again)
-4. Your workspace tier automatically upgrades (ZERO → CLOUD/LOCAL)
+4. Click **Test connection**; successful validation enables MCP, runs, and AI
 
 **Supported providers:**
 
-| Tier | Providers |
-|------|-----------|
-| **CLOUD** | Anthropic, OpenAI, Gemini, Groq, OpenRouter, DeepSeek, etc. (100+ via LiteLLM) |
-| **LOCAL** | Ollama, llama.cpp, vLM, LM Studio |
+| Provider type | Providers |
+|---------------|-----------|
+| **Hosted API** | Anthropic, OpenAI, Gemini, Groq, OpenRouter, DeepSeek, etc. (100+ via LiteLLM) |
+| **Self-hosted model** | Ollama, llama.cpp, vLLM, LM Studio |
 | **Custom** | Any OpenAI-compatible URL (gateways, routers, proxies) |
 
-> 💡 **Default is always ZERO.** No LLM calls are made until a workspace explicitly configures a provider.
+> No LLM call is made until a workspace explicitly configures a provider.
 
 ---
 
@@ -365,7 +337,6 @@ suitest/
 | [DATA_MODEL.md](./docs/DATA_MODEL.md) | Database schema + entity diagram | Backend Developers |
 | [API.md](./docs/API.md) | REST + WebSocket contract | Frontend Developers, API consumers |
 | [UI_SPEC.md](./docs/UI_SPEC.md) | Per-screen component spec | Frontend Developers, Designers |
-| [CAPABILITY_TIERS.md](./docs/CAPABILITY_TIERS.md) | ZERO/LOCAL/CLOUD gating | Everyone (important for understanding features) |
 | [MCP_PLUGINS.md](./docs/MCP_PLUGINS.md) | MCP registry + routing + security | Developers, DevOps |
 | [GENERATORS.md](./docs/GENERATORS.md) | Generator design (deterministic + LLM) | QA Engineers, Developers |
 | [AUTONOMY.md](./docs/AUTONOMY.md) | Per-workspace autonomy dial | Admins, QA Leads |
@@ -383,10 +354,10 @@ suitest/
 **Yes.** Suitest is open-source (Apache 2.0 License). No subscription fees. You can self-host without limits.
 
 ### ❓ Do I need to know how to code to use Suitest?
-**No.** Suitest ZERO (default) works 100% without coding. You just create test cases through the web dashboard, and the runner executes them automatically.
+**No.** Create and manage test cases from the web dashboard. Executing them requires a validated workspace LLM and MCP provider.
 
 ### ❓ Do I need AI/LLM to use Suitest?
-**No.** ZERO tier works fully without AI. AI only adds features like generating tests from PRDs, automatic diagnosis, and conversational testing.
+**For manual TCM, no.** MCP execution, test runs, and AI features require a validated workspace LLM.
 
 ### ❓ How do I install Suitest?
 See [Get Started in 3 Steps](#get-started-in-3-steps) above. Just one command: `npx @suiflex/suitest onboard`
@@ -421,16 +392,16 @@ Use the `--port` flag: `npx @suiflex/suitest onboard --port 5000`
 
 ## Feature Comparison
 
-| Feature | TestRail | Playwright | TestSprite | **Suitest ZERO** | **Suitest CLOUD** |
-|---------|:--------:|:----------:|:----------:|:----------------:|:-----------------:|
-| Manual Test Case Management | ✅ | ❌ | Partial | ✅ | ✅ |
-| Automated Runner | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Universal MCP Plugin Layer | ❌ | ❌ | Partial | ✅ | ✅ |
-| AI Generation / Diagnosis | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Self-host | ✅ | ✅ | ❌ | ✅ | ✅ |
-| BYO LLM (100+ providers) | n/a | n/a | ❌ Locked | n/a | ✅ |
-| Air-gapped | ✅ | ✅ | ❌ | ✅ | ✅ (Ollama) |
-| Open Source | ❌ | Runner only | ❌ | ✅ | ✅ |
+| Feature | TestRail | Playwright | TestSprite | **Suitest** |
+|---------|:--------:|:----------:|:----------:|:-----------:|
+| Manual Test Case Management | ✅ | ❌ | Partial | ✅ |
+| Automated Runner | ❌ | ✅ | ✅ | ✅ |
+| Universal MCP Plugin Layer | ❌ | ❌ | Partial | ✅ |
+| AI Generation / Diagnosis | ❌ | ❌ | ✅ | ✅ |
+| Self-host | ✅ | ✅ | ❌ | ✅ |
+| BYO LLM (100+ providers) | n/a | n/a | ❌ Locked | ✅ |
+| Air-gapped | ✅ | ✅ | ❌ | ✅ (self-hosted model) |
+| Open Source | ❌ | Runner only | ❌ | ✅ |
 
 ---
 

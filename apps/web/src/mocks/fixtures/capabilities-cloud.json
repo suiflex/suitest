@@ -1,6 +1,6 @@
 {
-  "tier": "CLOUD",
   "llm": {
+    "status": "ready",
     "provider": "anthropic",
     "model": "claude-opus-4-7",
     "base_url": null,

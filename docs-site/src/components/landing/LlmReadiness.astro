@@ -1,0 +1,105 @@
+---
+const steps = [
+  {
+    name: "MANAGE",
+    tag: "Available immediately",
+    body: "Sign in, organize workspaces, and manage test cases before connecting a model.",
+  },
+  {
+    name: "CONNECT",
+    tag: "Bring your model",
+    body: "Save any supported hosted or self-hosted provider in Settings, then validate it once.",
+  },
+  {
+    name: "EXECUTE",
+    tag: "LLM ready",
+    body: "Run MCP tools, execute suites, generate tests, and diagnose failures with the same feature set.",
+  },
+];
+---
+
+<section class="section readiness-sec">
+  <div class="wrap">
+    <div class="readiness-head" data-reveal>
+      <h2 class="section-title">One product. Bring your own model.</h2>
+      <p class="section-sub">
+        Provider location does not change the product. Validate the workspace
+        model once, then Suitest uses it for MCP execution and AI workflows.
+      </p>
+    </div>
+
+    <div class="readiness" data-reveal style="--reveal-delay: 0.1s">
+      {
+        steps.map((step, i) => (
+          <div class={`readiness-step ${i === 0 ? "readiness-first" : ""}`}>
+            <div class="readiness-top">
+              <span class="readiness-name">{step.name}</span>
+              <span class="readiness-tag">{step.tag}</span>
+            </div>
+            <p>{step.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .readiness-sec {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: #0c0d0e;
+  }
+  .readiness-head {
+    margin-bottom: 52px;
+  }
+  .readiness {
+    display: grid;
+    grid-template-columns: 5fr 4fr 3fr;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  .readiness-step {
+    padding: 30px 28px 34px;
+    background: var(--surface);
+  }
+  .readiness-step + .readiness-step {
+    border-left: 1px solid var(--border);
+  }
+  .readiness-first {
+    background: linear-gradient(150deg, #11271b 0%, var(--surface) 70%);
+  }
+  .readiness-top {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .readiness-name {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+  }
+  .readiness-tag {
+    font-size: 12.5px;
+    color: var(--text-3);
+  }
+  .readiness-step p {
+    margin: 0;
+    color: var(--text-2);
+    font-size: 14.5px;
+    line-height: 1.65;
+  }
+  @media (max-width: 900px) {
+    .readiness {
+      grid-template-columns: 1fr;
+    }
+    .readiness-step + .readiness-step {
+      border-left: none;
+      border-top: 1px solid var(--border);
+    }
+  }
+</style>

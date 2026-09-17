@@ -5,8 +5,7 @@ import { Gated } from "@/components/gating/Gated";
 import { useCapabilities, type Capabilities } from "@/stores/use-capabilities";
 
 const ZERO_CAPS: Capabilities = {
-  tier: "ZERO",
-  llm: { provider: "none", model: null, base_url: null, is_test_provider: false },
+  llm: { status: "not_configured", provider: null, model: null, base_url: null, is_test_provider: false },
   embeddings: { enabled: false, backend: "none", model: null, dim: null },
   features: {
     manual_tcm: true,
@@ -29,8 +28,8 @@ const ZERO_CAPS: Capabilities = {
 };
 
 const CLOUD_CAPS: Capabilities = {
-  tier: "CLOUD",
   llm: {
+    status: "ready",
     provider: "anthropic",
     model: "claude-sonnet-4-5",
     base_url: null,

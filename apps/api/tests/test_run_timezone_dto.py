@@ -31,7 +31,7 @@ from suitest_db.models.run import Run, RunStep
 from suitest_db.models.run_step_log import RunStepLog
 from suitest_db.models.workspace import Workspace
 from suitest_db.settings import DbSettings
-from suitest_shared.domain.enums import CaseSource, Role, RunStatus, RunTrigger, StepOutcome, Tier
+from suitest_shared.domain.enums import CaseSource, Role, RunStatus, RunTrigger, StepOutcome
 
 
 @pytest.mark.asyncio
@@ -77,7 +77,6 @@ async def test_run_and_step_sqlite_roundtrip_preserves_utc_and_serializes_with_z
             name="blackbox run",
             trigger=RunTrigger.MANUAL,
             status=RunStatus.PASS,
-            tier_at_runtime=Tier.ZERO,
             started_at=dt_started,
             completed_at=dt_completed,
             total_steps=1,
@@ -185,7 +184,6 @@ async def test_run_step_log_sqlite_roundtrip_and_api_logs_endpoint(tmp_path: Pat
             name="run-logs-test",
             trigger=RunTrigger.MANUAL,
             status=RunStatus.PASS,
-            tier_at_runtime=Tier.ZERO,
         )
         session.add(run)
         await session.flush()

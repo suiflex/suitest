@@ -1,9 +1,7 @@
 """Test case + step request / response DTOs (docs/API.md §3.3).
 
 ``TestStepPublic.executable`` is a plain field — NOT a Pydantic computed property —
-set at construction time from the workspace's effective capability tier (the
-domain rule ``suitest_shared.domain.case.TestStep.executable(tier)``). The router
-resolves the tier once per request and stamps every step.
+set by the router from the step shape and workspace readiness.
 
 The M1d-2 write DTOs (:class:`TestCaseCreate`, :class:`TestCaseUpdate`,
 :class:`StepCreate`, :class:`StepReplace`, :class:`StepAppend`,
@@ -123,9 +121,8 @@ class StepCreate(BaseModel):
     """One step inside a :class:`TestCaseCreate` / :class:`StepReplace` payload.
 
     ``order`` is honoured if provided; otherwise the service assigns sequential
-    1-based positions in array order. ``code`` MAY be omitted in CLOUD / LOCAL
-    tiers (or when ``workspace.strict_zero_validation=false``); ZERO tier with
-    strict validation rejects via ``STEPS_REQUIRE_CODE_IN_ZERO_LLM``.
+    1-based positions in array order. ``code`` may be omitted for manually
+    authored prose steps; the validated workspace LLM translates them at run time.
     """
 
     __test__ = False  # not a pytest test class
@@ -145,9 +142,8 @@ class StepAppend(StepCreate):
     """Body shape for ``POST /test-cases/:id/steps`` — ``order`` always ignored.
 
     ``action`` MAY be empty here: the web StepEditor appends a blank draft
-    step for the user to fill in before saving. The ZERO-tier strict check
-    (``STEPS_REQUIRE_CODE_IN_ZERO_LLM``) still runs when the case is *run*,
-    and a full replace (PATCH) re-validates completeness — an empty step
+    step for the user to fill in before saving. A full replace (PATCH)
+    re-validates completeness — an empty step
     just cannot be executed while it is still a draft.
     """
 
@@ -213,7 +209,7 @@ class StepReplace(BaseModel):
 
     Accepts the same shapes as the editor sends: a step whose ``action`` is
     empty is a user draft (never executable) and is stored as-is. Running the
-    case re-runs the ZERO-tier strict check per step; a persisted draft simply
+    case still requires a validated workspace LLM; an empty persisted draft
     fails at run time unless it is filled in first.
     """
 

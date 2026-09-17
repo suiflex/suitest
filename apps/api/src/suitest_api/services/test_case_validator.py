@@ -1,14 +1,6 @@
-"""Per-step validator shared by ``POST /test-cases`` + ``PATCH …/steps``.
+"""Per-step MCP provider validator shared by test-case writes.
 
-Two domain rules (``docs/API.md §3.3 step validator behaviour``):
-
-* ``STEPS_REQUIRE_CODE_IN_ZERO_LLM`` — when the workspace runs ``ZERO`` tier
-  AND ``workspace.strict_zero_validation=true``, every step MUST carry a
-  non-empty ``code``. Action-only steps (no ``code``) are 400 with
-  ``details.stepIndex=N`` so the FE can highlight the offending row. An
-  empty-action step is an unfilled editor draft and is skipped here — it is
-  rejected when the case is actually run.
-* ``MCP_PROVIDER_NOT_REGISTERED`` — every step's ``mcp_provider`` must be
+Every step's ``mcp_provider`` must be
   either a bundled builtin (``api-http-mcp``, ``playwright-mcp``,
   ``postgres-mcp``, ``jirac-mcp``, ``github-mcp-server``) OR present in the
   workspace's ``mcp_providers`` table. Unknown providers raise 404.
@@ -24,7 +16,6 @@ from collections.abc import Sequence
 from typing import Protocol
 
 from suitest_mcp.providers.builtin_specs import BUILTIN_SPECS
-from suitest_shared.domain.enums import Tier
 
 
 class _StepLike(Protocol):
@@ -34,10 +25,6 @@ class _StepLike(Protocol):
     extra DTO hop.
     """
 
-    @property
-    def action(self) -> str: ...
-    @property
-    def code(self) -> str | None: ...
     @property
     def mcp_provider(self) -> str: ...
 
@@ -62,17 +49,6 @@ class StepValidationError(Exception):
     """Base class for validator errors so callers can ``except`` on one type."""
 
 
-class StepsRequireCodeError(StepValidationError):
-    """ZERO tier + ``strict_zero_validation=true`` + step missing ``code``."""
-
-    def __init__(self, step_index: int) -> None:
-        super().__init__(
-            f"step #{step_index} has no executable code; ZERO tier cannot translate "
-            "action -> MCP call at runtime"
-        )
-        self.step_index = step_index
-
-
 class McpProviderNotRegisteredError(StepValidationError):
     """Step references an MCP provider not bundled and not in ``mcp_providers``."""
 
@@ -85,8 +61,6 @@ class McpProviderNotRegisteredError(StepValidationError):
 def validate_steps(
     steps: Sequence[_StepLike],
     *,
-    tier: Tier,
-    strict_zero_validation: bool,
     registered_mcp_names: set[str],
 ) -> None:
     """Validate every step in order; raise on the first failure.
@@ -99,14 +73,5 @@ def validate_steps(
     """
     allowed = set(registered_mcp_names) | BUNDLED_MCP_PROVIDERS
     for index, step in enumerate(steps):
-        # Steps WITHOUT an action are unfilled drafts from the web editor —
-        # never executable, so the editor may store them and the strict check
-        # skips them (running the case still fails until they are filled in).
-        # Any step WITH a real action must carry executable code on ZERO tier:
-        # nothing translates action -> MCP call at runtime here.
-        has_action = bool(step.action and step.action.strip())
-        has_code = bool(step.code and step.code.strip())
-        if tier is Tier.ZERO and strict_zero_validation and has_action and not has_code:
-            raise StepsRequireCodeError(step_index=index)
         if step.mcp_provider not in allowed:
             raise McpProviderNotRegisteredError(name=step.mcp_provider, step_index=index)

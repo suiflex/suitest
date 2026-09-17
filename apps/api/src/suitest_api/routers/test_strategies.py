@@ -6,13 +6,12 @@ from typing import NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from suitest_core.capabilities import TierFlag
 from suitest_shared.domain.enums import Role
 
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
-from suitest_api.deps.tier import require_tier
+from suitest_api.deps.tier import require_llm_ready
 from suitest_api.schemas.test_strategy import (
     TestStrategyDraftRequest,
     TestStrategyPublic,
@@ -41,7 +40,6 @@ def _raise_strategy_error(exc: Exception) -> NoReturn:
 
 
 @router.get("/projects/{project_id}/test-strategies", response_model=list[TestStrategyPublic])
-@require_tier(TierFlag.ANY)
 async def list_test_strategies(
     project_id: str,
     ctx: TenantContext = Depends(require_workspace_membership),
@@ -58,7 +56,6 @@ async def list_test_strategies(
     response_model=TestStrategyPublic,
     status_code=status.HTTP_201_CREATED,
 )
-@require_tier(TierFlag.ANY)
 async def create_test_strategy_draft(
     project_id: str,
     body: TestStrategyDraftRequest,
@@ -74,7 +71,6 @@ async def create_test_strategy_draft(
 
 
 @router.put("/test-strategies/{strategy_id}", response_model=TestStrategyPublic)
-@require_tier(TierFlag.ANY)
 async def update_test_strategy(
     strategy_id: str,
     body: TestStrategyUpdateRequest,
@@ -90,7 +86,7 @@ async def update_test_strategy(
 
 
 @router.post("/test-strategies/{strategy_id}/enrich", response_model=TestStrategyPublic)
-@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+@require_llm_ready
 async def enrich_test_strategy(
     strategy_id: str,
     ctx: TenantContext = Depends(_writer_dep),
@@ -106,7 +102,6 @@ async def enrich_test_strategy(
 
 
 @router.post("/test-strategies/{strategy_id}/approve", response_model=TestStrategyPublic)
-@require_tier(TierFlag.ANY)
 async def approve_test_strategy(
     strategy_id: str,
     ctx: TenantContext = Depends(_writer_dep),

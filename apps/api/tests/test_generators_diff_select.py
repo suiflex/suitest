@@ -5,12 +5,12 @@ is exercised using the ``mock`` provider — activating an ``LLMConfig`` with
 ``provider="mock"`` makes the workspace appear as CLOUD tier to the service.
 
 Coverage:
-  - ZERO tier (no LLM config): returns all cases with ``tier_used="fallback_full"``.
-  - CLOUD/LOCAL tier (mock LLM): returns LLM-selected subset with ``tier_used="llm"``.
+  - No validated LLM: returns all cases with ``selection_mode="fallback_full"``.
+  - Validated mock LLM: returns an LLM-selected subset with ``selection_mode="llm"``.
   - diff_text exceeds 50 000 chars: 400.
   - Unknown suite (no cases): 404.
   - Unauthenticated: 401.
-  - Response shape: ``selected_case_ids``, ``rationale``, ``tier_used``,
+  - Response shape: ``selected_case_ids``, ``rationale``, ``selection_mode``,
     ``parsed_files_count``.
 """
 
@@ -117,7 +117,7 @@ async def test_diff_select_zero_tier_returns_full_suite(api_db: ApiDb) -> None:
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["tier_used"] == "fallback_full"
+    assert body["selection_mode"] == "fallback_full"
     assert set(body["selected_case_ids"]) == set(case_ids)
     assert body["rationale"] is None  # no rationale at ZERO tier
     assert body["parsed_files_count"] == 1
@@ -125,7 +125,7 @@ async def test_diff_select_zero_tier_returns_full_suite(api_db: ApiDb) -> None:
 
 @pytest.mark.asyncio
 async def test_diff_select_cloud_tier_returns_llm_selection(api_db: ApiDb) -> None:
-    """CLOUD tier (mock LLM) → response comes back with tier_used="llm"."""
+    """A validated mock LLM returns ``selection_mode="llm"``."""
     user = await api_db.seed_user(email="ds-cloud@example.com")
     ws = await api_db.member_workspace(user, slug="ds-cloud-ws")
     suite = await _project_suite(api_db, ws.id, slug="ds-cloud-proj")
@@ -138,7 +138,7 @@ async def test_diff_select_cloud_tier_returns_llm_selection(api_db: ApiDb) -> No
     assert resp.status_code == 200, resp.text
     body = resp.json()
     # Mock provider echoes back non-JSON → fallback to all cases, but tier is "llm"
-    assert body["tier_used"] == "llm"
+    assert body["selection_mode"] == "llm"
     # All case ids are present (mock fallback) but the selected list is valid.
     assert isinstance(body["selected_case_ids"], list)
     assert all(cid in case_ids for cid in body["selected_case_ids"])

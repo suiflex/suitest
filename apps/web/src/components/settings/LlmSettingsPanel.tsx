@@ -42,6 +42,7 @@ export function LlmSettingsPanel({
   const [baseUrl, setBaseUrl] = useState("");
   const [testResult, setTestResult] = useState<LlmTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const vendor = vendorById(vendorId);
   // A vendor with no sign-in has only one way in, so the radio never shows and
@@ -62,7 +63,7 @@ export function LlmSettingsPanel({
 
   const refresh = (): void => {
     void queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId, "llm-config"] });
-    // Tier may have flipped — refetch capabilities so gated UI updates (M3-3).
+    // Readiness may have changed — refetch capabilities so gated UI updates.
     void queryClient.invalidateQueries({ queryKey: ["capabilities"] });
   };
 
@@ -71,14 +72,18 @@ export function LlmSettingsPanel({
     onSuccess: () => {
       setError(null);
       setApiKey("");
+      setHasUnsavedChanges(false);
       refresh();
     },
     onError: () => setError("Could not save LLM config. Check the provider and key."),
   });
 
   const testMutation = useMutation({
-    mutationFn: () => testLlmConfig(workspaceId, body()),
-    onSuccess: (r) => setTestResult(r),
+    mutationFn: () => testLlmConfig(workspaceId),
+    onSuccess: (r) => {
+      setTestResult(r);
+      if (r.ok) refresh();
+    },
     onError: () => setError("Connection test failed to run."),
   });
 
@@ -97,8 +102,8 @@ export function LlmSettingsPanel({
       <div className="rounded-lg border border-border bg-bg-elev-1 p-5">
         <h2 className="text-[15px] font-semibold text-fg-1">LLM provider</h2>
         <p className="mt-1 text-[12.5px] text-fg-3">
-          Bring your own model. Setting a provider upgrades this workspace from ZERO to CLOUD/LOCAL
-          and unlocks AI features. Keys are encrypted and never shown again.
+          Bring your own model. Save and validate a provider to unlock MCP execution and AI
+          features. Keys are encrypted and never shown again.
         </p>
 
         <div className="mt-4 text-[13px] text-fg-1" data-testid="llm-current-status">
@@ -108,7 +113,7 @@ export function LlmSettingsPanel({
             <div className="flex items-center justify-between rounded-md border border-accent/30 bg-accent/10 px-3 py-2">
               <span className="min-w-0">
                 Active: <strong>{providerLabel(active.provider)}</strong> / {active.model}{" "}
-                <span className="text-fg-3">({active.tier})</span>
+                <span className="text-fg-3">({active.status.replaceAll("_", " ")})</span>
                 {active.apiKeyHint ? (
                   <span className="ml-2 font-mono text-fg-4">{active.apiKeyHint}</span>
                 ) : null}
@@ -136,7 +141,7 @@ export function LlmSettingsPanel({
             </div>
           ) : (
             <span className="text-fg-3" data-testid="llm-none">
-              No LLM configured — workspace is in ZERO tier.
+              No LLM configured. Manual test management remains available.
             </span>
           )}
         </div>
@@ -156,6 +161,7 @@ export function LlmSettingsPanel({
               value={vendorId}
               onChange={(e) => {
                 setVendorId(e.target.value);
+                setHasUnsavedChanges(true);
                 // The new vendor may not offer a sign-in; start from the way in
                 // that every vendor has.
                 setAuthMethod("api_key");
@@ -163,14 +169,14 @@ export function LlmSettingsPanel({
               }}
               className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
             >
-              <optgroup label="Cloud">
+              <optgroup label="Hosted providers">
                 {vendorsInGroup("cloud").map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.label}
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="Local">
+              <optgroup label="Self-hosted providers">
                 {vendorsInGroup("local").map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.label}
@@ -210,7 +216,10 @@ export function LlmSettingsPanel({
                     name="llm-auth-method"
                     value={value}
                     checked={authMethod === value}
-                    onChange={() => setAuthMethod(value)}
+                    onChange={() => {
+                      setAuthMethod(value);
+                      setHasUnsavedChanges(true);
+                    }}
                     className="accent-accent"
                   />
                   {label}
@@ -249,7 +258,10 @@ export function LlmSettingsPanel({
               id="llm-model"
               autoComplete="off"
               value={model}
-              onChange={(e) => setModel(e.target.value)}
+              onChange={(e) => {
+                setModel(e.target.value);
+                setHasUnsavedChanges(true);
+              }}
               placeholder="claude-sonnet-4-5"
               required
               className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
@@ -264,7 +276,10 @@ export function LlmSettingsPanel({
               <input
                 id="llm-base-url"
                 value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
+                onChange={(e) => {
+                  setBaseUrl(e.target.value);
+                  setHasUnsavedChanges(true);
+                }}
                 placeholder={
                   vendorId === CUSTOM_VENDOR
                     ? "https://your-gateway.example.com/v1"
@@ -285,7 +300,10 @@ export function LlmSettingsPanel({
                 id="llm-api-key"
                 type="password"
                 value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
+                onChange={(e) => {
+                  setApiKey(e.target.value);
+                  setHasUnsavedChanges(true);
+                }}
                 placeholder={active ? "•••••••• (rotate)" : "sk-…"}
                 autoComplete="off"
                 className="w-full rounded-md border border-border bg-bg-base px-3 py-2 text-[13px] text-fg-1 outline-none focus:border-accent"
@@ -330,13 +348,16 @@ export function LlmSettingsPanel({
             <button
               type="button"
               onClick={() => testMutation.mutate()}
-              disabled={testMutation.isPending || !model}
+              disabled={testMutation.isPending || !active || hasUnsavedChanges}
               className="inline-flex h-9 items-center justify-center rounded-md border border-border px-4 text-[13px] font-medium text-fg-1 hover:bg-bg-elev-2 disabled:opacity-60"
               data-testid="llm-test"
             >
               {testMutation.isPending ? "Testing…" : "Test connection"}
             </button>
           </div>
+          {!active || hasUnsavedChanges ? (
+            <p className="text-[11.5px] text-fg-4">Save before testing.</p>
+          ) : null}
         </form>
       ) : null}
     </section>

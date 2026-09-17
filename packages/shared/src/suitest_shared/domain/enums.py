@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from suitest_core.capabilities import AutonomyLevel, Tier
+from suitest_core.capabilities import AutonomyLevel, LlmStatus
 
 __all__ = [
     "AgentSessionKind",
@@ -24,6 +24,7 @@ __all__ = [
     "DiagnosisKind",
     "DocumentKind",
     "IntegrationKind",
+    "LlmStatus",
     "McpTransport",
     "MessageRole",
     "Priority",
@@ -36,7 +37,6 @@ __all__ = [
     "TestLevel",
     "TestStrategyStatus",
     "TestingApproach",
-    "Tier",
 ]
 
 
@@ -208,7 +208,7 @@ class DiagnosisKind(StrEnum):
     FLAKE = "FLAKE"
     INFRA = "INFRA"
     SPEC_DRIFT = "SPEC_DRIFT"
-    MANUAL_TRIAGE = "MANUAL_TRIAGE"  # ZERO tier rule-based fallback
+    MANUAL_TRIAGE = "MANUAL_TRIAGE"  # rule-based fallback without LLM diagnosis
 
 
 class McpTransport(StrEnum):

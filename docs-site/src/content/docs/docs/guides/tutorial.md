@@ -6,7 +6,7 @@ description: A full first run against a Next.js app, from init to a failing test
 This tutorial walks the complete loop once, end to end: set up the MCP server
 against a Next.js app, let the agent generate and run tests, hit a real
 failure, use `get_failure_context` to fix it, re-run green, and publish the
-results to a Suitest server.
+results in a Suitest workspace.
 
 Command output in this tutorial is illustrative. Your paths, counts, and case
 names will differ; the shapes will not.
@@ -14,8 +14,8 @@ names will differ; the shapes will not.
 :::tip
 Want the web dashboard too? `npx @suiflex/suitest onboard` boots the full
 platform locally and wires your IDE in one command — see the
-[local bundle](/docs/install/local-bundle/). This tutorial uses the
-MCP-server-only route, which needs no platform at all.
+[local bundle](/docs/install/local-bundle/). This tutorial uses an existing
+Suitest server.
 :::
 
 ## Prerequisites
@@ -24,6 +24,8 @@ MCP-server-only route, which needs no platform at all.
   Express, and Django are auto-detected)
 - Node 18+ and Python 3.11+ on `PATH`
 - An MCP-capable IDE agent: Claude Code, Cursor, or Windsurf
+- A Suitest API URL and API key
+- A workspace LLM saved and validated under **Settings, then LLM**
 
 ## Step 1: init
 
@@ -36,9 +38,10 @@ npx -y @suiflex/suitest-mcp init
 Example output:
 
 ```bash
-Mode: 1) Local (SQLite, no server)  2) Connect a server  [1]: 1
+SUITEST_API_URL [http://localhost:4000]: http://localhost:4000
+SUITEST_API_KEY (sk_suitest_…): ********
 
-Done: claude-code, local mode, nextjs app.
+Done: claude-code, server mode, nextjs app.
   wrote /home/you/acme-shop/.mcp.json
   wrote /home/you/acme-shop/suitest.config.json
 Restart your IDE, then tell the agent: "test my app".
@@ -60,8 +63,9 @@ detected framework defaults:
 }
 ```
 
-And the IDE's MCP config gained a `suitest` entry. In local mode it carries
-`SUITEST_MODE=local` and no credentials; everything stays on disk.
+The IDE's MCP config also gained a `suitest` entry containing
+`SUITEST_API_URL` and `SUITEST_API_KEY`. Provider credentials remain encrypted
+on the Suitest server and are not copied into the IDE config.
 
 Restart your IDE so it picks up the new MCP server, then start your app:
 
@@ -197,23 +201,11 @@ re-running:
 Open `suitest-output/reports/summary.html` in a browser for the full
 per-case, per-step view with evidence links.
 
-## Step 6: publish to a Suitest server
+## Step 6: review the published run
 
-So far everything lives on disk. To share cases, runs, and evidence with your
-team, connect the MCP server to a running Suitest platform (see
-[Install with Docker Compose](/docs/install/docker/) if you do not have one).
-
-Create an API key in the web UI, then switch the project to server mode:
-
-```bash
-npx -y @suiflex/suitest-mcp init --mode server \
-  --api-url http://localhost:4000 --api-key sk_suitest_xxx --yes
-```
-
-This rewrites the `suitest` MCP entry with `SUITEST_API_URL` and
-`SUITEST_API_KEY`; your `suitest.config.json` is kept as-is. Restart the IDE
-and ask the agent to run the tests again. With server credentials present,
-the run publishes cases, results, and evidence into the web TCM.
+The MCP server publishes cases, results, and evidence to the workspace selected
+by its API key. Open the web dashboard to review the run, inspect its evidence,
+and share it with your team.
 
 `sync_tcm` reports the local source-of-truth mirror at any time. Example
 result:

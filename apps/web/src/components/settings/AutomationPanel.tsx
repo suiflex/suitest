@@ -14,7 +14,7 @@ const LEVELS: { id: AutonomyLevel; name: string; blurb: string; hint: string }[]
     id: "manual",
     name: "Manual",
     blurb: "Human-only workflow. No AI actions; agent UI hidden.",
-    hint: "Air-gapped / no LLM",
+    hint: "No agent actions",
   },
   {
     id: "assist",
@@ -74,7 +74,7 @@ export function AutomationPanel({
   }, [query.data]);
 
   const data: AutonomyState | undefined = query.data;
-  const isZero = data?.tier === "ZERO";
+  const llmReady = data?.llmStatus === "ready";
 
   const saveMutation = useMutation({
     mutationFn: () => putAutonomy(workspaceId, { level, overrides }),
@@ -84,7 +84,7 @@ export function AutomationPanel({
       void queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId, "autonomy"] });
       void queryClient.invalidateQueries({ queryKey: ["capabilities"] });
     },
-    onError: () => setError("Could not update autonomy. ZERO tier only allows Manual."),
+    onError: () => setError("Could not update autonomy. Validate an LLM to enable automation."),
   });
 
   if (query.isLoading || !data) {
@@ -105,9 +105,8 @@ export function AutomationPanel({
       <div className="space-y-1">
         <h2 className="text-[15px] font-semibold text-fg-1">Automation</h2>
         <p className="text-[13px] text-fg-3">
-          How much the agent does without asking. Tier:{" "}
-          <span className="text-fg-1">{data.tier}</span>
-          {isZero ? " — configure an LLM to unlock higher autonomy." : null}
+          How much the agent does without asking.
+          {!llmReady ? " Validate an LLM to unlock higher autonomy." : null}
         </p>
       </div>
 
@@ -118,7 +117,7 @@ export function AutomationPanel({
       >
         {LEVELS.map((lvl) => {
           const selected = level === lvl.id;
-          const disabled = !canWrite || (isZero && lvl.id !== "manual");
+          const disabled = !canWrite || (!llmReady && lvl.id !== "manual");
           return (
             <button
               key={lvl.id}
@@ -159,7 +158,7 @@ export function AutomationPanel({
           {data.knownOverrideKeys.map((key) => {
             const overridden = key in overrides;
             const value = overridden ? overrides[key] : data.effective[key];
-            const keyDisabled = !canWrite || isZero || DISABLED_KEYS.has(key);
+            const keyDisabled = !canWrite || !llmReady || DISABLED_KEYS.has(key);
             return (
               <li key={key} className="flex items-center justify-between gap-3">
                 <span className="text-[12.5px] text-fg-1">

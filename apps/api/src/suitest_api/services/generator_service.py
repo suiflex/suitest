@@ -10,8 +10,8 @@ A spec/parse failure yields a single structured ``error`` event and stops — th
 HTTP layer keeps the 200 SSE stream open and lets the client read the error
 frame (the request itself was well-formed; the *spec* was not).
 
-Tier: deterministic, NO LLM → runs in every tier (the endpoint stamps
-``TierFlag.ANY``). All MCP wiring is deferred to run time via the rendered
+This generation path is deterministic and does not call an LLM. All MCP wiring
+is deferred to run time via the rendered
 ``mcp.api.request`` step code; this service never invokes an MCP server.
 """
 
@@ -408,7 +408,7 @@ class GeneratorService:
         credential: ResolvedCredential,
         model: str,
     ) -> AsyncIterator[GeneratorSseEvent]:
-        """Stream LLM-driven PRD generation as SSE (M3-6) — CLOUD/LOCAL only.
+        """Stream LLM-driven PRD generation as SSE (M3-6).
 
         Validates the suite is in-scope FIRST (404 before any stream byte), then
         drives the GENERATION graph through :class:`PrdGenerator`. Persists an
@@ -574,7 +574,7 @@ class GeneratorService:
         credential: ResolvedCredential,
         model: str,
     ) -> AsyncIterator[GeneratorSseEvent]:
-        """Stream LLM semantic URL generation as SSE (M3-7) — CLOUD/LOCAL only.
+        """Stream LLM semantic URL generation as SSE (M3-7).
 
         Decomposes ``request.intent`` into FE_WEB journey cases on ``request.url``
         (playwright-mcp, agentic). Persists an ``AgentSession`` (repro+cost) and a
@@ -725,7 +725,7 @@ class GeneratorService:
         mcp_target_kind: TargetKind,
         mcp_tools: list[dict[str, object]],
     ) -> AsyncIterator[GeneratorSseEvent]:
-        """Stream LLM MCP tool-discovery generation as SSE (M3-9) — CLOUD/LOCAL.
+        """Stream LLM MCP tool-discovery generation as SSE (M3-9).
 
         The router resolves the LLM (``provider_name``/``model``/key) AND the
         target MCP provider (its name, ``target_kind``, and persisted tool

@@ -56,7 +56,6 @@ function runDetail(publicId: string, status: string) {
     env: "staging",
     status,
     trigger: "MANUAL",
-    tier_at_runtime: "ZERO",
     started_at: "2026-05-27T10:00:00Z",
     completed_at: status === "RUNNING" || status === "QUEUED" ? null : "2026-05-27T10:01:14Z",
     duration_ms: status === "RUNNING" || status === "QUEUED" ? null : 74000,

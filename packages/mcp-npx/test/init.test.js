@@ -8,7 +8,7 @@ const path = require("node:path");
 
 const { runInit } = require("../lib/init.js");
 
-test("init local mode: config + mcp entry written, no API key", async () => {
+test("init rejects removed local mode", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "suitest-init-e2e-"));
   fs.writeFileSync(path.join(dir, ".mcp.json"), "{}"); // simulate Claude Code
   fs.writeFileSync(
@@ -16,22 +16,10 @@ test("init local mode: config + mcp entry written, no API key", async () => {
     JSON.stringify({ dependencies: { next: "^15" } }),
   );
 
-  const result = await runInit({
-    cwd: dir,
-    mode: "local",
-    ide: "claude-code",
-    yes: true,
-  });
-
-  assert.strictEqual(result.ide, "claude-code");
-  const suitestCfg = JSON.parse(
-    fs.readFileSync(path.join(dir, "suitest.config.json"), "utf8"),
+  await assert.rejects(
+    () => runInit({ cwd: dir, mode: "local", ide: "claude-code", yes: true }),
+    /local MCP mode was removed/,
   );
-  assert.strictEqual(suitestCfg.baseUrl, "http://localhost:3000");
-  assert.strictEqual(suitestCfg.mode, "frontend");
-  const mcpCfg = JSON.parse(fs.readFileSync(path.join(dir, ".mcp.json"), "utf8"));
-  assert.strictEqual(mcpCfg.mcpServers.suitest.env.SUITEST_MODE, "local");
-  assert.strictEqual(mcpCfg.mcpServers.suitest.env.SUITEST_API_KEY, undefined);
 });
 
 test("init preserves an existing mcpServers entry", async () => {
@@ -47,11 +35,17 @@ test("init preserves an existing mcpServers entry", async () => {
     JSON.stringify({ devDependencies: { vite: "^6" } }),
   );
 
-  await runInit({ cwd: dir, mode: "local", ide: "claude-code", yes: true });
+  await runInit({
+    cwd: dir,
+    ide: "claude-code",
+    apiUrl: "http://localhost:4000",
+    apiKey: "sk_suitest_abc",
+    yes: true,
+  });
 
   const mcpCfg = JSON.parse(fs.readFileSync(path.join(dir, ".mcp.json"), "utf8"));
   assert.ok(mcpCfg.mcpServers.playwright, "user's other server was lost");
-  assert.strictEqual(mcpCfg.mcpServers.suitest.env.SUITEST_MODE, "local");
+  assert.strictEqual(mcpCfg.mcpServers.suitest.env.SUITEST_API_KEY, "sk_suitest_abc");
 });
 
 test("init server mode requires an API key", async () => {
@@ -93,7 +87,7 @@ test("init server mode with --yes but no key errors, never blocks", async () => 
 test("init with no IDE detected and no --ide errors clearly", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "suitest-init-e2e-"));
   await assert.rejects(
-    () => runInit({ cwd: dir, mode: "local", yes: true }),
+    () => runInit({ cwd: dir, yes: true }),
     /IDE/,
   );
 });

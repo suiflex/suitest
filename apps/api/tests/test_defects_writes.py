@@ -38,7 +38,6 @@ from suitest_shared.domain.enums import (
     RunStatus,
     RunTrigger,
     Severity,
-    Tier,
 )
 
 if TYPE_CHECKING:
@@ -71,7 +70,6 @@ async def _seed_run(api_db: ApiDb, project_id: str, *, public_id: str = "R-D1") 
         name="seed-run",
         status=RunStatus.PASS,
         trigger=RunTrigger.MANUAL,
-        tier_at_runtime=Tier.ZERO,
     )
     await api_db.add_all([run])
     return run

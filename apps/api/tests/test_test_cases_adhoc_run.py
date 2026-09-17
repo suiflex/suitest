@@ -37,7 +37,6 @@ from suitest_shared.domain.enums import (
     Role,
     RunTrigger,
     TargetKind,
-    Tier,
 )
 
 if TYPE_CHECKING:
@@ -86,9 +85,8 @@ async def _seed_runnable_case(
 ) -> tuple[Project, Suite, TestCase, TestStep]:
     """Seed a project + suite + case + ONE step pointing at a bundled MCP.
 
-    By default the step carries ``code`` (so ZERO + strict_zero_validation
-    passes); individual tests override ``code=None`` / a custom ``mcp_provider``
-    to exercise the pre-flight validator branches.
+    Individual tests override ``code=None`` / a custom ``mcp_provider`` to
+    exercise the pre-flight validator branches.
     """
     project = Project(workspace_id=ws_id, slug=slug, name="P")
     await api_db.add_all([project])
@@ -337,7 +335,6 @@ async def test_adhoc_run_cloud_tier_allows_action_only_step(api_db: ApiDb) -> No
         [
             WorkspaceCapability(
                 workspace_id=ws.id,
-                tier=Tier.CLOUD,
                 autonomy_level=AutonomyLevel.MANUAL,
                 features_json={},
             )

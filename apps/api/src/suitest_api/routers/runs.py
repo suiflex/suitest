@@ -245,7 +245,6 @@ async def get_run(
         env=run.env,
         trigger=run.trigger,
         status=run.status,
-        tier_at_runtime=run.tier_at_runtime,
         started_at=run.started_at,
         completed_at=run.completed_at,
         duration_ms=run.duration_ms,
@@ -353,7 +352,7 @@ async def get_run_junit_report(
 ) -> Response:
     """Render a run as a JUnit XML report for CI consumption (Jenkins / GHA).
 
-    Deterministic / ZERO-tier: each test case becomes one ``<testcase>`` rolled up
+    Deterministic and LLM-free: each test case becomes one ``<testcase>`` rolled up
     from its run steps (error > failure > skipped > passed). 404 when cross-workspace.
     Returned as ``application/xml`` so a CI job can pipe it into its test reporter.
     """
@@ -380,7 +379,7 @@ async def get_run_replay(
 ) -> RunReplayResponse:
     """Time-travel replay: ordered steps + per-step state delta (M5-1).
 
-    Deterministic / ZERO-tier — the delta is a pure JSON diff between each step's
+    Deterministic and LLM-free — the delta is a pure JSON diff between each step's
     captured ``state_snapshot`` (normalized MCP output) and the previous step's.
     The first step has an empty delta (no prior state). 404 when cross-workspace.
     """

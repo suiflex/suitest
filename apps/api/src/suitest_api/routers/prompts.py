@@ -2,7 +2,7 @@
 
 A DB-backed override layer on top of the file-based default prompts. Reads
 (list defaults, view a prompt + its forks) are available to any workspace
-member; fork mutations require ADMIN+ and are tier-gated to LOCAL/CLOUD since a
+member; fork mutations require ADMIN+ and LLM readiness since a
 prompt fork only matters when an LLM is configured. The file default is always
 the fallback, so the ZERO/default path is never affected.
 """
@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from suitest_agent.prompts.loader import PromptNotFoundError, list_prompts, prompt_hash, read_prompt
-from suitest_core.capabilities import TierFlag
 from suitest_db.audit import write_audit
 from suitest_db.repositories.prompt_experiments import PromptExperimentCreate, PromptExperimentRepo
 from suitest_db.repositories.workspace_prompt_overrides import WorkspacePromptOverrideRepo
@@ -23,7 +22,7 @@ from suitest_shared.domain.enums import Role
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
-from suitest_api.deps.tier import require_tier
+from suitest_api.deps.tier import require_llm_ready
 from suitest_api.schemas.prompts import (
     ExperimentOutcomeBody,
     ExperimentVariantStats,
@@ -122,7 +121,7 @@ async def get_prompt_detail(
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_role(_FORK_ROLES))],
 )
-@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+@require_llm_ready
 async def create_prompt_fork(
     prompt_name: str,
     body: PromptForkCreate,
@@ -166,7 +165,7 @@ async def create_prompt_fork(
     response_model=PromptForkPublic,
     dependencies=[Depends(require_role(_FORK_ROLES))],
 )
-@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+@require_llm_ready
 async def activate_prompt_fork(
     override_id: str,
     ctx: TenantContext = Depends(require_workspace_membership),
@@ -195,7 +194,7 @@ async def activate_prompt_fork(
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(require_role(_FORK_ROLES))],
 )
-@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+@require_llm_ready
 async def delete_prompt_fork(
     override_id: str,
     ctx: TenantContext = Depends(require_workspace_membership),
@@ -275,7 +274,7 @@ async def list_prompt_experiments(
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_role(_FORK_ROLES))],
 )
-@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+@require_llm_ready
 async def create_prompt_experiment(
     body: PromptExperimentCreateBody,
     ctx: TenantContext = Depends(require_workspace_membership),
@@ -331,7 +330,7 @@ async def create_prompt_experiment(
     response_model=PromptExperimentPublic,
     dependencies=[Depends(require_role(_FORK_ROLES))],
 )
-@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+@require_llm_ready
 async def stop_prompt_experiment(
     experiment_id: str,
     ctx: TenantContext = Depends(require_workspace_membership),

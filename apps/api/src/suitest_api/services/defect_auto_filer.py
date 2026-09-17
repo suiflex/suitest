@@ -252,7 +252,7 @@ class DefectAutoFiler:
     publisher: _PublishCapable | None
     arq_pool: _ArqEnqueueCapable | None
     categorizer: DefectCategorizer
-    # M3-11: optional LLM diagnoser. None → pure regex (ZERO-tier behavior).
+    # M3-11: optional LLM diagnoser. None → pure regex fallback.
     diagnoser: DefectDiagnoser | None = None
 
     async def file_for_failed_step(self, run_step_id: str) -> Defect | None:

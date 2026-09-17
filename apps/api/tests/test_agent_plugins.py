@@ -37,7 +37,6 @@ _SPEC_V1 = yaml.safe_dump(
         "description": "An agent for testing.",
         "system_prompt": "You are a test agent.",
         "tool_whitelist": ["playwright_mcp.navigate"],
-        "requires_tier": "ZERO",
     }
 )
 
@@ -49,7 +48,6 @@ _SPEC_V2 = yaml.safe_dump(
         "description": "Updated.",
         "system_prompt": "You are an updated test agent.",
         "tool_whitelist": ["playwright_mcp.navigate", "playwright_mcp.screenshot"],
-        "requires_tier": "ZERO",
     }
 )
 
@@ -60,7 +58,6 @@ _SPEC_OTHER = yaml.safe_dump(
         "display_name": "Other Agent",
         "description": "Another agent.",
         "system_prompt": "You are another agent.",
-        "requires_tier": "ZERO",
     }
 )
 

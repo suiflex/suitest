@@ -31,7 +31,6 @@ from suitest_shared.domain.enums import (
     Priority,
     Role,
     TargetKind,
-    Tier,
 )
 
 from suitest_db.engine import lifespan_engine
@@ -203,7 +202,6 @@ class DemoSeeder:
             self.session.add(
                 WorkspaceCapability(
                     workspace_id=ws.id,
-                    tier=Tier.ZERO,
                     autonomy_level=AutonomyLevel.MANUAL,
                     features_json={},
                 )

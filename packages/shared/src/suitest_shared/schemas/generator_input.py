@@ -50,7 +50,7 @@ class RecommendedMcp(BaseModel):
 
 class StrategyAlternative(BaseModel):
     strategy: RecommendedStrategy
-    requires_tier: Literal["ZERO", "LOCAL", "CLOUD"]
+    requires_llm: bool = True
 
 
 class ClassificationResult(BaseModel):
@@ -70,8 +70,7 @@ class ClassificationResult(BaseModel):
 #
 # ``POST /generators/openapi`` ingests an OpenAPI 3.0 spec (by URL or inline
 # content) and streams back per-operation contract :class:`TestCaseDraft`s over
-# SSE. The generator is pure rules (NO LLM) so it lives in every tier
-# (``TierFlag.ANY``). ``source`` / ``priority`` re-use the canonical
+# SSE. The generator is pure rules (NO LLM). ``source`` / ``priority`` re-use the canonical
 # :mod:`suitest_shared.domain.enums` enums — they are never redefined here.
 
 
@@ -148,7 +147,7 @@ class TestCaseDraft(BaseModel):
 # ``POST /generators/crawler`` drives ``playwright-mcp`` to BFS a site from a
 # start URL, emit a navigate→no-console-error smoke case per visited page, and
 # (optionally) one form-fill case per discovered ``<form>`` with Faker-seeded
-# field values. Pure heuristics (NO LLM) → runs in every tier (``TierFlag.ANY``).
+# field values. Pure heuristics; MCP execution is readiness-gated by the API.
 # Generated cases re-use the canonical :class:`CaseSource.HEURISTIC_CRAWL` +
 # :class:`TargetKind.FE_WEB`; they are never redefined here.
 
@@ -200,7 +199,7 @@ class CrawlerGenerateRequest(BaseModel):
 
 
 class PrdGenerateRequest(BaseModel):
-    """LLM-driven PRD generation (M3-6) — CLOUD/LOCAL only.
+    """LLM-driven PRD generation (M3-6); requires a validated workspace LLM.
 
     ``prd_text`` is the requirement / user story / free text. The agent extracts
     stories and drafts happy-path + edge cases. ``default_target_kind`` decides
@@ -218,7 +217,7 @@ class PrdGenerateRequest(BaseModel):
 
 
 class UrlSemanticGenerateRequest(BaseModel):
-    """LLM-driven semantic URL generation (M3-7) — CLOUD/LOCAL only.
+    """LLM-driven semantic URL generation (M3-7); requires a validated workspace LLM.
 
     Decomposes a natural-language ``intent`` ("checkout flow") into FE_WEB
     journey cases on ``url``. Steps are agentic browser actions driven by
@@ -235,7 +234,7 @@ class UrlSemanticGenerateRequest(BaseModel):
 
 
 class McpDiscoveryGenerateRequest(BaseModel):
-    """LLM-driven MCP tool-discovery generation (M3-9) — CLOUD/LOCAL only.
+    """LLM-driven MCP tool-discovery generation (M3-9); requires LLM readiness.
 
     Targets a registered MCP provider by id; the agent explores its persisted
     tool catalog and proposes contract cases (happy + negative per tool). Steps
@@ -275,7 +274,7 @@ class GeneratorSseEvent(BaseModel):
 # session; events stream over the WS gateway (``recorder:<id>`` channel) and
 # ``POST .../finalize`` converts the captured event log into a DRAFT
 # :class:`TestCase` (``source=RECORDER``, ``target_kind=FE_WEB``). Pure
-# deterministic event→step mapping (NO LLM) → runs in every tier.
+# deterministic event→step mapping; the MCP session itself is readiness-gated.
 
 
 class RecorderSessionStartRequest(BaseModel):

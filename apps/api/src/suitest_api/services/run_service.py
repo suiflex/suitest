@@ -13,7 +13,6 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
-from suitest_core.capabilities import TierFlag
 from suitest_db.audit import write_audit
 from suitest_db.models.case import TestCase, TestStep
 from suitest_db.models.project import Suite
@@ -24,12 +23,11 @@ from suitest_db.repositories.mcp_providers import McpProviderRepo
 from suitest_db.repositories.projects import ProjectRepo
 from suitest_db.repositories.runs import RunRepo
 from suitest_db.repositories.suites import SuiteRepo
-from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
-from suitest_shared.domain.enums import RunStatus, RunTrigger, StepOutcome, Tier
+from suitest_shared.domain.enums import RunStatus, RunTrigger, StepOutcome
 from suitest_shared.schemas.responses import ArtifactOut, RunOut, SignedUrlOut
 
 from suitest_api.deps.scope import TenantContext
-from suitest_api.deps.tier import require_tier
+from suitest_api.deps.tier import require_llm_ready
 from suitest_api.services.project_scope import project_belongs_to_workspace
 from suitest_api.services.test_case_validator import BUNDLED_MCP_PROVIDERS
 
@@ -53,7 +51,6 @@ class RunService:
         project = await self._project_repo.get_by_id(project_id)
         return project is not None and project.workspace_id == self._ctx.workspace_id
 
-    @require_tier(TierFlag.ANY)
     async def list(
         self,
         project_id: str,
@@ -70,7 +67,6 @@ class RunService:
         )
         return [RunOut.model_validate(r) for r in rows]
 
-    @require_tier(TierFlag.ANY)
     async def get_by_id(self, run_id: str) -> RunOut | None:
         pair = await self._repo.get_with_summary(run_id)
         if pair is None:
@@ -91,7 +87,6 @@ class RunService:
 
     # -- M1c Task 15 mutations ---------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def get(self, run_id: str) -> RunRow | None:
         """Return the raw :class:`Run` row when in scope, else ``None``.
 
@@ -103,7 +98,6 @@ class RunService:
             return None
         return run
 
-    @require_tier(TierFlag.ANY)
     async def update_status(
         self,
         run_id: str,
@@ -125,7 +119,7 @@ class RunService:
             duration_ms=duration_ms,
         )
 
-    @require_tier(TierFlag.ANY)
+    @require_llm_ready
     async def create_run(
         self,
         *,
@@ -155,11 +149,8 @@ class RunService:
            ``project_id``.
         4. Every step's ``mcp_provider`` is either a bundled builtin OR a
            workspace-registered ``mcp_providers`` row.
-        5. Resolve the workspace tier from ``WorkspaceCapability`` (defaults
-           to :attr:`Tier.ZERO`).
-
         On success: inserts a :class:`Run` row with status ``QUEUED``, the
-        resolved tier, and a JSON metadata blob carrying the selection +
+        JSON metadata blob carrying the selection +
         routing override (so the orchestrator can rehydrate them later); then
         appends a ``run.create`` audit row. The session is NOT committed
         here — the router commits after attaching the ARQ job id so the run
@@ -212,9 +203,6 @@ class RunService:
             if provider_name and provider_name not in registered:
                 raise ValueError(f"step {step_id} references unregistered MCP {provider_name}")
 
-        capability = await WorkspaceCapabilityRepo(self._session).get(project.workspace_id)
-        tier = Tier(capability.tier) if capability is not None else Tier.ZERO
-
         # Snapshot planned cases at run creation so historical runs are immutable
         tc_info_rows = (
             await self._session.execute(
@@ -266,7 +254,6 @@ class RunService:
             trigger=trigger,
             triggered_by=triggered_by if triggered_by is not None else user_id,
             status=RunStatus.QUEUED,
-            tier_at_runtime=tier,
             metadata_json=metadata,
         )
         # ``before_insert`` listener fills ``public_id`` once it sees the
@@ -286,7 +273,6 @@ class RunService:
         )
         return run
 
-    @require_tier(TierFlag.ANY)
     async def create_run_for_suite(
         self,
         *,
@@ -305,7 +291,7 @@ class RunService:
         Resolves the suite within scope, derives the selection from its active
         cases in suite order (``SuiteRepo.active_case_ids_in_order``), then delegates
         to :meth:`create_run` so all the existing validation (MCP provider check,
-        tier resolution, audit) applies unchanged. ``name`` defaults to the suite
+        LLM readiness gate and audit) applies unchanged. ``name`` defaults to the suite
         name. Raises ``ValueError("suite not found")`` for a missing/cross-workspace
         suite and ``ValueError("suite has no active cases")`` for an empty suite —
         the router maps both to 400/404.
@@ -331,7 +317,6 @@ class RunService:
             playwright_config=playwright_config,
         )
 
-    @require_tier(TierFlag.ANY)
     async def attach_arq_job_id(self, run_id: str, job_id: str) -> None:
         """Stamp the ARQ job id onto ``runs.metadata.arq_job_id``.
 
@@ -347,7 +332,7 @@ class RunService:
         run.metadata_json = existing
         await self._session.flush()
 
-    @require_tier(TierFlag.ANY)
+    @require_llm_ready
     async def clone_for_rerun(
         self,
         src: RunRow,
@@ -363,14 +348,11 @@ class RunService:
         cases (in order). When ``failed_only`` is True, it filters to cases that
         had FAIL or ERROR step outcomes in ``src``. ``selected_step_ids`` is
         reset to ``None`` so any edits made in the test case editor run fresh.
-        Tier is re-resolved from the workspace capability.
+        Workspace LLM readiness is checked before cloning.
         """
         project = await self._project_repo.get_by_id(src.project_id)
         if project is None or project.workspace_id != self._ctx.workspace_id:
             raise ValueError("project not found")
-        capability = await WorkspaceCapabilityRepo(self._session).get(project.workspace_id)
-        tier = Tier(capability.tier) if capability is not None else Tier.ZERO
-
         src_metadata: dict[str, Any] = dict(src.metadata_json) if src.metadata_json else {}
         # Strip per-run bookkeeping that does not belong on the new run.
         src_metadata.pop("arq_job_id", None)
@@ -518,7 +500,6 @@ class RunService:
             trigger=RunTrigger.MANUAL,
             triggered_by=user_id,
             status=RunStatus.QUEUED,
-            tier_at_runtime=tier,
             metadata_json=metadata,
         )
         set_workspace_id(run, project.workspace_id)
@@ -558,14 +539,12 @@ class RunArtifactSignedUrlService:
             self._project_repo, run.project_id, self._ctx.workspace_id
         )
 
-    @require_tier(TierFlag.ANY)
     async def list_artifacts(self, run_id: str) -> list[ArtifactOut] | None:
         if not await self._run_in_scope(run_id):
             return None
         rows = await self._repo.get_artifacts(run_id)
         return [ArtifactOut.model_validate(r) for r in rows]
 
-    @require_tier(TierFlag.ANY)
     async def signed_url(
         self, run_id: str, artifact_id: str, *, expires_in: int = DEFAULT_SIGNED_URL_TTL
     ) -> SignedUrlOut | None:

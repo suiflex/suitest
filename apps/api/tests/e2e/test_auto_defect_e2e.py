@@ -67,7 +67,6 @@ from suitest_shared.domain.enums import (
     Severity,
     StepOutcome,
     TargetKind,
-    Tier,
 )
 
 if TYPE_CHECKING:
@@ -95,7 +94,6 @@ async def _seed_world(
     *,
     maker: async_sessionmaker[AsyncSession],
     slug_suffix: str,
-    strict_zero_validation: bool = True,
 ) -> dict[str, str]:
     """Seed Workspace + Project + Suite + TestCase + TestStep + Run + run-step.
 
@@ -108,7 +106,6 @@ async def _seed_world(
         ws = Workspace(
             slug=f"m1d29-{slug_suffix}",
             name=f"M1d29 {slug_suffix}",
-            strict_zero_validation=strict_zero_validation,
         )
         session.add(ws)
         await session.flush()
@@ -150,7 +147,6 @@ async def _seed_world(
             env="test",
             trigger=RunTrigger.MANUAL,
             status=RunStatus.QUEUED,
-            tier_at_runtime=Tier.ZERO,
             metadata_json={"selection": [{"case_id": case.id}]},
         )
         set_workspace_id(run, ws.id)
@@ -695,7 +691,7 @@ async def test_jira_failure_does_not_break_slack_post(
     assert defects[0].created_by == "system"
 
 
-async def test_workspace_strict_zero_false_step_without_code_still_files_defect_on_failure(
+async def test_step_without_code_still_files_defect_on_failure(
     api_db: ApiDb,
     mock_redis: AsyncRedis,
     recording_jira_adapter: RecordingJiraAdapter,
@@ -704,23 +700,11 @@ async def test_workspace_strict_zero_false_step_without_code_still_files_defect_
     slack_webhook_url: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``strict_zero_validation=False`` workspace still files defects on runtime FAIL.
-
-    The lenient path lets a step ship without ``code`` populated (manual TCM
-    descriptive-only); when the runner DOES still execute it (here we force a
-    FAIL via the execute_step stub), the auto-filer MUST behave identically
-    to the strict-validation path — defect filed, jobs enqueued.
-
-    The toggle is workspace-level (``workspaces.strict_zero_validation``);
-    M1d-29 covers that the auto-defect chain is orthogonal to it. The runner
-    orchestrator doesn't read this flag — it's an API-layer validator for
-    POST /test-cases — so this test mostly proves the seed shape works end
-    to end with the flag in its OFF position.
-    """
+    """A descriptive step still files a defect when runtime execution fails."""
     from .conftest import RecordingArqPool
 
     slug = uuid.uuid4().hex[:8]
-    ids = await _seed_world(maker=api_db.maker, slug_suffix=slug, strict_zero_validation=False)
+    ids = await _seed_world(maker=api_db.maker, slug_suffix=slug)
     await _seed_integrations(
         maker=api_db.maker,
         workspace_id=ids["workspace_id"],
@@ -762,14 +746,6 @@ async def test_workspace_strict_zero_false_step_without_code_still_files_defect_
     )
     summary = await run_test_case(ctx, ids["run_id"])
     assert summary["status"] == "FAIL"
-
-    async with api_db.maker() as session:
-        ws_rows = list(
-            (
-                await session.scalars(select(Workspace).where(Workspace.id == ids["workspace_id"]))
-            ).all()
-        )
-    assert ws_rows[0].strict_zero_validation is False
 
     async with api_db.maker() as session:
         defects = list(

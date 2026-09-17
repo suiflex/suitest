@@ -74,7 +74,7 @@ export default defineConfig({
             },
             { label: "Projects, cases, and runs", link: "/docs/concepts/data-model/" },
             { label: "Evidence and artifacts", link: "/docs/concepts/evidence/" },
-            { label: "Capability tiers", link: "/docs/reference/tiers/" },
+            { label: "LLM readiness", link: "/docs/reference/llm-readiness/" },
           ],
         },
         {

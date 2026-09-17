@@ -23,7 +23,6 @@ from __future__ import annotations
 import statistics
 from typing import TYPE_CHECKING
 
-from suitest_core.capabilities import TierFlag
 from suitest_db.repositories.defects import DefectRepo
 from suitest_db.repositories.projects import ProjectRepo
 from suitest_db.repositories.requirements import RequirementRepo
@@ -41,7 +40,6 @@ from suitest_shared.schemas.responses import (
 )
 
 from suitest_api.deps.scope import TenantContext
-from suitest_api.deps.tier import require_tier
 
 if TYPE_CHECKING:
     from suitest_db.models.run import Run
@@ -88,7 +86,6 @@ class AnalyticsService:
         rows, _ = await self._run_repo.list_by_project(project_id, limit=FLAKY_WINDOW)
         return list(rows)
 
-    @require_tier(TierFlag.ANY)
     async def pass_rate(self, project_id: str, period: str = "30d") -> PassRateOut | None:
         if not await self._project_in_scope(project_id):
             return None
@@ -100,7 +97,6 @@ class AnalyticsService:
             project_id=project_id, period=period, pass_rate=rate, sample_size=len(terminal)
         )
 
-    @require_tier(TierFlag.ANY)
     async def coverage(self, project_id: str) -> CoverageOut | None:
         if not await self._project_in_scope(project_id):
             return None
@@ -119,7 +115,6 @@ class AnalyticsService:
             coverage_rate=rate,
         )
 
-    @require_tier(TierFlag.ANY)
     async def kpis(self, project_id: str, period: str = "30d") -> KpiOut | None:
         if not await self._project_in_scope(project_id):
             return None
@@ -137,7 +132,6 @@ class AnalyticsService:
             open_defects=len(defects),
         )
 
-    @require_tier(TierFlag.ANY)
     async def flaky(self, project_id: str, min_rate: float = 0.2) -> list[FlakyCaseOut] | None:
         if not await self._project_in_scope(project_id):
             return None
@@ -180,7 +174,6 @@ class AnalyticsService:
                 outcomes_by_case.setdefault(step.case_id, []).append(value)
         return outcomes_by_case
 
-    @require_tier(TierFlag.ANY)
     async def heatmap(self, project_id: str, period: str = "30d") -> HeatmapOut | None:
         if not await self._project_in_scope(project_id):
             return None
@@ -197,7 +190,6 @@ class AnalyticsService:
             cells.append(HeatmapCellOut(case_id=case_id, public_id=public_id, outcomes=outcomes))
         return HeatmapOut(project_id=project_id, period=period, cells=cells)
 
-    @require_tier(TierFlag.ANY)
     async def readiness(self, project_id: str) -> ReadinessOut | None:
         if not await self._project_in_scope(project_id):
             return None

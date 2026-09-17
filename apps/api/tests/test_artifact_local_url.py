@@ -21,7 +21,6 @@ from suitest_shared.domain.enums import (
     CaseSource,
     RunTrigger,
     StepOutcome,
-    Tier,
 )
 
 if TYPE_CHECKING:
@@ -46,7 +45,6 @@ async def _seed_run_with_artifact(
         project_id=proj.id,
         name="r",
         trigger=RunTrigger.MANUAL,
-        tier_at_runtime=Tier.ZERO,
     )
     await api_db.add_all([case, run])
     step = RunStep(run_id=run.id, case_id=case.id, step_order=1, outcome=StepOutcome.PASS)

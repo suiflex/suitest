@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from suitest_shared.domain.enums import LlmStatus
 
 
 class ApiKeyCreateRequest(BaseModel):
@@ -49,3 +50,6 @@ class ApiKeyWhoami(BaseModel):
     workspace_id: str
     key_id: str
     key_name: str
+    llm_status: LlmStatus = Field(alias="llmStatus")
+
+    model_config = ConfigDict(populate_by_name=True)

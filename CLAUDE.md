@@ -2,7 +2,7 @@
 
 > Binding context for every AI coding agent (Claude Code, Cursor, Cline, etc.) working in this repo. Read this **before** writing code.
 >
-> After the OSS pivot (2026-05-26), Suitest = **Python/FastAPI backend** + **Vite/React frontend** + **MCP-native plugin layer** + **capability tiering**.
+> Suitest = **Python/FastAPI backend** + **Vite/React frontend** + **MCP-native plugin layer** + **workspace LLM readiness**.
 
 ---
 
@@ -16,9 +16,9 @@ A self-hostable OSS platform that combines:
 - **Deterministic runner** — step execution via pluggable MCP servers (Playwright, API HTTP, Postgres, GraphQL, gRPC, Mongo, Kubernetes, custom)
 - **AI generation (optional)** — when the user brings their own LLM key, agents generate from PRD / OpenAPI / URL / MCP discovery
 - **AI diagnosis (optional)** — auto-categorize defects (FLAKE / REGRESSION / ENVIRONMENT / TEST_BUG) when an LLM is available
-- **Capability-tiered** — features grow automatically from ZERO → LOCAL → CLOUD based on user configuration
+- **LLM-assisted execution** — MCP, runs, and AI features unlock after the workspace LLM is saved and validated
 
-Positioning: a replacement for TestRail + Playwright (ZERO tier) that also goes beyond TestSprite (CLOUD/LOCAL tier) without vendor lock-in.
+Positioning: a self-hosted replacement for TestRail + Playwright with a BYO LLM and no model-provider lock-in.
 
 Visual reference: [`docs/UI_SPEC.md`](./docs/UI_SPEC.md).
 
@@ -54,7 +54,7 @@ Every doc has a build-status banner at the top (built vs spec M2–M4) — read 
 - Don't use `as any` in TypeScript — use narrowing / `unknown` + a Zod validator
 - Don't call LLM SDKs directly from API routes — always go through `packages/agent` via LiteLLM
 - Don't call MCP servers directly from API routes — always go through `packages/mcp/client`
-- Don't skip **capability gating** for AI features — an LLM feature without `require_tier(...)` is a BUG
+- Don't skip **LLM readiness gating** for MCP, runs, or AI features
 - Don't store any secret in plaintext — always AES-GCM via `packages/core/crypto`
 - Don't skip the audit log for mutations — every write operation logs via the `audit_log` table
 
@@ -72,7 +72,7 @@ Every doc has a build-status banner at the top (built vs spec M2–M4) — read 
 - All **DB access** goes through the repository pattern (`packages/db/repositories/*.py`)
 - **AES-GCM** for stored secrets via `packages/core/crypto`
 - **Audit log** every mutation (`packages/db/audit.py`)
-- Every new endpoint must declare its tier requirement via `Depends(require_tier(...))`
+- Every MCP, run, or LLM endpoint must enforce `require_llm_ready` or `ensure_llm_ready`
 - Every LLM-dependent UI feature must be wrapped in `<Gated feature="...">`
 
 ---
@@ -110,7 +110,7 @@ apps/api/src/
 │   └── ...
 ├── deps/                ← dependency injection providers
 │   ├── auth.py          ← current_user, require_role
-│   ├── tier.py          ← require_tier, require_autonomy
+│   ├── tier.py          ← require_llm_ready, require_autonomy (legacy filename)
 │   └── db.py            ← session provider
 └── schemas/             ← Pydantic v2 request/response DTOs
 
@@ -141,7 +141,7 @@ packages/shared/suitest_shared/
 └── schemas/             ← cross-package Pydantic types
 
 packages/core/suitest_core/
-├── capabilities.py      ← tier resolver
+├── capabilities.py      ← LLM readiness feature flags
 ├── autonomy.py          ← autonomy resolver
 └── crypto.py            ← AES-GCM helper
 ```
@@ -206,22 +206,25 @@ Font: **Geist Sans** for UI, **Geist Mono** for code/IDs/numbers.
 
 ---
 
-## 4. Capability tier rules
+## 4. LLM readiness rules
 
-Suitest runs in 3 tiers (see [CAPABILITY_TIERS.md](./docs/CAPABILITY_TIERS.md)):
+Suitest has no model-provider capability tiers. A local model and a hosted model
+follow the same per-workspace lifecycle (see [CAPABILITY_TIERS.md](./docs/CAPABILITY_TIERS.md)):
 
-- **ZERO** — no LLM. Full TCM + deterministic runs + rule-based defects.
-- **LOCAL** — local LLM (Ollama, llamacpp, vLLM, LM Studio). Full AI features.
-- **CLOUD** — cloud LLM (anthropic, openai, gemini, groq, openrouter, ...). Full AI features.
+- `not_configured` — manual web TCM, auth, workspace management, and LLM Settings only
+- `validation_required` — a config is saved or changed but has not passed its connection test
+- `ready` — MCP execution, runs, and LLM features are enabled
 
-> **The tier is resolved from the per-workspace LLM configuration (web UI: Settings → LLM provider), NOT from env.** The base deployment is always ZERO; the provider stored by the workspace (AES-encrypted) is what raises the tier (`build_workspace_overlay` / `CapabilityService.resolve`). There are no `SUITEST_LLM_*` / `SUITEST_EMBEDDINGS_BACKEND` env vars anymore. `resolve_tier()` / `resolve_embeddings()` in `packages/core/capabilities.py` are now ZERO-always (they only serve as the base + the `compute_features`/`compute_autonomy` primitives for the overlay).
+The source of truth is the active encrypted `LLMConfig` and its persisted
+`last_validated_at`. Startup must not spend a completion merely to probe readiness.
 
 ### MANDATORY rules
 
-- Every new endpoint declares its tier requirement via DI:
+- Every MCP, run, or LLM endpoint declares its readiness requirement:
   ```python
   @router.post("/agent/generate")
-  async def generate(..., _: None = Depends(require_tier(Tier.CLOUD | Tier.LOCAL))):
+  @require_llm_ready
+  async def generate(..., ctx: TenantContext, session: AsyncSession):
       ...
   ```
 - Every LLM-dependent UI feature is wrapped in `<Gated>`:
@@ -230,10 +233,12 @@ Suitest runs in 3 tiers (see [CAPABILITY_TIERS.md](./docs/CAPABILITY_TIERS.md)):
     <GenerateModal />
   </Gated>
   ```
-- **Never assume an LLM is available** — the default code path must be ZERO-compatible. AI = enrichment on top of the deterministic core.
-- LLM calls need a tier gate: `require_tier(Tier.CLOUD | Tier.LOCAL)`
+- **Never assume an LLM is available** — manual web workflows must remain usable without one.
+- MCP calls, test runs, and LLM calls require a previously validated workspace LLM.
 - Agentic steps (with non-reversible side effects) need an autonomy gate: `require_autonomy(AutonomyLevel.ASSIST_OR_HIGHER)`
-- **Test ZERO mode first**, then CLOUD, then LOCAL. The eval harness must be green at ZERO before LLM enrichment is merged.
+- Test manual no-LLM behavior first, then validated hosted and local providers.
+- MCP clients contain only `SUITEST_API_URL` and `SUITEST_API_KEY`; provider secrets stay server-side.
+- MCP sampling is forbidden. Model work goes through `/api/v1/llm/complete`.
 
 ---
 
@@ -322,7 +327,7 @@ Two things that will waste an afternoon otherwise:
 If you are unsure about something not covered in the docs:
 
 1. **Check `docs/UI_SPEC.md`** first for visual / behavior hints
-2. **Check `CAPABILITY_TIERS.md`** before implementing an LLM-dependent feature — make sure the tier gating is clear
+2. **Check `CAPABILITY_TIERS.md`** before implementing an LLM-dependent feature — make sure readiness gating is clear
 3. If it is still ambiguous → **write the question in the PR description** before continuing
 4. **Never guess field names, endpoints, or prompt keys** — ask for clarification
 
@@ -330,10 +335,10 @@ If you are unsure about something not covered in the docs:
 
 ## 8. Vibe coding heuristics
 
-- **ZERO tier first.** Every feature must work or gracefully degrade at ZERO before LLM enrichment is added. If your feature only works on CLOUD, redesign it.
+- **Manual workflow first.** Web TCM must work without an LLM; MCP and runs fail closed until validation.
 - **Backend first, FE second.** Pydantic schema + Alembic migration + service test → then wire the UI.
 - **Mock the LLM last.** For agent features, build against `packages/agent/providers/mock.py` deterministically first, real providers later.
-- **Look at UI_SPEC, adapt for tier.** The spec describes the CLOUD-tier view. ZERO tier hides the AI parts; show an upgrade hint.
+- **Look at UI_SPEC, adapt for readiness.** Hide or stop executable controls until the workspace LLM is ready.
 - **Small PRs win.** One PR = one acceptance criterion on the roadmap.
 - **Dogfood always.** Once M3 is done, run Suitest's smoke suite using Suitest. Suitest tests Suitest.
 - **The capability gate is non-negotiable.** An LLM feature without a gate = PR auto-blocked.
@@ -353,14 +358,13 @@ If you are unsure about something not covered in the docs:
 | **Traceability** | Link requirement ↔ test case ↔ defect |
 | **Defect** | Bug record created from a test failure |
 | **Artifact** | Output of a run (screenshot, HAR, log, video) |
-| **Tier** | Capability level: `ZERO` / `LOCAL` / `CLOUD` — base is always ZERO, raised per-workspace by the LLM configuration in the web UI |
+| **LLM readiness** | Workspace state: `not_configured` / `validation_required` / `ready` |
 | **Autonomy** | Per-workspace dial: `manual` / `assist` / `semi_auto` / `auto` |
 | **target_kind** | Enum: `BE_REST` / `BE_GRAPHQL` / `BE_GRPC` / `FE_WEB` / `FE_MOBILE` / `FE_DESKTOP` / `DATA` / `INFRA` / `CUSTOM` |
 | **mcp_provider** | Foreign key into the MCP server registry (e.g. `playwright-mcp`, `api-http-mcp`) |
 | **Generator** | Mechanism for creating test cases. Deterministic (OpenAPI, Recorder, Crawler) or LLM-driven (PRD, semantic URL, MCP discovery) |
-| **Capability resolver** | `packages/core/capabilities.py` — supplies the ZERO base + primitives (tier → features/autonomy); the effective tier is raised by the service layer from the workspace LLMConfig |
+| **Capability resolver** | `packages/core/capabilities.py` — derives feature flags from persisted LLM readiness |
 | **Mixed-MCP test** | A single test case whose steps use different `mcp_provider`s (e.g. seed pg → call api → drive browser) |
-| **ZERO mode** | Tier without an LLM. AI features hidden / disabled. Manual TCM + deterministic runs only. |
 | **BYO LLM** | "Bring Your Own LLM" — the user provides their own API key (cloud) or runs one locally (Ollama) |
 | **LiteLLM** | Router for 100+ providers via one client interface |
 | **LangGraph** | State machine library for agent orchestration |

@@ -8,7 +8,7 @@ Supports three target frameworks:
 Steps with no ``code`` field are rendered as ``# TODO`` / ``// TODO`` comments
 so partial test cases still export cleanly without a validation error.
 
-API contract: docs/API.md §3.18. Always ZERO-tier-safe — no LLM required.
+API contract: docs/API.md §3.18. No LLM required.
 """
 
 from __future__ import annotations

@@ -16,7 +16,6 @@ from __future__ import annotations
 from collections import Counter
 from typing import TYPE_CHECKING, NamedTuple
 
-from suitest_core.capabilities import TierFlag
 from suitest_db.audit import write_audit
 from suitest_db.models.project import Suite
 from suitest_db.repositories.projects import ProjectRepo
@@ -24,7 +23,6 @@ from suitest_db.repositories.suites import SuiteRepo
 from suitest_shared.schemas.responses import SuiteOut
 
 from suitest_api.deps.scope import TenantContext
-from suitest_api.deps.tier import require_tier
 from suitest_api.services.project_scope import project_belongs_to_workspace
 
 if TYPE_CHECKING:
@@ -98,14 +96,12 @@ class SuiteService:
     # Read path (M1a)
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def list(self, project_id: str) -> list[SuiteOut] | None:
         if not await self._project_in_scope(project_id):
             return None
         rows = await self._repo.list_by_project(project_id)
         return [SuiteOut.model_validate(r) for r in rows]
 
-    @require_tier(TierFlag.ANY)
     async def get_by_id(self, suite_id: str) -> SuiteOut | None:
         row = await self._repo.get_by_id(suite_id)
         if row is None or not await self._project_in_scope(row.project_id):
@@ -116,7 +112,6 @@ class SuiteService:
     # Write path (M1d-4)
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def create(self, body: SuiteCreate) -> SuiteWriteResult | None:
         """Create a suite under the supplied project.
 
@@ -158,7 +153,6 @@ class SuiteService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def update(self, suite_id: str, body: SuiteUpdate) -> SuiteWriteResult | None:
         """Patch metadata; optional atomic ``case_order`` reorder in the same TX.
 
@@ -248,7 +242,6 @@ class SuiteService:
             ws_payload=ws_payload,
         )
 
-    @require_tier(TierFlag.ANY)
     async def soft_delete_with_cascade(
         self, suite_id: str, *, confirm_cascade: bool
     ) -> SuiteWriteResult | None:
@@ -302,7 +295,6 @@ class SuiteService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def restore(self, suite_id: str) -> SuiteWriteResult | None:
         """Clear ``deleted_at`` on the suite (children stay tombstoned).
 

@@ -1,7 +1,7 @@
 """Agent conversation endpoint (M3-12 / M3-13).
 
 ``POST /agent/chat`` streams the assistant reply as SSE token frames and mirrors
-tool-call requests on the WS gateway. CLOUD/LOCAL only — a workspace with no
+tool-call requests on the WS gateway. A workspace without a validated
 active ``LLMConfig`` is rejected with ``409`` before the stream opens.
 """
 
@@ -13,7 +13,6 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from suitest_core.capabilities import TierFlag
 from suitest_db.models.llm_config import LLMConfig
 from suitest_db.repositories.agent_sessions import AgentSessionRepo
 from suitest_db.repositories.llm_configs import LLMConfigRepo
@@ -22,7 +21,7 @@ from suitest_shared.schemas.agent_chat import ChatRequest, ChatSseEvent
 
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
-from suitest_api.deps.tier import require_tier
+from suitest_api.deps.tier import require_llm_ready
 from suitest_api.services.agent_chat_service import AgentChatService
 from suitest_api.services.llm_credentials import resolve_for_config
 from suitest_api.services.model_catalog import MODEL_CATALOG
@@ -55,7 +54,7 @@ def _model_for(payload: ChatRequest, config: LLMConfig) -> str:
 
 
 @router.post("/agent/chat")
-@require_tier(TierFlag.CLOUD | TierFlag.LOCAL)
+@require_llm_ready
 async def agent_chat(
     payload: ChatRequest,
     request: Request,

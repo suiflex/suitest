@@ -1,14 +1,12 @@
-"""Canonical ``GET /capabilities`` response schema (docs/CAPABILITY_TIERS.md §10).
+"""Canonical ``GET /capabilities`` response schema.
 
 This is the ONE schema serialised by the public ``/capabilities`` endpoint. It is
-assembled in the API layer from the ``suitest_core`` primitives (``resolve_tier``,
-``resolve_embeddings``, ``compute_features``, ``compute_autonomy``) plus, when a
+assembled in the API layer from the ``suitest_core`` readiness primitives plus, when a
 workspace context is present, an overlay of the workspace ``WorkspaceCapability``,
 active ``LLMConfig``, and ``McpProvider`` rows.
 
 The lightweight ``suitest_core.capabilities.CapabilitySnapshot`` is kept for the
-internal service layer (tier + feature dict + overlay flag); this richer schema is
-the wire contract. Field names mirror CAPABILITY_TIERS §10 verbatim; ``mcpProviders``
+internal service layer; this richer schema is the wire contract. ``mcpProviders``
 is the JSON alias for ``mcp_providers``.
 """
 
@@ -16,7 +14,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from suitest_shared.domain.enums import AutonomyLevel, Tier
+from suitest_shared.domain.enums import AutonomyLevel, LlmStatus
 
 
 class McpProviderPublic(BaseModel):
@@ -32,16 +30,17 @@ class McpProviderPublic(BaseModel):
 
 
 class LLMSection(BaseModel):
-    """LLM provider info. ``provider`` is ``"none"`` in ZERO tier."""
+    """Workspace LLM provider and readiness."""
 
-    provider: str
+    status: LlmStatus = LlmStatus.NOT_CONFIGURED
+    provider: str | None = None
     model: str | None = None
     base_url: str | None = None
     is_test_provider: bool = False
 
 
 class EmbeddingsSection(BaseModel):
-    """Embeddings backend info (independent of LLM tier)."""
+    """Embeddings backend info (independent of LLM readiness)."""
 
     enabled: bool
     backend: str
@@ -50,7 +49,7 @@ class EmbeddingsSection(BaseModel):
 
 
 class FeaturesSection(BaseModel):
-    """The 13 capability feature flags resolved from (tier, embeddings)."""
+    """The 13 capability feature flags resolved from readiness and embeddings."""
 
     manual_tcm: bool
     deterministic_runner: bool
@@ -68,7 +67,7 @@ class FeaturesSection(BaseModel):
 
 
 class AutonomySection(BaseModel):
-    """Autonomy levels available + the recommended default for the tier."""
+    """Autonomy levels available plus the recommended default."""
 
     available: list[AutonomyLevel]
     default: AutonomyLevel
@@ -88,7 +87,6 @@ class AuthSection(BaseModel):
 class Capabilities(BaseModel):
     """Full ``GET /capabilities`` response."""
 
-    tier: Tier
     llm: LLMSection
     embeddings: EmbeddingsSection
     features: FeaturesSection

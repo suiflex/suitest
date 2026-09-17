@@ -18,7 +18,6 @@ from suitest_shared.domain.enums import (
     RunTrigger,
     Severity,
     StepOutcome,
-    Tier,
 )
 
 if TYPE_CHECKING:
@@ -37,7 +36,6 @@ def _run(project_id: str, public_id: str, *, status: RunStatus, **kw: object) ->
         project_id=project_id,
         name="run",
         trigger=RunTrigger.MANUAL,
-        tier_at_runtime=Tier.ZERO,
         status=status,
         **kw,
     )

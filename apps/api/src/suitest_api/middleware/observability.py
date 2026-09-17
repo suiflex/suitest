@@ -3,7 +3,7 @@
 Picks up the per-request :class:`~suitest_db.audit.AuditContext` (populated by
 :class:`~suitest_api.middleware.audit.AuditContextMiddleware`) and tags the
 currently-active OTel span with multi-tenant attribution
-(``workspace.id`` / ``user.id``) plus the resolved deployment ``capabilities.tier``.
+(``workspace.id`` / ``user.id``) plus the startup ``llm.status``.
 
 ASGI ordering:
   Must mount *after* :class:`AuditContextMiddleware` so ``audit_ctx.get()`` is
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 class SpanAttributesMiddleware:
-    """Tag the active OTel span with workspace/user/tier from request context."""
+    """Tag the active OTel span with workspace/user/readiness from request context."""
 
     def __init__(self, app: ASGIApp, fastapi_app: FastAPI) -> None:
         self.app = app
@@ -46,9 +46,11 @@ class SpanAttributesMiddleware:
             if ctx.user_id:
                 attrs["user.id"] = ctx.user_id
         capabilities = getattr(self._fastapi_app.state, "capabilities", None)
-        tier = getattr(getattr(capabilities, "tier", None), "value", None)
-        if isinstance(tier, str) and tier:
-            attrs["capabilities.tier"] = tier
+        llm_status = getattr(
+            getattr(getattr(capabilities, "llm", None), "status", None), "value", None
+        )
+        if isinstance(llm_status, str) and llm_status:
+            attrs["llm.status"] = llm_status
         if attrs and span.is_recording():
             span.set_attributes(attrs)
 

@@ -13,7 +13,7 @@ from typing import Any
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
-from suitest_shared.domain.enums import ArtifactKind, RunStatus, RunTrigger, StepOutcome, Tier
+from suitest_shared.domain.enums import ArtifactKind, RunStatus, RunTrigger, StepOutcome
 
 from suitest_db.base import Base, TimestampMixin
 from suitest_db.ids import new_id
@@ -49,9 +49,6 @@ class Run(Base, TimestampMixin):
     completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     duration_ms: Mapped[int | None] = mapped_column(Integer)
 
-    # NEW — captured at run start so historical runs stay reproducible
-    tier_at_runtime: Mapped[Tier] = mapped_column(SAEnum(Tier, name="tier"), nullable=False)
-
     total_steps: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     passed_steps: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     failed_steps: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -61,7 +58,6 @@ class Run(Base, TimestampMixin):
         UniqueConstraint("workspace_id", "public_id", name="uq_runs_workspace_public_id"),
         Index("ix_runs_project_status", "project_id", "status"),
         Index("ix_runs_created_at", "created_at"),
-        Index("ix_runs_tier", "tier_at_runtime"),
     )
 
 

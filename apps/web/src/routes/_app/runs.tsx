@@ -574,7 +574,6 @@ function RunDetailPanel({
           </span>
           <span>env={run.env}</span>
           <span>duration={formatDuration(run.duration_ms)}</span>
-          <span>tier={run.tier_at_runtime}</span>
         </div>
       </div>
 

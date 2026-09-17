@@ -14,8 +14,7 @@ function resetStore(): void {
 }
 
 const ZERO_PAYLOAD: Capabilities = {
-  tier: "ZERO",
-  llm: { provider: "none", model: null, base_url: null, is_test_provider: false },
+  llm: { status: "not_configured", provider: null, model: null, base_url: null, is_test_provider: false },
   embeddings: { enabled: false, backend: "none", model: null, dim: null },
   features: {
     manual_tcm: true,
@@ -46,7 +45,7 @@ describe("useCapabilities", () => {
     vi.restoreAllMocks();
   });
 
-  it("populates store with ZERO tier payload on success", async () => {
+  it("populates store with an unconfigured LLM payload on success", async () => {
     vi.spyOn(api, "get").mockResolvedValueOnce({ data: ZERO_PAYLOAD } as never);
 
     await useCapabilities.getState().fetch();
@@ -54,7 +53,7 @@ describe("useCapabilities", () => {
     const state = useCapabilities.getState();
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
-    expect(state.capabilities?.tier).toBe("ZERO");
+    expect(state.capabilities?.llm.status).toBe("not_configured");
     expect(state.capabilities?.features.ai_generation).toBe(false);
     expect(state.capabilities?.features.manual_tcm).toBe(true);
     expect(state.capabilities?.autonomy.default).toBe("manual");
@@ -84,23 +83,22 @@ describe("useCapabilities", () => {
 
     const state = useCapabilities.getState();
     expect(state.error).toBeNull();
-    expect(state.capabilities?.tier).toBe("ZERO");
+    expect(state.capabilities?.llm.status).toBe("not_configured");
   });
 
   it("setCapabilities updates store directly without fetch", () => {
     useCapabilities.getState().setCapabilities(ZERO_PAYLOAD);
     const state = useCapabilities.getState();
-    expect(state.capabilities?.tier).toBe("ZERO");
+    expect(state.capabilities?.llm.status).toBe("not_configured");
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
   });
 
-  it("rejects malformed response (missing tier field)", async () => {
+  it("rejects malformed response (missing llm field)", async () => {
     // Regression: when the Vite dev proxy doesn't route /capabilities to the
     // backend, the SPA fallback can return index.html, or a partial fixture
     // can omit fields. The store must NOT hydrate garbage shapes — it should
-    // surface a visible error so downstream consumers (TierBadge, Gated)
-    // don't crash on undefined nested fields.
+    // surface a visible error so downstream consumers do not crash.
     server.use(
       http.get("http://localhost/capabilities", () => HttpResponse.json({ foo: "bar" })),
     );

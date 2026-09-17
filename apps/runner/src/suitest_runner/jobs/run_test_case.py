@@ -4,7 +4,7 @@ The orchestrator owns the run lifecycle:
 
 1. Load the run + its step selection (M1c implicit selection: every active case
    in the project's suites, in suite/case/step order).
-2. Resolve the workspace capability tier + routing overrides.
+2. Resolve the validated workspace LLM + routing overrides.
 3. Mark the run ``RUNNING``, publish ``run.started``.
 4. For each step: publish ``run.step.started`` → dispatch via
    :func:`suitest_runner.executors.step_executor.execute_step` →
@@ -54,7 +54,7 @@ from suitest_mcp.invoker import InvokeContext, McpInvoker
 from suitest_mcp.models import McpArtifact
 from suitest_mcp.providers.builtin_specs import build_playwright_provider
 from suitest_mcp.registry import McpRegistry
-from suitest_shared.domain.enums import AutonomyLevel, RunStatus, StepOutcome, TargetKind, Tier
+from suitest_shared.domain.enums import AutonomyLevel, RunStatus, StepOutcome, TargetKind
 
 from suitest_runner.executors.step_executor import StepResult, StepTranslator, execute_step
 from suitest_runner.handlers.step_handler import on_run_step_failed
@@ -129,24 +129,19 @@ class _LogseqIncrementer(Protocol):
     async def incr(self, name: str) -> int: ...
 
 
-async def _build_translator(
-    session: object, *, tier: Tier, workspace_id: str
-) -> StepTranslator | None:
+async def _build_translator(session: object, *, workspace_id: str) -> StepTranslator | None:
     """Bind the workspace's active LLM into a per-step action→code translator.
 
-    Returns ``None`` at ZERO tier or when no LLM is configured — agentic steps
-    then stay ``SKIP``. The provider is resolved once and closed over so every
+    Returns ``None`` when no validated LLM is configured. The provider is resolved once so every
     step in the run reuses the same client (M3-10).
     """
-    if tier not in (Tier.LOCAL, Tier.CLOUD):
-        return None
     from sqlalchemy.ext.asyncio import AsyncSession
 
     if not isinstance(session, AsyncSession):  # pragma: no cover - defensive
         return None
     repo = LLMConfigRepo(session)
     llm = await repo.get_active(workspace_id)
-    if llm is None:
+    if llm is None or llm.last_validated_at is None:
         return None
     # A Sign in with ChatGPT config has no stored key — the credential (and any
     # refresh it needs) is resolved centrally, never read off the row here.
@@ -443,7 +438,7 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
         "runner.run_test_case",
         attributes={"job.queue": "suitest:runs", "run.id": run_id},
     ):
-        # --- load run + selection + tier ----------------------------------
+        # --- load run + selection + workspace LLM -------------------------
         async with factory() as session:
             run_repo = RunRepo(session)
             run, selection = await run_repo.get_with_selection(run_id)
@@ -476,10 +471,7 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                 await registry.load_for_workspace(session, workspace_id)
 
             capability = await WorkspaceCapabilityRepo(session).get(workspace_id)
-            tier = Tier(capability.tier) if capability is not None else Tier.ZERO
-            auto_self_heal = tier in (Tier.LOCAL, Tier.CLOUD) and _auto_self_heal_enabled(
-                capability
-            )
+            auto_self_heal = _auto_self_heal_enabled(capability)
             overrides_raw = (
                 capability.features_json.get("routing_overrides") if capability else None
             )
@@ -488,18 +480,17 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
             )
             triggered_by = run.triggered_by
 
-            # M3-10: at LOCAL/CLOUD tier, bind the workspace's LLM into a
-            # per-step translator so agentic (code-less) steps resolve their
-            # ``action`` to a tool call at execution time. ZERO / no-LLM → None
-            # (such steps stay SKIP, exactly as before).
-            translator = await _build_translator(session, tier=tier, workspace_id=workspace_id)
+            translator = await _build_translator(session, workspace_id=workspace_id)
+            if translator is None:
+                await run_repo.update_status(run_id, RunStatus.ERROR)
+                await session.commit()
+                return {"error": "LLM_NOT_READY", "run_id": run_id}
 
             total_planned_steps = len(selection)
             await run_repo.update_status(
                 run_id,
                 RunStatus.RUNNING,
                 started_at=datetime.now(UTC),
-                tier_at_runtime=tier,
                 total_steps=total_planned_steps,
                 passed_steps=0,
                 failed_steps=0,
@@ -510,7 +501,7 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
             redis_client,
             run_id,
             "run.started",
-            {"runId": run_id, "tier": tier.value},
+            {"runId": run_id},
             factory=factory,
         )
 
@@ -809,7 +800,6 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                     run_id=run_id,
                     workspace_id=workspace_id,
                     actor_user_id=triggered_by,
-                    tier=tier,
                     routing_overrides=overrides,
                     translator=translator,
                 )
@@ -840,8 +830,6 @@ async def run_test_case(ctx: dict[str, object], run_id: str) -> dict[str, object
                             test_step=test_step,
                             run_id=run_id,
                             workspace_id=workspace_id,
-                            actor_user_id=triggered_by,
-                            tier=tier,
                             routing_overrides=overrides,
                             translator=translator,
                         )

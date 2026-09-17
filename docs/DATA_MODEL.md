@@ -2,7 +2,11 @@
 
 > SQLAlchemy 2.0 (async) schema + Pydantic v2 domain models for Suitest OSS. **Source of truth** — when adding/changing a model, update this doc in the same PR.
 
-> ℹ️ **Built today:** schema through Alembic migration `0047`, including testing approaches and versioned test strategies. Verify against `packages/db/alembic/versions/`.
+> **Current schema:** migration `0051_remove_capability_tiers` removes
+> `workspace_capabilities.tier`, `runs.tier_at_runtime`, and
+> `workspaces.strict_zero_validation`. Older tables below are migration history.
+
+> ℹ️ **Built today:** schema through Alembic migration `0051`. Verify against `packages/db/alembic/versions/`.
 >
 > Stack: Python 3.12 · FastAPI · Pydantic v2 · SQLAlchemy 2.0 (async) · Alembic · Postgres 16 + `pgvector`. **Postgres-only.** Tidak ada dukungan SQLite/MySQL/Mongo di OSS v1.0.
 >

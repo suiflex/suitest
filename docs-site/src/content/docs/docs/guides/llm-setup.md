@@ -1,139 +1,62 @@
 ---
 title: Bring your own LLM
-description: Three ways Suitest gets inference, MCP sampling on your subscription, a workspace LLM bridge, or none at all, and the fallback order.
+description: Connect and validate the workspace LLM used by Suitest MCP, runs, and AI workflows.
 ---
 
-Suitest never ships with an LLM key and never requires one. Inference, when it
-happens at all, comes from one of three places, tried in a fixed order. The
-deterministic baseline works with no LLM whatsoever, so every path below is
-enrichment, not a dependency.
+Suitest uses the LLM configured for each workspace. The provider may be a
+hosted API, a self-hosted model, or a supported sign-in provider; all options
+unlock the same Suitest features after a successful connection test.
 
-## The three inference paths
+Manual test case management remains available before an LLM is configured.
+MCP startup, test runs, and AI workflows require the workspace LLM status to be
+`ready`.
 
-### 1. MCP sampling: your agent's own model, no API key
+## Configure a provider
 
-When the connected MCP client (for example Claude Code) advertises the
-`sampling` capability at initialize, the Suitest MCP server can send a
-`sampling/createMessage` request back through the client. The completion runs
-on the user's own model subscription. No OpenAI or Anthropic key is held by
-Suitest, nothing is configured, and there is no separate bill.
+1. Open **Settings, then LLM**.
+2. Select a provider and model.
+3. Enter the required API key, base URL, or complete the provider sign-in.
+4. Save the configuration.
+5. Select **Test connection**.
 
-- Detected automatically: if your client supports sampling, this path is
-  first in line.
-- Requests carry the prompt, an optional system prompt, and a max token
-  count; the default timeout is 180 seconds.
-- A sampling failure (timeout, client error, empty content) is never fatal.
-  The chain falls through to the next tier.
+Saving or changing a provider clears its validation state. A successful test
+records `last_validated_at` and enables MCP and runs for the workspace without
+a restart.
 
-### 2. The workspace LLM bridge
+## Provider requirements
 
-The lifecycle can call `POST /api/v1/llm/complete` on the Suitest server,
-authenticated with the same `SUITEST_API_KEY` used for publishing. The server
-runs the completion against the workspace's active LLM configuration, which an
-admin sets in the web UI under **Settings, LLM**. The lifecycle side never
-sees the provider key.
+| Provider | Requirements |
+|---|---|
+| `ollama`, `llamacpp`, `vllm`, `lmstudio` | Reachable `base_url`; no provider API key |
+| `anthropic`, `openai`, `gemini`, `groq`, `openrouter`, `azure`, `deepseek` | Provider API key |
+| `bedrock`, `vertex` | IAM or ambient credentials |
+| `chatgpt` | Sign in with ChatGPT |
+| `google-vertex` | Google sign-in and a GCP project with Vertex AI enabled |
+| `google-codeassist` | Google sign-in; uses Code Assist quota |
+| `antigravity` | Sign in with Antigravity |
+| `custom` | OpenAI-compatible `base_url`; key requirements depend on the gateway |
+| `mock` | Deterministic development and CI responses |
 
-Supported providers:
+Configuration is per workspace and takes effect without a process restart.
+Provider secrets are stored AES-GCM encrypted and are shown only as a redacted
+hint after saving.
 
-| Provider value | Tier | Requirements |
-|----------------|------|--------------|
-| `ollama`, `llamacpp`, `vllm`, `lmstudio` | LOCAL | `base_url` required, no API key |
-| `anthropic`, `openai`, `gemini`, `groq`, `openrouter`, `azure`, `deepseek` | CLOUD | API key required |
-| `bedrock`, `vertex` | CLOUD | no key in Suitest (IAM or ambient credentials) |
-| `chatgpt` | CLOUD | Sign in with ChatGPT; no key |
-| `google-vertex` | CLOUD | Sign in with Google; no key. Needs a GCP project with the Vertex AI API enabled and billing active |
-| `google-codeassist` | CLOUD | Sign in with Google; no key, **no project to supply** — the account's own is discovered. Draws on Code Assist quota |
-| `antigravity` | CLOUD | Sign in only; no key. A client is bundled; `SUITEST_LLM_ANTIGRAVITY_OAUTH_CLIENT_ID` / `_SECRET` override it |
-| `custom` | CLOUD | any OpenAI-compatible endpoint; `base_url` required, key optional (gateway-dependent) |
-| `mock` | CLOUD (test flag) | canned deterministic responses for CI and dev, flagged `is_test_provider` |
+## How MCP uses the LLM
 
-Configuration facts:
+The MCP config contains the Suitest API URL and an API key. The server verifies
+that key and the workspace LLM status during startup. LLM work is sent to the
+Suitest `/api/v1/llm/complete` proxy; the MCP process never receives the
+provider secret or delegates inference to the MCP client.
 
-- **Per workspace.** Each workspace has its own active config; switching
-  provider takes effect immediately, with no restart and no env vars.
-- **Test-connected before save.** The API validates the provider, model, key,
-  and base URL, and runs a connection test through the provider layer.
-- **AES-encrypted at rest.** The key is stored AES-GCM encrypted in the
-  database under `SUITEST_ENCRYPTION_KEY`; the UI only ever shows a redacted
-  hint like `sk-a...st4v`.
-- **No LLM configured.** The server answers `409` to `/llm/complete`, and the
-  lifecycle stops asking and degrades cleanly.
+Suitest uses the configured model for test planning, code generation, runtime
+translation, and failure diagnosis. Generated code still passes structural and
+compilation checks before execution.
 
-### 3. No LLM at all: the deterministic baseline
+## Keeping inference private
 
-The ZERO tier is the default and is fully functional: manual TCM, the
-deterministic runner, MCP providers, deterministic test generation (including
-the whole [blackbox engine](/docs/guides/blackbox-testing/)), reports, and
-publishing all work with zero egress. Air-gapped deployments run this way
-permanently.
+Run Ollama, llama.cpp, vLLM, or LM Studio on infrastructure reachable by the
+Suitest API and configure its base URL in the workspace. This keeps model
+traffic inside your network while preserving the same product behavior.
 
-## Fallback order
-
-The lifecycle assembles a chain at generation time:
-
-```text
-MCP sampling  ->  workspace bridge  ->  deterministic baseline
-```
-
-- Sampling is included only when the connected client advertised the
-  capability.
-- The bridge is included only when `SUITEST_API_URL` and `SUITEST_API_KEY`
-  resolve (from the config's publish section or the environment).
-- The first non-empty answer wins. Any failure returns an empty answer and
-  the chain moves on. When no client is available at all, the caller keeps
-  the deterministic baseline.
-
-Every generation envelope reports where inference came from, so you can audit
-it: `llm_source` is `"sampling"`, `"bridge"`, or `"deterministic"`, with the
-model name when sampling was used.
-
-:::tip
-A Claude Pro or Copilot user connecting through Claude Code gets AI-assisted
-planning and codegen billed to their existing subscription, with no key
-configured anywhere. That is the sampling path doing its job.
-:::
-
-## Tier gating
-
-The workspace LLM configuration is what sets the capability tier:
-
-| Tier | Trigger | AI features |
-|------|---------|-------------|
-| ZERO | no provider set | off; everything deterministic still works |
-| LOCAL | `ollama` / `llamacpp` / `vllm` / `lmstudio` | on, no egress |
-| CLOUD | any cloud provider or `custom` | on, egress to the provider |
-
-Features that require inference (PRD generation, semantic URL generation,
-AI diagnosis, chat) are gated by tier and answer `503 LLM_DISABLED` below
-their minimum; the UI shows the tier badge in the topbar and gates the same
-features with tooltips. The full matrix lives in the
-[tiers reference](/docs/reference/tiers/).
-
-## What the LLM is actually used for
-
-When a chain is available, the lifecycle uses it for three things:
-
-- **Edge-case enrichment**: proposing up to five additional high-value test
-  cases on top of the deterministic plan.
-- **PRD-driven planning**: turning an uploaded markdown PRD plus the
-  discovered app reality into a semantic test plan.
-- **Frontend codegen**: writing the Playwright test body for apps that follow
-  no testid convention, from the crawled DOM digest.
-
-Generated code is never trusted blindly. Each body passes a structural gate
-(must have the expected shape, no imports, no known runtime landmines, must
-compile) and anything that fails the gate falls back to the deterministic
-version. A weak model can lower the quality of enrichment; it cannot break
-the baseline.
-
-## Choosing a path
-
-| You are | Recommended setup |
-|---------|-------------------|
-| An individual with an AI subscription in your IDE | Nothing to configure: sampling handles it |
-| A team self-hosting with an API budget | Set a cloud provider in Settings, LLM |
-| A team with on-prem GPUs or privacy requirements | Run Ollama or vLLM and set a LOCAL provider; see [Self-hosting](/docs/guides/self-hosting/) |
-| Air-gapped or just evaluating | Stay on ZERO; everything deterministic works |
-
-For connecting the IDE side in the first place, see
-[Install the MCP server](/docs/install/mcp-server/).
+See [LLM readiness](/docs/reference/llm-readiness/) for the complete state
+contract and [Self-hosting](/docs/guides/self-hosting/) for deployment details.

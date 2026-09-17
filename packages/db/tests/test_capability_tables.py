@@ -23,7 +23,6 @@ from suitest_shared.domain.enums import (
     AutonomyLevel,
     CaseSource,
     McpTransport,
-    Tier,
 )
 
 
@@ -37,15 +36,9 @@ async def _workspace(session: AsyncSession) -> Workspace:
 @pytest.mark.asyncio
 async def test_workspace_capability_one_per_workspace(session: AsyncSession) -> None:
     ws = await _workspace(session)
-    session.add(
-        WorkspaceCapability(workspace_id=ws.id, tier=Tier.ZERO, autonomy_level=AutonomyLevel.MANUAL)
-    )
+    session.add(WorkspaceCapability(workspace_id=ws.id, autonomy_level=AutonomyLevel.MANUAL))
     await session.flush()
-    session.add(
-        WorkspaceCapability(
-            workspace_id=ws.id, tier=Tier.CLOUD, autonomy_level=AutonomyLevel.ASSIST
-        )
-    )
+    session.add(WorkspaceCapability(workspace_id=ws.id, autonomy_level=AutonomyLevel.ASSIST))
     with pytest.raises(IntegrityError):
         await session.flush()
 

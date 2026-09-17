@@ -36,7 +36,6 @@ from suitest_shared.domain.enums import (
     TargetKind,
     TestingApproach,
     TestLevel,
-    Tier,
 )
 
 
@@ -154,7 +153,6 @@ class RunListOut(DomainModel):
     env: str
     trigger: RunTrigger
     status: RunStatus
-    tier_at_runtime: Tier
     started_at: datetime | None = None
     completed_at: datetime | None = None
     duration_ms: int | None = None
@@ -290,15 +288,3 @@ class ReadinessOut(DomainModel):
     coverage_rate: float
     open_critical_defects: int
     ready: bool
-
-
-# -- capability -----------------------------------------------------------
-
-
-class WorkspaceCapabilityOut(DomainModel):
-    """Resolved deployment capabilities with the optional per-workspace overlay."""
-
-    workspace_id: str
-    tier: Tier
-    features: dict[str, bool]
-    overlay_applied: bool

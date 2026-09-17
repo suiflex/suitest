@@ -198,7 +198,7 @@ async def test_select_returns_llm_selection() -> None:
 
     result = await select_relevant_cases(changed, cases, provider, model="mock-1")
 
-    assert result.tier_used == "llm"
+    assert result.selection_mode == "llm"
     assert result.selected_case_ids == ["aaa"]
     assert result.rationale  # rationale is non-empty
 
@@ -221,7 +221,7 @@ async def test_select_empty_cases_returns_empty() -> None:
 
     assert result.selected_case_ids == []
     assert result.all_case_ids == []
-    assert result.tier_used == "llm"
+    assert result.selection_mode == "llm"
 
 
 @pytest.mark.asyncio
@@ -327,4 +327,4 @@ async def test_diff_selection_under_one_second_for_100_cases() -> None:
 
     assert elapsed < 1.0, f"diff selection took {elapsed:.3f}s — expected < 1s"
     assert len(result.selected_case_ids) == 10
-    assert result.tier_used == "llm"
+    assert result.selection_mode == "llm"

@@ -28,7 +28,6 @@ from suitest_shared.domain.enums import (
     RunTrigger,
     StepOutcome,
     TargetKind,
-    Tier,
 )
 
 if TYPE_CHECKING:
@@ -192,7 +191,6 @@ async def test_run_junit_report_rolls_up_steps(api_db: ApiDb) -> None:
         env="staging",
         trigger=RunTrigger.MANUAL,
         status=RunStatus.FAIL,
-        tier_at_runtime=Tier.ZERO,
     )
     set_workspace_id(run, ws.id)
     await api_db.add_all([run])
@@ -251,7 +249,6 @@ async def test_run_junit_report_cross_workspace_404(api_db: ApiDb) -> None:
         env="staging",
         trigger=RunTrigger.MANUAL,
         status=RunStatus.PASS,
-        tier_at_runtime=Tier.ZERO,
     )
     set_workspace_id(run, ws_a.id)
     await api_db.add_all([run])

@@ -12,7 +12,7 @@ from suitest_db.models.project import Project, Suite
 from suitest_db.models.run import Artifact, Run, RunStep
 from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.base import AsyncRepository
-from suitest_shared.domain.enums import RunStatus, RunTrigger, StepOutcome, Tier
+from suitest_shared.domain.enums import RunStatus, RunTrigger, StepOutcome
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -22,7 +22,6 @@ class RunCreate(BaseModel):
     project_id: str
     name: str
     trigger: RunTrigger
-    tier_at_runtime: Tier
     # Optional: filled by the ``before_insert`` listener
     # (suitest_db.public_id) from the per-workspace ``R`` sequence.
     public_id: str | None = None
@@ -317,7 +316,6 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
         started_at: datetime | None = None,
         completed_at: datetime | None = None,
         duration_ms: int | None = None,
-        tier_at_runtime: Tier | None = None,
         total_steps: int | None = None,
         passed_steps: int | None = None,
         failed_steps: int | None = None,
@@ -325,7 +323,7 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
         """In-place status + counters update used by the runner orchestrator.
 
         Each optional field is applied only when supplied so the runner can
-        call this once on ``RUNNING`` (starts_at + tier) and again on
+        call this once on ``RUNNING`` and again on
         terminal status (completed_at + duration + counters) without us
         having to overload :class:`RunUpdate`.
         """
@@ -343,8 +341,6 @@ class RunRepo(AsyncRepository[Run, RunCreate, RunUpdate]):
             run.completed_at = completed_at
         if duration_ms is not None:
             run.duration_ms = duration_ms
-        if tier_at_runtime is not None:
-            run.tier_at_runtime = tier_at_runtime
         if total_steps is not None:
             run.total_steps = total_steps
         if passed_steps is not None:

@@ -83,9 +83,9 @@ app, and seeds a runnable suite generated from Brewly's PRD:
 - Web UI: <http://localhost:3000>, log in with `demo@suitest.dev` / `demo1234`
 - Brewly app: <http://localhost:8089>
 
-Open **Test Cases**, select the Brewly suite, and run it. The suite executes
-API and browser steps against the live app and passes at ZERO tier, so no LLM
-key is involved.
+Configure and validate a workspace LLM, then open **Test Cases**, select the
+Brewly suite, and run it. The suite executes API and browser steps against the
+live app.
 
 ## Useful make targets
 

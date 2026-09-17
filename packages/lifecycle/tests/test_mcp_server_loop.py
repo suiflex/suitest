@@ -12,7 +12,7 @@ def _run_server(lines: list[dict]) -> list[dict]:
 
 
 def test_initialize_and_tools_list(monkeypatch) -> None:
-    monkeypatch.setenv("SUITEST_MODE", "local")  # lolos credential gate (plan #1)
+    monkeypatch.setattr("suitest_lifecycle.mcp_server.verify_credentials", lambda: None)
     out = _run_server(
         [
             {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
@@ -25,7 +25,7 @@ def test_initialize_and_tools_list(monkeypatch) -> None:
 
 
 def test_unknown_tool_errors(monkeypatch) -> None:
-    monkeypatch.setenv("SUITEST_MODE", "local")
+    monkeypatch.setattr("suitest_lifecycle.mcp_server.verify_credentials", lambda: None)
     out = _run_server(
         [
             {
@@ -37,23 +37,3 @@ def test_unknown_tool_errors(monkeypatch) -> None:
         ]
     )
     assert out[0]["error"]["code"] == -32601
-
-
-def test_initialize_records_client_sampling_capability(monkeypatch) -> None:
-    monkeypatch.setenv("SUITEST_MODE", "local")
-    from suitest_lifecycle import mcp_server
-
-    _run_server(
-        [
-            {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "initialize",
-                "params": {"capabilities": {"sampling": {}}},
-            }
-        ]
-    )
-    assert mcp_server.client_supports_sampling() is True
-
-    _run_server([{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}])
-    assert mcp_server.client_supports_sampling() is False

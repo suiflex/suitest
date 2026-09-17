@@ -20,14 +20,11 @@ from suitest_db.models.audit import AuditLog
 from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.mcp_provider import McpProvider
 from suitest_db.models.project import Project, Suite
-from suitest_db.models.workspace_capability import WorkspaceCapability
 from suitest_shared.domain.enums import (
-    AutonomyLevel,
     CaseSource,
     McpTransport,
     Role,
     TargetKind,
-    Tier,
 )
 
 if TYPE_CHECKING:
@@ -54,19 +51,6 @@ async def _seed_case(
     case = TestCase(suite_id=suite_id, public_id=public_id, name=name, source=CaseSource.MANUAL)
     await api_db.add_all([case])
     return case
-
-
-async def _seed_capability(api_db: ApiDb, ws_id: str, tier: Tier) -> None:
-    await api_db.add_all(
-        [
-            WorkspaceCapability(
-                workspace_id=ws_id,
-                tier=tier,
-                autonomy_level=AutonomyLevel.MANUAL,
-                features_json={},
-            )
-        ]
-    )
 
 
 def _step_payload(
@@ -139,63 +123,10 @@ async def test_post_test_cases_creates_with_steps_and_returns_TC_public_id(
 
 
 @pytest.mark.asyncio
-async def test_post_test_cases_zero_tier_rejects_step_without_code(api_db: ApiDb) -> None:
-    """ZERO tier + strict validation → 400 with ``STEPS_REQUIRE_CODE_IN_ZERO_LLM`` + stepIndex."""
-    user = await api_db.seed_user(email="tcw-zero@example.com")
-    ws = await api_db.member_workspace(user, slug="tcw-zero-ws")
-    suite = await _project_suite(api_db, ws.id)
-
-    body = _case_body(
-        suite.id,
-        steps=[
-            _step_payload(code="await ok()"),
-            _step_payload(action="step without code", code=None),
-        ],
-    )
-    async with api_db.client(user) as c:
-        resp = await c.post(
-            "/api/v1/test-cases",
-            json=body,
-            headers={"X-Workspace-Id": ws.id},
-        )
-    assert resp.status_code == 400, resp.text
-    envelope = resp.json()["detail"]["error"]
-    assert envelope["code"] == "STEPS_REQUIRE_CODE_IN_ZERO_LLM"
-    assert envelope["details"]["stepIndex"] == 1
-
-
-@pytest.mark.asyncio
-async def test_post_test_cases_strict_zero_false_allows_stepless(api_db: ApiDb) -> None:
-    """ZERO + ``strict_zero_validation=false`` → action-only step is accepted."""
-    user = await api_db.seed_user(email="tcw-zero-lax@example.com")
-    ws = await api_db.member_workspace(user, slug="tcw-zero-lax-ws")
-    # Flip the workspace flag off.
-    async with api_db.maker() as session:
-        from sqlalchemy import update
-        from suitest_db.models.workspace import Workspace
-
-        await session.execute(
-            update(Workspace).where(Workspace.id == ws.id).values(strict_zero_validation=False)
-        )
-        await session.commit()
-    suite = await _project_suite(api_db, ws.id)
-
-    body = _case_body(suite.id, steps=[_step_payload(code=None, action="no code")])
-    async with api_db.client(user) as c:
-        resp = await c.post(
-            "/api/v1/test-cases",
-            json=body,
-            headers={"X-Workspace-Id": ws.id},
-        )
-    assert resp.status_code == 201, resp.text
-
-
-@pytest.mark.asyncio
-async def test_post_test_cases_cloud_tier_allows_stepless(api_db: ApiDb) -> None:
-    """CLOUD overlay → action-only steps land without ``STEPS_REQUIRE_CODE`` error."""
-    user = await api_db.seed_user(email="tcw-cloud@example.com")
-    ws = await api_db.member_workspace(user, slug="tcw-cloud-ws")
-    await _seed_capability(api_db, ws.id, Tier.CLOUD)
+async def test_post_test_cases_allows_action_without_code(api_db: ApiDb) -> None:
+    """Manual authoring remains available before an LLM is configured."""
+    user = await api_db.seed_user(email="tcw-action-only@example.com")
+    ws = await api_db.member_workspace(user, slug="tcw-action-only-ws")
     suite = await _project_suite(api_db, ws.id)
 
     body = _case_body(suite.id, steps=[_step_payload(code=None)])

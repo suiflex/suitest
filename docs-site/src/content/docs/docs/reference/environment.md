@@ -78,7 +78,6 @@ These are set in the `env` block of your IDE's MCP config (`.mcp.json` or equiva
 |---|---|---|
 | `SUITEST_API_URL` | Suitest server URL. Required at MCP server startup together with the API key (validated against `GET /api/v1/api-keys/whoami`); the server refuses to start otherwise. | none |
 | `SUITEST_API_KEY` | API key that pins the workspace/project every tool publishes into | none |
-| `SUITEST_MODE` | `local` skips the startup credential gate and keeps results in on-disk storage instead of a server | unset (server mode) |
 | `SUITEST_PYTHON` | Path to the Python >= 3.11 interpreter the npx launcher should use | first suitable `python` on `PATH` |
 | `SUITEST_CONFIG_DIR` | Directory for saved launcher credentials (`credentials.json`) | `~/.config/suitest` |
 | `SUITEST_RECREATE_PROJECT` | `1` / `true` behaves like `publish.recreateProject`: explicit opt-in to recreate a stale project binding | unset |

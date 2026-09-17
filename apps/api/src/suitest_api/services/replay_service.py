@@ -1,6 +1,6 @@
 """Time-travel replay state-delta computation (M5-1).
 
-Pure, deterministic, ZERO-tier: given the per-step ``state_snapshot`` dicts the
+Pure, deterministic, and LLM-free: given the per-step ``state_snapshot`` dicts the
 runner captured (normalized MCP output), compute the key-level delta between
 consecutive steps so the replay UI can render a diff viewer ("what changed at
 this step"). No LLM, no DB — the router loads the steps and feeds their snapshots

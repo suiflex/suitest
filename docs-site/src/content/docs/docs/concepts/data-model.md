@@ -21,7 +21,7 @@ Workspace
  |-- Defects (link to a test case, run, and requirement)
  |    +-- External issues (Jira, Linear, GitHub)
  |-- MCP providers (registry)
- |-- LLM config (drives the capability tier)
+ |-- LLM config (drives workspace LLM readiness)
  |-- Integrations
  +-- Audit log
 ```
@@ -33,9 +33,8 @@ Everything is workspace scoped. API requests resolve through your workspace memb
 A **workspace** is the tenancy boundary: your team, your data, your configuration. It owns:
 
 - **Members** with a role: `OWNER`, `ADMIN`, `QA`, or `VIEWER`. Onboarding is invite based.
-- **LLM configuration**, set in Settings, which determines the workspace's [capability tier](/docs/reference/tiers/).
+- **LLM configuration**, set in Settings, which determines the workspace's [LLM readiness](/docs/reference/llm-readiness/).
 - **MCP routing overrides**: a per workspace map from `target_kind` to a preferred MCP provider.
-- The `strict_zero_validation` setting, which controls whether steps without executable code can be saved when no LLM is configured.
 
 ## Projects and suites
 
@@ -70,7 +69,7 @@ Each case contains ordered **steps**. A step is one action with one expectation:
 - `data`: optional structured input for the step.
 - `mcp_provider` and `target_kind`: which MCP provider executes this step and what kind of target it touches (`FE_WEB`, `BE_REST`, `DATA`, and so on).
 
-Whether a step is *executable* is computed, not stored: a step with `code` is always executable; a step with only an `action` is executable only when the workspace has an LLM tier that can translate it at runtime. See [Capability tiers](/docs/reference/tiers/).
+Whether a step is *executable* is computed, not stored. MCP and runs require a validated workspace LLM; action-only steps use it for runtime translation. See [LLM readiness](/docs/reference/llm-readiness/).
 
 :::note
 Because routing is per step, a single test case can mix providers: seed the database through the Postgres provider, call an endpoint through the HTTP provider, then verify the UI through the Playwright provider, all in one run.
@@ -84,7 +83,6 @@ A **run** is one execution of one or more test cases. Runs belong to a project a
 - `branch`, `commit_sha`, and `env` (staging, production, and so on).
 - `trigger`: `MANUAL`, `SCHEDULED`, `CI_PUSH`, `CI_PR`, `WEBHOOK`, or `AGENT`.
 - `status`: `QUEUED`, `RUNNING`, `PASS`, `FAIL`, `CANCELLED`, or `ERROR`.
-- `tier_at_runtime`: the capability tier captured when the run started, so historical runs stay reproducible even after you change your LLM configuration.
 - Step counters: total, passed, failed.
 
 Each run fans out into **run steps**, one row per executed test step, each with:
@@ -152,4 +150,4 @@ Run endpoints accept either form, so links copied from the dashboard resolve dir
 
 - [Evidence](/docs/concepts/evidence/): what artifacts contain and how to fetch them
 - [How Suitest works](/docs/concepts/how-it-works/): the pipeline that populates all of this
-- [Capability tiers](/docs/reference/tiers/): how the tier changes step validation and execution
+- [LLM readiness](/docs/reference/llm-readiness/): when MCP and runs are enabled

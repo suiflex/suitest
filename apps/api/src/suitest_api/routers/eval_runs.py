@@ -1,6 +1,6 @@
 """Eval harness endpoints (M4-8) — ``POST /eval/runs`` + ``GET /eval/runs/:id``.
 
-Runs the deterministic ZERO-tier eval over the bundled golden fixtures
+Runs the deterministic LLM-free eval over the bundled golden fixtures
 (``eval/fixtures``, M4-8a) and persists an :class:`EvalRun` row. ADMIN+ gated.
 The fixture directory is resolved from ``SUITEST_EVAL_FIXTURES_DIR`` (default
 ``eval/fixtures`` relative to the process cwd).

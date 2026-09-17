@@ -1,17 +1,17 @@
-"""Diff-selection service — orchestrates parse → LLM select → ZERO fallback (M6-1).
+"""Diff-selection service — orchestrates parse → LLM select → full-suite fallback.
 
 Responsibilities:
   1. Accept a raw unified diff and a suite id.
   2. Call :func:`~suitest_agent.generators.diff_selector.parse_diff` (always —
-     pure Python, ZERO-safe).
+     pure Python).
   3. Load :class:`~suitest_db.models.case.TestCase` rows for the suite and
      project them into :class:`~suitest_agent.generators.diff_selector.CaseSummary`
      objects.
-  4. If the deployment tier is CLOUD or LOCAL *and* an active
-     :class:`~suitest_db.models.llm_config.LLMConfig` is present, call
+  4. If a validated active :class:`~suitest_db.models.llm_config.LLMConfig` is
+     present, call
      :func:`~suitest_agent.generators.diff_selector.select_relevant_cases` to get
      the LLM-reduced set.
-  5. Otherwise (ZERO tier or no LLM configured) return *all* cases in the suite
+  5. Otherwise return *all* cases in the suite
      so CI always has a safe fallback.
 
 This service never persists state — every diff-select is ephemeral.  No audit
@@ -28,7 +28,6 @@ from suitest_agent.generators.diff_selector import (
     parse_diff,
     select_relevant_cases,
 )
-from suitest_core.capabilities import Tier, TierFlag, resolve_tier, tier_in
 from suitest_db.repositories.llm_configs import LLMConfigRepo
 from suitest_db.repositories.test_cases import TestCaseRepo
 
@@ -80,7 +79,7 @@ class DiffSelectionService:
         if len(diff_text) > MAX_DIFF_CHARS:
             raise DiffTooLargeError(len(diff_text))
 
-        # 1. Parse the diff (ZERO-safe, always run).
+        # 1. Parse the diff (always run).
         changed_files = parse_diff(diff_text)
 
         # 2. Load all non-deleted cases in the suite (with their steps eager-loaded).
@@ -102,30 +101,16 @@ class DiffSelectionService:
                 )
             )
 
-        # 4. Determine whether LLM is available for this workspace.
-        #    Primary signal: an active LLMConfig in the DB (workspace-scoped).
-        #    Secondary guard: the deployment tier must be CLOUD or LOCAL — at
-        #    ZERO tier there can never be a real LLMConfig, but during tests the
-        #    env-tier may be ZERO while a `mock` config is active; we let the
-        #    config existence win so tests work without faking the env.
+        # 4. Use the workspace LLM only after its connection test succeeded.
         active_config = await LLMConfigRepo(self._session).get_active(workspace_id)
-        current_tier: Tier = resolve_tier()
-        env_allows_llm = tier_in(current_tier, TierFlag.CLOUD | TierFlag.LOCAL)
-
-        # Use LLM path when either:
-        #   a) an active config exists AND the env tier is non-ZERO, OR
-        #   b) an active config with provider="mock" exists (test scenario).
-        llm_capable = active_config is not None and (
-            env_allows_llm or active_config.provider == "mock"
-        )
+        llm_capable = active_config is not None and active_config.last_validated_at is not None
 
         if not llm_capable:
-            # ZERO tier or no LLM — return full suite immediately.
             return DiffSelectionResult(
                 selected_case_ids=all_case_ids,
-                rationale="ZERO tier or no LLM configured — returning full suite.",
+                rationale="No validated workspace LLM — returning full suite.",
                 all_case_ids=all_case_ids,
-                tier_used="fallback_full",
+                selection_mode="fallback_full",
             )
 
         # active_config is guaranteed non-None here (llm_capable is only True

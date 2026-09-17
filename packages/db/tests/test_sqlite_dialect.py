@@ -80,7 +80,7 @@ async def test_heatmap_cells_on_sqlite(tmp_path: Path) -> None:
     from suitest_db.models.workspace import Workspace
     from suitest_db.repositories.runs import RunRepo
     from suitest_db.settings import DbSettings
-    from suitest_shared.domain.enums import RunStatus, RunTrigger, Tier
+    from suitest_shared.domain.enums import RunStatus, RunTrigger
 
     settings = DbSettings(database_url=f"sqlite+aiosqlite:///{tmp_path / 'hm.db'}")
     engine = make_engine(settings)
@@ -105,7 +105,6 @@ async def test_heatmap_cells_on_sqlite(tmp_path: Path) -> None:
                     name="Run",
                     trigger=RunTrigger.MANUAL,
                     status=RunStatus.PASS,
-                    tier_at_runtime=Tier.ZERO,
                     created_at=created,
                 )
             )

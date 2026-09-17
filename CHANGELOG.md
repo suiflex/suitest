@@ -27,7 +27,7 @@ versioning:
 
 * **api:** accept a per-request model override in agent chat ([467fd2f](https://github.com/suiflex/suitest/commit/467fd2faf69af2bd434575a78da1d9718dfb4ab5))
 * **api:** list the models a chatgpt or code assist account can use ([502f7bf](https://github.com/suiflex/suitest/commit/502f7bf360ece41de776fb620f435e498bbfb757))
-* **cases,runner:** fail-fast test case execution, assertive ZERO tier step validation, and resilient step removal ([02fa9c6](https://github.com/suiflex/suitest/commit/02fa9c67ea41cb022fbe1147cc5be32bc534bdc7))
+* **cases,runner:** fail-fast test case execution, assertive step validation, and resilient step removal ([02fa9c6](https://github.com/suiflex/suitest/commit/02fa9c67ea41cb022fbe1147cc5be32bc534bdc7))
 * **core:** bundle antigravity's oauth client ([6d828f7](https://github.com/suiflex/suitest/commit/6d828f79e867bb18c93d5b3d13d326e6bac06b0e))
 * **mcp:** add kurir integration bridge and dependency ([cd0fcac](https://github.com/suiflex/suitest/commit/cd0fcacd3381c205740e32fe17fcd140114206a1))
 * **runs:** add full-resolution image lightbox for screenshots ([a453847](https://github.com/suiflex/suitest/commit/a453847218618e49dd936d92f01a6fee71adf55a)), closes [#181](https://github.com/suiflex/suitest/issues/181)
@@ -128,14 +128,14 @@ versioning:
 
 * collapse release-please to one workspace version ([e28741c](https://github.com/suiflex/suitest/commit/e28741c6b86c048932d9aa3f613f811f78962c9e))
 
-### v0.5.0-m1d — M1d — ZERO-mode closeout: manual TCM writes + integrations (2026-05-31)
+### v0.5.0-m1d — M1d — Manual TCM writes + integrations (2026-05-31)
 
-Closes the ZERO tier. Full manual Test Case Management write surface,
+Adds the full manual Test Case Management write surface,
 soft-delete/restore, rule-based defect auto-filing, issue-tracker + webhook
 integrations, and the frontend write UI — all deterministic, no LLM. 75
 commits since ``v0.4.0-m1c``; every M1d-1..M1d-33 acceptance box green.
 
-- **Backend writes** — manual TCM writes with a ZERO-tier validator and
+- **Backend writes** — manual TCM writes with step validation and
   optimistic concurrency; soft-delete + restore for cases/suites/projects/
   requirements; suite/project/requirement CRUD; bulk-update; ad-hoc run
   shortcut; manual defects + rule-based auto-filer/categoriser; admin audit
@@ -154,7 +154,7 @@ Annotated tag ``v0.5.0-m1d``.
 
 ### v0.4.0-m1c — M1c — Runner + MCP runtime complete (2026-05-29)
 
-ZERO-tier runner + MCP runtime fully wired. Reproduces the full
+Runner + MCP runtime fully wired. Reproduces the full
 ``create → enqueue → execute → stream → artifact`` loop end-to-end against
 the docker-compose stack.
 
@@ -171,7 +171,7 @@ the docker-compose stack.
 
 Scheduled cron runs deferred to M1d. Annotated tag ``v0.4.0-m1c``.
 
-### v0.3.0-m1b — M1b — ZERO Frontend Read-only complete
+### v0.3.0-m1b — M1b — Frontend read-only complete
 
 App shell, capability boot, read-only screens (Dashboard, Test Cases, Runs,
 Defects, Requirements, Analytics, Integrations, Inbox, Audit).

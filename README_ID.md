@@ -2,6 +2,9 @@
 
 # Suitest — Platform Testing yang Bekerja untuk Semua Orang
 
+> **Kolaborasi Suitest Cloud segera hadir.** Produk saat ini adalah platform
+> self-hosted gratis. Semua provider model membuka fitur produk yang sama.
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo-dark.svg">
@@ -53,20 +56,20 @@
 
 ### Siapa yang pakai Suitest?
 
-| Profil | Kebutuhan | Tier yang cocok |
-|--------|-----------|-----------------|
-| 👩‍💻 **QA Engineer** | Kelola test case, jalankan otomatis, track defect | **ZERO** (gratis) atau **CLOUD** (pakai AI) |
-| 👨‍💻 **Developer** | Pastikan PR aman sebelum merge, test cross-cutting | **CLOUD** (untuk CI pipeline) |
-| 📋 **Product Manager** | Lihat kesiapan release sebelum deploy | **ZERO** atau **CLOUD** (viewer) |
-| 🏦 **IT/Infrastructure** | Self-host untuk compliance (bank, healthcare, government) | **ZERO** → **LOCAL** (Ollama on-prem) |
-| 🚀 **Startup / Indie Dev** | Gratis, tidak ada biaya langganan, tidak vendor lock-in | **ZERO** (selamanya) atau **CLOUD** (spot-use) |
+| Profil | Kebutuhan | Cara Suitest membantu |
+|--------|-----------|-----------------------|
+| 👩‍💻 **QA Engineer** | Kelola test case, jalankan otomatis, track defect | TCM, MCP runner, evidence, defect |
+| 👨‍💻 **Developer** | Pastikan PR aman sebelum merge, test cross-cutting | Workflow CI dan mixed-target test |
+| 📋 **Product Manager** | Lihat kesiapan release sebelum deploy | Readiness, analytics, traceability |
+| 🏦 **IT/Infrastructure** | Self-host untuk compliance | Infrastruktur, model, dan data milik sendiri |
+| 🚀 **Startup / Indie Dev** | Hindari subscription dan vendor lock-in | Platform self-hosted gratis dengan BYO LLM |
 
 ---
 
 ## Mengapa harus pakai Suitest?
 
 ### vs TestRail / Zephyr
-TestRail berbayar ($30/user/bulan) dan tidak punya automated runner. **Suitest ZERO sudah punya semua fitur TestRail + automated runner + MCP plugins — gratis.**
+TestRail berbayar ($30/user/bulan) dan tidak punya automated runner. **Suitest menggabungkan TCM, automated runner, dan MCP plugins dalam satu platform self-hosted gratis.**
 
 ### vs Playwright (standalone)
 Playwright cuma bisa test browser. **Suitest pakai Playwright sebagai salah satu plugin** + tambah TCM layer + traceability + multi-target (bukan cuma browser).
@@ -118,7 +121,8 @@ Setelah install selesai, Suitest akan memberikan alamat web (biasanya `http://lo
 3. Klik **"+ New Suite"** → beri nama suite (kumpulan test case)
 4. Klik **"+ New Case"** → buat test case pertama
 5. Tambahkan **steps** — setiap step punya action (klik tombol, isi form, dll)
-6. Klik **"Run"** → test akan dijalankan otomatis
+6. Buka **Settings → LLM**, simpan provider, lalu klik **Test connection**
+7. Klik **"Run"** → test akan dijalankan otomatis
 
 > 💡 **Baru pertama kali?** Lihat [demo interaktif](http://localhost:3000) setelah menjalankan `make demo` — sudah ada test case siap pakai.
 
@@ -172,7 +176,7 @@ npx -y @suiflex/suitest-mcp
 }
 ```
 
-> 💡 **`SUITEST_API_URL` dan `SUITEST_API_KEY` opsional.** Tanpa mereka, hasil tetap tersimpan lokal di folder `suitest-output/`.
+> 💡 **`SUITEST_API_URL` dan `SUITEST_API_KEY` wajib.** Saat startup, MCP memverifikasi key dan berhenti jika LLM workspace belum divalidasi di Settings. Kredensial provider tetap berada di server Suitest.
 
 ### 3. 🐳 Full Platform — Docker Compose
 
@@ -234,68 +238,36 @@ make dev       # start API (:4000) + web (:3000) + runner bersamaan
 
 ---
 
-## Tier: ZERO, LOCAL, CLOUD
+## Satu produk Suitest
 
-Suitest punya 3 level kemampuan. **Kamu tidak perlu LLM untuk menggunakan Suitest.**
+Suitest adalah satu produk self-hosted gratis. Login, pengelolaan workspace, LLM
+Settings, dan Test Case Management manual tetap tersedia sebelum LLM terhubung.
 
-### 🟢 ZERO — Gratis, Tanpa AI
+Eksekusi MCP, test run, dan fitur AI aktif setelah administrator menyimpan dan
+memvalidasi LLM workspace di **Settings → LLM**. Ollama, llama.cpp, vLLM, LM
+Studio, Anthropic, OpenAI, Gemini, Groq, OpenRouter, dan endpoint
+OpenAI-compatible membuka fitur produk yang sama.
 
-**Trigger:** Tidak ada LLM yang dikonfigurasi (default)
-
-**Yang kamu dapat:**
-- ✅ Full Test Case Management (manual)
-- ✅ Automated Runner via MCP (Playwright, API, Postgres, dll)
-- ✅ Live run logs via WebSocket
-- ✅ Screenshot & video evidence
-- ✅ Rule-based defect tracking
-- ✅ Traceability matrix
-- ✅ Analytics dashboard
-- ✅ CI/CD webhooks (GitHub, GitLab, Jira, Slack)
-- ✅ Deterministic generators (OpenAPI, Browser Recorder, URL Crawler)
-- ✅ Blackbox DOM engine (test web app dari URL saja)
-
-> 💡 **Tier ini sudah sangat powerful.** Bisa menggantikan TestRail + Playwright dalam satu platform.
-
-### 🟡 LOCAL — AI di Hardware Sendiri
-
-**Trigger:** Konfigurasi LLM = Ollama / llama.cpp / vLM / LM Studio
-
-**Yang ditambahkan:**
-- ✅ AI test generation (dari PRD, URL, atau MCP discovery)
-- ✅ AI failure diagnosis (auto-kategorikan: FLAKE / REGRESSION / ENVIRONMENT / TEST_BUG)
-- ✅ Conversational testing (chat dengan AI untuk generate test)
-- ✅ Air-gapped friendly (tanpa internet)
-
-### 🔵 CLOUD — AI via Cloud Provider
-
-**Trigger:** Konfigurasi LLM = Anthropic / OpenAI / Gemini / Groq / OpenRouter / dll
-
-**Yang ditambahkan:**
-- ✅ Semua fitur LOCAL
-- ✅ 100+ LLM providers via LiteLLM
-- ✅ Cost tracking + budget guard
-- ✅ Custom OpenAI-compatible base URL (gateways, routers, proxies)
-
-> 💡 **Tier LOCAL dan CLOUD diaktifkan dari web UI: Settings → LLM.** Tidak perlu edit file env.
+Suitest Cloud adalah layanan kolaborasi hosted oleh Suitest yang akan hadir.
+Layanan ini terpisah dari provider model yang kamu hubungkan.
 
 ---
 
-## Test Case Pertama (Tanpa AI)
+## Test Case Pertama
 
 Dari install kosong, kamu bisa bootstrap dan menjalankan test browser nyata:
 
-1. **Login** (super-admin email/password)
-2. **Buat project dan suite** — Test Cases screen akan pandu kamu
-3. **Buat test case** — "New case", tambahkan steps. Step menarget MCP provider (misal `playwright-mcp`)
-4. **Klik "Run"** — runner akan menjalankan setiap step via MCP (Playwright mengendalikan browser nyata)
-5. **Lihat hasil** — run detail page menampilkan status LIVE → PASS/FAIL
-6. **Triage** — test gagal otomatis buat defect; mark suite sebagai "gating" untuk block deploy
+1. **Login**, lalu buat project, suite, dan test case manual.
+2. Buka **Settings → LLM**, simpan provider, lalu klik **Test connection**.
+3. Tambahkan step executable dengan MCP provider seperti `playwright-mcp`.
+4. **Klik "Run"** untuk menjalankan setiap step melalui MCP.
+5. Tinjau live status, evidence, dan defect di halaman run detail.
 
 > 💡 **Seluruh perjalanan ini diuji dengan Playwright suite nyata** — `make e2e-real`
 
 ---
 
-## Aktifkan AI (Opsional)
+## Hubungkan LLM Workspace
 
 LLM dikonfigurasi **per workspace dari web UI** — `Settings → LLM` — bukan dari env vars.
 
@@ -303,17 +275,17 @@ LLM dikonfigurasi **per workspace dari web UI** — `Settings → LLM` — bukan
 1. Buka **Settings → LLM**
 2. Pilih provider (Anthropic, OpenAI, Gemini, Groq, Ollama, dll)
 3. Masukkan API key (akan di-encrypt AES-GCM, tidak ditampilkan lagi)
-4. Workspace tier otomatis naik (ZERO → CLOUD/LOCAL)
+4. Klik **Test connection**; validasi yang berhasil mengaktifkan MCP, run, dan AI
 
 **Provider yang didukung:**
 
-| Tier | Provider |
-|------|----------|
-| **CLOUD** | Anthropic, OpenAI, Gemini, Groq, OpenRouter, DeepSeek, dll (100+ via LiteLLM) |
-| **LOCAL** | Ollama, llama.cpp, vLM, LM Studio |
+| Jenis provider | Provider |
+|----------------|----------|
+| **Hosted API** | Anthropic, OpenAI, Gemini, Groq, OpenRouter, DeepSeek, dll (100+ via LiteLLM) |
+| **Model self-hosted** | Ollama, llama.cpp, vLLM, LM Studio |
 | **Custom** | URL OpenAI-compatible (gateways, routers, proxies) |
 
-> 💡 **Default selalu ZERO.** Tidak ada LLM call yang dibuat sampai workspace mengkonfigurasi provider.
+> Tidak ada LLM call sampai workspace mengkonfigurasi provider.
 
 ---
 
@@ -365,7 +337,6 @@ suitest/
 | [DATA_MODEL.md](./docs/DATA_MODEL.md) | Database schema + entity diagram | Backend Developer |
 | [API.md](./docs/API.md) | REST + WebSocket contract | Frontend Developer, API Consumer |
 | [UI_SPEC.md](./docs/UI_SPEC.md) | Per-screen component spec | Frontend Developer, Designer |
-| [CAPABILITY_TIERS.md](./docs/CAPABILITY_TIERS.md) | ZERO/LOCAL/CLOUD gating | Semua (penting untuk memahami fitur) |
 | [MCP_PLUGINS.md](./docs/MCP_PLUGINS.md) | MCP registry + routing + security | Developer, DevOps |
 | [GENERATORS.md](./docs/GENERATORS.md) | Generator design (deterministic + LLM) | QA Engineer, Developer |
 | [AUTONOMY.md](./docs/AUTONOMY.md) | Per-workspace autonomy dial | Admin, QA Lead |
@@ -383,10 +354,10 @@ suitest/
 **Ya.** Suitest open-source (Apache 2.0 License). Tidak ada biaya langganan. Kamu bisa self-host tanpa batas.
 
 ### ❓ Apakah saya harus bisa coding untuk pakai Suitest?
-**Tidak.** Suitest ZERO (default) bisa dipakai 100% tanpa coding. Kamu cukup buat test case melalui web dashboard, dan runner akan menjalankan test secara otomatis.
+**Tidak.** Buat dan kelola test case melalui web dashboard. Eksekusinya membutuhkan LLM workspace yang tervalidasi dan MCP provider.
 
 ### ❓ Apakah saya butuh AI/LLM untuk pakai Suitest?
-**Tidak.** ZERO tier berfungsi penuh tanpa AI. AI hanya menambah fitur seperti generate test dari PRD, diagnosis otomatis, dan conversational testing.
+**Untuk TCM manual, tidak.** Eksekusi MCP, test run, dan fitur AI membutuhkan LLM workspace yang tervalidasi.
 
 ### ❓ Bagaimana cara install Suitest?
 Lihat [Mulai dalam 3 Langkah](#mulai-dalam-3-langkah) di atas. Cukup satu command: `npx @suiflex/suitest onboard`
@@ -421,16 +392,16 @@ Gunakan flag `--port`: `npx @suiflex/suitest onboard --port 5000`
 
 ## Perbandingan dengan Tools Lain
 
-| Fitur | TestRail | Playwright | TestSprite | **Suitest ZERO** | **Suitest CLOUD** |
-|-------|:--------:|:----------:|:----------:|:----------------:|:-----------------:|
-| Manual Test Case Management | ✅ | ❌ | Partial | ✅ | ✅ |
-| Automated Runner | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Universal MCP Plugin Layer | ❌ | ❌ | Partial | ✅ | ✅ |
-| AI Generation / Diagnosis | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Self-host | ✅ | ✅ | ❌ | ✅ | ✅ |
-| BYO LLM (100+ providers) | n/a | n/a | ❌ Locked | n/a | ✅ |
-| Air-gapped | ✅ | ✅ | ❌ | ✅ | ✅ (Ollama) |
-| Open Source | ❌ | Runner only | ❌ | ✅ | ✅ |
+| Fitur | TestRail | Playwright | TestSprite | **Suitest** |
+|-------|:--------:|:----------:|:----------:|:-----------:|
+| Manual Test Case Management | ✅ | ❌ | Partial | ✅ |
+| Automated Runner | ❌ | ✅ | ✅ | ✅ |
+| Universal MCP Plugin Layer | ❌ | ❌ | Partial | ✅ |
+| AI Generation / Diagnosis | ❌ | ❌ | ✅ | ✅ |
+| Self-host | ✅ | ✅ | ❌ | ✅ |
+| BYO LLM (100+ providers) | n/a | n/a | ❌ Locked | ✅ |
+| Air-gapped | ✅ | ✅ | ❌ | ✅ (model self-hosted) |
+| Open Source | ❌ | Runner only | ❌ | ✅ |
 
 ---
 

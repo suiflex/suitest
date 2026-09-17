@@ -2,6 +2,10 @@
 
 > Frontend component specification. Use this document as the canonical checklist when implementing a new screen. (Originally derived from the launch HTML mockup, which has since been removed — this spec is now the single visual source of truth.)
 
+> **Current readiness contract:** the UI has no model-provider tier. Manual TCM
+> remains available without an LLM; executable and AI controls depend on
+> `llm.status=ready`. Older tier labels below describe historical mockups only.
+
 > ℹ️ **Built today:** all M1b read-only screens + M1d write flows, deterministic generation, and M10 testing-intelligence surfaces. AI panel hidden via `<Gated>` in ZERO. See [ROADMAP.md](./ROADMAP.md).
 
 ---

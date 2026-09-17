@@ -21,6 +21,7 @@ from suitest_api.auth.db import get_async_session
 from suitest_api.deps.api_key import ApiKeyPrincipal, require_api_key
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext
+from suitest_api.deps.tier import workspace_llm_status
 from suitest_api.schemas.api_keys import (
     ApiKeyCreated,
     ApiKeyCreateRequest,
@@ -38,6 +39,7 @@ _ADMIN_ROLES = {Role.ADMIN, Role.OWNER}
 @router.get("/api-keys/whoami", response_model=ApiKeyWhoami)
 async def whoami(
     principal: ApiKeyPrincipal = Depends(require_api_key),
+    session: AsyncSession = Depends(get_async_session),
 ) -> ApiKeyWhoami:
     """Verify a key: returns the workspace it authenticates to. 401 if invalid.
 
@@ -47,6 +49,7 @@ async def whoami(
         workspace_id=principal.workspace_id,
         key_id=principal.key_id,
         key_name=principal.key_name,
+        llm_status=await workspace_llm_status(session, principal.workspace_id),
     )
 
 

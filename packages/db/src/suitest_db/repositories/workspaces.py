@@ -26,7 +26,6 @@ class WorkspaceCreate(BaseModel):
 class WorkspaceUpdate(BaseModel):
     name: str | None = None
     region: str | None = None
-    strict_zero_validation: bool | None = None
     mcp_routing_overrides: dict[str, Any] | None = None
 
 

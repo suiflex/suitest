@@ -4,7 +4,7 @@ Embeds the query + candidate case texts with the configured local
 :class:`~suitest_core.embeddings.Embedder` (fastembed in ``ZERO + fastembed``,
 deterministic mock in tests) and ranks by cosine similarity. When no embedder is
 configured (``SUITEST_EMBEDDINGS`` unset) it degrades to a lexical substring
-score so ZERO-tier search still returns results — just without semantic recall.
+score so search still returns results without an LLM — just without semantic recall.
 
 Embedding on demand (rather than a persisted pgvector column) keeps M4-2 free of
 a schema migration + backfill; persisting vectors for large suites is a v1.x

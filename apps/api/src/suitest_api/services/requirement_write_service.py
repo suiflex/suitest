@@ -26,7 +26,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 
-from suitest_core.capabilities import TierFlag
 from suitest_db.audit import write_audit
 from suitest_db.public_id import set_workspace_id
 from suitest_db.repositories.requirements import (
@@ -38,7 +37,6 @@ from suitest_db.repositories.requirements import (
 from suitest_db.repositories.test_cases import TestCaseRepo
 
 from suitest_api.deps.scope import TenantContext
-from suitest_api.deps.tier import require_tier
 from suitest_api.services.project_scope import project_belongs_to_workspace
 
 if TYPE_CHECKING:
@@ -131,7 +129,6 @@ class RequirementWriteService:
     # Write path
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def create(self, body: SchemaRequirementCreate) -> RequirementWriteResult | None:
         """Create a requirement + assign a ``REQ-N`` public id via the listener."""
         if not await self._project_in_scope(body.project_id):
@@ -170,7 +167,6 @@ class RequirementWriteService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def update(
         self, req_id: str, body: SchemaRequirementUpdate
     ) -> RequirementWriteResult | None:
@@ -203,7 +199,6 @@ class RequirementWriteService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def soft_delete(self, req_id: str) -> RequirementWriteResult | None:
         """Set ``deleted_at``; idempotent re-delete returns ``None`` (router → 404)."""
         row = await self._load_in_scope(req_id)
@@ -228,7 +223,6 @@ class RequirementWriteService:
             ws_payload={"requirementId": row.id, "publicId": row.public_id},
         )
 
-    @require_tier(TierFlag.ANY)
     async def restore(self, req_id: str) -> RequirementWriteResult | None:
         """Clear ``deleted_at``; idempotent on an already-active row.
 
@@ -263,7 +257,6 @@ class RequirementWriteService:
     # Link path
     # ------------------------------------------------------------------
 
-    @require_tier(TierFlag.ANY)
     async def create_link(self, req_id: str, case_id: str) -> RequirementLinkResult | None:
         """Link a requirement to a case after the same-workspace guard.
 
@@ -343,7 +336,6 @@ class RequirementWriteService:
             },
         )
 
-    @require_tier(TierFlag.ANY)
     async def delete_link(self, req_id: str, case_id: str) -> bool | None:
         """Remove a link. ``None`` when the requirement is out-of-scope (router → 404).
 

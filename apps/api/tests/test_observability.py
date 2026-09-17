@@ -5,7 +5,7 @@ Three contracts are pinned:
 * ``GET /metrics`` returns Prometheus exposition format (default registry).
 * structlog emits JSON lines containing ``event`` / ``level`` / ``time`` keys.
 * The :class:`SpanAttributesMiddleware` tags the active OTel span with
-  ``workspace.id`` (when ``X-Workspace-Id`` is provided) and ``capabilities.tier``.
+  ``workspace.id`` (when ``X-Workspace-Id`` is provided) and ``llm.status``.
 
 The third test re-enables OTel (clears ``SUITEST_OTEL_DISABLED``), swaps the
 TracerProvider's processor for :class:`InMemorySpanExporter` BEFORE the FastAPI
@@ -142,10 +142,7 @@ async def test_span_attributes_set(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     attrs = dict(workspace_spans[0].attributes or {})
     assert attrs.get("workspace.id") == "ws_observ"
-    # capabilities.tier should match whatever resolve_tier returned (ZERO in
-    # default test env — no LLM provider configured).
-    assert "capabilities.tier" in attrs
-    assert isinstance(attrs["capabilities.tier"], str)
+    assert attrs["llm.status"] == "not_configured"
 
     # Restore OTel-disabled for downstream tests sharing this process.
     os.environ["SUITEST_OTEL_DISABLED"] = "true"

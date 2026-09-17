@@ -8,7 +8,7 @@ from suitest_agent.generators.selector_repair import selector_code_sha256
 from suitest_api.schemas.self_heal import SelectorRepairApplyRequest
 from suitest_api.services.self_heal_service import SelfHealError, SelfHealService
 from suitest_db.models.case import TestStep
-from suitest_shared.domain.enums import AutonomyLevel, TargetKind, Tier
+from suitest_shared.domain.enums import AutonomyLevel, TargetKind
 
 
 def _step() -> TestStep:
@@ -34,7 +34,6 @@ async def test_apply_requires_non_manual_autonomy_and_rejects_stale_code(
     monkeypatch.setattr(service, "_step", AsyncMock(return_value=step))
 
     capability = AsyncMock()
-    capability.tier = Tier.CLOUD
     capability.autonomy_level = AutonomyLevel.MANUAL
 
     class _Caps:

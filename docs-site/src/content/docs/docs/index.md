@@ -1,13 +1,13 @@
 ---
 title: Suitest documentation
-description: Self-hostable open-source QA platform. Manual test management, a deterministic MCP-driven runner, and optional bring-your-own-LLM AI.
+description: Self-hostable open-source QA platform. Manual test management, a deterministic MCP-driven runner, and a workspace-configured LLM.
 ---
 
-Suitest is a self-hostable, open-source QA platform (Apache-2.0, pre-v1.0). It works fully without an LLM and adds AI only when you configure one:
+Suitest is a self-hostable, open-source QA platform (Apache-2.0, pre-v1.0). Manual test management works immediately; connect a workspace LLM before using MCP, runs, and AI workflows:
 
 - **Manual test case management.** Projects, suites, cases with steps, runs, rule-based defects, traceability, analytics, CI webhooks.
 - **Deterministic runner via MCP.** Every test step dispatches through an MCP provider (`playwright`, `api-http`, `postgres`), with live logs, screenshots, and per-test video evidence.
-- **Optional BYO-LLM AI.** Configure any provider per workspace from the web UI (Anthropic, OpenAI, Gemini, local Ollama or vLLM, or any OpenAI-compatible URL) to unlock agent chat, PRD-driven generation, and LLM codegen. No key is ever required.
+- **BYO LLM.** Configure any provider per workspace from the web UI (Anthropic, OpenAI, Gemini, self-hosted Ollama or vLLM, or any OpenAI-compatible URL). Provider location does not change the feature set.
 - **MCP server for IDE agents.** `npx -y @suiflex/suitest-mcp` gives Claude Code, Cursor, or Codex a full testing lifecycle: analyze, generate, run, report, publish.
 - **Blackbox DOM engine.** Test any web app from just a URL and test credentials: login detection, safe crawling, deterministic Playwright generation, evidence. No repo access needed.
 - **All three testing approaches.** Black-box from a URL, gray-box from your repository, and white-box by running the pytest/Vitest/Jest suite you already have — one TCM, one traceability matrix, each case labelled with what it actually observed. See [black-box, gray-box, white-box](/docs/concepts/testing-approaches/).
@@ -16,13 +16,13 @@ Suitest is a self-hostable, open-source QA platform (Apache-2.0, pre-v1.0). It w
 
 - **Developers using AI coding agents** who want the agent to verify its own work: generate tests, run them, read failures, fix the code, re-run until green.
 - **QA engineers** who need managed test cases, deterministic execution, and evidence without vendor lock-in or per-seat SaaS pricing.
-- **Small teams** with no dedicated QA who want real testing structure that costs nothing to run at the ZERO tier.
+- **Small teams** with no dedicated QA who want real testing structure without per-seat platform pricing.
 
 ## Choose your path
 
 ### I want everything on my laptop (one command)
 
-The recommended solo-dev quickstart: web dashboard, API on SQLite, run supervisor, and your IDE's MCP config — no Docker, no LLM key.
+The recommended solo-dev quickstart: web dashboard, API on SQLite, run supervisor, and your IDE's MCP config — no Docker.
 
 ```bash
 npx @suiflex/suitest onboard
@@ -33,7 +33,7 @@ npx @suiflex/suitest onboard
 
 ### I want to test from my IDE (MCP server only)
 
-The lightest route: connect your coding agent to Suitest in one command. No platform install, results stay on disk.
+The lightest route: connect your coding agent to a Suitest server in one command.
 
 ```bash
 npx -y @suiflex/suitest-mcp init
@@ -50,7 +50,7 @@ npx -y @suiflex/suitest-mcp init
 Run the web TCM, API, runner, and storage yourself, on Postgres and object storage.
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml --profile zero up -d
+make docker-up
 ```
 
 - [Getting started](/docs/guides/getting-started/)
@@ -75,7 +75,7 @@ npx -y @suiflex/suitest-mcp ci --config suitest.config.json
 - [How it works](/docs/concepts/how-it-works/): the analyze, generate, run, report lifecycle.
 - [Data model](/docs/concepts/data-model/): workspaces, projects, suites, cases, runs, defects.
 - [Evidence](/docs/concepts/evidence/): screenshots, video, logs, and where they are stored.
-- [Capability tiers](/docs/reference/tiers/): what ZERO, LOCAL, and CLOUD unlock.
+- [LLM readiness](/docs/reference/llm-readiness/): when MCP and runs become available.
 
 ## Reference
 
@@ -91,5 +91,5 @@ npx -y @suiflex/suitest-mcp ci --config suitest.config.json
 - [FAQ](/docs/help/faq/)
 
 :::note
-Suitest is pre-v1.0 and under active development. The ZERO tier (no LLM) is the default everywhere: no LLM call is ever made until a workspace explicitly configures a provider. See [LLM setup](/docs/guides/llm-setup/) when you want AI features.
+Suitest is pre-v1.0 and under active development. No LLM call is made until a workspace explicitly configures and validates a provider. Manual TCM remains available before that; MCP and runs remain stopped. See [LLM setup](/docs/guides/llm-setup/).
 :::

@@ -43,7 +43,7 @@ git clone https://github.com/suiflex/suitest
 cd suitest
 cp .env.example .env
 # edit .env before starting (see below)
-docker compose -f infra/docker/docker-compose.yml --profile zero up -d
+make docker-up
 ```
 
 Generate real secrets first:
@@ -53,10 +53,8 @@ openssl rand -hex 32     # SUITEST_AUTH_SECRET
 openssl rand -base64 32  # SUITEST_ENCRYPTION_KEY
 ```
 
-Profiles select what runs. `zero` is the default full stack.
-`--profile local` additionally starts an in-cluster Ollama (plus a one-shot
-model pull) for the LOCAL LLM tier. LLM providers themselves are configured
-per workspace in the web UI, not via env: see
+`make docker-up-local` additionally starts Ollama plus a one-shot model pull.
+LLM providers are configured and validated per workspace in the web UI, not via env: see
 [Bring your own LLM](/docs/guides/llm-setup/).
 
 ## Environment configuration
@@ -170,10 +168,9 @@ Restore drill (run it quarterly, not just when disaster strikes):
 ## Upgrading
 
 1. Read the changelog for breaking changes (data model, renamed variables).
-2. Pull the new images and restart:
-   `docker compose -f infra/docker/docker-compose.yml --profile zero pull`
-   then `docker compose -f infra/docker/docker-compose.yml --profile zero up -d`
-   (pin with `SUITEST_IMAGE_TAG`; add `--build` instead to build from source).
+2. Set `SUITEST_IMAGE_TAG` when pinning a release, then run `make docker-up`
+   to pull the new images and restart. Use `make docker-up-prod` when building
+   from source.
 3. The `migrate` service runs `alembic upgrade head` before the API starts,
    so schema migrations are automatic on boot.
 4. Verify `/health` on the API and log in.
@@ -188,7 +185,7 @@ database backup; migrations are not guaranteed downgrade-safe pre-v1.0.
 | API restart loop | `SUITEST_ENCRYPTION_KEY` has the wrong length | regenerate with `openssl rand -base64 32` |
 | Config change has no effect | `.env` edited but services not restarted | `docker compose restart api runner` |
 | Migration fails on external Postgres | pgvector extension missing | `CREATE EXTENSION IF NOT EXISTS vector;` as superuser |
-| LOCAL-tier LLM calls time out | Ollama has not pulled the model | `docker compose exec ollama ollama pull <model>` |
+| Ollama calls time out | Ollama has not pulled the model | `docker compose exec ollama ollama pull <model>` |
 | WebSocket disconnects behind a proxy | proxy read timeout too low | raise the proxy read timeout (for example 3600s) |
 
 More in [Troubleshooting](/docs/help/troubleshooting/). For the quick local

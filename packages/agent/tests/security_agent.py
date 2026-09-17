@@ -1,7 +1,6 @@
 """SecurityAgent — example plugin for penetration-testing flows (M8-2).
 
-Registers under name ``security-agent``.  Requires CLOUD tier because it uses
-a capable reasoning model.  Focuses on injection, auth bypass, and sensitive
+Registers under name ``security-agent``. Focuses on injection, auth bypass, and sensitive
 data exposure.
 
 To activate, ship the class in an installed package and declare the entry point::
@@ -47,7 +46,6 @@ class SecurityAgent(AgentPluginBase):
         ],
         model_preference="claude-sonnet-4-6",
         target_kind_filter=["BE_REST", "BE_GRAPHQL", "FE_WEB"],
-        requires_tier="CLOUD",
         author="Suitest OSS contributors",
         homepage="https://github.com/suiflex/suitest",
     )

@@ -101,8 +101,7 @@ suitest-output/
 
 The strategy records access signals, risks and failure modes, assumptions,
 oracles, coverage dimensions, exclusions, and QA checks — and each risk names
-the approach recommended for it. At ZERO tier it is built deterministically;
-with an LLM configured it can be enriched, but a human approves a version
+the approach recommended for it. A validated workspace LLM can enrich it, but a human approves a version
 before it becomes the project's approved strategy.
 
 The QA checks encode the posture the generated suite is held to: question
