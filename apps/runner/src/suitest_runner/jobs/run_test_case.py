@@ -836,7 +836,7 @@ async def _init_run_record(
         bool,
         str | None,
     ]
-    | dict[str, str]
+    | dict[str, object]
 ):
     async with factory() as session:
         run_repo = RunRepo(session)
@@ -1051,18 +1051,6 @@ async def _record_step_persistence(
                 step_order=step_order,
                 artifacts=result.mcp_result.artifacts,
             )
-        if result.outcome == StepOutcome.FAIL:
-            auto_filer = ctx.get("defect_auto_filer")
-            typed_filer: DefectAutoFiler | None = (
-                cast("DefectAutoFiler", auto_filer) if _is_defect_auto_filer(auto_filer) else None
-            )
-            try:
-                await on_run_step_failed(
-                    auto_filer=typed_filer,
-                    run_step=run_step,
-                )
-            except Exception as exc:
-                log.warning("runner.step.fail.hook_error", reason=str(exc))
         repo = RunRepo(session)
         r_check = await repo.get_by_id(run_id)
         if r_check is not None and r_check.status == RunStatus.CANCELLED:
@@ -1076,6 +1064,18 @@ async def _record_step_persistence(
             )
         await session.commit()
         last_step_info = (run_step.id, step_order)
+    if result.outcome == StepOutcome.FAIL:
+        auto_filer = ctx.get("defect_auto_filer")
+        typed_filer: DefectAutoFiler | None = (
+            cast("DefectAutoFiler", auto_filer) if _is_defect_auto_filer(auto_filer) else None
+        )
+        try:
+            await on_run_step_failed(
+                auto_filer=typed_filer,
+                run_step=run_step,
+            )
+        except Exception as exc:
+            log.warning("runner.step.fail.hook_error", reason=str(exc))
 
     if not cancelled:
         await _publish(

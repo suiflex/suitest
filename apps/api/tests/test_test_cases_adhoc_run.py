@@ -163,10 +163,10 @@ async def test_adhoc_run_returns_202_with_runId_publicId_statusUrl_wsRoom(
 
 
 @pytest.mark.asyncio
-async def test_adhoc_run_without_llm_returns_409_no_run_created(
+async def test_adhoc_run_without_llm_succeeds_and_enqueues_run(
     api_db: ApiDb,
 ) -> None:
-    """A run cannot start until the workspace has a validated LLM."""
+    """Deterministic runs can start even when the workspace does not have a configured LLM."""
     user = await api_db.seed_user(email="adhoc-zero@example.com")
     ws = await api_db.member_workspace(user, slug="adhoc-zero-ws")
     _, _, case, _ = await _seed_runnable_case(
@@ -174,7 +174,6 @@ async def test_adhoc_run_without_llm_returns_409_no_run_created(
         ws.id,
         slug="adhoc-no-llm-p",
         case_public_id="TC-AH2",
-        code=None,
         llm_ready=False,
     )
 
@@ -189,12 +188,9 @@ async def test_adhoc_run_without_llm_returns_409_no_run_created(
                 f"/api/v1/test-cases/{case.id}/run",
                 headers={"X-Workspace-Id": ws.id},
             )
-    assert resp.status_code == 409, resp.text
-    assert resp.json()["detail"]["code"] == "LLM_NOT_READY"
-
-    # Pre-flight failure → no Run row, no ARQ enqueue.
-    assert await _runs_count(api_db) == 0
-    assert arq.enqueued == []
+    assert resp.status_code == 202, resp.text
+    assert await _runs_count(api_db) == 1
+    assert len(arq.enqueued) == 1
 
 
 @pytest.mark.asyncio
