@@ -121,6 +121,7 @@ async def _seed(
         secrets_encrypted=token,
     )
     await api_db.add_all([integration])
+    await api_db.seed_ready_llm(ws.id)
     return _Seeded(
         workspace_id=ws.id,
         project=project,

@@ -70,6 +70,7 @@ def _run_row(project_id: str, public_id: str, status: RunStatus, **kw: Any) -> R
 
 async def _seed_runnable_project(api_db: ApiDb, ws_id: str, slug: str) -> tuple[Project, TestCase]:
     """Seed a project + suite + case + bundled-mcp step so rerun can clone selection."""
+    await api_db.seed_ready_llm(ws_id)
     project = Project(workspace_id=ws_id, slug=slug, name="P")
     await api_db.add_all([project])
     suite = Suite(project_id=project.id, name="S", order=0)
@@ -184,6 +185,7 @@ async def test_rerun_failed_only_clones_only_failing_cases(api_db: ApiDb) -> Non
     """When failedOnly=true, the new run's selection contains only cases with FAIL/ERROR steps."""
     user = await api_db.seed_user(email="run-rerun-failed@example.com")
     ws = await api_db.member_workspace(user, slug="run-rerun-failed-ws")
+    await api_db.seed_ready_llm(ws.id)
     project = Project(workspace_id=ws.id, slug="p-failed", name="P")
     await api_db.add_all([project])
     suite = Suite(project_id=project.id, name="S", order=0)
@@ -280,6 +282,7 @@ async def test_rerun_selective_case_ids_body(api_db: ApiDb) -> None:
     """When caseIds are passed in the JSON body, only those cases are cloned."""
     user = await api_db.seed_user(email="run-rerun-select@example.com")
     ws = await api_db.member_workspace(user, slug="run-rerun-select-ws")
+    await api_db.seed_ready_llm(ws.id)
     project = Project(workspace_id=ws.id, slug="p-select", name="P")
     await api_db.add_all([project])
     suite = Suite(project_id=project.id, name="S", order=0)
@@ -331,6 +334,7 @@ async def test_rerun_selective_multiple_case_ids_name(api_db: ApiDb) -> None:
     """When >1 caseIds are passed in the JSON body, name is 'Ad-hoc: <N> selected cases'."""
     user = await api_db.seed_user(email="run-rerun-multi@example.com")
     ws = await api_db.member_workspace(user, slug="run-rerun-multi-ws")
+    await api_db.seed_ready_llm(ws.id)
     project = Project(workspace_id=ws.id, slug="p-multi", name="P")
     await api_db.add_all([project])
     suite = Suite(project_id=project.id, name="S", order=0)
@@ -378,6 +382,7 @@ async def test_rerun_selective_rejects_foreign_case_id(api_db: ApiDb) -> None:
     """When a caseId belongs to a different project, selective rerun returns 400."""
     user = await api_db.seed_user(email="run-rerun-foreign@example.com")
     ws = await api_db.member_workspace(user, slug="run-rerun-foreign-ws")
+    await api_db.seed_ready_llm(ws.id)
 
     project1 = Project(workspace_id=ws.id, slug="p-1", name="P1")
     project2 = Project(workspace_id=ws.id, slug="p-2", name="P2")
@@ -425,6 +430,7 @@ async def test_run_historical_immutability_snapshot(api_db: ApiDb) -> None:
     """Run details use snapshot planned_cases so future step modifications do not alter history."""
     user = await api_db.seed_user(email="run-snapshot@example.com")
     ws = await api_db.member_workspace(user, slug="run-snapshot-ws")
+    await api_db.seed_ready_llm(ws.id)
     project = Project(workspace_id=ws.id, slug="p-snap", name="Snapshot Project")
     await api_db.add_all([project])
 

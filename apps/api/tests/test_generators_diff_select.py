@@ -2,7 +2,7 @@
 
 Drives the endpoint against a real DB (via ``api_db`` fixture).  The LLM path
 is exercised using the ``mock`` provider — activating an ``LLMConfig`` with
-``provider="mock"`` makes the workspace appear as CLOUD tier to the service.
+``provider="mock"`` gives the workspace a validated LLM for the service.
 
 Coverage:
   - No validated LLM: returns all cases with ``selection_mode="fallback_full"``.
@@ -74,7 +74,7 @@ async def _add_cases(api_db: ApiDb, suite_id: str, workspace_id: str, count: int
 
 
 async def _activate_mock_llm(api_db: ApiDb, ws_id: str) -> None:
-    """Register ``mock`` as the active LLM so the workspace resolves to CLOUD tier."""
+    """Register ``mock`` as the active validated workspace LLM."""
     await api_db.add_all(
         [
             LLMConfig(
@@ -105,26 +105,26 @@ async def _post(
 
 
 @pytest.mark.asyncio
-async def test_diff_select_zero_tier_returns_full_suite(api_db: ApiDb) -> None:
-    """ZERO tier (no LLM configured) → all cases returned with fallback_full."""
+async def test_diff_select_without_llm_returns_full_suite(api_db: ApiDb) -> None:
+    """No configured LLM returns every case with ``fallback_full``."""
     user = await api_db.seed_user(email="ds-zero@example.com")
     ws = await api_db.member_workspace(user, slug="ds-zero-ws")
     suite = await _project_suite(api_db, ws.id, slug="ds-zero-proj")
     case_ids = await _add_cases(api_db, suite.id, ws.id, count=3)
 
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await _post(c, ws.id, {"suite_id": suite.id, "diff_text": _SIMPLE_DIFF})
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["selection_mode"] == "fallback_full"
     assert set(body["selected_case_ids"]) == set(case_ids)
-    assert body["rationale"] is None  # no rationale at ZERO tier
+    assert body["rationale"] is None
     assert body["parsed_files_count"] == 1
 
 
 @pytest.mark.asyncio
-async def test_diff_select_cloud_tier_returns_llm_selection(api_db: ApiDb) -> None:
+async def test_diff_select_ready_llm_returns_llm_selection(api_db: ApiDb) -> None:
     """A validated mock LLM returns ``selection_mode="llm"``."""
     user = await api_db.seed_user(email="ds-cloud@example.com")
     ws = await api_db.member_workspace(user, slug="ds-cloud-ws")
@@ -241,14 +241,14 @@ async def test_diff_select_unauthenticated_returns_401(api_db: ApiDb) -> None:
 
 
 @pytest.mark.asyncio
-async def test_diff_select_empty_diff_zero_tier_returns_all_cases(api_db: ApiDb) -> None:
-    """Empty diff at ZERO tier → all cases (full-run fallback)."""
+async def test_diff_select_empty_diff_without_llm_returns_all_cases(api_db: ApiDb) -> None:
+    """An empty diff without an LLM returns all cases."""
     user = await api_db.seed_user(email="ds-empty@example.com")
     ws = await api_db.member_workspace(user, slug="ds-empty-ws")
     suite = await _project_suite(api_db, ws.id, slug="ds-empty-proj")
     case_ids = await _add_cases(api_db, suite.id, ws.id, count=2)
 
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await _post(c, ws.id, {"suite_id": suite.id, "diff_text": ""})
 
     assert resp.status_code == 200, resp.text

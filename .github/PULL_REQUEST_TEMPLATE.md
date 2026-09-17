@@ -10,7 +10,7 @@ Closes #M<milestone>-<n>
 
 ## Checklist
 
-- [ ] Works at **ZERO tier** (no LLM) or gracefully degrades
+- [ ] Manual TCM works without an LLM; MCP and runs require validated LLM readiness
 - [ ] Capability/autonomy gating added for any LLM-dependent feature
 - [ ] `make check-all` passes (ruff + mypy + eslint + tsc)
 - [ ] `make test` passes (new tests added for new behavior)

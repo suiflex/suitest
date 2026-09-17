@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_db.audit import write_audit
 from suitest_db.models.case import TestCase, TestStep
 from suitest_db.models.project import Suite
@@ -354,7 +355,6 @@ class RunService:
         if project is None or project.workspace_id != self._ctx.workspace_id:
             raise ValueError("project not found")
         src_metadata: dict[str, Any] = dict(src.metadata_json) if src.metadata_json else {}
-        # Strip per-run bookkeeping that does not belong on the new run.
         src_metadata.pop("arq_job_id", None)
         original_selection: list[dict[str, Any]] = (
             [dict(item) for item in src_metadata.get("selection", []) if isinstance(item, dict)]
@@ -362,115 +362,17 @@ class RunService:
             else []
         )
 
-        target_case_ids: list[str] | None = None
-        rerun_mode = "full"
-
-        if case_ids is not None:
-            target_case_ids = [cid for cid in case_ids if isinstance(cid, str)]
-            rerun_mode = "selective"
-        elif failed_only:
-            stmt = (
-                select(RunStep.case_id)
-                .where(
-                    RunStep.run_id == src.id,
-                    RunStep.outcome.in_([StepOutcome.FAIL, StepOutcome.ERROR]),
-                )
-                .distinct()
-            )
-            failed_set = set((await self._session.scalars(stmt)).all())
-            if not failed_set:
-                raise ValueError("No failed test cases to re-run.")
-
-            if original_selection:
-                target_case_ids = [
-                    item["case_id"]
-                    for item in original_selection
-                    if item.get("case_id") in failed_set
-                ]
-            else:
-                target_case_ids = list(failed_set)
-            rerun_mode = "failed_only"
-
-        new_selection: list[dict[str, Any]]
-        if target_case_ids is not None:
-            # Scope to project to prevent cross-project/cross-workspace injection
-            case_project_stmt = (
-                select(TestCase.id, TestCase.deleted_at)
-                .join(Suite, Suite.id == TestCase.suite_id)
-                .where(
-                    TestCase.id.in_(target_case_ids),
-                    Suite.project_id == src.project_id,
-                )
-            )
-            case_rows = (await self._session.execute(case_project_stmt)).all()
-            case_project_map = {row[0]: row[1] for row in case_rows}
-            for cid in target_case_ids:
-                if cid not in case_project_map:
-                    raise ValueError(f"case {cid} not in project")
-
-            # Filter out soft-deleted cases so rerun doesn't fail on deleted cases
-            valid_target_ids = [cid for cid in target_case_ids if case_project_map[cid] is None]
-            if not valid_target_ids:
-                raise ValueError("No active test cases to re-run (cases may have been deleted).")
-
-            # Reset selected_step_ids to None so edited/fixed steps execute fresh
-            new_selection = [
-                {"case_id": cid, "selected_step_ids": None} for cid in valid_target_ids
-            ]
-
-            if len(valid_target_ids) == 1:
-                tc = await self._session.scalar(
-                    select(TestCase).where(TestCase.id == valid_target_ids[0])
-                )
-                raw_title = (
-                    (tc.title or tc.name or tc.public_id or "1 selected case")
-                    if tc is not None
-                    else "1 selected case"
-                )
-                clean_title = raw_title.removeprefix("Ad-hoc: ").strip()
-                run_name = f"Ad-hoc: {clean_title}"[:250]
-            else:
-                run_name = f"Ad-hoc: {len(valid_target_ids)} selected cases"[:250]
-        else:
-            # Full rerun: reset selected_step_ids to None so edited steps execute fresh
-            new_selection = [{**item, "selected_step_ids": None} for item in original_selection]
-            run_name = src.name[:250]
-
-        # Snapshot planned cases at rerun creation
-        rerun_case_ids = [
-            item["case_id"]
-            for item in new_selection
-            if isinstance(item, dict) and isinstance(item.get("case_id"), str)
-        ]
-        rerun_tc_rows = (
-            await self._session.execute(
-                select(
-                    TestCase.id,
-                    TestCase.public_id,
-                    TestCase.title,
-                    func.count(TestStep.id),
-                )
-                .outerjoin(TestStep, TestStep.case_id == TestCase.id)
-                .where(TestCase.id.in_(rerun_case_ids))
-                .group_by(TestCase.id, TestCase.public_id, TestCase.title)
-            )
-        ).all()
-        rerun_tc_map = {row[0]: (row[1], row[2], int(row[3] or 0)) for row in rerun_tc_rows}
-        rerun_planned_snapshot: list[dict[str, Any]] = []
-        for item in new_selection:
-            case_id_val = item.get("case_id")
-            if isinstance(case_id_val, str) and case_id_val in rerun_tc_map:
-                pid, title, count = rerun_tc_map[case_id_val]
-                sel_steps = item.get("selected_step_ids")
-                total_s = len(sel_steps) if isinstance(sel_steps, list) else count
-                rerun_planned_snapshot.append(
-                    {
-                        "case_id": case_id_val,
-                        "case_public_id": pid,
-                        "case_title": title,
-                        "total_steps": total_s,
-                    }
-                )
+        target_case_ids, rerun_mode = await _resolve_rerun_targets(
+            self._session,
+            src,
+            failed_only=failed_only,
+            case_ids=case_ids,
+            original_selection=original_selection,
+        )
+        new_selection, run_name = await _build_rerun_selection_and_name(
+            self._session, src, target_case_ids, original_selection
+        )
+        rerun_planned_snapshot = await _build_planned_snapshot(self._session, new_selection)
 
         effective_pw_config = (
             playwright_config
@@ -516,6 +418,124 @@ class RunService:
             metadata={"rerun_of": src.id, "rerun_mode": rerun_mode},
         )
         return run
+
+
+async def _resolve_rerun_targets(
+    session: AsyncSession,
+    src: RunRow,
+    *,
+    failed_only: bool,
+    case_ids: Sequence[str] | None,
+    original_selection: list[dict[str, Any]],
+) -> tuple[list[str] | None, str]:
+    if case_ids is not None:
+        return [cid for cid in case_ids if isinstance(cid, str)], "selective"
+    if not failed_only:
+        return None, "full"
+
+    stmt = (
+        select(RunStep.case_id)
+        .where(
+            RunStep.run_id == src.id,
+            RunStep.outcome.in_([StepOutcome.FAIL, StepOutcome.ERROR]),
+        )
+        .distinct()
+    )
+    failed_set = set((await session.scalars(stmt)).all())
+    if not failed_set:
+        raise ValueError("No failed test cases to re-run.")
+
+    if original_selection:
+        target_case_ids = [
+            item["case_id"] for item in original_selection if item.get("case_id") in failed_set
+        ]
+    else:
+        target_case_ids = list(failed_set)
+    return target_case_ids, "failed_only"
+
+
+async def _build_rerun_selection_and_name(
+    session: AsyncSession,
+    src: RunRow,
+    target_case_ids: list[str] | None,
+    original_selection: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], str]:
+    if target_case_ids is None:
+        new_selection = [{**item, "selected_step_ids": None} for item in original_selection]
+        return new_selection, src.name[:250]
+
+    case_project_stmt = (
+        select(TestCase.id, TestCase.deleted_at)
+        .join(Suite, Suite.id == TestCase.suite_id)
+        .where(
+            TestCase.id.in_(target_case_ids),
+            Suite.project_id == src.project_id,
+        )
+    )
+    case_rows = (await session.execute(case_project_stmt)).all()
+    case_project_map = {row[0]: row[1] for row in case_rows}
+    for cid in target_case_ids:
+        if cid not in case_project_map:
+            raise ValueError(f"case {cid} not in project")
+
+    valid_target_ids = [cid for cid in target_case_ids if case_project_map[cid] is None]
+    if not valid_target_ids:
+        raise ValueError("No active test cases to re-run (cases may have been deleted).")
+
+    new_selection = [{"case_id": cid, "selected_step_ids": None} for cid in valid_target_ids]
+    if len(valid_target_ids) == 1:
+        tc = await session.scalar(select(TestCase).where(TestCase.id == valid_target_ids[0]))
+        raw_title = (
+            (tc.title or tc.name or tc.public_id or "1 selected case")
+            if tc is not None
+            else "1 selected case"
+        )
+        clean_title = raw_title.removeprefix("Ad-hoc: ").strip()
+        run_name = f"Ad-hoc: {clean_title}"[:250]
+    else:
+        run_name = f"Ad-hoc: {len(valid_target_ids)} selected cases"[:250]
+    return new_selection, run_name
+
+
+async def _build_planned_snapshot(
+    session: AsyncSession,
+    new_selection: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rerun_case_ids = [
+        item["case_id"]
+        for item in new_selection
+        if isinstance(item, dict) and isinstance(item.get("case_id"), str)
+    ]
+    rerun_tc_rows = (
+        await session.execute(
+            select(
+                TestCase.id,
+                TestCase.public_id,
+                TestCase.title,
+                func.count(TestStep.id),
+            )
+            .outerjoin(TestStep, TestStep.case_id == TestCase.id)
+            .where(TestCase.id.in_(rerun_case_ids))
+            .group_by(TestCase.id, TestCase.public_id, TestCase.title)
+        )
+    ).all()
+    rerun_tc_map = {row[0]: (row[1], row[2], int(row[3] or 0)) for row in rerun_tc_rows}
+    rerun_planned_snapshot: list[dict[str, Any]] = []
+    for item in new_selection:
+        case_id_val = item.get("case_id")
+        if isinstance(case_id_val, str) and case_id_val in rerun_tc_map:
+            pid, title, count = rerun_tc_map[case_id_val]
+            sel_steps = item.get("selected_step_ids")
+            total_s = len(sel_steps) if isinstance(sel_steps, list) else count
+            rerun_planned_snapshot.append(
+                {
+                    "case_id": case_id_val,
+                    "case_public_id": pid,
+                    "case_title": title,
+                    "total_steps": total_s,
+                }
+            )
+    return rerun_planned_snapshot
 
 
 def _presign(object_url: str, *, expires_in: int) -> str:

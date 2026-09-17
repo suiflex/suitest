@@ -406,8 +406,8 @@ async def test_patch_steps_atomic_replace_succeeds(api_db: ApiDb) -> None:
 
 
 @pytest.mark.asyncio
-async def test_patch_steps_validates_each_step_code_zero_tier(api_db: ApiDb) -> None:
-    """ZERO tier rejects an action-only step inside the new list with the correct stepIndex."""
+async def test_patch_steps_allows_action_only_step_without_llm(api_db: ApiDb) -> None:
+    """Manual TCM remains writable when an LLM is not configured."""
     user = await api_db.seed_user(email="tcw-replace-zero@example.com")
     ws = await api_db.member_workspace(user, slug="tcw-replace-zero-ws")
     suite = await _project_suite(api_db, ws.id)
@@ -419,21 +419,19 @@ async def test_patch_steps_validates_each_step_code_zero_tier(api_db: ApiDb) -> 
             _step_payload(action="bad", code=None),
         ]
     }
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await c.patch(
             f"/api/v1/test-cases/{case.id}/steps",
             json=body,
             headers={"X-Workspace-Id": ws.id},
         )
-    assert resp.status_code == 400, resp.text
-    envelope = resp.json()["detail"]["error"]
-    assert envelope["code"] == "STEPS_REQUIRE_CODE_IN_ZERO_LLM"
-    assert envelope["details"]["stepIndex"] == 1
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["steps"][1]["executable"] is False
 
 
 @pytest.mark.asyncio
-async def test_patch_steps_zero_tier_allows_empty_action_draft(api_db: ApiDb) -> None:
-    """ZERO + strict: an empty-action draft row is stored, not rejected."""
+async def test_patch_steps_without_llm_allows_empty_action_draft(api_db: ApiDb) -> None:
+    """An empty-action draft row is stored without an LLM."""
     user = await api_db.seed_user(email="tcw-replace-draft@example.com")
     ws = await api_db.member_workspace(user, slug="tcw-replace-draft-ws")
     suite = await _project_suite(api_db, ws.id)
@@ -445,7 +443,7 @@ async def test_patch_steps_zero_tier_allows_empty_action_draft(api_db: ApiDb) ->
             _step_payload(action="", code=None),
         ]
     }
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await c.patch(
             f"/api/v1/test-cases/{case.id}/steps",
             json=body,

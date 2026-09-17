@@ -3,7 +3,7 @@
 A freshly-registered or invited user has zero workspaces (``on_after_register``
 is a no-op in M0), so the only way to bootstrap from an empty install entirely
 through the web UI is a create-workspace endpoint that makes the caller the
-OWNER and seeds a ZERO-tier capability row (mirrors
+OWNER and seeds a capability row (mirrors
 ``bootstrap_first_install_superadmin``).
 """
 
@@ -73,8 +73,8 @@ async def test_create_workspace_requires_auth(api_db: ApiDb) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_workspace_seeds_zero_tier_capability(api_db: ApiDb) -> None:
-    """The new workspace resolves to ZERO tier so capabilities load post-bootstrap."""
+async def test_create_workspace_seeds_capability(api_db: ApiDb) -> None:
+    """Capabilities load after workspace bootstrap without an LLM."""
     user = await api_db.seed_user(email="ws-cap@example.com")
 
     async with api_db.client(user) as c:
@@ -83,4 +83,6 @@ async def test_create_workspace_seeds_zero_tier_capability(api_db: ApiDb) -> Non
         caps = await c.get("/capabilities", headers={"X-Workspace-Id": ws_id})
 
     assert caps.status_code == 200, caps.text
-    assert caps.json()["tier"] == "ZERO"
+    assert "tier" not in caps.json()
+    assert caps.json()["llm"]["status"] == "not_configured"
+    assert caps.json()["features"]["manual_tcm"] is True

@@ -21,7 +21,7 @@ class Handler(BaseHTTPRequestHandler):
             self.path == "/api/v1/api-keys/whoami"
             and self.headers.get("Authorization") == f"Bearer {KEY}"
         )
-        body = b'{"workspaceId":"ci"}' if ok else b'{"detail":"invalid key"}'
+        body = b'{"workspaceId":"ci","llmStatus":"ready"}' if ok else b'{"detail":"invalid key"}'
         self.send_response(200 if ok else 401)
         self.send_header("Content-Type", "application/json")
         self.end_headers()

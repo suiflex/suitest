@@ -15,9 +15,11 @@ fail() { echo "DOGFOOD FAIL: $1" >&2; exit 1; }
 echo "==> /health"
 curl -fsS "${API}/health" | grep -q '"status"' || fail "health not ok"
 
-echo "==> /capabilities (expect a tier)"
+echo "==> /capabilities (expect LLM readiness)"
 caps="$(curl -fsS "${API}/capabilities")"
-echo "${caps}" | grep -q '"tier"' || fail "capabilities missing tier"
+echo "${caps}" | grep -q '"llm"' || fail "capabilities missing llm section"
+echo "${caps}" | grep -q '"status":"not_configured"' || fail "unexpected base LLM status"
+echo "${caps}" | grep -q '"manual_tcm":true' || fail "manual TCM must remain available"
 echo "    ${caps}"
 
 echo "==> OpenAPI schema served"

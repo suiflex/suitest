@@ -3,7 +3,7 @@
 The four scenarios cover the happy-path contract + the three validation
 branches that produce 400:
 
-* 202 + serialized run row with tier ZERO (default capability path),
+* 202 + serialized queued run row,
 * unknown project id → 400 ``"project not found"``,
 * a TestStep referencing a non-bundled MCP provider that the workspace has
   not registered → 400 ``"unregistered MCP"``,
@@ -65,6 +65,7 @@ async def _seed_project_case(
     case_public_id: str = "TC-RC1",
 ) -> tuple[Project, TestCase]:
     """Seed a project + suite + case + one step bound to ``mcp_provider``."""
+    await api_db.seed_ready_llm(ws_id)
     project = Project(workspace_id=ws_id, slug=slug, name="P")
     await api_db.add_all([project])
     suite = Suite(project_id=project.id, name="S", order=0)
@@ -103,8 +104,8 @@ def _override_arq(app: Any, arq: _RecordingArq) -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_run_returns_202_with_zero_tier(api_db: ApiDb) -> None:
-    """Happy path: 202, RunPublic with QUEUED + ZERO tier, ARQ enqueue invoked."""
+async def test_create_run_returns_202(api_db: ApiDb) -> None:
+    """Happy path: 202, RunPublic with QUEUED status, ARQ enqueue invoked."""
     user = await api_db.seed_user(email="run-create-ok@example.com")
     ws = await api_db.member_workspace(user, slug="run-create-ok-ws")
     project, case = await _seed_project_case(api_db, ws.id, slug="run-create-ok-p")
@@ -133,7 +134,7 @@ async def test_create_run_returns_202_with_zero_tier(api_db: ApiDb) -> None:
     body = resp.json()
     assert body["projectId"] == project.id
     assert body["status"] == "QUEUED"
-    assert body["tierAtRuntime"] == "ZERO"
+    assert "tierAtRuntime" not in body
     assert body["name"] == "nightly"
     assert body["publicId"].startswith("R-")
 
@@ -142,6 +143,7 @@ async def test_create_run_returns_202_with_zero_tier(api_db: ApiDb) -> None:
 async def test_create_run_unknown_project_returns_400(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="run-create-nopro@example.com")
     ws = await api_db.member_workspace(user, slug="run-create-nopro-ws")
+    await api_db.seed_ready_llm(ws.id)
 
     arq = _RecordingArq()
     app = api_db.app_for(user)

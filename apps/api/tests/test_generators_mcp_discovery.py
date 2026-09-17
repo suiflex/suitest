@@ -89,7 +89,7 @@ async def test_requires_active_llm(api_db: ApiDb) -> None:
     ws = await api_db.member_workspace(user, slug="mcpd-nollm-ws")
     suite = await _project_suite(api_db, ws.id)
     prov = await _provider(api_db, ws.id, tools=[{"name": "t", "description": "d"}])
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await _post(c, ws.id, {"target_suite_id": suite.id, "mcp_provider_id": prov.id})
     assert resp.status_code == 409, resp.text
 

@@ -154,6 +154,65 @@ async def _invoke_tool(
     )
 
 
+async def _parse_or_translate_step(
+    test_step: TestStepRow,
+    translator: StepTranslator | None,
+) -> tuple[dict[str, object] | None, StepOutcome | None, str | None]:
+    """Parse deterministic step JSON or translate an agentic prose action."""
+    if not test_step.code:
+        if translator is None:
+            return None, StepOutcome.SKIP, "NO_LLM_FOR_AGENTIC_STEP: step has no code"
+        try:
+            translated = await translator(test_step.action)
+        except Exception as exc:
+            log.exception("step.executor.translate_error", step_id=test_step.id)
+            return None, StepOutcome.ERROR, f"AGENTIC_TRANSLATE_ERROR: {exc}"
+        if translated is None:
+            return (
+                None,
+                StepOutcome.SKIP,
+                "AGENTIC_TRANSLATE_FAILED: action not expressible as one tool call",
+            )
+        parsed: object = translated
+    else:
+        try:
+            parsed = json.loads(test_step.code)
+        except json.JSONDecodeError as exc:
+            return None, StepOutcome.ERROR, f"INVALID_STEP_CODE: {exc}"
+
+    if not isinstance(parsed, dict) or "tool" not in parsed:
+        return None, StepOutcome.ERROR, "INVALID_STEP_CODE: envelope missing 'tool' key"
+    return parsed, None, None
+
+
+async def _run_assertions(
+    *,
+    invoker: McpInvoker,
+    explicit_provider: str,
+    assertions: list[dict[str, object]],
+    result: McpToolResult,
+    ctx: InvokeContext,
+) -> None:
+    """Invoke assertion tools sequentially against the primary tool result."""
+    for assertion in assertions:
+        a_args_raw = assertion.get("arguments", {})
+        a_args: dict[str, object] = dict(a_args_raw) if isinstance(a_args_raw, dict) else {}
+        if result.stdout.startswith("{"):
+            try:
+                a_args["result"] = json.loads(result.stdout)
+            except json.JSONDecodeError:
+                a_args["result"] = {}
+        else:
+            a_args["result"] = {}
+        await _invoke_tool(
+            invoker=invoker,
+            explicit_provider=explicit_provider,
+            tool=str(assertion["tool"]),
+            arguments=a_args,
+            ctx=ctx,
+        )
+
+
 async def execute_step(
     *,
     invoker: McpInvoker,
@@ -207,37 +266,10 @@ async def execute_step(
             is_fatal_infra=is_fatal_infra,
         )
 
-    parsed: object
-    if not test_step.code:
-        # Agentic step: no deterministic code. A missing translator means the
-        # workspace LLM became unavailable after run creation.
-        if translator is None:
-            return _done(
-                StepOutcome.SKIP,
-                msg="NO_LLM_FOR_AGENTIC_STEP: step has no code",
-            )
-        try:
-            translated = await translator(test_step.action)
-        except Exception as exc:  # translator failure must not crash the run
-            log.exception("step.executor.translate_error", step_id=test_step.id)
-            return _done(StepOutcome.ERROR, msg=f"AGENTIC_TRANSLATE_ERROR: {exc}")
-        if translated is None:
-            return _done(
-                StepOutcome.SKIP,
-                msg="AGENTIC_TRANSLATE_FAILED: action not expressible as one tool call",
-            )
-        parsed = translated
-    else:
-        try:
-            parsed = json.loads(test_step.code)
-        except json.JSONDecodeError as exc:
-            return _done(StepOutcome.ERROR, msg=f"INVALID_STEP_CODE: {exc}")
-
-    if not isinstance(parsed, dict) or "tool" not in parsed:
-        return _done(
-            StepOutcome.ERROR,
-            msg="INVALID_STEP_CODE: envelope missing 'tool' key",
-        )
+    parsed, error_outcome, error_msg = await _parse_or_translate_step(test_step, translator)
+    if error_outcome is not None:
+        return _done(error_outcome, msg=error_msg)
+    assert parsed is not None
 
     tool = str(parsed["tool"])
     raw_args = parsed.get("arguments", {})
@@ -266,26 +298,13 @@ async def execute_step(
             arguments=arguments,
             ctx=ctx,
         )
-        for assertion in assertions:
-            a_args_raw = assertion.get("arguments", {})
-            a_args: dict[str, object] = dict(a_args_raw) if isinstance(a_args_raw, dict) else {}
-            # Forward the upstream tool's parsed stdout to the assertion so
-            # checks like ``assert_status`` / ``assert_json_path`` can run
-            # against the previous tool's normalized output.
-            if result.stdout.startswith("{"):
-                try:
-                    a_args["result"] = json.loads(result.stdout)
-                except json.JSONDecodeError:
-                    a_args["result"] = {}
-            else:
-                a_args["result"] = {}
-            await _invoke_tool(
-                invoker=invoker,
-                explicit_provider=test_step.mcp_provider,
-                tool=str(assertion["tool"]),
-                arguments=a_args,
-                ctx=ctx,
-            )
+        await _run_assertions(
+            invoker=invoker,
+            explicit_provider=test_step.mcp_provider,
+            assertions=assertions,
+            result=result,
+            ctx=ctx,
+        )
         return _done(
             StepOutcome.PASS,
             mcp=result,

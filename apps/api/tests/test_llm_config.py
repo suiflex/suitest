@@ -30,7 +30,7 @@ async def _admin_ws(api_db: ApiDb, *, email: str, slug: str) -> tuple[User, Work
 @pytest.mark.asyncio
 async def test_get_returns_404_when_unset(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="llm-none@example.com", slug="llm-none")
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await c.get(f"/api/v1/workspaces/{ws.id}/llm-config", headers=_h(ws.id))
     assert resp.status_code == 404
 
@@ -38,7 +38,7 @@ async def test_get_returns_404_when_unset(api_db: ApiDb) -> None:
 @pytest.mark.asyncio
 async def test_put_mock_requires_validation(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="llm-set@example.com", slug="llm-set")
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         put = await c.put(
             f"/api/v1/workspaces/{ws.id}/llm-config",
             headers=_h(ws.id),
@@ -59,7 +59,7 @@ async def test_put_mock_requires_validation(api_db: ApiDb) -> None:
 @pytest.mark.asyncio
 async def test_key_is_write_only_returns_hint(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="llm-key@example.com", slug="llm-key")
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         put = await c.put(
             f"/api/v1/workspaces/{ws.id}/llm-config",
             headers=_h(ws.id),
@@ -73,7 +73,7 @@ async def test_key_is_write_only_returns_hint(api_db: ApiDb) -> None:
 @pytest.mark.asyncio
 async def test_put_cloud_without_key_is_422(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="llm-nokey@example.com", slug="llm-nokey")
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         put = await c.put(
             f"/api/v1/workspaces/{ws.id}/llm-config",
             headers=_h(ws.id),
@@ -86,7 +86,7 @@ async def test_put_cloud_without_key_is_422(api_db: ApiDb) -> None:
 @pytest.mark.asyncio
 async def test_test_connection_mock_ok(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="llm-test@example.com", slug="llm-test")
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         await c.put(
             f"/api/v1/workspaces/{ws.id}/llm-config",
             headers=_h(ws.id),
@@ -100,7 +100,7 @@ async def test_test_connection_mock_ok(api_db: ApiDb) -> None:
     body = resp.json()
     assert body["ok"] is True
     assert body["modelEcho"] == "mock-1"
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         caps = await c.get("/capabilities", headers=_h(ws.id))
     assert caps.json()["llm"]["status"] == "ready"
 
@@ -108,7 +108,7 @@ async def test_test_connection_mock_ok(api_db: ApiDb) -> None:
 @pytest.mark.asyncio
 async def test_delete_clears_llm_readiness(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="llm-del@example.com", slug="llm-del")
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         await c.put(
             f"/api/v1/workspaces/{ws.id}/llm-config",
             headers=_h(ws.id),
@@ -126,7 +126,7 @@ async def test_delete_clears_llm_readiness(api_db: ApiDb) -> None:
 @pytest.mark.asyncio
 async def test_models_catalog_for_provider(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="llm-models@example.com", slug="llm-models")
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await c.get(
             f"/api/v1/workspaces/{ws.id}/llm-config/models",
             headers=_h(ws.id),
@@ -140,7 +140,7 @@ async def test_models_catalog_for_provider(api_db: ApiDb) -> None:
 async def test_non_admin_cannot_write(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="llm-qa@example.com")
     ws = await api_db.member_workspace(user, slug="llm-qa")  # default Role.QA
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         put = await c.put(
             f"/api/v1/workspaces/{ws.id}/llm-config",
             headers=_h(ws.id),
@@ -160,7 +160,7 @@ async def test_non_admin_cannot_write(api_db: ApiDb) -> None:
 async def test_chatgpt_login_start_is_routed_and_admin_only(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="chatgpt-qa@example.com")
     ws = await api_db.member_workspace(user, slug="chatgpt-qa")  # default Role.QA
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await c.post(
             f"/api/v1/workspaces/{ws.id}/llm-config/chatgpt/login",
             headers=_h(ws.id),
@@ -173,7 +173,7 @@ async def test_chatgpt_login_start_is_routed_and_admin_only(api_db: ApiDb) -> No
 @pytest.mark.asyncio
 async def test_chatgpt_login_poll_rejects_unknown_flow(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="chatgpt-poll@example.com", slug="chatgpt-poll")
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await c.get(
             f"/api/v1/workspaces/{ws.id}/llm-config/chatgpt/login/nope",
             headers=_h(ws.id),
@@ -185,7 +185,7 @@ async def test_chatgpt_login_poll_rejects_unknown_flow(api_db: ApiDb) -> None:
 @pytest.mark.asyncio
 async def test_chatgpt_login_finish_rejects_unknown_flow(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="chatgpt-fin@example.com", slug="chatgpt-fin")
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await c.post(
             f"/api/v1/workspaces/{ws.id}/llm-config/chatgpt/login/nope/finish",
             headers=_h(ws.id),
@@ -198,7 +198,7 @@ async def test_chatgpt_login_finish_rejects_unknown_flow(api_db: ApiDb) -> None:
 @pytest.mark.asyncio
 async def test_chatgpt_login_cancel_is_idempotent(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="chatgpt-cxl@example.com", slug="chatgpt-cxl")
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await c.delete(
             f"/api/v1/workspaces/{ws.id}/llm-config/chatgpt/login/nope",
             headers=_h(ws.id),

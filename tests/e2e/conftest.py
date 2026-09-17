@@ -117,13 +117,19 @@ async def seeded_case(database_url: str, nginx_test_page_url: str) -> dict[str, 
             "E2E Smoke User",
         )
         await conn.execute(
-            "INSERT INTO workspaces (id, slug, name, region, strict_zero_validation, mcp_routing_overrides) "
-            "VALUES ($1, $2, $3, $4, $5, $6::jsonb)",
+            "INSERT INTO workspaces (id, slug, name, region, mcp_routing_overrides) "
+            "VALUES ($1, $2, $3, $4, $5::jsonb)",
             workspace_id,
             f"e2e-{suffix}",
             f"E2E Workspace {suffix}",
             "ap-southeast-1",
-            True,
+            "{}",
+        )
+        await conn.execute(
+            "INSERT INTO llm_configs (id, workspace_id, provider, model, config_json, "
+            "is_active, last_validated_at) VALUES ($1, $2, 'mock', 'mock-1', $3::jsonb, true, now())",
+            _cuid_like(),
+            workspace_id,
             "{}",
         )
         await conn.execute(

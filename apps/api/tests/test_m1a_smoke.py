@@ -64,12 +64,14 @@ async def test_m1a_dod_smoke_e2e(api_db: ApiDb) -> None:
         maya_user = maya
         seeded_ws_id = ws_row.id
 
-    async with api_db.client(maya_user) as c:
-        # --- (1) GET /capabilities — base tier is ZERO, default autonomy MANUAL --
+    async with api_db.client(maya_user, llm_ready=False) as c:
+        # --- (1) GET /capabilities — manual TCM works before LLM setup --------
         resp = await c.get("/capabilities")
         assert resp.status_code == 200, resp.text
         caps = resp.json()
-        assert caps["tier"] == "ZERO"
+        assert "tier" not in caps
+        assert caps["llm"]["status"] == "not_configured"
+        assert caps["features"]["manual_tcm"] is True
         assert caps["autonomy"]["default"] == "manual"
 
         # --- (2) GET /auth/me — email matches Maya, membership in Nusantara w/ OWNER

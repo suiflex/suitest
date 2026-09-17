@@ -19,16 +19,19 @@ import uuid
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import fastapi_users.db as _fastapi_users_db  # noqa: F401  -- warm-up, see module docstring
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from suitest_api.auth.db import get_async_session
 from suitest_api.auth.manager import current_active_user
 from suitest_api.main import create_app
 from suitest_db.base import Base
+from suitest_db.models.llm_config import LLMConfig
 from suitest_db.models.tenancy import Membership
 from suitest_db.models.user import User
 from suitest_db.models.workspace import Workspace
@@ -64,13 +67,62 @@ class ApiDb:
         return app
 
     @asynccontextmanager
-    async def client(self, user: User | None) -> AsyncIterator[AsyncClient]:
-        """Yield a lifespan-wired httpx client bound to ``app_for(user)``."""
+    async def client(
+        self, user: User | None, *, llm_ready: bool = True
+    ) -> AsyncIterator[AsyncClient]:
+        """Yield a lifespan-wired client, with member workspaces execution-ready by default.
+
+        Most endpoint tests exercise behavior beyond the readiness gate. Tests
+        for an unconfigured or unvalidated workspace opt out explicitly with
+        ``llm_ready=False``.
+        """
+        if user is not None and llm_ready:
+            await self._ensure_ready_llms(user.id)
         app = self.app_for(user)
         async with LifespanManager(app):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as c:
                 yield c
+
+    async def _ensure_ready_llms(self, user_id: uuid.UUID) -> None:
+        """Give every workspace for ``user_id`` a validated deterministic provider."""
+        async with self.maker() as session:
+            workspace_ids = list(
+                await session.scalars(
+                    select(Membership.workspace_id).where(Membership.user_id == user_id)
+                )
+            )
+            for workspace_id in workspace_ids:
+                await self._seed_ready_llm_in_session(session, workspace_id)
+            await session.commit()
+
+    async def seed_ready_llm(self, workspace_id: str) -> None:
+        """Make one workspace execution-ready with the deterministic provider."""
+        async with self.maker() as session:
+            await self._seed_ready_llm_in_session(session, workspace_id)
+            await session.commit()
+
+    @staticmethod
+    async def _seed_ready_llm_in_session(session: AsyncSession, workspace_id: str) -> None:
+        config = await session.scalar(
+            select(LLMConfig).where(
+                LLMConfig.workspace_id == workspace_id,
+                LLMConfig.is_active.is_(True),
+            )
+        )
+        if config is None:
+            session.add(
+                LLMConfig(
+                    workspace_id=workspace_id,
+                    provider="mock",
+                    model="mock-1",
+                    config_json={},
+                    is_active=True,
+                    last_validated_at=datetime.now(UTC),
+                )
+            )
+        elif config.last_validated_at is None:
+            config.last_validated_at = datetime.now(UTC)
 
     async def seed_user(self, *, email: str, name: str = "Test User") -> User:
         """Insert a User row and return it (detached; usable as an auth override)."""

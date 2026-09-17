@@ -50,10 +50,16 @@ test("color wrappers return the raw string unchanged when color disabled", () =>
 });
 
 test("color wrappers add ANSI codes when color enabled", () => {
-  const out = ttyStream();
-  const painted = theme.accent("hello", out);
-  assert.notStrictEqual(painted, "hello");
-  assert.ok(painted.includes("hello"));
+  const prev = process.env.NO_COLOR;
+  delete process.env.NO_COLOR;
+  try {
+    const out = ttyStream();
+    const painted = theme.accent("hello", out);
+    assert.notStrictEqual(painted, "hello");
+    assert.ok(painted.includes("hello"));
+  } finally {
+    if (prev !== undefined) process.env.NO_COLOR = prev;
+  }
 });
 
 test("panel() produces lines of consistent width", () => {
@@ -72,12 +78,18 @@ test("banner() collapses to plain text when color disabled", () => {
 });
 
 test("banner() uses the accent color, not the neutral border color", () => {
-  const out = ttyStream();
-  const rendered = theme.banner(out);
-  const accentCode = theme.accent("Z", out).split("Z")[0];
-  const borderCode = theme.border("Z", out).split("Z")[0];
-  assert.ok(rendered.includes(accentCode), "banner should carry the accent ANSI code");
-  assert.ok(!rendered.includes(borderCode), "banner should not carry the neutral border code");
+  const prev = process.env.NO_COLOR;
+  delete process.env.NO_COLOR;
+  try {
+    const out = ttyStream();
+    const rendered = theme.banner(out);
+    const accentCode = theme.accent("Z", out).split("Z")[0];
+    const borderCode = theme.border("Z", out).split("Z")[0];
+    assert.ok(rendered.includes(accentCode), "banner should carry the accent ANSI code");
+    assert.ok(!rendered.includes(borderCode), "banner should not carry the neutral border code");
+  } finally {
+    if (prev !== undefined) process.env.NO_COLOR = prev;
+  }
 });
 
 test("gutter() prefixes a line with the connector column", () => {

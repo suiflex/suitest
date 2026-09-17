@@ -5,9 +5,7 @@ Covers the contract from ``docs/API.md §3.3`` line 204 + plan-05b task M1d-8:
 * Happy path: 202 + ``{runId, publicId, statusUrl, wsRoom}`` payload + the run
   row actually lands with ``trigger=MANUAL``, the right project_id, and a
   ``selection`` referencing the case.
-* Pre-flight ZERO + strict + missing ``code`` → 400
-  ``STEPS_REQUIRE_CODE_IN_ZERO_LLM`` with ``details.stepIndex`` and NO ``runs``
-  row written.
+* Missing validated LLM → 409 ``LLM_NOT_READY`` and NO ``runs`` row written.
 * Pre-flight unregistered MCP → 404 ``MCP_PROVIDER_NOT_REGISTERED`` and NO
   ``runs`` row written.
 * Cross-workspace case id → 404 (no enumeration oracle).
@@ -31,13 +29,7 @@ from suitest_api.deps.arq import get_arq
 from suitest_db.models.case import TestCase, TestStep
 from suitest_db.models.project import Project, Suite
 from suitest_db.models.run import Run
-from suitest_shared.domain.enums import (
-    AutonomyLevel,
-    CaseSource,
-    Role,
-    RunTrigger,
-    TargetKind,
-)
+from suitest_shared.domain.enums import CaseSource, Role, RunTrigger, TargetKind
 
 if TYPE_CHECKING:
     from api_harness import ApiDb
@@ -82,12 +74,15 @@ async def _seed_runnable_case(
     case_public_id: str = "TC-AH1",
     code: str | None = "await page.goto('/login');",
     mcp_provider: str = "playwright-mcp",
+    llm_ready: bool = True,
 ) -> tuple[Project, Suite, TestCase, TestStep]:
     """Seed a project + suite + case + ONE step pointing at a bundled MCP.
 
     Individual tests override ``code=None`` / a custom ``mcp_provider`` to
     exercise the pre-flight validator branches.
     """
+    if llm_ready:
+        await api_db.seed_ready_llm(ws_id)
     project = Project(workspace_id=ws_id, slug=slug, name="P")
     await api_db.add_all([project])
     suite = Suite(project_id=project.id, name="S", order=0)
@@ -168,14 +163,19 @@ async def test_adhoc_run_returns_202_with_runId_publicId_statusUrl_wsRoom(
 
 
 @pytest.mark.asyncio
-async def test_adhoc_run_zero_tier_missing_code_returns_400_no_run_created(
+async def test_adhoc_run_without_llm_returns_409_no_run_created(
     api_db: ApiDb,
 ) -> None:
-    """ZERO + strict + step.code missing → 400 with stepIndex AND zero Run rows."""
+    """A run cannot start until the workspace has a validated LLM."""
     user = await api_db.seed_user(email="adhoc-zero@example.com")
     ws = await api_db.member_workspace(user, slug="adhoc-zero-ws")
     _, _, case, _ = await _seed_runnable_case(
-        api_db, ws.id, slug="adhoc-zero-p", case_public_id="TC-AH2", code=None
+        api_db,
+        ws.id,
+        slug="adhoc-no-llm-p",
+        case_public_id="TC-AH2",
+        code=None,
+        llm_ready=False,
     )
 
     arq = _RecordingArq()
@@ -189,10 +189,8 @@ async def test_adhoc_run_zero_tier_missing_code_returns_400_no_run_created(
                 f"/api/v1/test-cases/{case.id}/run",
                 headers={"X-Workspace-Id": ws.id},
             )
-    assert resp.status_code == 400, resp.text
-    envelope = resp.json()["detail"]["error"]
-    assert envelope["code"] == "STEPS_REQUIRE_CODE_IN_ZERO_LLM"
-    assert envelope["details"]["stepIndex"] == 0
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["detail"]["code"] == "LLM_NOT_READY"
 
     # Pre-flight failure → no Run row, no ARQ enqueue.
     assert await _runs_count(api_db) == 0
@@ -239,6 +237,7 @@ async def test_adhoc_run_cross_workspace_returns_404(api_db: ApiDb) -> None:
     """Case lives in a different workspace → 404 (no enumeration oracle)."""
     user = await api_db.seed_user(email="adhoc-xws@example.com")
     ws = await api_db.member_workspace(user, slug="adhoc-xws-ws")
+    await api_db.seed_ready_llm(ws.id)
     other = await api_db.seed_workspace(slug="adhoc-xws-other", name="Other")
     _, _, case, _ = await _seed_runnable_case(
         api_db, other.id, slug="adhoc-xws-other-p", case_public_id="TC-AH4"
@@ -321,25 +320,10 @@ async def test_adhoc_run_viewer_returns_403(api_db: ApiDb) -> None:
 
 
 @pytest.mark.asyncio
-async def test_adhoc_run_cloud_tier_allows_action_only_step(api_db: ApiDb) -> None:
-    """CLOUD tier overlay → pre-flight permits an action-only step (no ``code``).
-
-    Guards against a regression where the ad-hoc pre-flight forgets to inherit
-    the workspace tier (defaulting to ZERO+strict would 400 here).
-    """
-    from suitest_db.models.workspace_capability import WorkspaceCapability
-
+async def test_adhoc_run_with_ready_llm_allows_action_only_step(api_db: ApiDb) -> None:
+    """A validated workspace LLM permits an action-only step without code."""
     user = await api_db.seed_user(email="adhoc-cloud@example.com")
     ws = await api_db.member_workspace(user, slug="adhoc-cloud-ws")
-    await api_db.add_all(
-        [
-            WorkspaceCapability(
-                workspace_id=ws.id,
-                autonomy_level=AutonomyLevel.MANUAL,
-                features_json={},
-            )
-        ]
-    )
     _, _, case, _ = await _seed_runnable_case(
         api_db, ws.id, slug="adhoc-cloud-p", case_public_id="TC-AH7", code=None
     )

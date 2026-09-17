@@ -322,15 +322,16 @@ async def _make_suite(conn: object, wsid: str) -> tuple[str, str]:
 
 
 @pytest.mark.asyncio
-async def test_workspaces_strict_zero_validation_defaults_true(_conn: object) -> None:
+async def test_removed_workspace_validation_column_is_absent(_conn: object) -> None:
     from sqlalchemy import text
 
-    wsid = await _make_workspace(_conn)
-    val = await _conn.execute(  # type: ignore[attr-defined]
-        text("SELECT strict_zero_validation FROM workspaces WHERE id = :id"),
-        {"id": wsid},
+    result = await _conn.execute(  # type: ignore[attr-defined]
+        text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'workspaces' AND column_name = 'strict_zero_validation'"
+        )
     )
-    assert val.scalar_one() is True
+    assert result.scalar_one_or_none() is None
 
 
 @pytest.mark.asyncio
@@ -469,10 +470,10 @@ async def test_defects_auto_dedup_partial_unique_scoped_to_system(_engine: objec
             text(
                 "INSERT INTO runs ("
                 "  id, public_id, workspace_id, project_id, name, env, trigger, status,"
-                "  tier_at_runtime, total_steps, passed_steps, failed_steps"
+                "  total_steps, passed_steps, failed_steps"
                 ") VALUES ("
                 "  :id, :pub, :ws, :p, 'r', 'test', 'MANUAL', 'FAIL',"
-                "  'ZERO', 1, 0, 1"
+                "  1, 0, 1"
                 ")"
             ),
             {"id": rid, "pub": f"RUN-{rid[:6]}", "ws": wsid, "p": pid},
@@ -539,10 +540,10 @@ async def test_defects_auto_dedup_partial_unique_scoped_to_system(_engine: objec
             text(
                 "INSERT INTO runs ("
                 "  id, public_id, workspace_id, project_id, name, env, trigger, status,"
-                "  tier_at_runtime, total_steps, passed_steps, failed_steps"
+                "  total_steps, passed_steps, failed_steps"
                 ") VALUES ("
                 "  :id, :pub, :ws, :p, 'r', 'test', 'MANUAL', 'FAIL',"
-                "  'ZERO', 1, 0, 1"
+                "  1, 0, 1"
                 ")"
             ),
             {"id": rid, "pub": f"RUN-{rid[:6]}", "ws": wsid, "p": pid},

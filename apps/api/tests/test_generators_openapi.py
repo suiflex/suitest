@@ -313,11 +313,11 @@ async def test_generate_unknown_suite_returns_404(api_db: ApiDb) -> None:
 
 @pytest.mark.asyncio
 async def test_enrich_skipped_without_llm(api_db: ApiDb) -> None:
-    """include_llm_edge_cases on a ZERO workspace → deterministic core + skip frame."""
+    """Without an LLM, edge-case enrichment skips after the deterministic core."""
     user = await api_db.seed_user(email="oa-enrich-skip@example.com")
     ws = await api_db.member_workspace(user, slug="oa-enrich-skip-ws")
     suite = await _project_suite(api_db, ws.id)
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         body = await _read_stream(
             c,
             ws.id,

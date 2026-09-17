@@ -1,7 +1,7 @@
 """Tests for ``POST /api/v1/generators/prd`` (M3-6, LLM-driven).
 
 Exercises the endpoint contract against a real DB with the deterministic
-``mock`` provider as the workspace's active LLM: the tier gate (409 when no LLM
+``mock`` provider as the workspace's active LLM: the readiness gate (409 when no LLM
 configured), suite scope (404), the SSE lifecycle (``progress`` → ``complete``),
 and the reproducibility side effects — a persisted ``GeneratorRun`` (source=prd)
 and an ``AgentSession`` (kind GENERATION, provider mock).
@@ -39,7 +39,7 @@ async def _project_suite(api_db: ApiDb, ws_id: str, *, slug: str = "prd-proj") -
 
 
 async def _activate_mock_llm(api_db: ApiDb, ws_id: str) -> None:
-    """Make ``mock`` the active LLM so the workspace resolves to CLOUD tier."""
+    """Make ``mock`` the active validated workspace LLM."""
     await api_db.add_all(
         [
             LLMConfig(
@@ -80,7 +80,7 @@ async def test_prd_requires_active_llm(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="prd-nollm@example.com")
     ws = await api_db.member_workspace(user, slug="prd-nollm-ws")
     suite = await _project_suite(api_db, ws.id)
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await _post(c, ws.id, {"target_suite_id": suite.id, "prd_text": "Users log in"})
     assert resp.status_code == 409, resp.text
 

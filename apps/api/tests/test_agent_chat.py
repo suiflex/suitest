@@ -48,7 +48,7 @@ def _parse_sse(body: str) -> list[tuple[str, dict[str, object]]]:
 async def test_chat_requires_active_llm(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="chat-nollm@example.com")
     ws = await api_db.member_workspace(user, slug="chat-nollm-ws")
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await c.post(
             "/api/v1/agent/chat",
             headers={"X-Workspace-Id": ws.id},

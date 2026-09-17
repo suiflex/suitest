@@ -121,6 +121,7 @@ async def _seed_project_suite(
     """Create a project + suite; return (project_id, suite_id)."""
     from suitest_db.models.project import Project, Suite
 
+    await api_db.seed_ready_llm(ws_id)
     async with api_db.maker() as session:
         project = Project(workspace_id=ws_id, slug=slug, name="P")
         session.add(project)

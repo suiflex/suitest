@@ -35,7 +35,7 @@ jobs:
       SUITEST_OAUTH_GOOGLE_CLIENT_SECRET: ci-client-secret
     steps:
       - uses: actions/checkout@v7
-      - name: Boot the stack (ZERO tier)
+      - name: Boot the stack
         run: |
           for attempt in 1 2 3; do
             if docker compose -f infra/docker/docker-compose.yml --profile zero up -d --build; then

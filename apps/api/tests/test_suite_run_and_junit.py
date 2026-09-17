@@ -59,6 +59,7 @@ async def _seed_suite_with_cases(
     api_db: ApiDb, ws_id: str, *, slug: str, n_cases: int
 ) -> tuple[Project, Suite, list[TestCase]]:
     """Seed a project + suite + ``n_cases`` active cases, each with one bundled step."""
+    await api_db.seed_ready_llm(ws_id)
     project = Project(workspace_id=ws_id, slug=slug, name="P")
     await api_db.add_all([project])
     suite = Suite(project_id=project.id, name="Smoke Suite", order=0)

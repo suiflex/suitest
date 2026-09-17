@@ -8,13 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 from suitest_db.models.case import CaseTag, TestCase, TestStep
 from suitest_db.models.project import Project, Suite
-from suitest_db.models.workspace_capability import WorkspaceCapability
-from suitest_shared.domain.enums import (
-    AutonomyLevel,
-    CaseSource,
-    CaseStatus,
-    TargetKind,
-)
+from suitest_shared.domain.enums import CaseSource, CaseStatus, TargetKind
 
 if TYPE_CHECKING:
     from api_harness import ApiDb
@@ -165,7 +159,7 @@ async def test_get_test_case_includes_steps_in_order(api_db: ApiDb) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_test_case_step_executable_zero_tier(api_db: ApiDb) -> None:
+async def test_get_test_case_step_executable_tracks_llm_readiness(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="tc-exec@example.com")
     ws = await api_db.member_workspace(user, slug="tc-exec-ws")
     suite = await _suite(api_db, ws.id)
@@ -184,24 +178,14 @@ async def test_get_test_case_step_executable_zero_tier(api_db: ApiDb) -> None:
         ]
     )
 
-    # ZERO tier (default env, no overlay) → executable False.
-    async with api_db.client(user) as c:
-        zero = await c.get(f"/api/v1/test-cases/{case.id}", headers={"X-Workspace-Id": ws.id})
-    assert zero.json()["steps"][0]["executable"] is False
+    async with api_db.client(user, llm_ready=False) as c:
+        not_ready = await c.get(f"/api/v1/test-cases/{case.id}", headers={"X-Workspace-Id": ws.id})
+    assert not_ready.json()["steps"][0]["executable"] is False
 
-    # CLOUD overlay via WorkspaceCapability → executable True.
-    await api_db.add_all(
-        [
-            WorkspaceCapability(
-                workspace_id=ws.id,
-                autonomy_level=AutonomyLevel.ASSIST,
-                features_json={},
-            )
-        ]
-    )
+    await api_db.seed_ready_llm(ws.id)
     async with api_db.client(user) as c:
-        cloud = await c.get(f"/api/v1/test-cases/{case.id}", headers={"X-Workspace-Id": ws.id})
-    assert cloud.json()["steps"][0]["executable"] is True
+        ready = await c.get(f"/api/v1/test-cases/{case.id}", headers={"X-Workspace-Id": ws.id})
+    assert ready.json()["steps"][0]["executable"] is True
 
 
 @pytest.mark.asyncio

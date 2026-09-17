@@ -70,7 +70,7 @@ async def test_requires_active_llm(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="us-nollm@example.com")
     ws = await api_db.member_workspace(user, slug="us-nollm-ws")
     suite = await _project_suite(api_db, ws.id)
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await _post(
             c,
             ws.id,

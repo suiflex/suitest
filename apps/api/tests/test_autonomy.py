@@ -58,7 +58,7 @@ async def test_missing_llm_rejects_non_manual(api_db: ApiDb) -> None:
     ws = await api_db.seed_workspace(slug="auto-zero-ws", name="auto-zero-ws")
     await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.ADMIN)
     await _capability(api_db, ws.id, llm_ready=False)
-    async with api_db.client(user) as c:
+    async with api_db.client(user, llm_ready=False) as c:
         resp = await c.put(
             f"/api/v1/workspaces/{ws.id}/autonomy",
             headers={"X-Workspace-Id": ws.id},

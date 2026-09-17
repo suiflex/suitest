@@ -48,6 +48,7 @@ from suitest_api.services.defect_auto_filer import DefectAutoFiler, DefectCatego
 from suitest_db.models.case import TestCase, TestStep
 from suitest_db.models.defect import Defect, ExternalIssue
 from suitest_db.models.integration import Integration
+from suitest_db.models.llm_config import LLMConfig
 from suitest_db.models.project import Project, Suite
 from suitest_db.models.run import Run
 from suitest_db.models.workspace import Workspace
@@ -109,6 +110,17 @@ async def _seed_world(
         )
         session.add(ws)
         await session.flush()
+
+        session.add(
+            LLMConfig(
+                workspace_id=ws.id,
+                provider="mock",
+                model="mock-1",
+                config_json={},
+                is_active=True,
+                last_validated_at=datetime.now(UTC),
+            )
+        )
 
         project = Project(workspace_id=ws.id, slug=f"p-{slug_suffix}", name="P")
         session.add(project)
