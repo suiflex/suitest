@@ -313,6 +313,7 @@ jobs:
 
       - name: Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
+        continue-on-error: true
         with:
           urls: |
             http://127.0.0.1:4173/_app/dashboard

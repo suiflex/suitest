@@ -114,7 +114,7 @@ async def test_strategy_enrichment_requires_llm(api_db: ApiDb) -> None:
     await api_db.add_all([project])
     headers = {"X-Workspace-Id": workspace.id}
 
-    async with api_db.client(user) as client:
+    async with api_db.client(user, llm_ready=False) as client:
         created = await client.post(
             f"/api/v1/projects/{project.id}/test-strategies/draft",
             headers=headers,
