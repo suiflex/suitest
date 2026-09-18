@@ -80,6 +80,7 @@ describe("<AiPanel>", () => {
       useActiveWorkspace.setState({ workspaceId: null });
     });
     localStorage.removeItem("suitest.agentModel");
+    localStorage.removeItem("suitest.agentPanelCollapsed");
     vi.mocked(fetchLlmModels).mockReset();
   });
 
@@ -167,5 +168,27 @@ describe("<AiPanel>", () => {
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("ai-panel-autoapprove-warning")).toBeInTheDocument();
     expect(localStorage.getItem("suitest.agentAutoApprove")).toBe("1");
+  });
+
+  it("collapses via button and ⌘J, and remembers the choice", async () => {
+    setCaps(CLOUD_ASSIST_CAPS);
+    const { unmount } = render(<AiPanel />);
+
+    await userEvent.click(screen.getByTestId("ai-panel-collapse"));
+    expect(screen.queryByTestId("ai-panel")).toBeNull();
+    expect(screen.getByTestId("ai-panel-collapsed")).toBeInTheDocument();
+    expect(localStorage.getItem("suitest.agentPanelCollapsed")).toBe("1");
+
+    await userEvent.keyboard("{Meta>}j{/Meta}");
+    expect(screen.getByTestId("ai-panel")).toBeInTheDocument();
+
+    await userEvent.keyboard("{Control>}j{/Control}");
+    expect(screen.queryByTestId("ai-panel")).toBeNull();
+
+    unmount();
+    render(<AiPanel />);
+    expect(screen.getByTestId("ai-panel-collapsed")).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("ai-panel-expand"));
+    expect(screen.getByTestId("ai-panel")).toBeInTheDocument();
   });
 });
