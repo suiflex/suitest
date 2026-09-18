@@ -1,4 +1,4 @@
-import { Loader2, Send, ShieldAlert, Sparkles, Zap } from "lucide-react";
+import { Loader2, PanelRightClose, Send, ShieldAlert, Sparkles, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Gated } from "@/components/gating/Gated";
@@ -31,6 +31,7 @@ import { useCapabilities } from "@/stores/use-capabilities";
 
 const SESSION_KEY = "suitest.agentSessionId";
 const AUTO_APPROVE_KEY = "suitest.agentAutoApprove";
+const COLLAPSED_KEY = "suitest.agentPanelCollapsed";
 /** Panel-local model pick. Deliberately not the workspace config: switching
  *  models here must not move the runner and the generators with it. */
 const MODEL_KEY = "suitest.agentModel";
@@ -42,6 +43,14 @@ const AUTO_CHAIN_LIMIT = 6;
 function readAutoApprove(): boolean {
   try {
     return localStorage.getItem(AUTO_APPROVE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === "1";
   } catch {
     return false;
   }
@@ -115,6 +124,9 @@ function AiPanelInner(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [autoApprove, setAutoApprove] = useState(readAutoApprove);
+  // Collapsing only swaps the markup; state stays mounted so a streaming reply
+  // keeps going while the rail is folded away.
+  const [collapsed, setCollapsed] = useState(readCollapsed);
   const abortRef = useRef<AbortController | null>(null);
   const sessionRef = useRef<string | null>(localStorage.getItem(SESSION_KEY));
   const threadEndRef = useRef<HTMLDivElement>(null);
@@ -181,6 +193,26 @@ function AiPanelInner(): React.ReactElement {
       setTurns(history.map((m) => ({ role: m.role as ChatTurn["role"], content: m.content })));
       setLoading(false);
     });
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+    } catch {
+      /* private mode — in-memory only */
+    }
+  }, [collapsed]);
+
+  // ⌘J / Ctrl+J toggles the panel from anywhere in the shell.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key.toLowerCase() === "j" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setCollapsed((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const pickModel = (next: string): void => {
@@ -326,6 +358,30 @@ function AiPanelInner(): React.ReactElement {
     }, 0);
   };
 
+  if (collapsed) {
+    return (
+      <aside
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-l border-border-subtle bg-bg-elev-1 pt-2 xl:flex"
+        data-testid="ai-panel-collapsed"
+      >
+        <button
+          type="button"
+          aria-label="Open Suitest Agent (⌘J)"
+          title="Open Suitest Agent (⌘J)"
+          aria-expanded={false}
+          data-testid="ai-panel-expand"
+          onClick={() => setCollapsed(false)}
+          className="relative flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent hover:bg-accent/25"
+        >
+          <Sparkles className="h-4 w-4" />
+          {streaming ? (
+            <span className="absolute right-0 top-0 h-2 w-2 animate-pulse rounded-full bg-accent" />
+          ) : null}
+        </button>
+      </aside>
+    );
+  }
+
   return (
     <aside
       className="hidden h-full w-[380px] shrink-0 flex-col border-l border-border-subtle bg-bg-elev-1 xl:flex"
@@ -382,6 +438,17 @@ function AiPanelInner(): React.ReactElement {
             New chat
           </button>
         ) : null}
+        <button
+          type="button"
+          aria-label="Collapse Suitest Agent (⌘J)"
+          title="Collapse (⌘J)"
+          aria-expanded={true}
+          data-testid="ai-panel-collapse"
+          onClick={() => setCollapsed(true)}
+          className={`${turns.length > 0 ? "" : "ml-auto "}rounded-md p-1.5 text-fg-4 hover:bg-bg-elev-2 hover:text-fg-1`}
+        >
+          <PanelRightClose className="h-4 w-4" />
+        </button>
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4" data-testid="ai-panel-thread">
