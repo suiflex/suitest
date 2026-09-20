@@ -32,6 +32,7 @@ export class WsClient {
   private listeners = new Map<Topic, Set<Listener>>();
   private subscribed = new Set<Topic>();
   private reconnectAttempts = 0;
+  private connecting = false;
   private url: string;
 
   constructor(url: string) {
@@ -39,11 +40,14 @@ export class WsClient {
   }
 
   connect(): void {
+    if (this.socket || this.connecting) return;
+    this.connecting = true;
     this.socket = new WebSocket(this.url);
     this.socket.onopen = () => {
+      this.connecting = false;
       this.reconnectAttempts = 0;
       for (const t of this.subscribed) {
-        this.socket?.send(JSON.stringify({ type: "subscribe", topic: t }));
+        this.socket?.send(JSON.stringify({ action: "subscribe", topic: t }));
       }
     };
     this.socket.onmessage = (ev: MessageEvent<string>) => {
@@ -58,6 +62,8 @@ export class WsClient {
       }
     };
     this.socket.onclose = () => {
+      this.socket = null;
+      this.connecting = false;
       this.scheduleReconnect();
     };
     this.socket.onerror = () => {
@@ -81,8 +87,12 @@ export class WsClient {
       this.listeners.set(topic, set);
     }
     set.add(cb);
+    // Lazy connect: the first subscriber boots the socket, so hook consumers
+    // never need to call connect() manually (the socket URL carries no token —
+    // same-origin upgrades authenticate via the session cookie).
+    this.connect();
     if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify({ type: "subscribe", topic }));
+      this.socket.send(JSON.stringify({ action: "subscribe", topic }));
     }
     return () => {
       const current = this.listeners.get(topic);
@@ -92,7 +102,7 @@ export class WsClient {
           this.subscribed.delete(topic);
           this.listeners.delete(topic);
           if (this.socket?.readyState === WebSocket.OPEN) {
-            this.socket.send(JSON.stringify({ type: "unsubscribe", topic }));
+            this.socket.send(JSON.stringify({ action: "unsubscribe", topic }));
           }
         }
       }
@@ -168,7 +178,7 @@ export type WorkspaceEvent =
     }
   | {
       event: "capability.changed";
-      data: { tier: string };
+      data: { llmStatus: "not_configured" | "validation_required" | "ready" };
     }
   | {
       // M3-13: the agent requested a tool call in conversation mode; the UI

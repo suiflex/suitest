@@ -54,7 +54,7 @@ from suitest_db.repositories.llm_configs import LLMConfigRepo, LLMConfigUpdate
 from suitest_db.repositories.run_step_logs import RunStepLogRepo
 from suitest_db.repositories.runs import RunRepo, RunStepRepo
 from suitest_db.repositories.workspace_capabilities import WorkspaceCapabilityRepo
-from suitest_mcp.invoker import InvokeContext, McpInvoker
+from suitest_mcp.invoker import InvokeContext, McpInvoker, build_llm_ready_guard
 from suitest_mcp.models import McpArtifact
 from suitest_mcp.providers.builtin_specs import build_playwright_provider
 from suitest_mcp.registry import McpRegistry

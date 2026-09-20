@@ -76,10 +76,10 @@ describe("WsClient", () => {
 
     ws.triggerOpen();
 
-    const topics = ws.sent.map((s) => JSON.parse(s) as { type: string; topic: string });
+    const topics = ws.sent.map((s) => JSON.parse(s) as { action: string; topic: string });
     expect(topics).toHaveLength(2);
     expect(topics.map((t) => t.topic).sort()).toEqual(["capabilities", "runs.123"]);
-    expect(topics.every((t) => t.type === "subscribe")).toBe(true);
+    expect(topics.every((t) => t.action === "subscribe")).toBe(true);
   });
 
   it("dispatches incoming messages to the listener for the matching topic", () => {
@@ -194,9 +194,9 @@ describe("WsClient", () => {
     // Remove last listener — now an unsubscribe frame should be emitted.
     unsubB();
     const unsubFrames = ws.sent
-      .map((s) => JSON.parse(s) as { type: string; topic: string })
-      .filter((m) => m.type === "unsubscribe");
-    expect(unsubFrames).toEqual([{ type: "unsubscribe", topic: "runs.42" }]);
+      .map((s) => JSON.parse(s) as { action: string; topic: string })
+      .filter((m) => m.action === "unsubscribe");
+    expect(unsubFrames).toEqual([{ action: "unsubscribe", topic: "runs.42" }]);
 
     // Further messages on that topic should not invoke any callback.
     ws.triggerMessage({ topic: "runs.42", event: "log", payload: 2 });

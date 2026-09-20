@@ -263,7 +263,7 @@ async def _publish_capability_changed(
     publish = getattr(redis, "publish", None)
     if publish is None:
         return
-    payload = json.dumps({"event": "capability.changed", "llmStatus": llm_status_value})
+    payload = json.dumps({"event": "capability.changed", "data": {"llmStatus": llm_status_value}})
     try:
         await publish(f"workspace:{workspace_id}", payload)
     except Exception:

@@ -52,6 +52,7 @@ from suitest_shared.domain.enums import AutonomyLevel, McpTransport, Role, Targe
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.role import require_role
 from suitest_api.deps.scope import TenantContext, require_workspace_membership
+from suitest_api.deps.tier import ensure_llm_ready
 
 router = APIRouter(prefix="/api/v1", tags=["mcp"])
 
@@ -668,11 +669,15 @@ async def invoke_mcp_provider(
 ) -> McpInvokeResult:
     """Dev-aid: invoke one tool ad-hoc against a custom provider (tool browser).
 
-    Role-gated to ``ADMIN``+ (MCP_PLUGINS §11). Every call is audit-logged with
+    Role-gated to ``ADMIN``+ (MCP_PLUGINS §11) and LLM-gated at the runtime
+    layer: the invariant ``LLM not validated => MCP unavailable`` holds for
+    this direct-execution path too, not only for runs and the agent. Every
+    call is audit-logged with
     ``invocation_source=tool_browser`` and an ``arg_hash`` (raw args are not
     persisted). Builtins are not ad-hoc invokable here (409) — they run through
     the runner. Tool failures surface as ``ok=false`` with the error message.
     """
+    await ensure_llm_ready(session, ctx.workspace_id)
     if provider_id.startswith(_BUILTIN_PREFIX):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

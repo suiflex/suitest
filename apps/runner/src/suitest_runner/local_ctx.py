@@ -10,7 +10,7 @@ is left unset.
 from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from suitest_mcp.invoker import McpInvoker
+from suitest_mcp.invoker import McpInvoker, build_llm_ready_guard
 from suitest_mcp.pool import McpPool
 from suitest_mcp.registry import McpRegistry
 from suitest_mcp.workspace_cap import WorkspacePoolCap
@@ -43,6 +43,9 @@ async def build_local_ctx(ctx: dict[str, object]) -> None:
         redis_client=publisher,  # type: ignore[arg-type]  # NullPublisher duck-types the publish surface
         audit_session_factory=session_factory,
         workspace_cap=workspace_cap,
+        # Execution-layer gate: no MCP tool dispatches unless the workspace
+        # LLM is connected and validated (re-checked per invocation).
+        llm_ready_guard=build_llm_ready_guard(session_factory),
     )
     ctx["settings"] = settings
     ctx["engine"] = engine

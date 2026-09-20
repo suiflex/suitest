@@ -43,7 +43,7 @@ from suitest_mcp.errors import McpToolFailed, McpToolTimeout
 from suitest_mcp.routing import resolve_provider
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Callable
     from contextlib import AbstractAsyncContextManager
 
     from redis.asyncio import Redis as AsyncRedis
@@ -86,6 +86,47 @@ class _AuditSessionFactory(Protocol):
     def __call__(self) -> AbstractAsyncContextManager[_AuditSession]: ...
 
 
+class LlmReadinessGuard(Protocol):
+    """Verifies the workspace LLM is connected and validated before dispatch.
+
+    Returns normally when the workspace may execute MCP tools; raises
+    (typically :class:`McpToolFailed`) when it may not. Implementations live
+    with the caller because readiness is a DB fact about the workspace — this
+    module ships the reference DB-backed builder in
+    :func:`build_llm_ready_guard`.
+    """
+
+    async def __call__(self, workspace_id: str) -> None: ...
+
+
+def build_llm_ready_guard(
+    session_factory: Callable[[], AbstractAsyncContextManager[object]],
+) -> LlmReadinessGuard:
+    """DB-backed readiness guard factory, shared by the runner and the API.
+
+    Re-reads the active ``LLMConfig`` on EVERY invocation on purpose: a config
+    cleared or un-validated mid-flight must take effect on the next tool call,
+    not after the next pool recycle. The invariant
+    ``LLM not validated => MCP unavailable`` is enforced here at the execution
+    layer — an invoker still holding pooled sessions from a previously-ready
+    workspace refuses to dispatch.
+
+    Raises :class:`McpToolFailed` with a stable ``LLM_NOT_READY`` prefix; the
+    step executor surfaces it verbatim as the step/run error.
+    """
+    from suitest_db.repositories.llm_configs import LLMConfigRepo
+
+    async def guard(workspace_id: str) -> None:
+        async with session_factory() as session:
+            config = await LLMConfigRepo(session).get_active(workspace_id)  # type: ignore[arg-type]
+        if config is None or config.last_validated_at is None:
+            raise McpToolFailed(
+                "LLM_NOT_READY: connect and validate a workspace LLM before MCP execution"
+            )
+
+    return guard
+
+
 @dataclass
 class InvokeContext:
     """Per-call attribution carried with one MCP tool invocation.
@@ -120,6 +161,7 @@ class McpInvoker:
         redis_client: AsyncRedis,
         audit_session_factory: _AuditSessionFactory,
         workspace_cap: WorkspacePoolCap | None = None,
+        llm_ready_guard: LlmReadinessGuard | None = None,
     ) -> None:
         self.registry = registry
         self.pool = pool
@@ -131,6 +173,12 @@ class McpInvoker:
         # slot before touching the pool. ``None`` (default) preserves
         # existing test fixtures + the legacy soft cap inside McpPool.
         self.workspace_cap = workspace_cap
+        # Execution-layer security gate: when wired, NO tool call dispatches
+        # unless the workspace LLM is connected and validated. ``None`` keeps
+        # legacy behavior for existing test fixtures; every production wiring
+        # (runner worker, local supervisor, API generators) passes
+        # ``build_llm_ready_guard``.
+        self.llm_ready_guard = llm_ready_guard
 
     async def invoke(
         self,
@@ -147,6 +195,12 @@ class McpInvoker:
         ``mcp.tool.end`` event and writing the audit row so the runner gets
         observability + persistence for the failure path too.
         """
+        if self.llm_ready_guard is not None:
+            # Invariant ``LLM not validated => MCP unavailable``: refuses the
+            # dispatch BEFORE routing, pooling, events, or audit — the same
+            # no-dispatch convention as the health gate below.
+            await self.llm_ready_guard(ctx.workspace_id)
+
         provider = resolve_provider(
             self.registry,
             workspace_id=ctx.workspace_id,

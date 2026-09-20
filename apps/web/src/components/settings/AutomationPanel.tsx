@@ -7,6 +7,7 @@ import {
   fetchAutonomy,
   putAutonomy,
 } from "@/lib/api-client";
+import { useCapabilities } from "@/stores/use-capabilities";
 
 /** The four autonomy levels with UI copy (mirrors docs/AUTONOMY.md §2 + §7). */
 const LEVELS: { id: AutonomyLevel; name: string; blurb: string; hint: string }[] = [
@@ -74,7 +75,13 @@ export function AutomationPanel({
   }, [query.data]);
 
   const data: AutonomyState | undefined = query.data;
-  const llmReady = data?.llmStatus === "ready";
+  // Readiness comes from the authoritative capabilities store, not the
+  // autonomy endpoint's copy — the two can drift when the LLM is validated
+  // elsewhere (header quick-test, another tab) and this query is not
+  // refetched. The WS `capability.changed` subscription in the root layout
+  // keeps the store current.
+  const llmStatus = useCapabilities((s) => s.capabilities?.llm?.status);
+  const llmReady = llmStatus === "ready";
 
   const saveMutation = useMutation({
     mutationFn: () => putAutonomy(workspaceId, { level, overrides }),

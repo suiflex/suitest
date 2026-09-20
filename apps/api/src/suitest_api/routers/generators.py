@@ -30,7 +30,7 @@ from suitest_db.repositories.mcp_providers import McpProviderRepo
 from suitest_db.repositories.projects import ProjectRepo
 from suitest_db.repositories.recorder_sessions import RecorderSessionRepo
 from suitest_db.repositories.suites import SuiteRepo
-from suitest_mcp.invoker import McpInvoker
+from suitest_mcp.invoker import McpInvoker, build_llm_ready_guard
 from suitest_mcp.pool import McpPool
 from suitest_mcp.registry import McpRegistry
 from suitest_shared.domain.enums import Role, TargetKind
@@ -363,6 +363,9 @@ def _build_mcp_invoker(workspace_id: str, request: Request) -> McpInvoker:
         health=None,
         redis_client=redis_client,
         audit_session_factory=async_session_maker,
+        # Execution-layer gate (defense in depth beside the route-level
+        # ``require_llm_ready``): no tool dispatches without a validated LLM.
+        llm_ready_guard=build_llm_ready_guard(async_session_maker),
     )
 
 

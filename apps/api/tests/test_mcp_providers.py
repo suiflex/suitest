@@ -368,6 +368,8 @@ async def test_invoke_executes_tool_for_admin(api_db: ApiDb, tmp_path: object) -
     user = await api_db.seed_user(email="mcp-inv-admin@example.com")
     ws = await api_db.seed_workspace(slug="mcp-inv-admin-ws", name="Admin WS")
     await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.OWNER)
+    # Runtime gate: the tool browser refuses to execute without a validated LLM.
+    await api_db.seed_ready_llm(ws.id)
     cmd = _mock_command(tmp_path)
     async with api_db.client(user) as c:
         created = await c.post(
@@ -386,6 +388,67 @@ async def test_invoke_executes_tool_for_admin(api_db: ApiDb, tmp_path: object) -
     assert payload["ok"] is True
     assert "pong" in payload["stdout"]
 
+
+@pytest.mark.asyncio
+async def test_invoke_rejected_without_validated_llm(api_db: ApiDb, tmp_path: object) -> None:
+    """``LLM disconnected => MCP unavailable`` holds on the direct HTTP path too.
+
+    Even ADMIN+ cannot invoke a tool in a workspace whose LLM is configured but
+    never connection-tested (or absent): the check is server-side, not a UI
+    affordance.
+    """
+    from datetime import UTC, datetime
+
+    from suitest_db.repositories.llm_configs import LLMConfigCreate, LLMConfigRepo
+
+    user = await api_db.seed_user(email="mcp-inv-nollm@example.com")
+    ws = await api_db.seed_workspace(slug="mcp-inv-nollm-ws", name="Admin WS")
+    await api_db.seed_membership(workspace_id=ws.id, user_id=user.id, role=Role.OWNER)
+    cmd = _mock_command(tmp_path)
+    async with api_db.maker() as session:
+        # Configured but never validated — exactly the "saved != connected" trap.
+        await LLMConfigRepo(session).create(
+            LLMConfigCreate(
+                workspace_id=ws.id,
+                provider="custom",
+                model="some-model",
+                api_key_encrypted="sk-test",
+                config_json={"base_url": "http://127.0.0.1:9/v1"},
+                is_active=True,
+            )
+        )
+        await session.commit()
+
+    async with api_db.client(user, llm_ready=False) as c:
+        created = await c.post(
+            "/api/v1/mcp/providers",
+            json={"name": "inv-nollm", "kind": "custom", "endpoint": cmd, "transport": "stdio"},
+            headers=_h(ws.id),
+        )
+        pid = created.json()["id"]
+
+        # Unvalidated config → 409 before any tool dispatch.
+        resp = await c.post(
+            f"/api/v1/mcp/providers/{pid}/invoke",
+            json={"tool": "echo", "arguments": {}},
+            headers=_h(ws.id),
+        )
+        assert resp.status_code == 409, resp.text
+        assert resp.json()["detail"]["code"] == "LLM_NOT_READY"
+
+        # After a successful validation the same call is allowed.
+        async with api_db.maker() as seed_session:
+            cfg = await LLMConfigRepo(seed_session).get_active(ws.id)
+            assert cfg is not None
+            cfg.last_validated_at = datetime.now(tz=UTC)
+            await seed_session.commit()
+        resp = await c.post(
+            f"/api/v1/mcp/providers/{pid}/invoke",
+            json={"tool": "echo", "arguments": {"ping": "pong"}},
+            headers=_h(ws.id),
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["ok"] is True
 
 @pytest.mark.asyncio
 async def test_invoke_builtin_rejected(api_db: ApiDb) -> None:

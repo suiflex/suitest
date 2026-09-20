@@ -7,6 +7,7 @@ from suitest_agent.providers.base import ChatMessage, CompletionResult, ModelCal
 from suitest_agent.providers.litellm_router import (
     LiteLLMProvider,
     get_provider,
+    normalize_openai_base_url,
     seed_determinism,
     to_litellm_model,
 )
@@ -179,3 +180,48 @@ def test_get_provider_returns_litellm_for_cloud_key() -> None:
     p = get_provider("anthropic", api_key="sk-test")
     assert isinstance(p, LiteLLMProvider)
     assert p.name == "anthropic"
+
+# --- Custom [OI]-compatible endpoint: base URL normalization (root cause #1) ---
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        # Bare origin: the [OI] client appends /chat/completions, so the base
+        # must name the resource root, not the server root.
+        ("https://gw.example.com", "https://gw.example.com/v1"),
+        # Trailing slash must not survive (it would produce //chat/completions).
+        ("https://gw.example.com/", "https://gw.example.com/v1"),
+        # Already-correct forms pass through unchanged.
+        ("https://gw.example.com/v1", "https://gw.example.com/v1"),
+        ("https://gw.example.com/v1/", "https://gw.example.com/v1"),
+        # Version pasted twice: the classic "self-hosted gateway behind a
+        # versioned reverse proxy" paste.
+        ("https://gw.example.com/v1/v1", "https://gw.example.com/v1"),
+        ("https://gw.example.com/v1/v1/", "https://gw.example.com/v1"),
+        # Users paste the full endpoint URL straight out of a curl example.
+        ("https://gw.example.com/v1/chat/completions", "https://gw.example.com/v1"),
+        ("https://gw.example.com/v1/chat/completions/", "https://gw.example.com/v1"),
+        # A gateway mounted at a non-default path is respected verbatim.
+        ("https://gw.example.com/api/openai", "https://gw.example.com/api/openai"),
+        ("https://gw.example.com/api/openai/", "https://gw.example.com/api/openai"),
+    ],
+)
+def test_normalize_openai_base_url(raw: str, expected: str) -> None:
+    assert normalize_openai_base_url(raw) == expected
+
+def test_custom_provider_normalizes_base_url_into_kwargs() -> None:
+    p = LiteLLMProvider(provider="custom", base_url="https://gw.example.com/v1/")
+    kwargs = p._kwargs(_call())
+    assert kwargs["api_base"] == "https://gw.example.com/v1"
+
+def test_custom_provider_timeout_reaches_kwargs() -> None:
+    """An unreachable endpoint must fail fast, not hang on the client default."""
+    p = LiteLLMProvider(provider="custom", base_url="https://gw.example.com/v1", timeout=7.5)
+    kwargs = p._kwargs(_call())
+    assert kwargs["timeout"] == 7.5
+
+def test_non_openai_shim_base_url_is_passed_through() -> None:
+    """Ollama's native API is not [OI]-path-grammar; never rewritten."""
+    p = LiteLLMProvider(provider="ollama", base_url="http://localhost:11434")
+    kwargs = p._kwargs(_call())
+    assert kwargs["api_base"] == "http://localhost:11434"

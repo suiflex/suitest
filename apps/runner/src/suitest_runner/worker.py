@@ -26,7 +26,7 @@ from arq import cron
 from arq.connections import ArqRedis, RedisSettings, create_pool
 from redis import asyncio as redis_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from suitest_mcp.invoker import McpInvoker
+from suitest_mcp.invoker import McpInvoker, build_llm_ready_guard
 from suitest_mcp.pool import McpPool
 from suitest_mcp.registry import McpRegistry
 from suitest_mcp.workspace_cap import WorkspacePoolCap
@@ -82,6 +82,9 @@ async def startup(ctx: dict[str, object]) -> None:
         redis_client=redis_client,
         audit_session_factory=session_factory,
         workspace_cap=workspace_cap,
+        # Execution-layer gate: no MCP tool dispatches unless the workspace
+        # LLM is connected and validated (re-checked per invocation).
+        llm_ready_guard=build_llm_ready_guard(session_factory),
     )
     # M1d-10 ARQ pool used by the defect auto-filer to enqueue downstream
     # ``send_slack_notification`` (M1d-15) + ``file_external_issue`` (M1d-10)

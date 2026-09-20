@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
@@ -358,3 +359,143 @@ async def test_invoker_skips_publish_when_no_run_id(
     assert redis.published == {}
     assert len(audit.rows) == 1
     assert audit.rows[0].metadata_json["run_id"] is None
+
+# --- LLM readiness gate: ``LLM not validated => MCP unavailable`` ------------
+
+class _StubLlmSession:
+    """Session stub that only serves :meth:`LLMConfigRepo.get_active`."""
+
+    def __init__(self, config: object) -> None:
+        self._config = config
+
+    async def scalar(self, _stmt: object) -> object:
+        return self._config
+
+def _llm_guard_factory(config_getter: Callable[[], object]) -> object:
+    @asynccontextmanager
+    async def factory() -> AsyncIterator[_StubLlmSession]:
+        yield _StubLlmSession(config_getter())
+
+    return factory
+
+async def _happy_dispatch(invoker: McpInvoker, mock_mcp_server: MockMcpServer) -> None:
+    result = await invoker.invoke(
+        explicit_provider="mock",
+        tool="echo",
+        arguments={"text": "ping"},
+        ctx=_ctx(run_id=None, step_id=None),
+    )
+    assert result.ok is True
+
+async def test_invoker_refuses_dispatch_without_llm_ready(
+    mock_mcp_server: MockMcpServer,
+) -> None:
+    """No active config: the guard denies BEFORE routing, pooling, or events."""
+    from suitest_mcp.invoker import build_llm_ready_guard
+
+    reg = _registry_with("mock", _mock_cfg(mock_mcp_server.command))
+    pool = McpPool()
+    redis = _RecordingRedis()
+    audit = _RecordingAuditFactory()
+    invoker = McpInvoker(
+        registry=reg,
+        pool=pool,
+        health=None,
+        redis_client=redis,
+        audit_session_factory=audit,
+        llm_ready_guard=build_llm_ready_guard(_llm_guard_factory(lambda: None)),
+    )
+    with pytest.raises(McpToolFailed, match="LLM_NOT_READY"):
+        await invoker.invoke(
+            explicit_provider="mock", tool="echo", arguments={}, ctx=_ctx(run_id=None)
+        )
+    # Nothing was dispatched, published, or audited: the call never left the gate.
+    assert redis.published == {}
+    assert audit.rows == []
+    await pool.shutdown()
+
+async def test_invoker_refuses_unvalidated_llm(
+    mock_mcp_server: MockMcpServer,
+) -> None:
+    """Saved-but-never-validated credentials are NOT proof of connectivity."""
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from suitest_mcp.invoker import build_llm_ready_guard
+
+    reg = _registry_with("mock", _mock_cfg(mock_mcp_server.command))
+    pool = McpPool()
+    unvalidated = SimpleNamespace(last_validated_at=None, provider="custom")
+    invoker = McpInvoker(
+        registry=reg,
+        pool=pool,
+        health=None,
+        redis_client=_RecordingRedis(),
+        audit_session_factory=_RecordingAuditFactory(),
+        llm_ready_guard=build_llm_ready_guard(_llm_guard_factory(lambda: unvalidated)),
+    )
+    with pytest.raises(McpToolFailed, match="LLM_NOT_READY"):
+        await invoker.invoke(
+            explicit_provider="mock", tool="echo", arguments={}, ctx=_ctx(run_id=None)
+        )
+    assert unvalidated.last_validated_at is None
+    _ = datetime.now(tz=UTC)  # keep the import honest for the validated case below
+    await pool.shutdown()
+
+async def test_invoker_dispatches_when_llm_ready(
+    mock_mcp_server: MockMcpServer,
+) -> None:
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from suitest_mcp.invoker import build_llm_ready_guard
+
+    reg = _registry_with("mock", _mock_cfg(mock_mcp_server.command))
+    pool = McpPool()
+    ready = SimpleNamespace(last_validated_at=datetime.now(tz=UTC), provider="custom")
+    invoker = McpInvoker(
+        registry=reg,
+        pool=pool,
+        health=None,
+        redis_client=_RecordingRedis(),
+        audit_session_factory=_RecordingAuditFactory(),
+        llm_ready_guard=build_llm_ready_guard(_llm_guard_factory(lambda: ready)),
+    )
+    await _happy_dispatch(invoker, mock_mcp_server)
+    await pool.shutdown()
+
+async def test_guard_is_reevaluated_on_every_invoke(
+    mock_mcp_server: MockMcpServer,
+) -> None:
+    """A mid-flight disconnect denies the NEXT call on the same invoker + pool.
+
+    Pooled MCP sessions from the previously-ready window must not stay
+    executable after the workspace LLM is disconnected.
+    """
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from suitest_mcp.invoker import build_llm_ready_guard
+
+    reg = _registry_with("mock", _mock_cfg(mock_mcp_server.command))
+    pool = McpPool()
+    state: dict[str, object] = {
+        "config": SimpleNamespace(last_validated_at=datetime.now(tz=UTC), provider="custom")
+    }
+    invoker = McpInvoker(
+        registry=reg,
+        pool=pool,
+        health=None,
+        redis_client=_RecordingRedis(),
+        audit_session_factory=_RecordingAuditFactory(),
+        llm_ready_guard=build_llm_ready_guard(_llm_guard_factory(lambda: state["config"])),
+    )
+    await _happy_dispatch(invoker, mock_mcp_server)
+
+    # LLM disconnected → the stale pooled session must be dead to the next call.
+    state["config"] = None
+    with pytest.raises(McpToolFailed, match="LLM_NOT_READY"):
+        await invoker.invoke(
+            explicit_provider="mock", tool="echo", arguments={}, ctx=_ctx(run_id=None)
+        )
+    await pool.shutdown()

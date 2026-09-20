@@ -3,6 +3,7 @@ import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 import { Suspense, useEffect } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
+import { useCapabilitySync } from "@/hooks/use-capability-sync";
 import { useCapabilities } from "@/stores/use-capabilities";
 
 /**
@@ -32,6 +33,12 @@ function RootLayout(): React.ReactElement {
   useEffect(() => {
     void fetch();
   }, [fetch]);
+
+  // Live capability updates: any LLM config mutation (settings save, header
+  // quick-test, OAuth finish, disconnect — from this tab or another client)
+  // publishes `capability.changed`; refetching here moves the header badge
+  // and every `<Gated>` surface immediately, with no page refresh.
+  useCapabilitySync();
 
   return (
     <Suspense fallback={<RootFallback />}>

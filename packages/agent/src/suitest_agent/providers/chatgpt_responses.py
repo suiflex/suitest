@@ -74,6 +74,33 @@ class ChatGptResponsesProvider:
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(timeout=_TIMEOUT, transport=self._transport)
 
+    @staticmethod
+    def _status_error(status_code: int, body: str | None) -> ProviderError:
+        """Build the provider failure for a non-2xx backend reply.
+
+        The backend's JSON error body (``error.message``, or the raw text when
+        it is not JSON) names the actual cause — an unentitled model slug, a
+        plan restriction, a malformed payload — so it is surfaced verbatim
+        instead of the bare status code, which reads as a mystery failure.
+        """
+        detail = ""
+        if body:
+            try:
+                parsed = json.loads(body)
+                if isinstance(parsed, dict):
+                    err = parsed.get("error")
+                    if isinstance(err, dict) and isinstance(err.get("message"), str):
+                        detail = err["message"]
+                    elif not isinstance(err, dict) and isinstance(parsed.get("detail"), str):
+                        detail = parsed["detail"]
+            except ValueError:
+                pass
+            if not detail:
+                detail = body.strip()[:300]
+        suffix = f": {detail}" if detail else ""
+        code = "PROVIDER_AUTH" if status_code in (401, 403) else "PROVIDER_CALL_FAILED"
+        return ProviderError(code, f"chatgpt returned status {status_code}{suffix}")
+
     async def complete(self, call: ModelCall) -> CompletionResult:
         async with self._client() as client:
             try:
@@ -86,10 +113,7 @@ class ChatGptResponsesProvider:
                 raise ProviderError("PROVIDER_CALL_FAILED", str(exc)) from exc
 
         if response.status_code >= 400:
-            raise ProviderError(
-                "PROVIDER_AUTH" if response.status_code in (401, 403) else "PROVIDER_CALL_FAILED",
-                f"{self.name} returned status {response.status_code}",
-            )
+            raise self._status_error(response.status_code, response.text)
         try:
             body = response.json()
         except ValueError as exc:
@@ -119,10 +143,8 @@ class ChatGptResponsesProvider:
                     json=build_payload(call, stream=True),
                 ) as response:
                     if response.status_code >= 400:
-                        raise ProviderError(
-                            "PROVIDER_CALL_FAILED",
-                            f"{self.name} returned status {response.status_code}",
-                        )
+                        body = (await response.aread()).decode(errors="replace")
+                        raise self._status_error(response.status_code, body)
                     async for line in response.aiter_lines():
                         event = _sse_payload(line)
                         if event is None:

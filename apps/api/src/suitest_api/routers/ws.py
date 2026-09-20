@@ -103,7 +103,14 @@ async def _resolve_user_from_token(websocket: WebSocket, token: str | None) -> U
     (which we cannot use inside a WS handler before ``accept()``). Returns the
     :class:`User` on success, ``None`` on any failure (bad JWT, missing user,
     DB error).
+
+    Same-origin upgrades (the SPA served from this deployment) send the
+    ``suitest_session`` cookie, so an absent ``?token=`` falls back to the
+    cookie's JWT — the same strategy validates both. Cross-origin clients that
+    cannot send cookies keep using the explicit query token.
     """
+    if not token:
+        token = websocket.cookies.get("suitest_session")
     if not token:
         return None
 

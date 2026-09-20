@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Protocol
+from urllib.parse import urlparse
 
 from suitest_agent.providers.base import (
     CompletionResult,
@@ -117,6 +118,38 @@ def seed_determinism(provider: str) -> str:
     return "deterministic" if provider.strip().lower() in _DETERMINISTIC_SEED else "best_effort"
 
 
+def normalize_openai_base_url(raw: str) -> str:
+    """Normalize a user-supplied [OI]-compatible base URL.
+
+    Users paste any of these into Settings and expect all of them to work:
+
+    * ``https://gw.example.com``            — bare origin (served under ``/v1``)
+    * ``https://gw.example.com/``           — trailing slash
+    * ``https://gw.example.com/v1``         — already correct
+    * ``https://gw.example.com/v1/``        — trailing slash after the version
+    * ``https://gw.example.com/v1/v1``      — version pasted twice
+    * ``https://gw.example.com/v1/chat/completions`` — the full endpoint URL
+
+    The OpenAI client appends ``/chat/completions`` to whatever base it is
+    given, so the normalized result always points at the resource root, never
+    at a duplicate version segment or a doubled path. A URL with any other
+    non-empty path (e.g. a gateway mounted at ``/api/openai``) is respected
+    verbatim — only dangling slashes, the ``/chat/completions`` suffix, and a
+    duplicated ``/v1`` are rewritten.
+
+    Ollama's native API does not go through this function: it is keyed by
+    provider, and only ``_OPENAI_SHIM`` providers speak the [OI] path grammar.
+    """
+    url = raw.strip().rstrip("/")
+    if url.endswith("/chat/completions"):
+        url = url[: -len("/chat/completions")].rstrip("/")
+    while "/v1/v1" in url:
+        url = url.replace("/v1/v1", "/v1", 1)
+    if not urlparse(url).path:
+        url = f"{url}/v1"
+    return url
+
+
 def to_litellm_model(provider: str, model: str) -> str:
     """Map a workspace provider key + bare model name to a LiteLLM model id."""
     p = provider.strip().lower()
@@ -148,13 +181,25 @@ class LiteLLMProvider:
         workspace_id: str | None = None,
         db_session_factory: _DbSessionFactory | None = None,
         extra_headers: dict[str, str] | None = None,
+        timeout: float = 120.0,
     ) -> None:
         self.name = provider.strip().lower()
         self._api_key = api_key
-        self._base_url = base_url
+        # [OI]-shim providers speak the [OI] path grammar, so the pasted base
+        # URL is normalized (trailing slash, /v1 duplication, full-endpoint
+        # paste). Other providers' base URLs have provider-specific semantics
+        # (ollama's native API, azure deployments) and are passed through.
+        if base_url and self.name in _OPENAI_SHIM:
+            self._base_url: str | None = normalize_openai_base_url(base_url)
+        else:
+            self._base_url = base_url
         self._workspace_id = workspace_id
         self._db_session_factory = db_session_factory
         self._extra_headers = extra_headers
+        # Without an explicit timeout LiteLLM waits for its internal default
+        # (600s); an unreachable custom endpoint then hangs the connection
+        # test and every dependent request instead of failing fast.
+        self._timeout = timeout
         self._configured = False
 
     def _ensure_configured(self) -> None:
@@ -184,6 +229,7 @@ class LiteLLMProvider:
             "messages": [m.model_dump() for m in call.messages],
             "temperature": call.temperature,
             "max_tokens": call.max_tokens,
+            "timeout": self._timeout,
         }
         if self._api_key:
             kwargs["api_key"] = self._api_key

@@ -194,3 +194,27 @@ async def test_a_rejected_credential_is_reported_as_auth() -> None:
     with pytest.raises(ProviderError) as err:
         await _provider(denied).complete(_call())
     assert err.value.code == "PROVIDER_AUTH"
+
+@pytest.mark.asyncio
+async def test_error_body_message_is_surfaced_not_just_status() -> None:
+    """A 400 must name the cause (e.g. unentitled model), not bare 'status 400'."""
+
+    def denied(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400, json={"error": {"message": "model gpt-5.5 is not eligible for this plan"}}
+        )
+
+    with pytest.raises(ProviderError) as err:
+        await _provider(denied).complete(_call())
+    assert err.value.code == "PROVIDER_CALL_FAILED"
+    assert "model gpt-5.5 is not eligible for this plan" in err.value.message
+    assert "400" in err.value.message
+
+def test_status_error_falls_back_to_non_json_body() -> None:
+    err = ChatGptResponsesProvider._status_error(502, "<html>Bad Gateway</html>")
+    assert "Bad Gateway" in err.message
+    assert err.code == "PROVIDER_CALL_FAILED"
+
+def test_status_error_without_body_still_names_the_status() -> None:
+    err = ChatGptResponsesProvider._status_error(500, None)
+    assert err.message == "chatgpt returned status 500"
