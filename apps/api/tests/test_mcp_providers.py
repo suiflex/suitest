@@ -450,6 +450,7 @@ async def test_invoke_rejected_without_validated_llm(api_db: ApiDb, tmp_path: ob
         assert resp.status_code == 200, resp.text
         assert resp.json()["ok"] is True
 
+
 @pytest.mark.asyncio
 async def test_invoke_builtin_rejected(api_db: ApiDb) -> None:
     user = await api_db.seed_user(email="mcp-inv-builtin@example.com")

@@ -360,7 +360,9 @@ async def test_invoker_skips_publish_when_no_run_id(
     assert len(audit.rows) == 1
     assert audit.rows[0].metadata_json["run_id"] is None
 
+
 # --- LLM readiness gate: ``LLM not validated => MCP unavailable`` ------------
+
 
 class _StubLlmSession:
     """Session stub that only serves :meth:`LLMConfigRepo.get_active`."""
@@ -371,12 +373,14 @@ class _StubLlmSession:
     async def scalar(self, _stmt: object) -> object:
         return self._config
 
+
 def _llm_guard_factory(config_getter: Callable[[], object]) -> object:
     @asynccontextmanager
     async def factory() -> AsyncIterator[_StubLlmSession]:
         yield _StubLlmSession(config_getter())
 
     return factory
+
 
 async def _happy_dispatch(invoker: McpInvoker, mock_mcp_server: MockMcpServer) -> None:
     result = await invoker.invoke(
@@ -386,6 +390,7 @@ async def _happy_dispatch(invoker: McpInvoker, mock_mcp_server: MockMcpServer) -
         ctx=_ctx(run_id=None, step_id=None),
     )
     assert result.ok is True
+
 
 async def test_invoker_refuses_dispatch_without_llm_ready(
     mock_mcp_server: MockMcpServer,
@@ -413,6 +418,7 @@ async def test_invoker_refuses_dispatch_without_llm_ready(
     assert redis.published == {}
     assert audit.rows == []
     await pool.shutdown()
+
 
 async def test_invoker_refuses_unvalidated_llm(
     mock_mcp_server: MockMcpServer,
@@ -442,6 +448,7 @@ async def test_invoker_refuses_unvalidated_llm(
     _ = datetime.now(tz=UTC)  # keep the import honest for the validated case below
     await pool.shutdown()
 
+
 async def test_invoker_dispatches_when_llm_ready(
     mock_mcp_server: MockMcpServer,
 ) -> None:
@@ -463,6 +470,7 @@ async def test_invoker_dispatches_when_llm_ready(
     )
     await _happy_dispatch(invoker, mock_mcp_server)
     await pool.shutdown()
+
 
 async def test_guard_is_reevaluated_on_every_invoke(
     mock_mcp_server: MockMcpServer,

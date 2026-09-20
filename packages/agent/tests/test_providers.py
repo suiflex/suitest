@@ -181,7 +181,9 @@ def test_get_provider_returns_litellm_for_cloud_key() -> None:
     assert isinstance(p, LiteLLMProvider)
     assert p.name == "anthropic"
 
+
 # --- Custom [OI]-compatible endpoint: base URL normalization (root cause #1) ---
+
 
 @pytest.mark.parametrize(
     ("raw", "expected"),
@@ -209,16 +211,19 @@ def test_get_provider_returns_litellm_for_cloud_key() -> None:
 def test_normalize_openai_base_url(raw: str, expected: str) -> None:
     assert normalize_openai_base_url(raw) == expected
 
+
 def test_custom_provider_normalizes_base_url_into_kwargs() -> None:
     p = LiteLLMProvider(provider="custom", base_url="https://gw.example.com/v1/")
     kwargs = p._kwargs(_call())
     assert kwargs["api_base"] == "https://gw.example.com/v1"
+
 
 def test_custom_provider_timeout_reaches_kwargs() -> None:
     """An unreachable endpoint must fail fast, not hang on the client default."""
     p = LiteLLMProvider(provider="custom", base_url="https://gw.example.com/v1", timeout=7.5)
     kwargs = p._kwargs(_call())
     assert kwargs["timeout"] == 7.5
+
 
 def test_non_openai_shim_base_url_is_passed_through() -> None:
     """Ollama's native API is not [OI]-path-grammar; never rewritten."""
