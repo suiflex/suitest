@@ -87,14 +87,16 @@ class ChatGptResponsesProvider:
         if body:
             try:
                 parsed = json.loads(body)
-                if isinstance(parsed, dict):
-                    err = parsed.get("error")
-                    if isinstance(err, dict) and isinstance(err.get("message"), str):
-                        detail = err["message"]
-                    elif not isinstance(err, dict) and isinstance(parsed.get("detail"), str):
-                        detail = parsed["detail"]
             except ValueError:
-                pass
+                # Not JSON: the raw text itself is the most informative thing
+                # the backend sent, so it becomes the detail below.
+                parsed = None
+            if isinstance(parsed, dict):
+                err = parsed.get("error")
+                if isinstance(err, dict) and isinstance(err.get("message"), str):
+                    detail = err["message"]
+                elif not isinstance(err, dict) and isinstance(parsed.get("detail"), str):
+                    detail = parsed["detail"]
             if not detail:
                 detail = body.strip()[:300]
         suffix = f": {detail}" if detail else ""
