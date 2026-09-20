@@ -16166,7 +16166,7 @@
     },
     "/api/v1/mcp/providers/{provider_id}/invoke": {
       "post": {
-        "description": "Dev-aid: invoke one tool ad-hoc against a custom provider (tool browser).\n\nRole-gated to ``ADMIN``+ (MCP_PLUGINS \u00a711). Every call is audit-logged with\n``invocation_source=tool_browser`` and an ``arg_hash`` (raw args are not\npersisted). Builtins are not ad-hoc invokable here (409) \u2014 they run through\nthe runner. Tool failures surface as ``ok=false`` with the error message.",
+        "description": "Dev-aid: invoke one tool ad-hoc against a custom provider (tool browser).\n\nRole-gated to ``ADMIN``+ (MCP_PLUGINS \u00a711) and LLM-gated at the runtime\nlayer: the invariant ``LLM not validated => MCP unavailable`` holds for\nthis direct-execution path too, not only for runs and the agent. Every\ncall is audit-logged with\n``invocation_source=tool_browser`` and an ``arg_hash`` (raw args are not\npersisted). Builtins are not ad-hoc invokable here (409) \u2014 they run through\nthe runner. Tool failures surface as ``ok=false`` with the error message.",
         "operationId": "invoke_mcp_provider_api_v1_mcp_providers__provider_id__invoke_post",
         "parameters": [
           {
