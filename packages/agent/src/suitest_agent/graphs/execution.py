@@ -1,8 +1,9 @@
 """EXECUTION mode graph (M3-4, docs/AI_AGENT.md §4.4).
 
-For each step: a step with executable ``code`` runs deterministically (no LLM); an
-``action``-only step is translated to one MCP tool call via the LLM when the tier
-permits; an ``action``-only step at ZERO tier yields ``NO_LLM_FOR_AGENTIC_STEP``.
+For each step: a step with executable ``code`` runs deterministically; an
+``action``-only step is translated to one MCP tool call via the bound LLM. The
+graph is only built with a provider from a ready workspace LLM, so there is no
+no-LLM branch here: readiness is enforced before the graph (``LLM_NOT_READY``).
 
 This graph performs *classification + translation* only — the actual MCP dispatch
 is the runner's job (M1c / M3-10). It returns a per-step plan in state.
@@ -28,7 +29,6 @@ StepPlan = dict[str, object]
 class ExecutionState(TypedDict, total=False):
     case_id: str
     steps: list[Step]
-    tier_has_llm: bool
     model: str
     seed: int | None
     plans: list[StepPlan]
@@ -52,7 +52,7 @@ async def translate_single_step(
     Returns ``{"tool": str, "arguments": dict}`` ready for the runner's MCP
     dispatch, or ``None`` when the model cannot express the action as a single
     tool call (``tool`` null/missing). Used by the runner at execution time for
-    agentic (code-less) steps when the workspace tier has an LLM.
+    agentic (code-less) steps once the workspace LLM is ready.
     """
     system_prompt = load("translate-step", prompt_version)
     result = await complete_with_prompt(
@@ -79,9 +79,6 @@ def build_execution_graph(
         for idx, step in enumerate(state.get("steps", [])):
             if _has_code(step):
                 plans.append({"index": idx, "mode": "deterministic", "code": step.get("code")})
-                continue
-            if not state.get("tier_has_llm", False):
-                plans.append({"index": idx, "mode": "error", "error": "NO_LLM_FOR_AGENTIC_STEP"})
                 continue
             result = await complete_with_prompt(
                 provider,

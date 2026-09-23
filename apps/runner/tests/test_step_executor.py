@@ -4,7 +4,7 @@ We mock the :class:`suitest_mcp.invoker.McpInvoker` entirely — the executor's
 job is just envelope parsing, dispatch, and outcome mapping, so the test
 surface is the four-way decision tree:
 
-* no code and no translator → SKIP with ``NO_LLM_FOR_AGENTIC_STEP``;
+* no code and no translator (LLM not ready) → ERROR with ``LLM_NOT_READY``;
 * well-formed code + happy invoker → PASS;
 * invoker raises :class:`McpToolFailed` → FAIL;
 * unparseable code → ERROR.
@@ -48,7 +48,7 @@ def _step(
     return step
 
 
-async def test_no_code_without_translator_skips() -> None:
+async def test_no_code_without_translator_fails_llm_not_ready() -> None:
     inv = MagicMock()
     inv.invoke = AsyncMock()
     result = await execute_step(
@@ -59,9 +59,9 @@ async def test_no_code_without_translator_skips() -> None:
         actor_user_id="u",
         routing_overrides=None,
     )
-    assert result.outcome == StepOutcome.SKIP
+    assert result.outcome == StepOutcome.ERROR
     assert result.error_message is not None
-    assert "NO_LLM_FOR_AGENTIC_STEP" in result.error_message
+    assert result.error_message.startswith("LLM_NOT_READY")
     inv.invoke.assert_not_awaited()
 
 
@@ -180,8 +180,8 @@ def _agentic_step(provider: str = "playwright-mcp") -> MagicMock:
     return step
 
 
-async def test_no_code_llm_tier_without_translator_skips() -> None:
-    """LOCAL/CLOUD but no translator wired → still SKIP (no synthetic call)."""
+async def test_agentic_step_without_translator_fails_llm_not_ready() -> None:
+    """Readiness vanished after queueing → ERROR LLM_NOT_READY, no MCP call."""
     inv = MagicMock()
     inv.invoke = AsyncMock()
     result = await execute_step(
@@ -193,9 +193,9 @@ async def test_no_code_llm_tier_without_translator_skips() -> None:
         routing_overrides=None,
         translator=None,
     )
-    assert result.outcome == StepOutcome.SKIP
+    assert result.outcome == StepOutcome.ERROR
     assert result.error_message is not None
-    assert "NO_LLM_FOR_AGENTIC_STEP" in result.error_message
+    assert result.error_message.startswith("LLM_NOT_READY")
     inv.invoke.assert_not_awaited()
 
 

@@ -2,9 +2,9 @@
 
 gather_context → classify_category (LLM) → structured :class:`Diagnosis` → END.
 
-Replaces the ZERO-tier ``MANUAL_TRIAGE`` rule fallback with an LLM root-cause
-classification. Output is validated into a Pydantic model; an unparseable or
-out-of-enum response degrades safely to ``MANUAL_TRIAGE`` with confidence 0.
+LLM root-cause classification; callers invoke it only for a workspace whose LLM is
+ready. Output is validated into a Pydantic model; an unparseable or out-of-enum
+response degrades safely to ``MANUAL_TRIAGE`` with confidence 0.
 """
 
 from __future__ import annotations

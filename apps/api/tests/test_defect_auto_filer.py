@@ -734,3 +734,31 @@ async def test_file_for_failed_step_falls_back_to_regex_when_diagnoser_returns_n
     assert defect.agent_diagnosis_kind is DiagnosisKind.INFRA  # regex path
     assert defect.agent_confidence is None
     assert defect.agent_diagnosis is None
+
+
+@pytest.mark.asyncio
+async def test_llm_diagnoser_skips_model_call_when_llm_not_validated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An active but never-validated LLM config is not ready: no provider, no call."""
+    from suitest_api.services import defect_auto_filer, llm_credentials
+    from suitest_db.repositories import llm_configs
+
+    class _Repo:
+        def __init__(self, _session: object) -> None: ...
+
+        async def get_active(self, _workspace_id: str) -> object:
+            return MagicMock(last_validated_at=None, model="m")
+
+    provider_calls: list[object] = []
+
+    async def _provider(_session: object, config: object) -> object:
+        provider_calls.append(config)
+        raise AssertionError("provider must not be built for an unvalidated LLM")
+
+    monkeypatch.setattr(llm_configs, "LLMConfigRepo", _Repo)
+    monkeypatch.setattr(llm_credentials, "provider_for_config", _provider)
+
+    diagnose = defect_auto_filer.build_llm_diagnoser()
+    assert await diagnose(MagicMock(), "ws-1", "TypeError at checkout") is None
+    assert provider_calls == []

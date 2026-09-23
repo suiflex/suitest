@@ -164,7 +164,13 @@ async def _parse_or_translate_step(
         if not action:
             return None, StepOutcome.SKIP, "EMPTY_STEP: step action is blank"
         if translator is None:
-            return None, StepOutcome.SKIP, "NO_LLM_FOR_AGENTIC_STEP: step has no code"
+            # Readiness vanished after queueing: an agentic step cannot run without
+            # the workspace LLM, so it fails closed rather than silently skipping.
+            return (
+                None,
+                StepOutcome.ERROR,
+                "LLM_NOT_READY: agentic step needs a validated workspace LLM",
+            )
         try:
             translated = await translator(action)
         except Exception as exc:
@@ -230,8 +236,8 @@ async def execute_step(
 
     Decision tree:
 
-    * ``code`` empty + no translator → ``SKIP`` with
-      ``NO_LLM_FOR_AGENTIC_STEP``.
+    * ``code`` empty + no translator (workspace LLM not ready) → ``ERROR`` with
+      ``LLM_NOT_READY``.
     * ``code`` empty + translator → translate ``action`` → tool call
       (M3-10); untranslatable → ``SKIP`` ``AGENTIC_TRANSLATE_FAILED``.
     * ``code`` not valid JSON → ``ERROR`` with ``INVALID_STEP_CODE``.

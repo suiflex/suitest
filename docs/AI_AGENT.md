@@ -14,25 +14,18 @@
 
 ## 1. Goal & 4 agent modes
 
-Suitest Agent is the Python layer that orchestrates the LLM for 4 operation modes (mapped to the `AgentSessionKind` enum). Each mode is tier-aware: at ZERO tier all modes return an `LLM_DISABLED` error (HTTP 503) with a hint pointing to the deterministic alternative.
+Suitest Agent is the Python layer that orchestrates the LLM for 4 operation modes (mapped to the `AgentSessionKind` enum). Suitest is LLM-required: every mode needs a validated workspace LLM. There is no no-LLM mode and no fallback that substitutes for the LLM. A mode invoked while the workspace LLM is not `ready` fails with `409 LLM_NOT_READY` (API) or an `LLM_NOT_READY` step error (runner).
 
-| Mode | Purpose | Default model class | ZERO tier behavior |
-|------|--------|---------------------|--------------------|
-| **GENERATION** | Generate test cases from PRD / URL semantic / MCP discovery / OpenAPI-enrich | reasoning (Sonnet-class / GPT-4o-class / Llama 3.1 70B local) | 503 → hint: use `/generators/openapi`, `/generators/recorder`, `/generators/crawler` |
-| **EXECUTION** | Translate `step.action` (English) into MCP calls at runtime; drive agentic flow | reasoning | 503 → hint: every step must have `step.code` at ZERO; can be relaxed via `workspace.strict_zero=false` (step is skipped with a warning) |
-| **DIAGNOSIS** | Analyze root cause of defects post-run | reasoning | 503 → fallback rule-based categorizer (assertion regex → `MANUAL_TRIAGE`) |
-| **CONVERSATION** | Chat in the AI panel UI, query state, answer questions | small/fast (Haiku-class / GPT-4o-mini / Llama 3.1 8B) | 503 → AI panel hidden in the UI |
-
-Tier-aware response example when tier=ZERO:
+| Mode | Purpose | Default model class | LLM not ready |
+|------|--------|---------------------|---------------|
+| **GENERATION** | Generate test cases from PRD / URL semantic / MCP discovery / OpenAPI-enrich | reasoning (Sonnet-class / GPT-4o-class / Llama 3.1 70B local) | `409 LLM_NOT_READY` |
+| **EXECUTION** | Translate `step.action` (English) into MCP calls at runtime; drive agentic flow | reasoning | agentic step → `ERROR` `LLM_NOT_READY` (steps with `code` stay deterministic) |
+| **DIAGNOSIS** | Analyze root cause of defects post-run | reasoning | no model call; the defect is filed without an AI diagnosis |
+| **CONVERSATION** | Chat in the AI panel UI, query state, answer questions | small/fast (Haiku-class / GPT-4o-mini / Llama 3.1 8B) | `409 LLM_NOT_READY` |
 
 ```json
-HTTP 503
-{
-  "code": "LLM_DISABLED",
-  "message": "AI features require LLM provider configuration.",
-  "hint": "Use deterministic generators (POST /generators/openapi) or manual TCM workflow.",
-  "docs_url": "https://docs.suitest.dev/capability-tiers"
-}
+HTTP 409
+{"detail": {"code": "LLM_NOT_READY", "message": "Connect and validate a workspace LLM before using this feature.", "llmStatus": "not_configured", "settingsUrl": "/settings?tab=llm"}}
 ```
 
 Model selection per session: the agent picks a model from `LLMConfig.preferred_models` (per-task mapping) → LiteLLM router. Conversation mode auto-downgrades to the smallest model. Override per request via `model_hint` in `POST /agent/*`.
@@ -287,8 +280,8 @@ load_case → for_each_step:
    ↓
    classify_step
    ├── code present → execute_code (deterministic via MCP, no LLM)
-   ├── action only + tier≠ZERO → agentic_translate (LLM) → execute_translated
-   └── action only + tier=ZERO → emit_error(NO_LLM_FOR_AGENTIC_STEP)
+   ├── action only + LLM ready → agentic_translate (LLM) → execute_translated
+   └── action only + LLM not ready → emit_error(LLM_NOT_READY)
    ↓
    capture_artifacts
    ↓
