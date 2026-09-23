@@ -11,7 +11,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypedDict
 
-from suitest_agent.graphs._util import complete_with_prompt, parse_json_object
+from suitest_agent.graphs._util import (
+    GENERATION_MAX_TOKENS,
+    TRUNCATED,
+    complete_with_prompt,
+    parse_json_object,
+    truncated_without_cases,
+)
 from suitest_agent.prompts.loader import load
 
 if TYPE_CHECKING:
@@ -58,7 +64,10 @@ def build_generation_graph(
             system=system_prompt,
             user=state["input_text"],
             seed=state.get("seed"),
+            max_tokens=GENERATION_MAX_TOKENS,
         )
+        if truncated_without_cases(result):
+            return {"raw_output": "", "error": TRUNCATED}
         return {
             "raw_output": result.content,
             "tokens_in": result.tokens_in,
