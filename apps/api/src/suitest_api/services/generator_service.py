@@ -30,6 +30,7 @@ from suitest_agent.generators.openapi_generator import OpenApiGenerator, OpenApi
 from suitest_agent.generators.prd import PrdGenerator
 from suitest_agent.generators.url_crawler import UrlCrawler
 from suitest_agent.generators.url_semantic import UrlSemanticGenerator
+from suitest_agent.graphs._util import TRUNCATED
 from suitest_core.llm_credentials import ResolvedCredential
 from suitest_db.audit import write_audit
 from suitest_db.models.case import CaseTag, TestCase, TestStep
@@ -60,6 +61,16 @@ if TYPE_CHECKING:
     from suitest_mcp.invoker import McpInvoker
 
 tracer = trace.get_tracer("suitest.generators")
+
+_TRUNCATED_MESSAGE = (
+    "The model hit its output limit before returning test cases. Retry, shorten the "
+    "input, or choose a model with a larger output limit."
+)
+
+
+def _error_message(code: str, default: str) -> str:
+    """User-facing text for a generator error code; ``default`` for the legacy code."""
+    return _TRUNCATED_MESSAGE if code == TRUNCATED else default
 
 
 class SuiteNotInWorkspaceError(Exception):
@@ -506,7 +517,10 @@ class GeneratorService:
                 await self._session.commit()
                 yield GeneratorSseEvent(
                     kind="error",
-                    data={"code": "GENERATION_FAILED", "message": result.error},
+                    data={
+                        "code": "GENERATION_FAILED",
+                        "message": _error_message(result.error, result.error),
+                    },
                 )
                 return
 
@@ -657,7 +671,10 @@ class GeneratorService:
                 await self._session.commit()
                 yield GeneratorSseEvent(
                     kind="error",
-                    data={"code": result.error, "message": "could not interpret intent"},
+                    data={
+                        "code": result.error,
+                        "message": _error_message(result.error, "could not interpret intent"),
+                    },
                 )
                 return
 
@@ -814,7 +831,10 @@ class GeneratorService:
                 await self._session.commit()
                 yield GeneratorSseEvent(
                     kind="error",
-                    data={"code": result.error, "message": "no testable tools in catalog"},
+                    data={
+                        "code": result.error,
+                        "message": _error_message(result.error, "no testable tools in catalog"),
+                    },
                 )
                 return
 

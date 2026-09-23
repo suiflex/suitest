@@ -50,7 +50,6 @@ async def test_execution_mixes_deterministic_and_translated() -> None:
                 {"action": "seed db", "code": "await pg.exec('INSERT ...')"},
                 {"action": "click buy", "code": None, "mcp_provider": "playwright-mcp"},
             ],
-            "tier_has_llm": True,
             "model": "mock-1",
         }
     )
@@ -58,20 +57,6 @@ async def test_execution_mixes_deterministic_and_translated() -> None:
     assert plans[0]["mode"] == "deterministic"
     assert plans[1]["mode"] == "agentic_translated"
     assert plans[1]["tool"] == "click"
-
-
-@pytest.mark.asyncio
-async def test_execution_zero_tier_blocks_agentic_step() -> None:
-    graph = build_execution_graph(MockProvider())
-    out = await graph.ainvoke(
-        {
-            "steps": [{"action": "click buy", "code": None}],
-            "tier_has_llm": False,
-            "model": "mock-1",
-        }
-    )
-    assert out["plans"][0]["mode"] == "error"
-    assert out["plans"][0]["error"] == "NO_LLM_FOR_AGENTIC_STEP"
 
 
 @pytest.mark.asyncio

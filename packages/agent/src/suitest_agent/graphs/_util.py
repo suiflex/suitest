@@ -37,6 +37,7 @@ async def complete_with_prompt(
     user: str,
     seed: int | None = None,
     temperature: float = 0.2,
+    max_tokens: int = 4096,
 ) -> CompletionResult:
     """Run a one-shot system+user completion through ``provider``."""
     call = ModelCall(
@@ -47,5 +48,25 @@ async def complete_with_prompt(
         ],
         seed=seed,
         temperature=temperature,
+        max_tokens=max_tokens,
     )
     return await provider.complete(call)
+
+
+# Test-case generation output cap. Reasoning models (e.g. deepseek-v4-pro behind an
+# OpenAI-compatible gateway) write their reasoning into ``content`` and sometimes
+# ran past the old 4096 default, cutting the JSON off. 8192 is the smallest output
+# limit among current hosted models Suitest targets.
+GENERATION_MAX_TOKENS = 8192
+TRUNCATED = "LLM_OUTPUT_TRUNCATED"
+
+
+def truncated_without_cases(result: CompletionResult) -> bool:
+    """True when the model hit its token limit before emitting a usable case list.
+
+    Callers report :data:`TRUNCATED` instead of silently returning zero drafts.
+    """
+    if result.finish_reason != "length":
+        return False
+    cases = parse_json_object(result.content).get("cases")
+    return not (isinstance(cases, list) and cases)

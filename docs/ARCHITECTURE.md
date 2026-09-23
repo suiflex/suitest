@@ -50,7 +50,7 @@
         └──────────────────────────┘
 ```
 
-The LLM provider is **BYO** (Bring-Your-Own) — routed via LiteLLM. The `ZERO` tier runs without any LLM container at all (the resolver disables the AI modules). See [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md).
+The LLM provider is **BYO** (Bring-Your-Own) — routed via LiteLLM. A validated workspace LLM is required for every AI operation; there is no no-LLM mode. See [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md).
 
 ---
 
@@ -144,7 +144,7 @@ The frontend uses pnpm; the backend uses `uv` (uv workspace, one root `pyproject
 | Concurrency | `max_jobs=8` per worker, autoscale 2–N (HPA queue-depth based) |
 | MCP clients | `packages/mcp` — connect via stdio / SSE / WebSocket |
 | Step engine | Decision tree per step (see [CAPABILITY_TIERS.md](./CAPABILITY_TIERS.md) §8) |
-| Agentic step | When `step.code` is empty & tier != ZERO → translate via LangGraph node → MCP call |
+| Agentic step | When `step.code` is empty → translate via the workspace LLM → MCP call; LLM not ready → `ERROR` `LLM_NOT_READY` |
 | Output | Stream log lines to Redis pub/sub channel `run:{id}` → `api` fan-out via WS/SSE |
 | Artifacts | Upload to MinIO/S3 (`s3://{bucket}/runs/{run_id}/{step_idx}/`) |
 | Sandbox | Per-job temp workdir, cleaned up after success/fail |
@@ -158,7 +158,7 @@ The frontend uses pnpm; the backend uses `uv` (uv workspace, one root `pyproject
 | LLM router | **LiteLLM** — single client for 100+ providers (Anthropic, OpenAI, Gemini, Groq, Bedrock, Vertex, Ollama, llama.cpp, vLLM, LMStudio, OpenRouter, DeepSeek, Azure) |
 | Orchestrator | **LangGraph** — deterministic state machine for the 4 agent modes: `generation`, `execution`, `diagnosis`, `conversation` |
 | Prompts | Versioned in `packages/agent/prompts/` — naming `v{N}/{task}.md`. `AgentSession.prompt_version` is recorded to the DB |
-| Capability gate | Every entrypoint is wrapped in the `@require_tier(min="LOCAL")` decorator — fails fast with `LLM_DISABLED` on ZERO |
+| Capability gate | Every LLM entrypoint depends on `require_llm_ready` / `ensure_llm_ready` — fails fast with `409 LLM_NOT_READY` |
 | Autonomy gate | `@require_autonomy(min="assist")` decorator for operations that require auto-approve |
 | Caching | LiteLLM cache (Redis) + provider-native prompt caching where available (Anthropic ephemeral, Gemini context) |
 | Cost tracking | `litellm.completion_cost(response)` → `AgentSession.cost_usd` |

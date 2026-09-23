@@ -582,9 +582,10 @@ def _assemble_evidence(run_step: RunStep, case: TestCase) -> str:
 def build_llm_diagnoser() -> DefectDiagnoser:
     """Return a :data:`DefectDiagnoser` backed by the DIAGNOSIS graph (M3-11).
 
-    Resolves the workspace's active ``LLMConfig`` per call; ZERO / no-LLM
-    workspaces yield ``None`` so the filer keeps its regex bucket. Agent imports
-    are deferred into the closure so the api package stays ZERO-import-clean.
+    Resolves the workspace's active ``LLMConfig`` per call. A workspace whose LLM
+    is not ready (missing or never validated) yields ``None``: no model call is
+    made and the filer records its regex bucket. Agent imports are deferred into
+    the closure so importing the api package never loads the agent graphs.
     """
 
     async def _diagnose(
@@ -596,7 +597,7 @@ def build_llm_diagnoser() -> DefectDiagnoser:
         from suitest_api.services.llm_credentials import provider_for_config
 
         llm = await LLMConfigRepo(session).get_active(workspace_id)
-        if llm is None:
+        if llm is None or llm.last_validated_at is None:
             return None
         provider = await provider_for_config(session, llm)
         graph = build_diagnosis_graph(provider)

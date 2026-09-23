@@ -20,7 +20,13 @@ from typing import TYPE_CHECKING
 from suitest_shared.domain.enums import TargetKind
 
 from suitest_agent.generators._drafts import map_raw_cases
-from suitest_agent.graphs._util import complete_with_prompt, parse_json_object
+from suitest_agent.graphs._util import (
+    GENERATION_MAX_TOKENS,
+    TRUNCATED,
+    complete_with_prompt,
+    parse_json_object,
+    truncated_without_cases,
+)
 from suitest_agent.prompts.loader import load
 
 if TYPE_CHECKING:
@@ -81,6 +87,7 @@ class UrlSemanticGenerator:
             system=system,
             user=f"Generate the test cases for: {intent}",
             seed=seed,
+            max_tokens=GENERATION_MAX_TOKENS,
         )
         usage = UrlSemanticUsage(
             model=self._model,
@@ -88,6 +95,8 @@ class UrlSemanticGenerator:
             tokens_out=result.tokens_out,
             cost_usd=result.cost_usd,
         )
+        if truncated_without_cases(result):
+            return UrlSemanticResult(error=TRUNCATED, usage=usage)
         obj = parse_json_object(result.content)
         raws = obj.get("cases", [])
         drafts = map_raw_cases(
