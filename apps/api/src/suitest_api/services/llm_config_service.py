@@ -175,27 +175,96 @@ class LLMConfigService:
         (see :mod:`suitest_api.services.chatgpt_oauth_service`); left at their
         defaults the write behaves exactly like a pasted-key rotation.
         """
+        config = config or {}
+        existing = await self.get_active()
+
+        # If keeping existing provider credentials when no new key/tokens are provided:
+        effective_api_key = api_key
+        if (
+            effective_api_key is None
+            and existing is not None
+            and existing.provider == provider
+            and existing.auth_method == AUTH_METHOD_API_KEY
+            and existing.api_key_encrypted is not None
+        ):
+            effective_api_key = existing.api_key_encrypted
+
+        effective_tokens = oauth_tokens
+        if (
+            effective_tokens is None
+            and existing is not None
+            and existing.provider == provider
+            and existing.auth_method == AUTH_METHOD_OAUTH
+            and existing.oauth_tokens is not None
+        ):
+            effective_tokens = existing.oauth_tokens
+
         base_url = config.get("base_url") if isinstance(config.get("base_url"), str) else None
         self._validate(
             provider,
             model,
-            api_key,
+            effective_api_key,
             base_url if isinstance(base_url, str) else None,
             auth_method=auth_method,
-            oauth_tokens=oauth_tokens,
+            oauth_tokens=effective_tokens,
             config=config,
         )
-        # Whichever credential the caller brought, the other one must not linger.
-        tokens_json = oauth_tokens.model_dump_json() if oauth_tokens is not None else None
 
-        existing = await self.get_active()
+        tokens_json = (
+            oauth_tokens.model_dump_json()
+            if oauth_tokens is not None
+            else (
+                existing.oauth_tokens_encrypted
+                if (
+                    existing is not None
+                    and existing.provider == provider
+                    and auth_method == AUTH_METHOD_OAUTH
+                )
+                else None
+            )
+        )
+        target_api_key = (
+            api_key
+            if api_key is not None
+            else (
+                existing.api_key_encrypted
+                if (
+                    existing is not None
+                    and existing.provider == provider
+                    and auth_method == AUTH_METHOD_API_KEY
+                )
+                else None
+            )
+        )
+
+        # Detect whether the effective configuration actually changed
+        key_changed = (
+            target_api_key != existing.api_key_encrypted
+            if (existing is not None and auth_method == AUTH_METHOD_API_KEY)
+            else False
+        )
+        tokens_changed = (
+            tokens_json != existing.oauth_tokens_encrypted
+            if (existing is not None and auth_method == AUTH_METHOD_OAUTH)
+            else False
+        )
+        config_changed = (
+            existing is None
+            or existing.provider != provider
+            or existing.model != model
+            or (existing.config_json or {}) != config
+            or existing.auth_method != auth_method
+            or key_changed
+            or tokens_changed
+        )
+
         if existing is not None:
             await self._llm.update(
                 existing.id,
                 LLMConfigUpdate(
                     provider=provider,
                     model=model,
-                    api_key_encrypted=api_key,
+                    api_key_encrypted=target_api_key,
                     config_json=config,
                     is_active=True,
                     auth_method=auth_method,
@@ -203,27 +272,27 @@ class LLMConfigService:
                 ),
             )
             row = existing
-            # ``AsyncRepository.update`` skips ``None`` values, so the credential
-            # the caller did not bring has to be cleared by hand — otherwise
-            # switching auth method leaves the previous one encrypted in the row
-            # and the provider layer could still pick it up.
-            row.api_key_encrypted = api_key
+            row.api_key_encrypted = target_api_key
             row.oauth_tokens_encrypted = tokens_json
-            row.last_validated_at = None
+            if config_changed:
+                row.last_validated_at = None
+            else:
+                row.last_validated_at = existing.last_validated_at
         else:
             row = await self._llm.create(
                 LLMConfigCreate(
                     workspace_id=self._ctx.workspace_id,
                     provider=provider,
                     model=model,
-                    api_key_encrypted=api_key,
+                    api_key_encrypted=target_api_key,
                     config_json=config,
                     is_active=True,
                     auth_method=auth_method,
                     oauth_tokens_encrypted=tokens_json,
                 )
             )
-        await self._refresh_capability(llm_ready=False)
+        llm_ready = row.last_validated_at is not None
+        await self._refresh_capability(llm_ready=llm_ready)
         await write_audit(
             self._session,
             workspace_id=self._ctx.workspace_id,

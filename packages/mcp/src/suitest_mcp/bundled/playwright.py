@@ -96,6 +96,7 @@ PLAYWRIGHT_SPEC: McpProviderConfig = McpProviderConfig(
     env={},
     config_json={
         "version_pin": "@playwright/mcp@latest",
+        "tools": [t.name for t in DECLARED_TOOLS],
         "declared_tools": [t.name for t in DECLARED_TOOLS],
     },
     is_default_for_target={"FE_WEB": True},

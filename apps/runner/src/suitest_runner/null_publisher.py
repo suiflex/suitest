@@ -9,17 +9,6 @@ read them back.
 
 from __future__ import annotations
 
+from suitest_mcp.invoker import NullPublisher
 
-class NullPublisher:
-    """Drop-in for the redis client passed as ``ctx["redis"]`` in local mode."""
-
-    def __init__(self) -> None:
-        self._counts: dict[str, int] = {}
-
-    async def publish(self, channel: str, message: str | bytes) -> int:
-        # ponytail: live log fan-out intentionally dropped in local mode.
-        return 0
-
-    async def incr(self, name: str) -> int:
-        self._counts[name] = self._counts.get(name, 0) + 1
-        return self._counts[name]
+__all__ = ["NullPublisher"]

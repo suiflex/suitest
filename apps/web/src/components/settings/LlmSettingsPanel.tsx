@@ -86,7 +86,10 @@ export function LlmSettingsPanel({
     mutationFn: () => testLlmConfig(workspaceId),
     onSuccess: (r) => {
       setTestResult(r);
-      if (r.ok) void refresh();
+      if (r.ok) {
+        setHasUnsavedChanges(false);
+        void refresh();
+      }
     },
     onError: () => setError("Connection test failed to run."),
     onSettled: () => setTestingTrigger(null),

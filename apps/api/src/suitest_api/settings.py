@@ -1,8 +1,10 @@
 """Process-level settings sourced from environment."""
 
+from __future__ import annotations
+
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from suitest_core.chatgpt_oauth import DEFAULT_CLIENT_ID
 from suitest_core.google_oauth import DEFAULT_CLIENT_ID as GOOGLE_DEFAULT_CLIENT_ID
@@ -77,10 +79,18 @@ class Settings(BaseSettings):
     s3_region: str = Field(default="us-east-1")
 
     # Local mode (no S3): root folder ``local://`` artifact keys resolve
-    # against — served by ``GET /runs/:id/artifacts/:artifact_id/raw``.
-    # Must point at the same folder the runner writes to
-    # (``SUITEST_ARTIFACTS_DIR``). env: SUITEST_ARTIFACTS_DIR
     artifacts_dir: str = Field(default=".suitest/artifacts")
+
+    @model_validator(mode="after")
+    def _resolve_data_dir_artifacts(self) -> Settings:
+        import os
+        from pathlib import Path
+
+        if self.artifacts_dir == ".suitest/artifacts":
+            data_dir = os.environ.get("SUITEST_DATA_DIR")
+            if data_dir and Path(f"{data_dir}/artifacts").is_dir():
+                self.artifacts_dir = f"{data_dir}/artifacts"
+        return self
 
 
 def get_settings() -> Settings:

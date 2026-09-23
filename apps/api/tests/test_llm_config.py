@@ -106,6 +106,59 @@ async def test_test_connection_mock_ok(api_db: ApiDb) -> None:
 
 
 @pytest.mark.asyncio
+async def test_save_after_test_connection_preserves_ready_status(api_db: ApiDb) -> None:
+    user, ws = await _admin_ws(api_db, email="llm-preserve@example.com", slug="llm-preserve")
+    async with api_db.client(user, llm_ready=False) as c:
+        put1 = await c.put(
+            f"/api/v1/workspaces/{ws.id}/llm-config",
+            headers=_h(ws.id),
+            json={"provider": "mock", "model": "mock-1"},
+        )
+        assert put1.status_code == 200
+        assert put1.json()["status"] == "validation_required"
+
+        test_resp = await c.post(
+            f"/api/v1/workspaces/{ws.id}/llm-config/test",
+            headers=_h(ws.id),
+        )
+        assert test_resp.status_code == 200
+        assert test_resp.json()["ok"] is True
+
+        put2 = await c.put(
+            f"/api/v1/workspaces/{ws.id}/llm-config",
+            headers=_h(ws.id),
+            json={"provider": "mock", "model": "mock-1"},
+        )
+        assert put2.status_code == 200
+        assert put2.json()["status"] == "ready"
+
+        caps = await c.get("/capabilities", headers=_h(ws.id))
+        assert caps.json()["llm"]["status"] == "ready"
+
+
+@pytest.mark.asyncio
+async def test_put_preserves_existing_key_when_omitted(api_db: ApiDb) -> None:
+    user, ws = await _admin_ws(api_db, email="llm-keepkey@example.com", slug="llm-keepkey")
+    async with api_db.client(user, llm_ready=False) as c:
+        put1 = await c.put(
+            f"/api/v1/workspaces/{ws.id}/llm-config",
+            headers=_h(ws.id),
+            json={"provider": "openai", "model": "gpt-4o", "apiKey": "sk-secret-1234567890"},
+        )
+        assert put1.status_code == 200
+        assert put1.json()["apiKeyHint"] == "sk-s…7890"
+
+        put2 = await c.put(
+            f"/api/v1/workspaces/{ws.id}/llm-config",
+            headers=_h(ws.id),
+            json={"provider": "openai", "model": "gpt-4o-mini"},
+        )
+        assert put2.status_code == 200
+        assert put2.json()["apiKeyHint"] == "sk-s…7890"
+        assert put2.json()["model"] == "gpt-4o-mini"
+
+
+@pytest.mark.asyncio
 async def test_delete_clears_llm_readiness(api_db: ApiDb) -> None:
     user, ws = await _admin_ws(api_db, email="llm-del@example.com", slug="llm-del")
     async with api_db.client(user, llm_ready=False) as c:

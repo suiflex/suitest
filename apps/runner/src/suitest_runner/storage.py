@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
@@ -55,19 +56,41 @@ class S3Storage:
             response_checksum_validation="when_required",
             signature_version="s3v4",
         )
-        session = aioboto3.Session()
-        async with session.client(
-            "s3",
-            endpoint_url=settings.s3_endpoint,
-            aws_access_key_id=settings.s3_access_key,
-            aws_secret_access_key=settings.s3_secret_key,
-            region_name=settings.s3_region,
-            config=s3_config,
-        ) as client:
-            await client.put_object(
-                Bucket=settings.s3_bucket, Key=key, Body=body, ContentType=content_type
+        try:
+            session = aioboto3.Session()
+            async with session.client(
+                "s3",
+                endpoint_url=settings.s3_endpoint,
+                aws_access_key_id=settings.s3_access_key,
+                aws_secret_access_key=settings.s3_secret_key,
+                region_name=settings.s3_region,
+                config=s3_config,
+            ) as client:
+                await client.put_object(
+                    Bucket=settings.s3_bucket, Key=key, Body=body, ContentType=content_type
+                )
+            return f"s3://{settings.s3_bucket}/{key}"
+        except Exception as exc:
+            import structlog
+
+            log = structlog.get_logger(__name__)
+            if os.environ.get("SUITEST_ALLOW_LOCAL_FALLBACK") == "1":
+                log.warning(
+                    "s3.put_failed_fallback_local",
+                    key=key,
+                    endpoint=settings.s3_endpoint,
+                    error=str(exc),
+                )
+                return await LocalStorage(root=Path(settings.artifacts_dir)).put(
+                    key=key, body=body, content_type=content_type
+                )
+            log.error(
+                "s3.put_failed",
+                key=key,
+                endpoint=settings.s3_endpoint,
+                error=str(exc),
             )
-        return f"s3://{settings.s3_bucket}/{key}"
+            raise
 
 
 def make_storage(settings: RunnerSettings) -> ArtifactStorage:

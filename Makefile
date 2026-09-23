@@ -108,8 +108,8 @@ dev-api-zero: ## Start FastAPI at the ZERO base (default; LLM is workspace-confi
 dev-api-docs: ## Open API docs in browser
 	open http://localhost:$(SUITEST_API_PORT)/docs
 
-dev-runner: ## Start runner (local supervisor in local mode, ARQ worker in server mode)
-	@if [ "$$(echo $${SUITEST_MODE})" = "local" ]; then \
+dev-runner: ## Start runner (local supervisor in local mode or SQLite DB, ARQ worker in server mode)
+	@if [ "$$(echo $${SUITEST_MODE})" = "local" ] || echo "$${SUITEST_DATABASE_URL}" | grep -q "sqlite"; then \
 		uv run python -m suitest_runner.local_supervisor; \
 	else \
 		uv run python -m suitest_runner; \

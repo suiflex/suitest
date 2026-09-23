@@ -7,7 +7,8 @@ pool is omitted, and the defect auto-filer (which enqueues downstream ARQ jobs)
 is left unset.
 """
 
-from __future__ import annotations
+import os
+from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from suitest_mcp.invoker import McpInvoker, build_llm_ready_guard
@@ -24,6 +25,13 @@ async def build_local_ctx(ctx: dict[str, object]) -> None:
     """Populate ``ctx`` in place with the keys ``run_test_case`` requires."""
     setup_observability()
     settings = get_settings()
+    if not os.environ.get("SUITEST_ARTIFACTS_BACKEND") and not os.environ.get(
+        "SUITEST_RUNNER_ARTIFACTS_BACKEND"
+    ):
+        settings.artifacts_backend = "local"
+    data_dir = os.environ.get("SUITEST_DATA_DIR")
+    if data_dir and not os.environ.get("SUITEST_ARTIFACTS_DIR"):
+        settings.artifacts_dir = str(Path(data_dir) / "artifacts")
     engine = create_async_engine(settings.database_url, pool_pre_ping=True)
     session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     publisher = NullPublisher()
@@ -40,7 +48,7 @@ async def build_local_ctx(ctx: dict[str, object]) -> None:
         registry=registry,
         pool=pool,
         health=None,
-        redis_client=publisher,  # type: ignore[arg-type]  # NullPublisher duck-types the publish surface
+        redis_client=publisher,  # NullPublisher duck-types the publish surface
         audit_session_factory=session_factory,
         workspace_cap=workspace_cap,
         # Execution-layer gate: no MCP tool dispatches unless the workspace

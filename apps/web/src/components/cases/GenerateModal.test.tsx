@@ -129,4 +129,103 @@ describe("GenerateModal", () => {
     await screen.findByTestId("gen-complete");
     expect(screen.getByTestId("gen-complete")).toHaveTextContent("DRAFT case");
   });
+
+  it("recorder: displays actual error message when recorder fails to start", async () => {
+    server.use(
+      http.post("*/api/v1/generators/recorder/sessions", () => {
+        return HttpResponse.json({ detail: "mcp transport unavailable" }, { status: 503 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderModal({ initialStrategy: "recorder" });
+
+    await user.type(screen.getByTestId("gen-recorder-url"), "https://app.example.com/login");
+    await user.click(screen.getByTestId("gen-run-btn"));
+
+    const err = await screen.findByTestId("gen-error");
+    expect(err).toHaveTextContent("mcp transport unavailable");
+  });
+
+  it("recorder: allows selecting browser MCP provider", async () => {
+    let capturedProvider = "";
+    server.use(
+      http.post("*/api/v1/generators/recorder/sessions", async ({ request }) => {
+        const body = (await request.json()) as { mcp_provider: string };
+        capturedProvider = body.mcp_provider;
+        return HttpResponse.json({
+          session_id: "rec_sess_custom",
+          ws_room: "rec_sess_custom",
+          browser_url: null,
+          expires_at: "2026-05-29T09:00:00Z",
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    renderModal({ initialStrategy: "recorder" });
+
+    // Verify MCP select is present with options
+    const select = screen.getByTestId("gen-recorder-mcp-select");
+    expect(select).toBeInTheDocument();
+
+    await user.type(screen.getByTestId("gen-recorder-url"), "https://app.example.com/login");
+    await user.click(screen.getByTestId("gen-run-btn"));
+
+    await screen.findByTestId("gen-recorder-live-panel");
+    expect(capturedProvider).toBe("playwright-mcp");
+  });
+
+  it("recorder: allows deleting and editing captured steps before finalize", async () => {
+    let capturedFinalizeBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post("*/api/v1/generators/recorder/sessions/:sessionId/finalize", async ({ request }) => {
+        capturedFinalizeBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({
+          id: "tc_rec",
+          public_id: "TC-9002",
+          name: "Edited Flow",
+          description: null,
+          status: "DRAFT",
+          priority: "P2",
+          source: "RECORDER",
+          target_kind: "FE_WEB",
+          suite_id: "ste_smoke",
+          owner_id: null,
+          tags: [],
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    renderModal({ initialStrategy: "recorder" });
+
+    await user.type(screen.getByTestId("gen-recorder-url"), "https://app.example.com/login");
+    await user.type(screen.getByTestId("gen-recorder-name"), "Edited Flow");
+    await user.click(screen.getByTestId("gen-run-btn"));
+
+    await screen.findByTestId("gen-recorder-live-panel");
+    // Initial step 0 is loaded from mock session (navigate to login)
+    await screen.findByTestId("gen-recorder-step-0");
+
+    // Add a step
+    await user.click(screen.getByTestId("gen-recorder-add-step"));
+    expect(screen.getByTestId("gen-recorder-customized-badge")).toBeInTheDocument();
+
+    // The new step is currently in edit mode (index 1)
+    await screen.findByTestId("gen-recorder-step-edit-1");
+    await user.type(screen.getByTestId("gen-step-edit-selector"), "#username");
+    await user.click(screen.getByTestId("gen-step-edit-save"));
+
+    // Finalize
+    await user.click(screen.getByTestId("gen-recorder-finalize"));
+    await screen.findByTestId("gen-complete");
+
+    // Check that custom events were transmitted to backend
+    expect(capturedFinalizeBody).not.toBeNull();
+    const sentEvents = (
+      capturedFinalizeBody as { events?: Array<{ kind?: string; selector?: string }> } | null
+    )?.events;
+    expect(sentEvents).toHaveLength(2);
+    expect(sentEvents?.[0]?.kind).toBe("navigate");
+    expect(sentEvents?.[1]?.selector).toBe("#username");
+  });
 });
+

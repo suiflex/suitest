@@ -51,3 +51,8 @@ class RecorderSession(Base):
     finalized_case_id: Mapped[str | None] = mapped_column(ForeignKey("test_cases.id"))
 
     __table_args__ = (Index("ix_recorder_sessions_workspace_status", "workspace_id", "status"),)
+
+    @property
+    def events(self) -> list[dict[str, Any]]:
+        """Convenience alias for captured_events_json."""
+        return self.captured_events_json

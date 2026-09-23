@@ -6708,6 +6708,8 @@ export interface components {
             priority: "P0" | "P1" | "P2" | "P3";
             /** Target Suite Id */
             target_suite_id: string;
+            /** Events override from client */
+            events?: Array<Record<string, unknown>> | null;
         };
         /**
          * RecorderSessionStartRequest

@@ -303,7 +303,8 @@ async def put_llm_config(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": exc.code, "message": exc.message},
         ) from exc
-    await _publish_capability_changed(request, ctx.workspace_id, "validation_required")
+    status_str = "ready" if row.last_validated_at is not None else "validation_required"
+    await _publish_capability_changed(request, ctx.workspace_id, status_str)
     return _to_public(row)
 
 

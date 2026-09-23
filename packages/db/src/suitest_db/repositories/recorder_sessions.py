@@ -9,10 +9,11 @@ column dirty and flushes it.
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from suitest_db.models.recorder_session import RecorderSession
 from suitest_db.repositories.base import AsyncRepository
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 
 class RecorderSessionCreate(BaseModel):
     workspace_id: str
-    user_id: str | None = None
+    user_id: uuid.UUID | None = None
     project_id: str
     start_url: str
     mcp_provider: str = "playwright-mcp"
@@ -31,6 +32,18 @@ class RecorderSessionCreate(BaseModel):
     expires_at: datetime
     status: str = "active"
     captured_events_json: list[dict[str, Any]] = []
+
+    @field_validator("user_id", mode="before")
+    @classmethod
+    def _coerce_uuid(cls, v: Any) -> uuid.UUID | None:
+        if not v:
+            return None
+        if isinstance(v, uuid.UUID):
+            return v
+        try:
+            return uuid.UUID(str(v))
+        except (ValueError, TypeError):
+            return None
 
 
 class RecorderSessionUpdate(BaseModel):

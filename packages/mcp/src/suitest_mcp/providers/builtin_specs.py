@@ -11,6 +11,7 @@ workspace via ``workspace_capabilities.features_json.routing_overrides``.
 
 from __future__ import annotations
 
+from suitest_mcp.bundled.playwright import DECLARED_TOOLS
 from suitest_mcp.models import McpProviderConfig, McpTransport
 
 BUILTIN_SPECS: list[McpProviderConfig] = [
@@ -39,6 +40,7 @@ BUILTIN_SPECS: list[McpProviderConfig] = [
         name="playwright-mcp",
         kind="browser",
         transport=McpTransport.STDIO,
+        endpoint="npx -y @playwright/mcp@latest --browser chromium --isolated --headless",
         command=[
             "npx",
             "-y",
@@ -48,7 +50,10 @@ BUILTIN_SPECS: list[McpProviderConfig] = [
             "--isolated",
             "--headless",
         ],
-        config_json={"version_pin": "@playwright/mcp@latest"},
+        config_json={
+            "version_pin": "@playwright/mcp@latest",
+            "tools": [t.name for t in DECLARED_TOOLS],
+        },
         is_default_for_target={"FE_WEB": True},
         max_sessions=2,
         # Browser automation needs generous timeouts: the first spawn may `npx`-

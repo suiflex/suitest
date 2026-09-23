@@ -29,6 +29,7 @@ queueing, execution fails closed.
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from collections.abc import Awaitable, Callable
@@ -277,6 +278,14 @@ async def execute_step(
     tool = str(parsed["tool"])
     raw_args = parsed.get("arguments", {})
     arguments: dict[str, object] = dict(raw_args) if isinstance(raw_args, dict) else {}
+
+    # Resolve placeholder variables like {{password}}
+    raw_text = arguments.get("text")
+    if isinstance(raw_text, str) and "{{password}}" in raw_text:
+        resolved_pw = os.environ.get("SUITEST_PASSWORD") or os.environ.get("TEST_PASSWORD")
+        if resolved_pw:
+            arguments["text"] = raw_text.replace("{{password}}", str(resolved_pw))
+
     raw_assertions = parsed.get("assertions", [])
     assertions: list[dict[str, object]] = (
         [a for a in raw_assertions if isinstance(a, dict)]

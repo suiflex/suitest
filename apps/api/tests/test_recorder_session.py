@@ -267,9 +267,10 @@ async def test_finalize_masks_password_field(api_db: ApiDb, fake_redis: object) 
             json={"target_suite_id": suite_id, "name": "Masked"},
         )
     assert resp.status_code == 200, resp.text
-    step_code = resp.json()["steps"][0]["code"]
-    assert "{{password}}" in step_code
-    assert "hunter2-secret" not in step_code
+    steps = resp.json()["steps"]
+    type_step = next(s for s in steps if "#password" in s.get("action", ""))
+    assert "{{password}}" in type_step["code"]
+    assert "hunter2-secret" not in type_step["code"]
 
 
 @pytest.mark.asyncio
@@ -426,6 +427,64 @@ async def test_start_viewer_role_forbidden(api_db: ApiDb, fake_redis: object) ->
             json={"project_id": project_id, "start_url": _START_URL},
         )
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_start_session_without_redis_succeeds_in_local_bundle(
+    api_db: ApiDb,
+) -> None:
+    """Issue #234 regression: in local bundle mode (ws_redis=None), recorder must not 503."""
+    user = await api_db.seed_user(email="rec-no-redis@example.com")
+    ws = await api_db.member_workspace(user, slug="rec-no-redis-ws")
+    project_id, _suite_id = await _seed_project_suite(api_db, ws.id)
+
+    app = _build_app(api_db, user, redis=None)
+    async with _client(app) as c:
+        body = await _start(c, ws.id, project_id)
+
+    assert body["session_id"]
+    assert body["ws_room"] == f"recorder:{body['session_id']}"
+    async with api_db.maker() as session:
+        row = await session.scalar(
+            select(RecorderSession).where(RecorderSession.id == body["session_id"])
+        )
+        assert row is not None
+        assert row.status == "active"
+
+
+@pytest.mark.asyncio
+async def test_append_recorder_event_endpoint(
+    api_db: ApiDb,
+) -> None:
+    """Live browser/codegen events can be pushed into the active session via HTTP."""
+    user = await api_db.seed_user(email="rec-append@example.com")
+    ws = await api_db.member_workspace(user, slug="rec-append-ws")
+    project_id, _suite_id = await _seed_project_suite(api_db, ws.id)
+
+    app = _build_app(api_db, user, redis=None)
+    async with _client(app) as c:
+        body = await _start(c, ws.id, project_id)
+        sid = str(body["session_id"])
+
+        resp = await c.post(
+            f"/api/v1/generators/recorder/sessions/{sid}/events",
+            headers={"X-Workspace-Id": ws.id},
+            json={
+                "kind": "click",
+                "selector": "button#login",
+                "timestamp": "2026-05-29T08:00:00Z",
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+        assert resp.json()["count"] == 1
+
+    async with api_db.maker() as session:
+        row = await session.scalar(select(RecorderSession).where(RecorderSession.id == sid))
+        assert row is not None
+        assert len(row.events) == 1
+        assert row.events[0]["kind"] == "click"
+        assert row.events[0]["selector"] == "button#login"
 
 
 # ---------------------------------------------------------------------------

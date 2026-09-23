@@ -60,6 +60,26 @@ log = structlog.get_logger(__name__)
 tracer = trace.get_tracer("suitest.mcp.invoker")
 
 
+class _Publisher(Protocol):
+    """Minimal publish surface expected from Redis or NullPublisher."""
+
+    async def publish(self, channel: str, message: str | bytes) -> int: ...
+
+
+class NullPublisher:
+    """Drop-in no-op pub/sub for local mode and tests without Redis."""
+
+    def __init__(self) -> None:
+        self._counts: dict[str, int] = {}
+
+    async def publish(self, channel: str, message: str | bytes) -> int:
+        return 0
+
+    async def incr(self, name: str) -> int:
+        self._counts[name] = self._counts.get(name, 0) + 1
+        return self._counts[name]
+
+
 class _AuditSession(Protocol):
     """Subset of :class:`AsyncSession` the invoker depends on.
 
@@ -158,7 +178,7 @@ class McpInvoker:
         registry: McpRegistry,
         pool: McpPool,
         health: HealthMonitor | None,
-        redis_client: AsyncRedis,
+        redis_client: AsyncRedis | _Publisher | None = None,
         audit_session_factory: _AuditSessionFactory,
         workspace_cap: WorkspacePoolCap | None = None,
         llm_ready_guard: LlmReadinessGuard | None = None,
@@ -166,7 +186,7 @@ class McpInvoker:
         self.registry = registry
         self.pool = pool
         self.health = health
-        self.redis = redis_client
+        self.redis = redis_client if redis_client is not None else NullPublisher()
         self.audit_session_factory = audit_session_factory
         # Task 21: optional workspace-level fair-queue cap layered ABOVE the
         # per-provider pool. When set, every invoke() reserves a workspace
@@ -277,13 +297,14 @@ class McpInvoker:
         Event payload shape mirrors the rest of the M1c WS protocol:
         ``{"event": "<name>", "data": {"runId": ..., "stepId": ..., ...}}``.
         """
-        if not ctx.run_id:
+        if not ctx.run_id or self.redis is None:
             return
         payload: dict[str, object] = {
             "event": event_name,
             "data": {"runId": ctx.run_id, "stepId": ctx.step_id, **data},
         }
-        await self.redis.publish(f"run:{ctx.run_id}", json.dumps(payload))
+        with contextlib.suppress(Exception):
+            await self.redis.publish(f"run:{ctx.run_id}", json.dumps(payload))
 
     async def _finalize(
         self,

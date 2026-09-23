@@ -1,6 +1,24 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { Check, CircleDot, FileJson, Link2, Loader2, Sparkles } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  CheckCircle2,
+  CircleDot,
+  Compass,
+  ExternalLink,
+  FileJson,
+  Keyboard,
+  Link2,
+  Loader2,
+  MousePointerClick,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DisabledTooltip } from "@/components/shared/DisabledTooltip";
 import { Button } from "@/components/ui/button";
@@ -13,14 +31,17 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiError } from "@/lib/api-client";
+import type { McpProvidersPage } from "@/hooks/use-integrations";
+import { api, ApiError } from "@/lib/api-client";
 import type { components } from "@/lib/api-types";
 import {
   finalizeRecorderSession,
   generateCrawler,
   generateOpenApi,
+  getRecorderSession,
   startRecorderSession,
   type GeneratorCaseEvent,
+  type RecorderCapturedEvent,
   type RecorderSessionStartResponse,
 } from "@/lib/generator-client";
 import { cn } from "@/lib/utils";
@@ -119,6 +140,7 @@ export function GenerateModal({
 
   // Recorder config
   const [caseName, setCaseName] = useState("");
+  const [mcpProvider, setMcpProvider] = useState("playwright-mcp");
 
   // Run state
   const [status, setStatus] = useState<RunStatus>("idle");
@@ -127,6 +149,20 @@ export function GenerateModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [completeCount, setCompleteCount] = useState<number | null>(null);
   const [recorderSession, setRecorderSession] = useState<RecorderSessionStartResponse | null>(null);
+
+  const { data: providersData } = useQuery<McpProvidersPage>({
+    queryKey: ["mcp", "providers"],
+    queryFn: async () => (await api.get<McpProvidersPage>("/mcp/providers")).data,
+    enabled: open,
+  });
+
+  const browserProviders = useMemo(() => {
+    if (!providersData?.items) return [];
+    const browserRe = /playwright|browser/i;
+    return providersData.items.filter(
+      (p) => p.kind === "FE_WEB" || browserRe.test(p.id) || browserRe.test(p.name),
+    );
+  }, [providersData]);
 
   const meta = useMemo(() => STRATEGIES.find((s) => s.id === strategy) ?? null, [strategy]);
 
@@ -239,33 +275,46 @@ export function GenerateModal({
       const session = await startRecorderSession({
         project_id: projectId,
         start_url: startUrl,
-        mcp_provider: "playwright-mcp",
+        mcp_provider: mcpProvider || "playwright-mcp",
       });
       setRecorderSession(session);
       setStatus("idle");
+      if (!session.is_headed && session.browser_url) {
+        try {
+          window.open(session.browser_url, "_blank");
+        } catch {
+          // Ignore in environments without window.open support (e.g. jsdom)
+        }
+      }
     } catch (err) {
       setStatus("error");
       setErrorMsg(err instanceof ApiError ? err.message : "Could not start recorder");
     }
-  }, [projectId, resetRun, startUrl]);
+  }, [projectId, resetRun, startUrl, mcpProvider]);
 
-  const runRecorderFinalize = useCallback(async () => {
-    if (recorderSession === null) return;
-    setStatus("running");
-    try {
-      await finalizeRecorderSession(recorderSession.session_id, {
-        target_suite_id: suiteId,
-        name: caseName,
-        priority: "P2",
-      });
-      setStatus("done");
-      setCompleteCount(1);
-      invalidateCases();
-    } catch (err) {
-      setStatus("error");
-      setErrorMsg(err instanceof ApiError ? err.message : "Could not finalize recording");
-    }
-  }, [recorderSession, suiteId, caseName, invalidateCases]);
+  const runRecorderFinalize = useCallback(
+    async (customEvents?: RecorderCapturedEvent[]) => {
+      if (recorderSession === null) return;
+      setStatus("running");
+      try {
+        await finalizeRecorderSession(recorderSession.session_id, {
+          target_suite_id: suiteId,
+          name: caseName,
+          priority: "P2",
+          ...(customEvents && customEvents.length > 0
+            ? { events: customEvents as unknown as Record<string, unknown>[] }
+            : {}),
+        });
+        setStatus("done");
+        setCompleteCount(1);
+        invalidateCases();
+      } catch (err) {
+        setStatus("error");
+        setErrorMsg(err instanceof ApiError ? err.message : "Could not finalize recording");
+      }
+    },
+    [recorderSession, suiteId, caseName, invalidateCases],
+  );
 
   const goRun = useCallback(() => {
     setStep("run");
@@ -517,6 +566,37 @@ export function GenerateModal({
                     }}
                   />
                 </div>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="gen-recorder-mcp" className="text-[11px] text-fg-4">
+                    Browser MCP Provider
+                  </Label>
+                  <select
+                    id="gen-recorder-mcp"
+                    data-testid="gen-recorder-mcp-select"
+                    value={mcpProvider}
+                    onChange={(e) => {
+                      setMcpProvider(e.target.value);
+                    }}
+                    className="h-9 rounded-md border border-border bg-bg-elev-1 px-2 text-[12.5px] text-fg-1 focus:outline-none focus:ring-1 focus:ring-accent/40"
+                  >
+                    {browserProviders.length === 0 ? (
+                      <>
+                        <option value="playwright-mcp">Native Headed Chrome (Recommended)</option>
+                        <option value="playwright-proxy">In-Browser Proxy Tab</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="playwright-mcp">Native Headed Chrome (Recommended)</option>
+                        {browserProviders.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} ({p.id})
+                          </option>
+                        ))}
+                        <option value="playwright-proxy">In-Browser Proxy Tab</option>
+                      </>
+                    )}
+                  </select>
+                </div>
                 {projectId === null ? (
                   <p className="text-[11px] text-amber">
                     Select an active project before recording.
@@ -535,9 +615,11 @@ export function GenerateModal({
                 session={recorderSession}
                 status={status}
                 caseName={caseName}
+                startUrl={startUrl}
                 completed={completeCount !== null}
+                errorMsg={errorMsg}
                 onStart={() => void runRecorderStart()}
-                onFinalize={() => void runRecorderFinalize()}
+                onFinalize={(customEvents) => void runRecorderFinalize(customEvents)}
               />
             ) : (
               <>
@@ -674,17 +756,186 @@ function RecorderRunPanel({
   session,
   status,
   caseName,
+  startUrl,
   completed,
+  errorMsg,
   onStart,
   onFinalize,
 }: {
   session: RecorderSessionStartResponse | null;
   status: RunStatus;
   caseName: string;
+  startUrl: string;
   completed: boolean;
+  errorMsg?: string | null;
   onStart: () => void;
-  onFinalize: () => void;
+  onFinalize: (customEvents: RecorderCapturedEvent[]) => void;
 }): React.ReactElement {
+  const [events, setEvents] = useState<RecorderCapturedEvent[]>([]);
+  const [userHasEdited, setUserHasEdited] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState<RecorderCapturedEvent | null>(null);
+  const [copiedBookmarklet, setCopiedBookmarklet] = useState(false);
+
+  useEffect(() => {
+    if (!session || completed || status === "error" || userHasEdited) return;
+
+    let cancelled = false;
+    const fetchEvents = async () => {
+      try {
+        const detail = await getRecorderSession(session.session_id);
+        if (!cancelled && detail.captured_events) {
+          const rawEvents = detail.captured_events ?? [];
+          const firstEvent = rawEvents[0];
+          const hasNav =
+            Boolean(firstEvent &&
+            firstEvent.kind === "navigate" &&
+            firstEvent.url &&
+            !firstEvent.url.startsWith("about:"));
+          const targetUrl = startUrl.startsWith("http") ? startUrl : `https://${startUrl}`;
+          const initialEvents =
+            !hasNav && startUrl
+              ? [
+                  {
+                    kind: "navigate" as const,
+                    url: targetUrl,
+                    timestamp: new Date().toISOString(),
+                  },
+                  ...rawEvents,
+                ]
+              : rawEvents;
+
+          const coalesced: RecorderCapturedEvent[] = [];
+          for (const evt of initialEvents) {
+            if (!coalesced.length) {
+              coalesced.push(evt);
+              continue;
+            }
+            const prev = coalesced[coalesced.length - 1];
+            if (prev && prev.kind === "type" && evt.kind === "type" && prev.selector === evt.selector) {
+              coalesced[coalesced.length - 1] = evt;
+              continue;
+            }
+            if (prev && prev.kind === "click" && evt.kind === "type" && prev.selector === evt.selector) {
+              coalesced[coalesced.length - 1] = evt;
+              continue;
+            }
+            coalesced.push(evt);
+          }
+
+          setEvents(coalesced);
+        }
+      } catch {
+        // Silently tolerate polling errors during recording
+      }
+    };
+
+    void fetchEvents();
+    const interval = setInterval(fetchEvents, 1500);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [session, completed, status, userHasEdited, startUrl]);
+
+  const handleDeleteStep = (idx: number) => {
+    setUserHasEdited(true);
+    setEvents((prev) => prev.filter((_, i) => i !== idx));
+    if (editingIdx === idx) {
+      setEditingIdx(null);
+      setEditDraft(null);
+    } else if (editingIdx !== null && editingIdx > idx) {
+      setEditingIdx(editingIdx - 1);
+    }
+  };
+
+  const handleStartEdit = (idx: number) => {
+    const target = events[idx];
+    if (!target) return;
+    setEditingIdx(idx);
+    setEditDraft({ ...target });
+  };
+
+  const handleSaveEdit = (idx: number) => {
+    if (!editDraft) return;
+    setUserHasEdited(true);
+    setEvents((prev) => {
+      const next = [...prev];
+      next[idx] = editDraft;
+      return next;
+    });
+    setEditingIdx(null);
+    setEditDraft(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingIdx(null);
+    setEditDraft(null);
+  };
+
+  const handleMoveStep = (idx: number, direction: "up" | "down") => {
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= events.length) return;
+    setUserHasEdited(true);
+    setEvents((prev) => {
+      const next = [...prev];
+      const moved = next[idx];
+      if (!moved) return prev;
+      next.splice(idx, 1);
+      next.splice(targetIdx, 0, moved);
+      return next;
+    });
+    if (editingIdx === idx) {
+      setEditingIdx(targetIdx);
+    }
+  };
+
+  const handleAddStep = () => {
+    setUserHasEdited(true);
+    const newStep: RecorderCapturedEvent = {
+      kind: "click",
+      selector: "",
+      timestamp: new Date().toISOString(),
+    };
+    const nextIdx = events.length;
+    setEvents((prev) => [...prev, newStep]);
+    setEditingIdx(nextIdx);
+    setEditDraft(newStep);
+  };
+
+  const handleResetToBrowser = async () => {
+    if (!session) return;
+    setUserHasEdited(false);
+    setEditingIdx(null);
+    setEditDraft(null);
+    try {
+      const detail = await getRecorderSession(session.session_id);
+      const rawEvents = detail.captured_events ?? [];
+      const firstEvent = rawEvents[0];
+      const hasNav =
+        Boolean(firstEvent &&
+        firstEvent.kind === "navigate" &&
+        firstEvent.url &&
+        !firstEvent.url.startsWith("about:"));
+      const targetUrl = startUrl.startsWith("http") ? startUrl : `https://${startUrl}`;
+      const initialEvents =
+        !hasNav && startUrl
+          ? [
+              {
+                kind: "navigate" as const,
+                url: targetUrl,
+                timestamp: new Date().toISOString(),
+              },
+              ...rawEvents,
+            ]
+          : rawEvents;
+      setEvents(initialEvents);
+    } catch {
+      // ignore
+    }
+  };
+
   if (completed) {
     return (
       <div
@@ -701,8 +952,8 @@ function RecorderRunPanel({
     return (
       <div className="flex flex-col gap-2" data-testid="gen-recorder-start-panel">
         <p className="text-[12px] text-fg-3">
-          Opens a live browser session. Interact with the page, then finalize to convert the
-          captured actions into a test case.
+          Opens a live browser session. Interact with the page (click, type, navigate), review and edit captured
+          steps if needed, then finalize into a test case.
         </p>
         <Button
           type="button"
@@ -715,42 +966,394 @@ function RecorderRunPanel({
           {status === "running" ? "Opening…" : "Open recording session"}
         </Button>
         {status === "error" ? (
-          <div data-testid="gen-error" className="text-[12px] text-red">
-            Could not start the recorder.
+          <div data-testid="gen-error" className="rounded-md border border-red/40 bg-red/10 px-3 py-2 text-[12px] text-red">
+            {errorMsg ?? "Could not start the recorder."}
           </div>
         ) : null}
       </div>
     );
   }
 
+  const fullBrowserUrl = session.browser_url
+    ? session.browser_url.startsWith("http")
+      ? session.browser_url
+      : `${window.location.origin}${session.browser_url}`
+    : null;
+
+  const bookmarkletCode = `javascript:(function(){if(window.__SUITEST_RECORDER_INITIALIZED__)return;window.__SUITEST_SESSION_ID__="${session.session_id}";window.__SUITEST_WORKSPACE_ID__="${session.workspace_id || ""}";window.__SUITEST_API_URL__="${window.location.origin}/api/v1";var s=document.createElement('script');s.src="${window.location.origin}/api/v1/generators/recorder/agent.js";s.dataset.sessionId="${session.session_id}";document.head.appendChild(s);})();`;
+
   return (
-    <div className="flex flex-col gap-2" data-testid="gen-recorder-live-panel">
-      <div className="flex items-center gap-2 text-[12px] text-fg-3">
-        <CircleDot className="h-3.5 w-3.5 animate-pulse text-red" aria-hidden="true" />
-        Recording — session{" "}
-        <span className="font-mono text-[11px] text-fg-4">{session.session_id}</span>
+    <div className="flex flex-col gap-3" data-testid="gen-recorder-live-panel">
+      <div className="flex items-center justify-between text-[12px] text-fg-3">
+        <div className="flex items-center gap-2">
+          <CircleDot className="h-3.5 w-3.5 animate-pulse text-red" aria-hidden="true" />
+          <span>
+            Recording — session{" "}
+            <span className="font-mono text-[11px] text-fg-4">{session.session_id}</span>
+          </span>
+        </div>
+        <span className="rounded bg-red/10 px-2 py-0.5 text-[11px] font-semibold text-red">
+          {events.length} {events.length === 1 ? "step" : "steps"}
+        </span>
       </div>
-      {session.browser_url ? (
-        <a
-          href={session.browser_url}
-          target="_blank"
-          rel="noreferrer"
-          data-testid="gen-recorder-browser-link"
-          className="text-[12px] text-accent underline"
+
+      {session.is_headed ? (
+        <div
+          data-testid="gen-recorder-headed-banner"
+          className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-400"
         >
-          Open live browser ↗
-        </a>
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span>
+            <strong>Native Browser Window Active:</strong> Interact directly with the target site in the opened Chrome window. Clicks, typing, and navigations are captured live below.
+          </span>
+        </div>
+      ) : (
+        <p className="text-[11px] text-fg-4">
+          Playwright Codegen session active. Actions performed in the browser are captured into test steps.
+        </p>
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap">
+        {fullBrowserUrl ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-testid="gen-recorder-launch-btn"
+              onClick={() => window.open(fullBrowserUrl, "_blank")}
+              className="h-8 gap-1.5 text-[12px]"
+            >
+              <ExternalLink className="h-3.5 w-3.5 text-accent" />
+              Open Recorder Tab
+            </Button>
+            <a
+              href={fullBrowserUrl}
+              target="_blank"
+              rel="noreferrer"
+              data-testid="gen-recorder-browser-link"
+              className="text-[12px] text-accent underline"
+            >
+              Direct Link ↗
+            </a>
+          </>
+        ) : null}
+        {startUrl ? (
+          <a
+            href={startUrl.startsWith("http") ? startUrl : `https://${startUrl}`}
+            target="_blank"
+            rel="noreferrer"
+            data-testid="gen-recorder-target-link"
+            className="text-[12px] text-fg-3 hover:text-fg-1 underline ml-auto"
+            title="Open direct target site in a new tab"
+          >
+            Open Target Site ↗
+          </a>
+        ) : null}
+      </div>
+
+      {/* Captured steps list with pre-finalize editor */}
+      <div className="flex flex-col gap-2 rounded-md border border-edge-subtle bg-bg-2 p-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium text-fg-4 uppercase tracking-wider">
+              Captured Steps ({events.length})
+            </span>
+            {userHasEdited ? (
+              <span
+                data-testid="gen-recorder-customized-badge"
+                className="rounded border border-amber/40 bg-amber/10 px-1.5 py-0.5 text-[10px] text-amber font-mono"
+              >
+                Customized (sync paused)
+              </span>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-1.5">
+            {userHasEdited ? (
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                data-testid="gen-recorder-reset-sync"
+                onClick={() => void handleResetToBrowser()}
+                className="h-6 gap-1 text-[11px] text-fg-3 hover:text-fg-1"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Reset from browser
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              data-testid="gen-recorder-add-step"
+              onClick={handleAddStep}
+              className="h-6 gap-1 text-[11px]"
+            >
+              <Plus className="h-3 w-3" />
+              Add step
+            </Button>
+          </div>
+        </div>
+
+        {events.length === 0 ? (
+          <p className="py-2.5 text-center text-[12px] text-fg-4 italic">
+            Waiting for actions… Click or type on elements in the opened tab to record them.
+          </p>
+        ) : (
+          <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1 font-mono text-[11px]">
+            {events.map((evt, idx) =>
+              editingIdx === idx && editDraft ? (
+                <div
+                  key={idx}
+                  data-testid={`gen-recorder-step-edit-${idx}`}
+                  className="flex flex-col gap-2 rounded bg-bg-elev-2 p-2.5 border border-accent/40 text-fg-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono font-semibold text-accent">
+                        Step {idx + 1}
+                      </span>
+                      <select
+                        data-testid="gen-step-edit-kind"
+                        value={editDraft.kind}
+                        onChange={(e) =>
+                          setEditDraft({
+                            ...editDraft,
+                            kind: e.target.value as "navigate" | "click" | "type" | "assert",
+                          })
+                        }
+                        className="h-6 rounded border border-border bg-bg-elev-1 px-1.5 font-mono text-[11px] text-fg-1 focus:outline-none focus:ring-1 focus:ring-accent/40"
+                      >
+                        <option value="navigate">NAVIGATE</option>
+                        <option value="click">CLICK</option>
+                        <option value="type">TYPE</option>
+                        <option value="assert">ASSERT</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {editDraft.kind === "navigate" ? (
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-[10.5px] text-fg-4">Target URL</Label>
+                      <Input
+                        data-testid="gen-step-edit-url"
+                        value={editDraft.url ?? ""}
+                        placeholder="https://example.com"
+                        onChange={(e) => setEditDraft({ ...editDraft, url: e.target.value })}
+                        className="h-7 text-[11.5px]"
+                      />
+                    </div>
+                  ) : null}
+
+                  {editDraft.kind === "click" || editDraft.kind === "type" ? (
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-[10.5px] text-fg-4">CSS / Attribute Selector</Label>
+                      <Input
+                        data-testid="gen-step-edit-selector"
+                        value={editDraft.selector ?? ""}
+                        placeholder='[data-test="username"] or button#login'
+                        onChange={(e) => setEditDraft({ ...editDraft, selector: e.target.value })}
+                        className="h-7 font-mono text-[11px]"
+                      />
+                    </div>
+                  ) : null}
+
+                  {editDraft.kind === "type" ? (
+                    <div className="grid grid-cols-3 gap-2 items-center">
+                      <div className="col-span-2 flex flex-col gap-1">
+                        <Label className="text-[10.5px] text-fg-4">Input Text</Label>
+                        <Input
+                          data-testid="gen-step-edit-text"
+                          value={editDraft.text ?? ""}
+                          placeholder="Value to enter"
+                          onChange={(e) => setEditDraft({ ...editDraft, text: e.target.value })}
+                          className="h-7 text-[11.5px]"
+                        />
+                      </div>
+                      <label className="flex items-center gap-1.5 text-[11px] text-fg-3 pt-3.5 cursor-pointer">
+                        <input
+                          data-testid="gen-step-edit-masked"
+                          type="checkbox"
+                          checked={Boolean(editDraft.masked)}
+                          onChange={(e) => setEditDraft({ ...editDraft, masked: e.target.checked })}
+                          className="rounded border-border text-accent"
+                        />
+                        <span>Mask secret</span>
+                      </label>
+                    </div>
+                  ) : null}
+
+                  {editDraft.kind === "assert" ? (
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-[10.5px] text-fg-4">Expected Condition</Label>
+                      <Input
+                        data-testid="gen-step-edit-assertion"
+                        value={String(editDraft.assertion?.expected ?? "")}
+                        placeholder="Page title or element is visible"
+                        onChange={(e) =>
+                          setEditDraft({
+                            ...editDraft,
+                            assertion: { ...(editDraft.assertion ?? {}), expected: e.target.value },
+                          })
+                        }
+                        className="h-7 text-[11.5px]"
+                      />
+                    </div>
+                  ) : null}
+
+                  <div className="flex items-center justify-end gap-1.5 pt-1">
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="ghost"
+                      data-testid="gen-step-edit-cancel"
+                      onClick={handleCancelEdit}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      data-testid="gen-step-edit-save"
+                      onClick={() => handleSaveEdit(idx)}
+                    >
+                      Save step
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  key={idx}
+                  data-testid={`gen-recorder-step-${idx}`}
+                  className="group flex items-center justify-between gap-2 rounded bg-bg-1 px-2 py-1.5 border border-edge-subtle text-fg-2 hover:border-fg-4/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="text-[10px] text-fg-4 w-4 shrink-0 text-right">{idx + 1}</span>
+                    {evt.kind === "navigate" ? (
+                      <>
+                        <Compass className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
+                        <span className="text-cyan-400 font-semibold text-[10px] shrink-0">NAV</span>
+                        <span className="truncate text-fg-3 text-[11px]" title={evt.url ?? ""}>
+                          {evt.url}
+                        </span>
+                      </>
+                    ) : evt.kind === "click" ? (
+                      <>
+                        <MousePointerClick className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                        <span className="text-emerald-400 font-semibold text-[10px] shrink-0">CLICK</span>
+                        <span className="truncate text-fg-3 text-[11px]" title={evt.selector ?? ""}>
+                          {evt.selector}
+                        </span>
+                      </>
+                    ) : evt.kind === "type" ? (
+                      <>
+                        <Keyboard className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                        <span className="text-amber-400 font-semibold text-[10px] shrink-0">TYPE</span>
+                        <span className="truncate text-fg-3 text-[11px]">
+                          {evt.selector} = {evt.masked ? "••••••" : evt.text}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+                        <span className="text-purple-400 font-semibold text-[10px] shrink-0">
+                          {evt.kind.toUpperCase()}
+                        </span>
+                        <span className="truncate text-fg-3 text-[11px]">
+                          {String(evt.assertion?.expected ?? "")}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-0.5 shrink-0 opacity-80 group-hover:opacity-100">
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={() => handleMoveStep(idx, "up")}
+                      className="p-1 text-fg-4 hover:text-fg-1 disabled:opacity-20 disabled:pointer-events-none rounded hover:bg-bg-elev-2"
+                      title="Move step up"
+                      aria-label="Move step up"
+                    >
+                      <ArrowUp className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === events.length - 1}
+                      onClick={() => handleMoveStep(idx, "down")}
+                      className="p-1 text-fg-4 hover:text-fg-1 disabled:opacity-20 disabled:pointer-events-none rounded hover:bg-bg-elev-2"
+                      title="Move step down"
+                      aria-label="Move step down"
+                    >
+                      <ArrowDown className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      data-testid={`gen-recorder-step-edit-btn-${idx}`}
+                      onClick={() => handleStartEdit(idx)}
+                      className="p-1 text-fg-4 hover:text-accent rounded hover:bg-bg-elev-2"
+                      title="Edit step"
+                      aria-label="Edit step"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      data-testid={`gen-recorder-step-delete-btn-${idx}`}
+                      onClick={() => handleDeleteStep(idx)}
+                      className="p-1 text-fg-4 hover:text-red rounded hover:bg-bg-elev-2"
+                      title="Delete step"
+                      aria-label="Delete step"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              ),
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between pt-1">
+        <Button
+          type="button"
+          size="sm"
+          data-testid="gen-recorder-finalize"
+          disabled={status === "running" || caseName.trim().length === 0}
+          onClick={() => onFinalize(events)}
+          className="self-start"
+        >
+          {status === "running" ? "Finalizing…" : "Finalize → create case"}
+        </Button>
+        <div className="flex items-center gap-2 text-[11px] text-fg-4">
+          <span>Need intranet / external tab?</span>
+          <a
+            href={bookmarkletCode}
+            data-testid="gen-recorder-bookmarklet"
+            onClick={(e) => {
+              e.preventDefault();
+              void navigator.clipboard?.writeText(bookmarkletCode);
+              setCopiedBookmarklet(true);
+              setTimeout(() => setCopiedBookmarklet(false), 2500);
+            }}
+            className="rounded border border-edge-subtle bg-bg-2 px-2 py-0.5 text-accent font-mono text-[10px] hover:bg-bg-3 cursor-pointer"
+            title="Drag to your Bookmarks Bar, or click to copy JavaScript snippet"
+          >
+            {copiedBookmarklet ? "✓ Copied Bookmarklet!" : "Bookmarklet"}
+          </a>
+        </div>
+      </div>
+
+      {status === "error" ? (
+        <div data-testid="gen-error" className="rounded-md border border-red/40 bg-red/10 px-3 py-2 text-[12px] text-red">
+          {errorMsg ?? "Could not finalize recording."}
+        </div>
       ) : null}
-      <Button
-        type="button"
-        size="sm"
-        data-testid="gen-recorder-finalize"
-        disabled={status === "running" || caseName.trim().length === 0}
-        onClick={onFinalize}
-        className="self-start"
-      >
-        {status === "running" ? "Finalizing…" : "Finalize → create case"}
-      </Button>
     </div>
   );
 }

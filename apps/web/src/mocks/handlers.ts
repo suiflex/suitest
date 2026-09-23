@@ -675,7 +675,29 @@ export const handlers: HttpHandler[] = [
       session_id: "rec_stub",
       ws_room: "recorder:rec_stub",
       browser_url: "http://localhost:9333/devtools",
+      is_headed: true,
       expires_at: "2099-06-01T10:30:00Z",
+    }),
+  ),
+  http.get(`${BASE}/generators/recorder/sessions/:sessionId`, ({ params }) =>
+    HttpResponse.json({
+      id: params.sessionId,
+      workspace_id: "ws_default",
+      project_id: "prj_default",
+      start_url: "https://app.example.com/login",
+      status: "active",
+      ws_room: `recorder:${params.sessionId}`,
+      browser_url: `http://localhost:5173/api/v1/generators/recorder/sessions/${params.sessionId}/browse?url=https%3A%2F%2Fapp.example.com%2Flogin`,
+      captured_events_count: 1,
+      captured_events: [
+        {
+          kind: "navigate",
+          timestamp: new Date().toISOString(),
+          url: "https://app.example.com/login",
+        },
+      ],
+      expires_at: "2099-06-01T10:30:00Z",
+      created_at: "2026-06-01T10:00:00Z",
     }),
   ),
   http.post(`${BASE}/generators/recorder/sessions/:sessionId/finalize`, () =>

@@ -7176,6 +7176,98 @@
         "title": "RecommendedStrategy",
         "type": "string"
       },
+      "RecorderEvent": {
+        "description": "One captured interaction. ``masked`` flags secret ``type`` input.\n\n``network`` carries ``{\"status\": int, \"url\": str, \"method\": str}`` for\n``NETWORK`` events; a 4xx/5xx status becomes an auto-assertion step at\nfinalize time.",
+        "properties": {
+          "assertion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assertion"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RecorderEventKind"
+          },
+          "masked": {
+            "default": false,
+            "title": "Masked",
+            "type": "boolean"
+          },
+          "network": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Network"
+          },
+          "selector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selector"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "kind",
+          "timestamp"
+        ],
+        "title": "RecorderEvent",
+        "type": "object"
+      },
+      "RecorderEventKind": {
+        "enum": [
+          "navigate",
+          "click",
+          "type",
+          "assert",
+          "network"
+        ],
+        "title": "RecorderEventKind",
+        "type": "string"
+      },
       "RecorderFinalizeRequest": {
         "description": "Body for ``POST .../finalize`` \u2014 where + how to persist the new case.",
         "properties": {
@@ -7189,6 +7281,21 @@
               }
             ],
             "title": "Description"
+          },
+          "events": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Events"
           },
           "name": {
             "maxLength": 255,
@@ -7218,6 +7325,82 @@
           "name"
         ],
         "title": "RecorderFinalizeRequest",
+        "type": "object"
+      },
+      "RecorderSessionDetailResponse": {
+        "description": "Detailed response for an active or past recording session.",
+        "properties": {
+          "browser_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser Url"
+          },
+          "captured_events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Captured Events",
+            "type": "array"
+          },
+          "captured_events_count": {
+            "title": "Captured Events Count",
+            "type": "integer"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "start_url": {
+            "title": "Start Url",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          },
+          "ws_room": {
+            "title": "Ws Room",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "project_id",
+          "start_url",
+          "status",
+          "ws_room",
+          "captured_events_count",
+          "captured_events",
+          "expires_at",
+          "started_at"
+        ],
+        "title": "RecorderSessionDetailResponse",
         "type": "object"
       },
       "RecorderSessionStartRequest": {
@@ -7265,8 +7448,18 @@
             "title": "Expires At",
             "type": "string"
           },
+          "is_headed": {
+            "default": false,
+            "title": "Is Headed",
+            "type": "boolean"
+          },
           "session_id": {
             "title": "Session Id",
+            "type": "string"
+          },
+          "workspace_id": {
+            "default": "",
+            "title": "Workspace Id",
             "type": "string"
           },
           "ws_room": {
@@ -14590,6 +14783,165 @@
           }
         ],
         "summary": "Cancel Recorder Session",
+        "tags": [
+          "generators"
+        ]
+      },
+      "get": {
+        "description": "Retrieve details and captured events for a recording session.",
+        "operationId": "get_recorder_session_api_v1_generators_recorder_sessions__session_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecorderSessionDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Recorder Session",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
+    "/api/v1/generators/recorder/sessions/{session_id}/events": {
+      "options": {
+        "description": "CORS preflight for recorder events from proxy, bookmarklet, or external origins.",
+        "operationId": "options_recorder_session_event_api_v1_generators_recorder_sessions__session_id__events_options",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Options Recorder Session Event",
+        "tags": [
+          "generators"
+        ]
+      },
+      "post": {
+        "description": "Append one captured interaction event to an active recording session.\n\nAuthorizes via the active recording session token: looks up the unguessable session_id,\nverifies it is active and not expired, and appends the event. Sets CORS headers so\nrecording works across origins (in-browser proxy, bookmarklet, intranet tabs).",
+        "operationId": "append_recorder_session_event_api_v1_generators_recorder_sessions__session_id__events_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecorderEvent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Append Recorder Session Event Api V1 Generators Recorder Sessions  Session Id  Events Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Append Recorder Session Event",
         "tags": [
           "generators"
         ]

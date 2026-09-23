@@ -348,3 +348,37 @@ async def test_execute_step_blank_action_skips_without_translator() -> None:
     assert result.error_message == "EMPTY_STEP: step action is blank"
     translator.assert_not_called()
     inv.invoke.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_execute_step_resolves_password_placeholder(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SUITEST_PASSWORD", "super-secret-pw")
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={}, stdout="ok", duration_ms=10)
+    )
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_type",
+                "arguments": {"target": "input#pass", "text": "{{password}}"},
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    step.data = {"masked": True}
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    inv.invoke.assert_awaited_once()
+    call_kwargs = inv.invoke.call_args.kwargs
+    assert call_kwargs["arguments"]["text"] == "super-secret-pw"

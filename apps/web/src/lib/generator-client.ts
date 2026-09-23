@@ -20,7 +20,10 @@ import { useActiveWorkspace } from "@/stores/use-active-workspace";
 export type OpenApiGenerateRequest = components["schemas"]["OpenApiGenerateRequest"];
 export type CrawlerGenerateRequest = components["schemas"]["CrawlerGenerateRequest"];
 export type RecorderSessionStartRequest = components["schemas"]["RecorderSessionStartRequest"];
-export type RecorderSessionStartResponse = components["schemas"]["RecorderSessionStartResponse"];
+export type RecorderSessionStartResponse = components["schemas"]["RecorderSessionStartResponse"] & {
+  is_headed?: boolean;
+  workspace_id?: string;
+};
 export type RecorderFinalizeRequest = components["schemas"]["RecorderFinalizeRequest"];
 export type TestCaseDetail = components["schemas"]["TestCaseDetail"];
 
@@ -190,3 +193,28 @@ export async function finalizeRecorderSession(
 export async function cancelRecorderSession(sessionId: string): Promise<void> {
   await api.delete(`/generators/recorder/sessions/${sessionId}`);
 }
+
+import type { RecorderLiveEvent } from "./ws-client";
+
+export type RecorderCapturedEvent = RecorderLiveEvent;
+
+export interface RecorderSessionDetail {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  start_url: string;
+  status: string;
+  ws_room: string;
+  browser_url?: string | null;
+  captured_events_count: number;
+  captured_events: RecorderCapturedEvent[];
+  expires_at: string;
+  started_at: string;
+}
+
+/** `GET /generators/recorder/sessions/:id` — retrieve session details + captured events. */
+export async function getRecorderSession(sessionId: string): Promise<RecorderSessionDetail> {
+  const res = await api.get<RecorderSessionDetail>(`/generators/recorder/sessions/${sessionId}`);
+  return res.data;
+}
+

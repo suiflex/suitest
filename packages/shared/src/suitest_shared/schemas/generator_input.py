@@ -293,6 +293,8 @@ class RecorderSessionStartResponse(BaseModel):
     session_id: str
     ws_room: str
     browser_url: str | None = None
+    is_headed: bool = False
+    workspace_id: str = ""
     expires_at: datetime
 
 
@@ -333,3 +335,4 @@ class RecorderFinalizeRequest(BaseModel):
     name: Annotated[str, Field(min_length=1, max_length=255)]
     priority: Literal["P0", "P1", "P2", "P3"] = "P2"
     description: str | None = None
+    events: list[dict[str, object]] | None = None

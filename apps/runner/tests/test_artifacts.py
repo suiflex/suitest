@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -222,3 +223,88 @@ async def test_no_artifacts_short_circuits(
 
     assert recording_s3.puts == []
     assert recording_repo == []
+
+
+async def test_upload_s3_fallback_to_local(
+    runner_settings: RunnerSettings,
+    recording_repo: list[dict[str, object]],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When S3 put fails (e.g. endpoint down), upload falls back to local storage."""
+    from suitest_runner.artifacts import upload_artifacts
+
+    art = McpArtifact(
+        kind="SCREENSHOT",
+        filename="fallback.png",
+        content_type="image/png",
+        bytes=b"PNG_FALLBACK",
+    )
+    runner_settings.artifacts_dir = str(tmp_path)
+
+    monkeypatch.setenv("SUITEST_ALLOW_LOCAL_FALLBACK", "1")
+
+    # Monkeypatch aioboto3 to raise connection error
+    class _FailingSession:
+        def client(self, *args: object, **kwargs: object) -> object:
+            raise RuntimeError("Could not connect to S3 endpoint URL")
+
+    monkeypatch.setattr("aioboto3.Session", _FailingSession)
+
+    session = MagicMock()
+    ctx: dict[str, object] = {"settings": runner_settings}
+
+    await upload_artifacts(
+        session=session,
+        ctx=ctx,
+        run_id="r_fallback",
+        run_step_id="rs_fallback",
+        step_order=0,
+        artifacts=[art],
+    )
+
+    assert len(recording_repo) == 1
+    assert recording_repo[0]["url"] == "local://runs/r_fallback/step-0/screenshot/fallback.png"
+    written_file = tmp_path / "runs/r_fallback/step-0/screenshot/fallback.png"
+    assert written_file.is_file()
+    assert written_file.read_bytes() == b"PNG_FALLBACK"
+
+
+async def test_upload_s3_fails_without_local_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    runner_settings: RunnerSettings,
+    recording_repo: list[dict[str, object]],
+) -> None:
+    from suitest_runner.artifacts import upload_artifacts
+
+    runner_settings.artifacts_backend = "s3"
+    runner_settings.s3_endpoint = "http://localhost:9000"
+    runner_settings.s3_bucket = "suitest-artifacts"
+    art = McpArtifact(
+        kind="SCREENSHOT",
+        filename="screenshot-1.png",
+        content_type="image/png",
+        bytes=b"PNG_DATA",
+    )
+    runner_settings.artifacts_dir = str(tmp_path)
+    monkeypatch.delenv("SUITEST_ALLOW_LOCAL_FALLBACK", raising=False)
+
+    class _FailingSession:
+        def client(self, *args: object, **kwargs: object) -> object:
+            raise RuntimeError("Could not connect to S3 endpoint URL")
+
+    monkeypatch.setattr("aioboto3.Session", _FailingSession)
+
+    session = MagicMock()
+    ctx: dict[str, object] = {"settings": runner_settings}
+
+    with pytest.raises(RuntimeError, match="Could not connect to S3 endpoint URL"):
+        await upload_artifacts(
+            session=session,
+            ctx=ctx,
+            run_id="r_strict",
+            run_step_id="rs_strict",
+            step_order=0,
+            artifacts=[art],
+        )
