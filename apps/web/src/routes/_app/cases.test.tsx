@@ -232,6 +232,48 @@ describe("Test Cases screen", () => {
       expect(screen.queryByTestId("bulk-action-bar")).toBeNull();
     });
   });
+  it("issue #238: renders all bulk actions and keeps them keyboard accessible", async () => {
+    const user = userEvent.setup();
+    renderCases();
+    await screen.findByTestId("cases-tree", undefined, { timeout: 3000 });
+
+    const checkboxes = screen.getAllByTestId("case-row-checkbox");
+    await user.click(checkboxes[0] as HTMLElement);
+
+    const bar = await screen.findByTestId("bulk-action-bar");
+    expect(bar).toBeInTheDocument();
+    expect(bar).toHaveTextContent("1 selected");
+
+    // All controls must be present and reachable
+    const clearBtn = screen.getByTestId("bulk-clear-btn");
+    const runBtn = screen.getByTestId("bulk-run-btn");
+    const deleteBtn = screen.getByTestId("bulk-delete-btn");
+    const moveSelect = screen.getByTestId("bulk-move-suite-select");
+    const prioritySelect = screen.getByTestId("bulk-priority-select");
+
+    expect(clearBtn).toBeInTheDocument();
+    expect(runBtn).toBeInTheDocument();
+    expect(deleteBtn).toBeInTheDocument();
+    expect(moveSelect).toBeInTheDocument();
+    expect(prioritySelect).toBeInTheDocument();
+
+    // Verify keyboard focusability
+    clearBtn.focus();
+    expect(clearBtn).toHaveFocus();
+
+    runBtn.focus();
+    expect(runBtn).toHaveFocus();
+
+    deleteBtn.focus();
+    expect(deleteBtn).toHaveFocus();
+
+    moveSelect.focus();
+    expect(moveSelect).toHaveFocus();
+
+    prioritySelect.focus();
+    expect(prioritySelect).toHaveFocus();
+  });
+
 
   it("suite selection: renders a checkbox for each suite in the tree", async () => {
     renderCases();

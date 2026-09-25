@@ -401,23 +401,36 @@ function BulkActionBar({
     <div
       data-testid="bulk-action-bar"
       className={cn(
-        "z-10 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border bg-bg-elev-2 px-4 py-2",
+        "z-10 flex shrink-0 flex-col gap-2 border-t border-border bg-bg-elev-2 px-3 py-2 sm:px-4",
         "shadow-[0_-2px_8px_rgba(0,0,0,.4)]",
       )}
     >
-      <span className="shrink-0 font-mono text-[12px] text-fg-3">{count} selected</span>
-      {overLimit ? (
-        <span className="text-[11px] text-amber">Max {BULK_LIMIT} at a time</span>
-      ) : null}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 font-mono text-[12px] text-fg-3">{count} selected</span>
+          {overLimit ? (
+            <span className="truncate text-[11px] text-amber">Max {BULK_LIMIT} at a time</span>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          data-testid="bulk-clear-btn"
+          className="shrink-0 rounded px-1 text-[11px] text-fg-4 hover:text-fg-1 focus:outline-none focus-visible:underline focus-visible:ring-1 focus-visible:ring-accent/40"
+          onClick={onClear}
+        >
+          Clear
+        </button>
+      </div>
+
       {canWriteTests ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           <Button
             type="button"
             size="sm"
             variant="outline"
             data-testid="bulk-run-btn"
             disabled={!canRun}
-            className="text-fg-3 hover:text-fg-1"
+            className="shrink-0 text-fg-3 hover:text-fg-1"
             onClick={() => setConfirmRunOpen(true)}
           >
             <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
@@ -430,7 +443,7 @@ function BulkActionBar({
             variant="outline"
             data-testid="bulk-delete-btn"
             disabled={overLimit || bulkUpdate.isPending}
-            className="text-fg-3 hover:text-red"
+            className="shrink-0 text-fg-3 hover:text-red"
             onClick={handleDelete}
           >
             <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -446,7 +459,7 @@ function BulkActionBar({
               e.target.value = "";
             }}
             className={cn(
-              "h-8 rounded-md border border-border bg-bg-elev-1 px-2 text-[12px] text-fg-3",
+              "h-8 min-w-0 max-w-full rounded-md border border-border bg-bg-elev-1 px-2 text-[12px] text-fg-3",
               "focus:outline-none focus:ring-1 focus:ring-accent/40",
               "disabled:cursor-not-allowed disabled:opacity-50",
             )}
@@ -470,7 +483,7 @@ function BulkActionBar({
               e.target.value = "";
             }}
             className={cn(
-              "h-8 rounded-md border border-border bg-bg-elev-1 px-2 text-[12px] text-fg-3",
+              "h-8 min-w-0 max-w-full rounded-md border border-border bg-bg-elev-1 px-2 text-[12px] text-fg-3",
               "focus:outline-none focus:ring-1 focus:ring-accent/40",
               "disabled:cursor-not-allowed disabled:opacity-50",
             )}
@@ -486,16 +499,6 @@ function BulkActionBar({
           </select>
         </div>
       ) : null}
-
-      <button
-        type="button"
-        data-testid="bulk-clear-btn"
-        className="ml-auto text-[11px] text-fg-4 hover:text-fg-1"
-        onClick={onClear}
-      >
-        Clear
-      </button>
-
       <ConfirmBulkRunDialog
         open={confirmRunOpen}
         onOpenChange={setConfirmRunOpen}
