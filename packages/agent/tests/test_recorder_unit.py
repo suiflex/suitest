@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -33,13 +34,16 @@ class _FakeSessionRow:
         self.workspace_id = workspace_id
         self.status = status
         self.events = events or []
-        self.captured_events_json = self.events
         self.mcp_provider = mcp_provider
         self.expires_at = datetime.now(tz=UTC) + timedelta(minutes=30)
         self.start_url = start_url
         self.browser_session_handle = "bsh_1"
         self.created_by_user_id = "usr_1"
         self.ws_room = f"recorder:{session_id}"
+
+    @property
+    def captured_events_json(self) -> list[dict[str, Any]]:
+        return self.events
 
 
 class _FakeRecorderRepo:
@@ -216,6 +220,7 @@ def test_events_to_steps_codegen() -> None:
 
     assert case_draft.steps[2].data.get("masked") is True
     assert "raw_value" not in case_draft.steps[2].data
+    assert case_draft.steps[2].data.get("encoded_value") == "c3VwZXJzZWNyZXQ="
     assert "{{password}}" in case_draft.steps[2].code
 
     assert "click" in case_draft.steps[3].code
@@ -379,3 +384,374 @@ async def test_recorder_custom_events_finalize() -> None:
     assert len(draft.steps) == 2
     assert draft.steps[0].action == "Navigate to https://example.com"
     assert draft.steps[1].action == "Click #good-click"
+
+
+@pytest.mark.asyncio
+async def test_recorder_resume_session() -> None:
+    """Resuming an active session finds the last captured URL and generates the browser browse URL."""
+    fake_invoker = MagicMock()
+    repo = _FakeRecorderRepo()
+    mgr = RecorderSessionManager(fake_invoker, repo)  # type: ignore[arg-type]
+
+    req = RecorderSessionStartRequest(
+        project_id="prj_1",
+        start_url="https://example.com",
+    )
+    row, _ = await mgr.start("ws_1", "usr_1", req)
+
+    now = datetime.now(tz=UTC).isoformat()
+    row.events = [
+        {"kind": "navigate", "timestamp": now, "url": "https://example.com/login"},
+        {
+            "kind": "click",
+            "timestamp": now,
+            "selector": "#login-btn",
+            "url": "https://example.com/dashboard",
+        },
+    ]
+
+    from urllib.parse import quote
+
+    sess, browser_url = await mgr.resume(row.id, "ws_1", "usr_1")
+    assert sess.id == row.id
+    assert quote("https://example.com/dashboard", safe="") in (browser_url or "")
+
+
+@pytest.mark.asyncio
+async def test_recorder_select_upload_assert_events_conversion() -> None:
+    """Verifies that select, upload, and assert events are mapped to corresponding TestStepDrafts."""
+    fake_invoker = MagicMock()
+    repo = _FakeRecorderRepo()
+    mgr = RecorderSessionManager(fake_invoker, repo)  # type: ignore[arg-type]
+
+    req = RecorderSessionStartRequest(
+        project_id="prj_1",
+        start_url="https://example.com",
+    )
+    row, _ = await mgr.start("ws_1", "usr_1", req)
+
+    now = datetime.now(tz=UTC).isoformat()
+    events = [
+        {
+            "kind": "select",
+            "timestamp": now,
+            "selector": "select#country",
+            "text": "ID",
+            "assertion": {"label": "Indonesia", "value": "ID"},
+        },
+        {
+            "kind": "upload",
+            "timestamp": now,
+            "selector": "input#avatar",
+            "text": "avatar.png",
+            "data": {"file_name": "avatar.png", "fixture_path": "fixtures/avatar.png"},
+        },
+        {
+            "kind": "assert",
+            "timestamp": now,
+            "selector": ".toast-success",
+            "text": "Profile updated",
+            "assertion": {
+                "type": "text",
+                "expected": 'Alert shows "Profile updated"',
+                "description": "Assert profile toast",
+                "code": "() => true",
+            },
+        },
+    ]
+
+    fin_req = RecorderFinalizeRequest(
+        target_suite_id="ste_1",
+        name="Smart Actions Flow",
+        events=events,
+    )
+    sess, draft = await mgr.finalize(row.id, "ws_1", "usr_1", fin_req)
+    assert sess.id == row.id
+    # Steps: 0: nav, 1: select, 2: upload, 3: assert
+    assert len(draft.steps) == 4
+    # Select step
+    assert draft.steps[1].action == "Select option 'Indonesia' in select#country"
+    assert "browser_select_option" in draft.steps[1].code
+    # Upload step
+    assert draft.steps[2].action == "Upload file 'avatar.png' to input#avatar"
+    assert "browser_upload_file" in draft.steps[2].code
+    assert "fixtures/avatar.png" in draft.steps[2].code
+    # Assert step
+    assert draft.steps[3].action == "Assert profile toast"
+    assert draft.steps[3].expected == 'Alert shows "Profile updated"'
+    assert "browser_evaluate" in draft.steps[3].code
+
+
+@pytest.mark.asyncio
+async def test_recorder_filters_fakepath_typing_events() -> None:
+    """Verifies that redundant fakepath typing events emitted by browser file inputs are filtered out."""
+    fake_invoker = MagicMock()
+    repo = _FakeRecorderRepo()
+    mgr = RecorderSessionManager(fake_invoker, repo)  # type: ignore[arg-type]
+
+    req = RecorderSessionStartRequest(
+        project_id="prj_1",
+        start_url="https://example.com",
+    )
+    row, _ = await mgr.start("ws_1", "usr_1", req)
+
+    now = datetime.now(tz=UTC).isoformat()
+    events = [
+        # Redundant typing event with C:\fakepath
+        {
+            "kind": "type",
+            "timestamp": now,
+            "selector": "input#avatar",
+            "text": "C:\\fakepath\\avatar.png",
+        },
+        # Legitimate upload event
+        {
+            "kind": "upload",
+            "timestamp": now,
+            "selector": "input#avatar",
+            "text": "avatar.png",
+            "data": {"file_name": "avatar.png", "fixture_path": "fixtures/avatar.png"},
+        },
+        # Trailing typing event from change/input on same input
+        {
+            "kind": "type",
+            "timestamp": now,
+            "selector": "input#avatar",
+            "text": "avatar.png",
+        },
+    ]
+
+    fin_req = RecorderFinalizeRequest(
+        target_suite_id="ste_1",
+        name="Upload Flow",
+        events=events,
+    )
+    _, draft = await mgr.finalize(row.id, "ws_1", "usr_1", fin_req)
+    # Only nav step (0) and upload step (1) should remain — all fakepath/redundant typing dropped
+    assert len(draft.steps) == 2
+    assert draft.steps[1].action == "Upload file 'avatar.png' to input#avatar"
+    assert "browser_upload_file" in draft.steps[1].code
+
+
+@pytest.mark.asyncio
+async def test_recorder_multi_file_upload_events_conversion() -> None:
+    fake_invoker = MagicMock()
+    repo = _FakeRecorderRepo()
+    mgr = RecorderSessionManager(fake_invoker, repo)  # type: ignore[arg-type]
+
+    req = RecorderSessionStartRequest(
+        project_id="prj_1",
+        start_url="https://example.com",
+    )
+    row, _ = await mgr.start("ws_1", "usr_1", req)
+
+    now = datetime.now(tz=UTC).isoformat()
+    events = [
+        {
+            "kind": "upload",
+            "timestamp": now,
+            "selector": "input#files",
+            "text": "report.pdf, chart.png",
+            "data": {
+                "file_name": "report.pdf",
+                "file_names": ["report.pdf", "chart.png"],
+                "fixture_paths": ["fixtures/report.pdf", "fixtures/chart.png"],
+            },
+        },
+    ]
+
+    fin_req = RecorderFinalizeRequest(
+        target_suite_id="ste_1",
+        name="Multi Upload Flow",
+        events=events,
+    )
+    _, draft = await mgr.finalize(row.id, "ws_1", "usr_1", fin_req)
+    assert len(draft.steps) == 2
+    assert "Upload 2 files" in draft.steps[1].action
+    assert "report.pdf" in draft.steps[1].action
+    assert "chart.png" in draft.steps[1].action
+    assert "browser_upload_file" in draft.steps[1].code
+    assert "fixtures/report.pdf" in draft.steps[1].code
+    assert "fixtures/chart.png" in draft.steps[1].code
+
+
+def test_recorder_coalesces_navigate_immediately_after_click() -> None:
+    repo = _FakeRecorderRepo()
+    mgr = RecorderSessionManager(MagicMock(), repo)  # type: ignore[arg-type]
+
+    now = datetime.now(tz=UTC)
+    raw_events = [
+        {"kind": "navigate", "url": "https://app.example.com/dashboard", "timestamp": now},
+        {"kind": "click", "selector": "a[href='/settings']", "timestamp": now},
+        # Redundant navigate step triggered by the anchor click
+        {"kind": "navigate", "url": "https://app.example.com/settings", "timestamp": now},
+        {"kind": "click", "selector": "button#save", "timestamp": now},
+    ]
+
+    req = RecorderFinalizeRequest(
+        target_suite_id="ste_1",
+        name="Navigation Flow",
+    )
+    case_draft = mgr._convert_events_to_case(
+        raw_events,
+        start_url="https://app.example.com/dashboard",
+        session_id="rec_sess_nav",
+        request=req,
+    )
+
+    # The redundant navigate right after click should be coalesced away
+    assert len(case_draft.steps) == 3
+    assert "Navigate to https://app.example.com/dashboard" in case_draft.steps[0].action
+    assert "Click a[href='/settings']" in case_draft.steps[1].action
+    assert "Click button#save" in case_draft.steps[2].action
+
+
+def test_recorder_handles_select_and_frame_selector() -> None:
+    repo = _FakeRecorderRepo()
+    mgr = RecorderSessionManager(MagicMock(), repo)  # type: ignore[arg-type]
+
+    now = datetime.now(tz=UTC)
+    raw_events = [
+        {"kind": "navigate", "url": "https://app.example.com/frames", "timestamp": now},
+        {
+            "kind": "click",
+            "selector": "button#submit",
+            "frame_selector": "iframe#login-frame",
+            "timestamp": now,
+        },
+        {
+            "kind": "select",
+            "selector": "select#country",
+            "text": "ID",
+            "frame_selector": "iframe#login-frame",
+            "assertion": {"label": "Indonesia", "value": "ID", "values": ["ID"]},
+            "data": {"values": ["ID"]},
+            "timestamp": now,
+        },
+    ]
+
+    req = RecorderFinalizeRequest(
+        target_suite_id="ste_1",
+        name="Iframe Flow",
+    )
+    case_draft = mgr._convert_events_to_case(
+        raw_events,
+        start_url="https://app.example.com/frames",
+        session_id="rec_sess_iframe",
+        request=req,
+    )
+
+    assert len(case_draft.steps) == 3
+    assert case_draft.steps[1].data.get("frame_selector") == "iframe#login-frame"
+    assert "in frame iframe#login-frame" in case_draft.steps[1].action
+
+    step2_code = json.loads(case_draft.steps[2].code)
+    assert step2_code["tool"] == "browser_select_option"
+    assert step2_code["arguments"]["target"] == "select#country"
+    assert step2_code["arguments"]["values"] == ["ID"]
+    assert step2_code["arguments"]["frame_selector"] == "iframe#login-frame"
+    assert "in frame iframe#login-frame" in case_draft.steps[2].action
+
+
+def test_convert_events_drops_navigate_after_click() -> None:
+    """Verify NAVIGATE event following a CLICK is dropped as redundant."""
+    repo = _FakeRecorderRepo()
+    mgr = RecorderSessionManager(MagicMock(), repo)  # type: ignore[arg-type]
+    now = datetime.now(tz=UTC)
+    raw_events = [
+        {"kind": "navigate", "url": "https://example.com/login", "timestamp": now},
+        {"kind": "click", "selector": "#login-btn", "timestamp": now},
+        {"kind": "navigate", "url": "https://example.com/dashboard", "timestamp": now},
+    ]
+    request = RecorderFinalizeRequest(name="Login Flow")
+    draft = mgr._convert_events_to_case(raw_events, "https://example.com/login", "rec_123", request)
+    assert len(draft.steps) == 2
+    assert "Navigate to https://example.com/login" in draft.steps[0].action
+    assert "Click #login-btn" in draft.steps[1].action
+
+
+def test_assert_step_with_frame_selector() -> None:
+    """Verify ASSERT event with frame_selector produces frame-scoped action and arguments."""
+    repo = _FakeRecorderRepo()
+    mgr = RecorderSessionManager(MagicMock(), repo)  # type: ignore[arg-type]
+    event = RecorderEvent(
+        kind=RecorderEventKind.ASSERT,
+        selector="#success-msg",
+        text="Payment complete",
+        frame_selector="iframe#checkout-frame",
+        timestamp=datetime.now(tz=UTC),
+        assertion={"expected": "Text matches", "type": "text"},
+    )
+    step = mgr._assert_step(event, order=1)
+    assert "in frame iframe#checkout-frame" in step.action
+    assert step.data["frame_selector"] == "iframe#checkout-frame"
+    code_dict = json.loads(step.code)
+    assert code_dict["arguments"]["frame_selector"] == "iframe#checkout-frame"
+    assert code_dict["arguments"]["selector"] == "#success-msg"
+    assert code_dict["arguments"]["text"] == "Payment complete"
+
+
+@pytest.mark.asyncio
+async def test_resume_reactivates_cancelled_session() -> None:
+    """Verify that a cancelled session can be resumed and re-activated to active."""
+    fake_invoker = MagicMock()
+    fake_invoker.invoke = AsyncMock(return_value=MagicMock(success=True, output={}))
+    repo = _FakeRecorderRepo()
+    mgr = RecorderSessionManager(fake_invoker, repo)  # type: ignore[arg-type]
+    req = RecorderSessionStartRequest(
+        project_id="prj_1",
+        start_url="https://app.example.com",
+    )
+    session, _ = await mgr.start("ws_1", "usr_1", req)
+    await repo.update_status(session.id, "cancelled", workspace_id="ws_1")
+    resumed, browser_url = await mgr.resume(session.id, workspace_id="ws_1")
+    assert resumed.status == "active"
+    assert "https%3A%2F%2Fapp.example.com" in (browser_url or "")
+
+
+@pytest.mark.asyncio
+async def test_resume_keeps_main_page_url_ignoring_subframe_events() -> None:
+    """Verify that resume re-opens main page URL even if later events occurred in nested iframes."""
+    fake_invoker = MagicMock()
+    fake_invoker.invoke = AsyncMock(return_value=MagicMock(success=True, output={}))
+    repo = _FakeRecorderRepo()
+    mgr = RecorderSessionManager(fake_invoker, repo)  # type: ignore[arg-type]
+    req = RecorderSessionStartRequest(
+        project_id="prj_1",
+        start_url="https://app.example.com/frames",
+    )
+    session, _ = await mgr.start("ws_1", "usr_1", req)
+
+    # Simulate events: first in main page, then in nested iframe with subframe URL
+    await repo.append_event(
+        session.id,
+        {"kind": "navigate", "url": "https://app.example.com/frames"},
+        workspace_id="ws_1",
+    )
+    await repo.append_event(
+        session.id,
+        {
+            "kind": "click",
+            "url": "https://app.example.com/nested-frame-src",
+            "selector": "button#child-btn",
+            "frame_selector": "iframe#outer >>> iframe#inner",
+        },
+        workspace_id="ws_1",
+    )
+    await repo.append_event(
+        session.id,
+        {
+            "kind": "assert",
+            "url": "https://app.example.com/nested-frame-src",
+            "selector": "span#status",
+            "frame_selector": "iframe#outer >>> iframe#inner",
+            "text": "Done",
+        },
+        workspace_id="ws_1",
+    )
+
+    resumed, browser_url = await mgr.resume(session.id, workspace_id="ws_1")
+    assert resumed.status == "active"
+    # Must resume at main page URL (/frames), NOT the subframe URL (/nested-frame-src)
+    assert "nested-frame-src" not in (browser_url or "")
+    assert "https%3A%2F%2Fapp.example.com%2Fframes" in (browser_url or "")

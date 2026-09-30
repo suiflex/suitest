@@ -34,7 +34,17 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Code, GripVertical, Plus, Trash2, Wrench } from "lucide-react";
+import {
+  AlertCircle,
+  Code,
+  FileUp,
+  GripVertical,
+  Loader2,
+  Paperclip,
+  Plus,
+  Trash2,
+  Wrench,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -300,6 +310,29 @@ export function StepEditor({
     [steps, onStepsChange],
   );
 
+  const handleUpdateStep = useCallback(
+    (stepId: string, updates: Partial<DraftStep>) => {
+      setError((prev) => {
+        if (!prev || prev.stepIndex === undefined) return prev;
+        const targetStep = steps[prev.stepIndex];
+        if (targetStep && targetStep.id === stepId) {
+          return null;
+        }
+        return prev;
+      });
+      const updated = steps.map((s) =>
+        s.id === stepId
+          ? {
+              ...s,
+              ...updates,
+            }
+          : s,
+      );
+      onStepsChange(updated);
+    },
+    [steps, onStepsChange],
+  );
+
   // ------------------------------------------------------------------
   // Remove a step — local update + conditional server sync
   // ------------------------------------------------------------------
@@ -479,6 +512,7 @@ export function StepEditor({
                   hasError={error?.stepIndex === idx}
                   outcome={outcomeByOrder?.get(idx + 1)}
                   onFieldChange={handleFieldChange}
+                  onUpdateStep={handleUpdateStep}
                   onRemove={handleRemove}
                   onRepair={() => {
                     setRepairStep(step);
@@ -513,6 +547,37 @@ export function StepEditor({
 // StepRow — a single editable step, with optional sortable drag handle
 // ---------------------------------------------------------------------------
 
+interface UploadStepInfo {
+  isUpload: boolean;
+  files: string[];
+  selector: string;
+}
+
+function parseUploadStep(code: string | null): UploadStepInfo | null {
+  if (!code) return null;
+  try {
+    const parsed = JSON.parse(code);
+    const tool = parsed.tool || "";
+    const isUploadTool =
+      tool === "browser_upload_file" ||
+      tool === "browser.upload_file" ||
+      (tool === "browser_type" &&
+        (parsed.arguments?.file || parsed.arguments?.files) &&
+        !parsed.arguments?.text);
+    if (!isUploadTool) return null;
+    const files: string[] = [];
+    if (Array.isArray(parsed.arguments?.files)) {
+      files.push(...parsed.arguments.files.map(String));
+    } else if (parsed.arguments?.file) {
+      files.push(String(parsed.arguments.file));
+    }
+    const selector = String(parsed.arguments?.target || parsed.arguments?.selector || "");
+    return { isUpload: true, files, selector };
+  } catch {
+    return null;
+  }
+}
+
 interface StepRowProps {
   step: DraftStep;
   index: number;
@@ -521,6 +586,7 @@ interface StepRowProps {
   hasError?: boolean | undefined;
   outcome?: StepOutcome | undefined;
   onFieldChange: (stepId: string, field: keyof DraftStep, value: string) => void;
+  onUpdateStep: (stepId: string, updates: Partial<DraftStep>) => void;
   onRemove: (stepId: string) => void;
   onRepair: () => void;
 }
@@ -533,9 +599,91 @@ function StepRow({
   hasError,
   outcome,
   onFieldChange,
+  onUpdateStep,
   onRemove,
   onRepair,
 }: StepRowProps): React.ReactElement {
+  const uploadInfo = parseUploadStep(step.code);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    setIsUploading(true);
+
+    try {
+      const filesArray = Array.from(selectedFiles);
+      const readPromises = filesArray.map((f) => {
+        return new Promise<{ fileName: string; base64: string }>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            resolve({
+              fileName: f.name,
+              base64: typeof evt.target?.result === "string" ? evt.target.result : "",
+            });
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(f);
+        });
+      });
+
+      const payloadFiles = await Promise.all(readPromises);
+      const res = await api.post<{ fixturePaths: string[]; fileNames: string[] }>(
+        "/fixtures/upload",
+        { files: payloadFiles },
+      );
+
+      const targetSelector = uploadInfo?.selector || "[data-testid=\"file-input\"]";
+      const newFixturePaths = res.data.fixturePaths;
+      const newFileNames = res.data.fileNames;
+
+      const newCode = JSON.stringify(
+        {
+          tool: "browser_upload_file",
+          arguments: {
+            target: targetSelector,
+            selector: targetSelector,
+            file: newFixturePaths[0],
+            files: newFixturePaths,
+          },
+        },
+        null,
+        2,
+      );
+
+      const newAction =
+        newFileNames.length > 1
+          ? `Upload ${newFileNames.length} files (${newFileNames.join(", ")}) to ${targetSelector}`
+          : `Upload file '${newFileNames[0]}' to ${targetSelector}`;
+
+      const newExpected =
+        newFileNames.length > 1
+          ? `${newFileNames.length} files are attached`
+          : `File '${newFileNames[0]}' is attached`;
+
+      onUpdateStep(step.id, {
+        code: newCode,
+        action: newAction,
+        expected: newExpected,
+      });
+
+      toast.success(
+        newFileNames.length > 1
+          ? `${newFileNames.length} files attached successfully`
+          : `File '${newFileNames[0]}' attached successfully`,
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to upload fixture file(s)";
+      toast.error(msg);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: step.id,
     disabled: disabled || !canWrite,
@@ -690,6 +838,74 @@ function StepRow({
           ))}
         </select>
       </div>
+
+      {/* File Upload Attachment Bar (for file upload steps) */}
+      {uploadInfo ? (
+        <div
+          data-testid="step-upload-attachment-bar"
+          className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-accent/20 bg-accent/[0.04] p-2"
+        >
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="flex items-center gap-1 text-[11px] font-medium text-fg-3">
+              <Paperclip className="h-3 w-3 text-accent" />
+              Attached Files:
+            </span>
+            {uploadInfo.files.length > 0 ? (
+              uploadInfo.files.map((filePath, i) => {
+                const fileName = filePath.split("/").pop() || filePath;
+                return (
+                  <span
+                    key={`${filePath}-${i}`}
+                    className="inline-flex items-center gap-1 rounded border border-border bg-bg-elev-2 px-1.5 py-0.5 font-mono text-[10.5px] text-fg-2"
+                    title={filePath}
+                  >
+                    {fileName}
+                  </span>
+                );
+              })
+            ) : (
+              <span className="text-[10.5px] italic text-fg-5">No files attached yet</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              data-testid="step-file-upload-input"
+              onChange={(e) => {
+                void handleFilesSelected(e);
+              }}
+              disabled={disabled || !canWrite || isUploading}
+            />
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              disabled={disabled || !canWrite || isUploading}
+              onClick={() => {
+                fileInputRef.current?.click();
+              }}
+              className="h-6 gap-1 border-border/80 bg-bg-elev-2 px-2 text-[11px] font-medium text-fg-2 hover:bg-bg-elev-3 hover:text-fg-1"
+              data-testid="step-change-file-btn"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin text-accent" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <FileUp className="h-3 w-3 text-accent" />
+                  Change Files
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Code textarea */}
       <div className="flex flex-col gap-1.5">

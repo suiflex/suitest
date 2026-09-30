@@ -244,4 +244,3 @@ describe("<ImageLightboxModal>", () => {
     expect(onSelectPhase).toHaveBeenCalledWith("shot_3");
   });
 });
-

@@ -206,6 +206,8 @@ export interface RecorderSessionDetail {
   status: string;
   ws_room: string;
   browser_url?: string | null;
+  is_headed_active?: boolean;
+  hud_finished?: boolean;
   captured_events_count: number;
   captured_events: RecorderCapturedEvent[];
   expires_at: string;
@@ -217,4 +219,28 @@ export async function getRecorderSession(sessionId: string): Promise<RecorderSes
   const res = await api.get<RecorderSessionDetail>(`/generators/recorder/sessions/${sessionId}`);
   return res.data;
 }
+
+/** `POST /generators/recorder/sessions/:id/resume` — re-open browser for active session. */
+export async function resumeRecorderSession(
+  sessionId: string,
+): Promise<RecorderSessionStartResponse> {
+  const res = await api.post<RecorderSessionStartResponse>(
+    `/generators/recorder/sessions/${sessionId}/resume`,
+    {},
+  );
+  return res.data;
+}
+
+/** `PUT /generators/recorder/sessions/:id/sync` — update captured events list. */
+export async function syncRecorderSession(
+  sessionId: string,
+  events: RecorderCapturedEvent[],
+): Promise<{ ok: boolean; count: number }> {
+  const res = await api.put<{ ok: boolean; count: number }>(
+    `/generators/recorder/sessions/${sessionId}/sync`,
+    { events },
+  );
+  return res.data;
+}
+
 

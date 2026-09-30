@@ -7,9 +7,10 @@ and the read/delete paths reject keys outside that prefix — a key can only tou
 its own uploads. Authenticated by API key OR session (same as the ingest path).
 """
 
-from __future__ import annotations
-
+import base64
 import mimetypes
+import os
+from pathlib import Path
 
 import anyio
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
@@ -21,7 +22,12 @@ from suitest_shared.domain.enums import Role
 from suitest_api.auth.db import get_async_session
 from suitest_api.deps.api_key import tenant_via_api_key_or_session
 from suitest_api.deps.scope import TenantContext
-from suitest_api.schemas.files import FileSignedUrl, FileUploadResult
+from suitest_api.schemas.files import (
+    FileSignedUrl,
+    FileUploadResult,
+    FixtureUploadRequest,
+    FixtureUploadResponse,
+)
 from suitest_api.services import file_storage
 
 router = APIRouter(prefix="/api/v1", tags=["files"])
@@ -149,3 +155,63 @@ async def delete_file(
     )
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/fixtures/upload",
+    response_model=FixtureUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_fixtures(
+    payload: FixtureUploadRequest,
+    ctx: TenantContext = Depends(_require_file_writer),
+    session: AsyncSession = Depends(get_async_session),
+) -> FixtureUploadResponse:
+    """Save one or more base64-encoded fixtures into workspace storage for test steps."""
+    if not payload.files:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="no files provided")
+
+    fixture_dir = Path("fixtures") / ctx.workspace_id
+    fixture_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_paths: list[str] = []
+    saved_names: list[str] = []
+
+    for item in payload.files:
+        raw_name = item.file_name or "sample.txt"
+        safe_name = os.path.basename(raw_name).replace("..", "") or "sample.txt"
+        b64 = item.base64
+        if "," in b64:
+            b64 = b64.split(",", 1)[1]
+        try:
+            raw_bytes = base64.b64decode(b64)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"invalid base64 for file {safe_name}: {exc}",
+            ) from exc
+
+        if len(raw_bytes) > _MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"file {safe_name} exceeds maximum upload size",
+            )
+
+        target_path = fixture_dir / safe_name
+        target_path.write_bytes(raw_bytes)
+
+        rel_path = f"fixtures/{ctx.workspace_id}/{safe_name}"
+        saved_paths.append(rel_path)
+        saved_names.append(safe_name)
+
+    await write_audit(
+        session,
+        workspace_id=ctx.workspace_id,
+        user_id=ctx.user_id,
+        action="fixture.upload",
+        resource_type="fixture",
+        resource_id=saved_names[0],
+        metadata={"count": len(saved_names), "files": saved_names},
+    )
+    await session.commit()
+    return FixtureUploadResponse(fixture_paths=saved_paths, file_names=saved_names)

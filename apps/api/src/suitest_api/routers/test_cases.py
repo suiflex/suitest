@@ -1193,10 +1193,22 @@ async def list_case_artifacts(
         .join(RunStep, RunStep.id == Artifact.run_step_id)
         .join(Run, Run.id == RunStep.run_id)
         .where(RunStep.case_id == internal_id)
-        .order_by(Run.created_at.desc(), RunStep.step_order.asc(), Artifact.created_at.desc())
+        .order_by(Run.created_at.desc(), RunStep.step_order.asc(), Artifact.created_at.asc())
         .limit(limit)
     )
-    rows = (await session.execute(stmt)).all()
+    rows = list((await session.execute(stmt)).all())
+
+    def _artifact_sort_key(row: Any) -> tuple[float, int, int, Any]:
+        artifact = row[0]
+        run_date: datetime = row[4]
+        case_step_order: int = int(row[5])
+        m = artifact.metadata_json or {}
+        p = m.get("phase")
+        phase_rank = 0 if p == "before" else (1 if p == "after" else 2)
+        ts = run_date.timestamp() if run_date else 0.0
+        return (-ts, case_step_order, phase_rank, artifact.created_at)
+
+    rows.sort(key=_artifact_sort_key)
 
     tc_steps_stmt = select(TestStep.order, TestStep.action).where(TestStep.case_id == internal_id)
     tc_steps_map: dict[int, str] = {
@@ -1228,6 +1240,7 @@ async def list_case_artifacts(
             size_bytes=artifact.size_bytes,
             mime_type=artifact.mime_type,
             created_at=artifact.created_at,
+            metadata=artifact.metadata_json,
         )
         for (
             artifact,

@@ -358,4 +358,72 @@ describe("StepEditor", () => {
     // onStepsChange must be called with the persisted steps (reverting the draft)
     expect(onStepsChange).toHaveBeenCalledWith(persisted);
   });
+
+  it("renders upload attachment bar with file badges when step is an upload action", () => {
+    const uploadStep = mkStep({
+      id: "stp_upload_1",
+      action: "Upload document to input",
+      code: JSON.stringify({
+        tool: "browser_upload_file",
+        arguments: {
+          target: "input[type='file']",
+          files: ["fixtures/default/doc1.pdf", "fixtures/default/doc2.png"],
+        },
+      }),
+    });
+
+    renderEditor([uploadStep]);
+
+    expect(screen.getByTestId("step-upload-attachment-bar")).toBeInTheDocument();
+    expect(screen.getByText("doc1.pdf")).toBeInTheDocument();
+    expect(screen.getByText("doc2.png")).toBeInTheDocument();
+    expect(screen.getByTestId("step-change-file-btn")).toBeInTheDocument();
+  });
+
+  it("allows selecting multiple files via Change Files button and updates step code", async () => {
+    server.use(
+      http.post("*/api/v1/fixtures/upload", () => {
+        return HttpResponse.json({
+          fixturePaths: ["fixtures/ws_test/new1.jpg", "fixtures/ws_test/new2.png"],
+          fileNames: ["new1.jpg", "new2.png"],
+        });
+      }),
+    );
+
+    const uploadStep = mkStep({
+      id: "stp_upload_multi",
+      action: "Upload file",
+      code: JSON.stringify({
+        tool: "browser_upload_file",
+        arguments: {
+          target: "input[type='file']",
+          file: "fixtures/ws_test/old.txt",
+        },
+      }),
+    });
+
+    const user = userEvent.setup();
+    const { onStepsChange } = renderEditor([uploadStep]);
+
+    const input = screen.getByTestId("step-file-upload-input") as HTMLInputElement;
+    const file1 = new File(["dummy1"], "new1.jpg", { type: "image/jpeg" });
+    const file2 = new File(["dummy2"], "new2.png", { type: "image/png" });
+
+    await user.upload(input, [file1, file2]);
+
+    await waitFor(() => {
+      expect(onStepsChange).toHaveBeenCalled();
+    });
+
+    const updatedSteps = onStepsChange.mock.calls[0]?.[0] as DraftStep[];
+    expect(updatedSteps).toBeDefined();
+    const updated = updatedSteps.find((s) => s.id === "stp_upload_multi");
+    expect(updated).toBeDefined();
+    const parsed = JSON.parse(updated!.code!);
+    expect(parsed.arguments.files).toEqual([
+      "fixtures/ws_test/new1.jpg",
+      "fixtures/ws_test/new2.png",
+    ]);
+  });
 });
+

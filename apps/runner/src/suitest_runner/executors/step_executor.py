@@ -28,6 +28,7 @@ queueing, execution fails closed.
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
@@ -35,17 +36,18 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from suitest_mcp.errors import McpToolFailed, McpToolTimeout
 from suitest_mcp.invoker import InvokeContext
+from suitest_mcp.models import McpToolResult
 from suitest_shared.domain.enums import StepOutcome, TargetKind
 
 if TYPE_CHECKING:
     from suitest_db.models.case import TestStep as TestStepRow
     from suitest_mcp.invoker import McpInvoker
-    from suitest_mcp.models import McpToolResult
 
 # Translates a prose ``action`` into a ``{"tool", "arguments"}`` envelope, or
 # ``None`` when it cannot be expressed as one tool call (M3-10). The runner binds
@@ -64,6 +66,7 @@ _LEGACY_TOOL_ALIASES: dict[str, str] = {
     "browser.evaluate": "browser_evaluate",
     "browser.wait_for": "browser_wait_for",
     "browser.assert_text": "browser.assert_text",
+    "browser.upload_file": "browser_upload_file",
 }
 
 
@@ -127,6 +130,154 @@ def _normalize_tool_name(tool: str) -> str:
     return _LEGACY_TOOL_ALIASES.get(tool, tool)
 
 
+def _resolve_fixture_path(file_path: str) -> Path:
+    p = Path(file_path)
+    if p.is_absolute() and p.exists():
+        return p
+    # Try resolving relative to current working directory
+    cand = p.resolve()
+    if cand.exists():
+        return cand
+    # Try searching up from current working directory
+    for parent in [Path.cwd(), *Path.cwd().parents]:
+        cand = parent / file_path
+        if cand.exists():
+            return cand.resolve()
+    # Try searching relative to this file's repo root
+    try:
+        repo_root = Path(__file__).resolve().parents[4]
+        cand = repo_root / file_path
+        if cand.exists():
+            return cand.resolve()
+    except (IndexError, ValueError, OSError) as exc:
+        log.debug("step_executor.resolve_fixture_path_failed", error=str(exc))
+    return p.resolve()
+
+
+async def _handle_upload_operation(
+    *,
+    invoker: McpInvoker,
+    explicit_provider: str | None,
+    normalized_tool: str,
+    arguments: dict[str, object],
+    ctx: InvokeContext,
+) -> McpToolResult:
+    target = str(
+        arguments.get("target") or arguments.get("selector") or arguments.get("element") or ""
+    )
+    raw_files = arguments.get("files")
+    if isinstance(raw_files, list) and raw_files:
+        file_candidates = [str(f) for f in raw_files]
+    elif arguments.get("file"):
+        file_candidates = [str(arguments["file"])]
+    else:
+        raise McpToolFailed(f"{normalized_tool}: missing 'file' or 'files' in arguments")
+
+    resolved_files: list[str] = []
+    for raw_path in file_candidates:
+        p = _resolve_fixture_path(raw_path)
+        if not p.exists():
+            raise McpToolFailed(f"Upload file not found: {raw_path} (resolved to {p})")
+        resolved_files.append(str(p))
+
+    payload_arg = resolved_files[0] if len(resolved_files) == 1 else resolved_files
+    code = f"""async (page) => {{
+    const locator = page.locator({json.dumps(target)});
+    await locator.setInputFiles({json.dumps(payload_arg)});
+}}"""
+    return await invoker.invoke(
+        explicit_provider=explicit_provider,
+        tool="browser_run_code_unsafe",
+        arguments={"code": code},
+        ctx=ctx,
+    )
+
+
+def _build_frame_chain_js(frame_selector: str) -> str:
+    """Build chained page.frameLocator(...) calls for nested iframes delimited by ' >>> '."""
+    parts = [s.strip() for s in frame_selector.split(">>>") if s.strip()]
+    if not parts:
+        parts = [frame_selector.strip() or "iframe"]
+    chain = "page"
+    for part in parts:
+        chain += f".frameLocator({json.dumps(part)})"
+    return chain
+
+
+async def _handle_frame_operation(
+    *,
+    invoker: McpInvoker,
+    explicit_provider: str | None,
+    normalized_tool: str,
+    frame_selector: str,
+    arguments: dict[str, object],
+    ctx: InvokeContext,
+) -> McpToolResult:
+    target = str(
+        arguments.get("target") or arguments.get("selector") or arguments.get("element") or ""
+    )
+    frame_chain = _build_frame_chain_js(frame_selector)
+    if normalized_tool == "browser_click":
+        code = f"""async (page) => {{
+    const frame = {frame_chain};
+    await frame.locator({json.dumps(target)}).click();
+}}"""
+    elif normalized_tool == "browser_type":
+        text = str(arguments.get("text", ""))
+        code = f"""async (page) => {{
+    const frame = {frame_chain};
+    await frame.locator({json.dumps(target)}).fill({json.dumps(text)});
+}}"""
+    elif normalized_tool == "browser_select_option":
+        raw_vals = arguments.get("values")
+        if isinstance(raw_vals, list):
+            vals = [str(v) for v in raw_vals]
+        elif arguments.get("value"):
+            vals = [str(arguments["value"])]
+        else:
+            vals = []
+        code = f"""async (page) => {{
+    const frame = {frame_chain};
+    await frame.locator({json.dumps(target)}).selectOption({json.dumps(vals)});
+}}"""
+    elif normalized_tool in ("browser_evaluate", "browser_assert"):
+        expected_text = str(arguments.get("text") or "")
+        if target and expected_text:
+            code = f"""async (page) => {{
+    const frame = {frame_chain};
+    await frame.locator({json.dumps(target)}).waitFor({{ state: "visible", timeout: 8000 }});
+    const txt = await frame.locator({json.dumps(target)}).textContent();
+    if (!txt || !txt.includes({json.dumps(expected_text)})) {{
+        throw new Error(`Expected frame text "${{expected_text}}" but got "${{txt}}"`);
+    }}
+}}"""
+        elif target:
+            code = f"""async (page) => {{
+    const frame = {frame_chain};
+    await frame.locator({json.dumps(target)}).waitFor({{ state: "visible", timeout: 8000 }});
+}}"""
+        else:
+            func_code = arguments.get("function") or "() => true"
+            code = f"""async (page) => {{
+    const frame = {frame_chain};
+    return await frame.locator(":root").evaluate({func_code});
+}}"""
+    else:
+        return await invoker.invoke(
+            explicit_provider=explicit_provider,
+            tool=normalized_tool,
+            arguments=arguments,
+            ctx=ctx,
+        )
+
+    return await invoker.invoke(
+        explicit_provider=explicit_provider,
+        tool="browser_run_code_unsafe",
+        arguments={"code": code},
+        ctx=ctx,
+    )
+
+
 async def _invoke_tool(
     *,
     invoker: McpInvoker,
@@ -147,6 +298,65 @@ async def _invoke_tool(
         if contains and contains not in snapshot.stdout:
             raise McpToolFailed(f"browser.assert_text: expected {contains!r} in snapshot output")
         return snapshot
+
+    is_upload = normalized_tool in ("browser_upload_file", "browser.upload_file") or (
+        normalized_tool == "browser_type"
+        and ("file" in arguments or "files" in arguments)
+        and "text" not in arguments
+    )
+    if is_upload:
+        return await _handle_upload_operation(
+            invoker=invoker,
+            explicit_provider=explicit_provider,
+            normalized_tool=normalized_tool,
+            arguments=arguments,
+            ctx=ctx,
+        )
+
+    frame_selector = str(arguments.get("frame_selector") or arguments.get("frameSelector") or "")
+    if frame_selector:
+        return await _handle_frame_operation(
+            invoker=invoker,
+            explicit_provider=explicit_provider,
+            normalized_tool=normalized_tool,
+            frame_selector=frame_selector,
+            arguments=arguments,
+            ctx=ctx,
+        )
+
+    if normalized_tool == "browser_select_option":
+        target = str(arguments.get("target") or arguments.get("selector") or "")
+        raw_vals = arguments.get("values")
+        if isinstance(raw_vals, list):
+            vals = [str(v) for v in raw_vals]
+        elif arguments.get("value"):
+            vals = [str(arguments["value"])]
+        else:
+            vals = []
+        clean_args: dict[str, Any] = {
+            "target": target,
+            "values": vals,
+        }
+        if "element" in arguments:
+            clean_args["element"] = str(arguments["element"])
+        return await invoker.invoke(
+            explicit_provider=explicit_provider,
+            tool=normalized_tool,
+            arguments=clean_args,
+            ctx=ctx,
+        )
+
+    if normalized_tool == "browser_type":
+        type_text = str(arguments.get("text", ""))
+        if type_text.startswith(("C:\\fakepath\\", "fakepath/")):
+            log.info("step_executor.skip_fakepath_type", text=type_text)
+            return McpToolResult(
+                ok=True,
+                output={},
+                stdout="Skipped redundant fakepath typing into file input",
+                duration_ms=1,
+            )
+
     return await invoker.invoke(
         explicit_provider=explicit_provider,
         tool=normalized_tool,
@@ -223,6 +433,41 @@ async def _run_assertions(
         )
 
 
+def _decode_and_resolve_secret(step_data: dict[str, Any]) -> str | None:
+    """Resolve and decode secret passwords from environment, step metadata, or encoded fallback."""
+    candidate = (
+        os.environ.get("SUITEST_PASSWORD")
+        or os.environ.get("TEST_PASSWORD")
+        or os.environ.get("SUITEST_TEST_PASSWORD")
+        or os.environ.get("SECRET_PASSWORD")
+        or os.environ.get("PASSWORD")
+        or step_data.get("default_value")
+        or step_data.get("raw_value")
+    )
+    if candidate is not None:
+        candidate_str = str(candidate).strip()
+        # Decode base64 prefixes e.g. base64:c2VjcmV0 or b64:c2VjcmV0
+        if candidate_str.startswith("base64:") or candidate_str.startswith("b64:"):
+            prefix_len = 7 if candidate_str.startswith("base64:") else 4
+            try:
+                return base64.b64decode(candidate_str[prefix_len:]).decode("utf-8")
+            except Exception as exc:
+                log.debug("step_executor.base64_decode_failed", error=str(exc))
+                return candidate_str[prefix_len:]
+        return candidate_str
+
+    # Fallback to encoded_value in step_data if present
+    encoded_val = step_data.get("encoded_value")
+    if encoded_val and isinstance(encoded_val, str):
+        try:
+            return base64.b64decode(encoded_val).decode("utf-8")
+        except Exception as exc:
+            log.warning("step_executor.decode_fallback_failed", error=str(exc))
+            return None
+
+    return None
+
+
 async def execute_step(
     *,
     invoker: McpInvoker,
@@ -287,10 +532,23 @@ async def execute_step(
 
     # Resolve placeholder variables like {{password}}
     raw_text = arguments.get("text")
-    if isinstance(raw_text, str) and "{{password}}" in raw_text:
-        resolved_pw = os.environ.get("SUITEST_PASSWORD") or os.environ.get("TEST_PASSWORD")
+    if isinstance(raw_text, str) and (
+        "{{password}}" in raw_text or "${SECRET_PASSWORD}" in raw_text
+    ):
+        step_data = test_step.data if isinstance(test_step.data, dict) else {}
+        resolved_pw = _decode_and_resolve_secret(step_data)
         if resolved_pw:
-            arguments["text"] = raw_text.replace("{{password}}", str(resolved_pw))
+            arguments["text"] = raw_text.replace("{{password}}", str(resolved_pw)).replace(
+                "${SECRET_PASSWORD}", str(resolved_pw)
+            )
+        else:
+            return _done(
+                StepOutcome.FAIL,
+                msg=(
+                    "Step requires secret password placeholder {{password}}, but no password was provided. "
+                    "Set SUITEST_PASSWORD in your environment or configure test credentials."
+                ),
+            )
 
     raw_assertions = parsed.get("assertions", [])
     assertions: list[dict[str, object]] = (

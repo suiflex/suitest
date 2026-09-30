@@ -304,6 +304,8 @@ class RecorderEventKind(StrEnum):
     TYPE = "type"
     ASSERT = "assert"
     NETWORK = "network"
+    SELECT = "select"
+    UPLOAD = "upload"
 
 
 class RecorderEvent(BaseModel):
@@ -320,10 +322,12 @@ class RecorderEvent(BaseModel):
     timestamp: datetime
     url: str | None = None
     selector: str | None = None
+    frame_selector: str | None = None
     text: str | None = None
     masked: bool = False
     assertion: dict[str, object] | None = None
     network: dict[str, object] | None = None
+    data: dict[str, object] | None = None
 
 
 class RecorderFinalizeRequest(BaseModel):
@@ -331,8 +335,16 @@ class RecorderFinalizeRequest(BaseModel):
 
     model_config = ConfigDict(str_strip_whitespace=True)
 
-    target_suite_id: Annotated[str, Field(min_length=1)]
-    name: Annotated[str, Field(min_length=1, max_length=255)]
+    target_suite_id: str | None = None
+    name: str | None = None
     priority: Literal["P0", "P1", "P2", "P3"] = "P2"
     description: str | None = None
     events: list[dict[str, object]] | None = None
+
+
+class RecorderSyncRequest(BaseModel):
+    """Body for ``PUT .../sync`` — replaces captured events with filtered/coalesced events."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    events: list[dict[str, object]] = Field(default_factory=list)

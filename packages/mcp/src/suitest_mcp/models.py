@@ -122,7 +122,7 @@ class McpToolResult(BaseModel):
     stdout: str = ""
     stderr: str = ""
     artifacts: list[McpArtifact] = Field(default_factory=list)
-    duration_ms: int
+    duration_ms: int = 0
     error_code: str | None = None
     error_message: str | None = None
 

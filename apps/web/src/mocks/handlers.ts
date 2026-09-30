@@ -718,6 +718,20 @@ export const handlers: HttpHandler[] = [
       updated_at: "2026-06-01T10:00:00Z",
     }),
   ),
+  http.put(`${BASE}/generators/recorder/sessions/:sessionId/sync`, async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as { events?: unknown[] };
+    const count = Array.isArray(body.events) ? body.events.length : 0;
+    return HttpResponse.json({ ok: true, count });
+  }),
+  http.post(`${BASE}/generators/recorder/sessions/:sessionId/resume`, () =>
+    HttpResponse.json({
+      session_id: "rec_stub",
+      ws_room: "recorder:rec_stub",
+      browser_url: "http://localhost:9333/devtools",
+      is_headed: true,
+      expires_at: "2099-06-01T10:30:00Z",
+    }),
+  ),
   http.delete(
     `${BASE}/generators/recorder/sessions/:sessionId`,
     () => new HttpResponse(null, { status: 204 }),

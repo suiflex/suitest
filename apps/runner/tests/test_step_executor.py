@@ -382,3 +382,403 @@ async def test_execute_step_resolves_password_placeholder(
     inv.invoke.assert_awaited_once()
     call_kwargs = inv.invoke.call_args.kwargs
     assert call_kwargs["arguments"]["text"] == "super-secret-pw"
+
+
+@pytest.mark.asyncio
+async def test_execute_step_unresolved_password_fails_fast(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("SUITEST_PASSWORD", raising=False)
+    monkeypatch.delenv("TEST_PASSWORD", raising=False)
+    monkeypatch.delenv("SUITEST_TEST_PASSWORD", raising=False)
+    monkeypatch.delenv("SECRET_PASSWORD", raising=False)
+    monkeypatch.delenv("PASSWORD", raising=False)
+    inv = MagicMock()
+    inv.invoke = AsyncMock()
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_type",
+                "arguments": {"target": "input#pass", "text": "{{password}}"},
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.FAIL
+    assert "SUITEST_PASSWORD" in (result.error_message or "")
+    inv.invoke.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_execute_step_decodes_base64_env_password(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # "secret_sauce" in base64 is "c2VjcmV0X3NhdWNl"
+    monkeypatch.setenv("SUITEST_PASSWORD", "base64:c2VjcmV0X3NhdWNl")
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={}, stdout="ok", duration_ms=10)
+    )
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_type",
+                "arguments": {"target": "input#pass", "text": "{{password}}"},
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    inv.invoke.assert_awaited_once()
+    call_kwargs = inv.invoke.call_args.kwargs
+    assert call_kwargs["arguments"]["text"] == "secret_sauce"
+
+
+@pytest.mark.asyncio
+async def test_execute_step_decodes_step_data_encoded_value_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("SUITEST_PASSWORD", raising=False)
+    monkeypatch.delenv("TEST_PASSWORD", raising=False)
+    monkeypatch.delenv("SUITEST_TEST_PASSWORD", raising=False)
+    monkeypatch.delenv("SECRET_PASSWORD", raising=False)
+    monkeypatch.delenv("PASSWORD", raising=False)
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={}, stdout="ok", duration_ms=10)
+    )
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_type",
+                "arguments": {"target": "input#pass", "text": "{{password}}"},
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    # Stored encoded_value in step metadata: base64("my-vault-secret") -> "bXktdmF1bHQtc2VjcmV0"
+    step.data = {"masked": True, "encoded_value": "bXktdmF1bHQtc2VjcmV0"}
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    inv.invoke.assert_awaited_once()
+    call_kwargs = inv.invoke.call_args.kwargs
+    assert call_kwargs["arguments"]["text"] == "my-vault-secret"
+
+
+@pytest.mark.asyncio
+async def test_execute_step_upload_file_translates_to_run_code_unsafe(
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    test_file = tmp_path / "test.png"  # type: ignore[operator]
+    test_file.write_text("dummy")
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={}, stdout="ok", duration_ms=15)
+    )
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_upload_file",
+                "arguments": {"target": "input[type=file]", "file": str(test_file)},
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    inv.invoke.assert_awaited_once()
+    call_kwargs = inv.invoke.call_args.kwargs
+    assert call_kwargs["tool"] == "browser_run_code_unsafe"
+    assert "setInputFiles" in call_kwargs["arguments"]["code"]
+    assert str(test_file) in call_kwargs["arguments"]["code"]
+
+
+@pytest.mark.asyncio
+async def test_execute_step_legacy_browser_type_upload_compat(
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    test_file = tmp_path / "test.png"  # type: ignore[operator]
+    test_file.write_text("dummy")
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={}, stdout="ok", duration_ms=15)
+    )
+    # Legacy recorded step: tool is browser_type, has file & files, text is absent
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_type",
+                "arguments": {
+                    "target": '[data-testid="file-input"]',
+                    "file": str(test_file),
+                    "files": [str(test_file)],
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    inv.invoke.assert_awaited_once()
+    call_kwargs = inv.invoke.call_args.kwargs
+    assert call_kwargs["tool"] == "browser_run_code_unsafe"
+    assert "setInputFiles" in call_kwargs["arguments"]["code"]
+
+
+@pytest.mark.asyncio
+async def test_execute_step_skips_fakepath_typing() -> None:
+    inv = MagicMock()
+    inv.invoke = AsyncMock()
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_type",
+                "arguments": {
+                    "target": '[data-testid="file-input"]',
+                    "text": "C:\\fakepath\\sample.png",
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    # Invoker should not even have been called because fakepath typing was skipped cleanly
+    inv.invoke.assert_not_awaited()
+    assert "fakepath" in (result.stdout or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_execute_step_multi_file_upload(
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    f1 = tmp_path / "doc1.pdf"  # type: ignore[operator]
+    f2 = tmp_path / "doc2.pdf"  # type: ignore[operator]
+    f1.write_text("file 1")
+    f2.write_text("file 2")
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={}, stdout="ok", duration_ms=20)
+    )
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_upload_file",
+                "arguments": {
+                    "target": "input[type=file]",
+                    "files": [str(f1), str(f2)],
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    inv.invoke.assert_awaited_once()
+    call_kwargs = inv.invoke.call_args.kwargs
+    assert call_kwargs["tool"] == "browser_run_code_unsafe"
+    code = call_kwargs["arguments"]["code"]
+    assert str(f1) in code
+    assert str(f2) in code
+
+
+async def test_execute_step_with_frame_selector_click() -> None:
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={}, stdout="ok", duration_ms=20)
+    )
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_click",
+                "arguments": {
+                    "target": "button#submit",
+                    "frame_selector": "iframe#login-frame",
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    inv.invoke.assert_awaited_once()
+    call_kwargs = inv.invoke.call_args.kwargs
+    assert call_kwargs["tool"] == "browser_run_code_unsafe"
+    code = call_kwargs["arguments"]["code"]
+    assert 'frameLocator("iframe#login-frame")' in code
+    assert 'locator("button#submit").click()' in code
+
+
+async def test_execute_step_with_browser_select_option_sanitizes_args() -> None:
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={}, stdout="ok", duration_ms=20)
+    )
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_select_option",
+                "arguments": {
+                    "target": "select#country",
+                    "selector": "select#country",
+                    "values": ["ID"],
+                    "value": "ID",
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    inv.invoke.assert_awaited_once()
+    call_kwargs = inv.invoke.call_args.kwargs
+    assert call_kwargs["tool"] == "browser_select_option"
+    assert call_kwargs["arguments"] == {"target": "select#country", "values": ["ID"]}
+
+
+async def test_execute_step_with_frame_selector_assert() -> None:
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={}, stdout="ok", duration_ms=25)
+    )
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_evaluate",
+                "arguments": {
+                    "selector": "#success-msg",
+                    "text": "Payment complete",
+                    "frame_selector": "iframe#checkout-frame",
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    inv.invoke.assert_awaited_once()
+    call_kwargs = inv.invoke.call_args.kwargs
+    assert call_kwargs["tool"] == "browser_run_code_unsafe"
+    code = call_kwargs["arguments"]["code"]
+    assert 'frameLocator("iframe#checkout-frame")' in code
+    assert 'locator("#success-msg")' in code
+    assert "Payment complete" in code
+
+
+async def test_execute_step_with_nested_chained_frame_selector() -> None:
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={}, stdout="ok", duration_ms=25)
+    )
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_evaluate",
+                "arguments": {
+                    "selector": "button#nested-submit",
+                    "text": "Submit Nested",
+                    "frame_selector": "iframe#outer-frame >>> iframe#inner-frame",
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+    )
+    assert result.outcome == StepOutcome.PASS
+    inv.invoke.assert_awaited_once()
+    call_kwargs = inv.invoke.call_args.kwargs
+    assert call_kwargs["tool"] == "browser_run_code_unsafe"
+    code = call_kwargs["arguments"]["code"]
+    assert 'page.frameLocator("iframe#outer-frame").frameLocator("iframe#inner-frame")' in code
+    assert 'locator("button#nested-submit")' in code
+    assert "Submit Nested" in code

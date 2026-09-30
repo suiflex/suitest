@@ -242,7 +242,7 @@ export type WorkspaceEvent =
  * schema. The gateway wraps each in a `generator.recorder.step` envelope.
  */
 export interface RecorderLiveEvent {
-  kind: "navigate" | "click" | "type" | "assert" | "network";
+  kind: "navigate" | "click" | "type" | "assert" | "network" | "select" | "upload";
   timestamp?: string;
   url?: string | null;
   selector?: string | null;
@@ -250,6 +250,7 @@ export interface RecorderLiveEvent {
   masked?: boolean;
   assertion?: Record<string, unknown> | null;
   network?: Record<string, unknown> | null;
+  data?: Record<string, unknown> | null;
 }
 
 // ---------------------------------------------------------------------------

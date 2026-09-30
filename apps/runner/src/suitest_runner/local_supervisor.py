@@ -165,6 +165,13 @@ async def serve() -> None:
         )
         return
 
+    try:
+        import dotenv
+
+        dotenv.load_dotenv()
+    except ImportError as exc:
+        log.debug("supervisor.dotenv_not_available", error=str(exc))
+
     ctx: dict[str, object] = {}
     try:
         await build_local_ctx(ctx)

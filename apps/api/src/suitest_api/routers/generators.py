@@ -10,18 +10,18 @@ stays ``null`` (no cross-tenant leak).
 
 from __future__ import annotations
 
-import ipaddress
+import contextlib
 import json
 import logging
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, Response, StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from suitest_agent.generators.classifier import classify
@@ -52,6 +52,7 @@ from suitest_shared.schemas.generator_input import (
     RecorderFinalizeRequest,
     RecorderSessionStartRequest,
     RecorderSessionStartResponse,
+    RecorderSyncRequest,
     UrlSemanticGenerateRequest,
 )
 
@@ -438,80 +439,6 @@ async def generate_crawler(
 # three endpoints are QA+ (they create / mutate sessions + cases).
 
 
-def _inject_recorder_script(
-    html: str,
-    session_id: str,
-    workspace_id: str = "",
-    target_url: str = "",
-) -> str:
-    """Inject base tag and inlined recorder agent script into target page HTML."""
-    import re
-
-    # Neutralize any meta CSP headers in the target HTML that would block recorder communication
-    cleaned_html = re.sub(
-        r'<meta[^>]*http-equiv=["\']?content-security-policy["\']?[^>]*>',
-        "",
-        html,
-        flags=re.IGNORECASE,
-    )
-
-    base_tag = f'<base href="{target_url}">' if target_url else ""
-    script_tag = (
-        f'<script src="/recorder_agent.js" data-session-id="{session_id}"></script>\n'
-        f'<script src="/api/v1/generators/recorder/agent.js" data-session-id="{session_id}"></script>'
-    )
-    agent_code = _get_agent_js()
-    target_url_json = json.dumps(target_url) if target_url else '""'
-    browse_endpoint = f"/api/v1/generators/recorder/sessions/{session_id}/browse"
-    inlined_agent = (
-        f'<script id="suitest-recorder-bootstrap">\n'
-        f'  window.__SUITEST_SESSION_ID__ = "{session_id}";\n'
-        f'  window.__SUITEST_WORKSPACE_ID__ = "{workspace_id}";\n'
-        f'  window.__SUITEST_API_URL__ = "/api/v1";\n'
-        f"  window.__SUITEST_TARGET_URL__ = {target_url_json};\n"
-        f'  window.__SUITEST_BROWSE_ENDPOINT__ = "{browse_endpoint}";\n'
-        f"  try {{\n"
-        f"    var _origUrl = window.location.href;\n"
-        f"    window.__SUITEST_BROWSE_ORIGINAL_URL__ = _origUrl;\n"
-        f"    if ({target_url_json}) {{\n"
-        f"      var _tUrl = new URL({target_url_json});\n"
-        f'      var _tPath = (_tUrl.pathname || "/") + (_tUrl.search || "") + (_tUrl.hash || "");\n'
-        f'      if (window.location.pathname.includes("/browse") && window.location.pathname !== _tPath) {{\n'
-        f'        window.history.replaceState({{ __suitest_browse: _origUrl }}, "", window.location.origin + _tPath);\n'
-        f"      }}\n"
-        f"    }}\n"
-        f'  }} catch (e) {{ console.debug("[Suitest Recorder] Failed to align SPA virtual path:", e); }}\n'
-        f"</script>\n"
-        f'<script id="suitest-recorder-agent">\n'
-        f"{agent_code}\n"
-        f"</script>"
-    )
-    injection = f"{base_tag}\n{script_tag}\n{inlined_agent}\n"
-
-    lower_html = cleaned_html.lower()
-    head_pos = lower_html.find("<head")
-    if head_pos != -1:
-        close_head_pos = lower_html.find(">", head_pos)
-        if close_head_pos != -1:
-            return (
-                cleaned_html[: close_head_pos + 1]
-                + f"\n{injection}"
-                + cleaned_html[close_head_pos + 1 :]
-            )
-
-    body_pos = lower_html.find("<body")
-    if body_pos != -1:
-        close_body_pos = lower_html.find(">", body_pos)
-        if close_body_pos != -1:
-            return (
-                cleaned_html[: close_body_pos + 1]
-                + f"\n{injection}"
-                + cleaned_html[close_body_pos + 1 :]
-            )
-
-    return f"{injection}{cleaned_html}"
-
-
 class RecorderSessionDetailResponse(BaseModel):
     """Detailed response for an active or past recording session."""
 
@@ -522,6 +449,8 @@ class RecorderSessionDetailResponse(BaseModel):
     status: str
     ws_room: str
     browser_url: str | None = None
+    is_headed_active: bool = False
+    hud_finished: bool = False
     captured_events_count: int
     captured_events: list[dict[str, Any]]
     expires_at: datetime
@@ -575,12 +504,15 @@ async def start_recorder_session(
     )
     row, browser_url = await manager.start(ctx.workspace_id, ctx.user_id, payload)
 
-    from suitest_agent.generators.browser_launcher import has_active_headed_browser
+    from suitest_agent.generators.browser_launcher import (
+        has_active_headed_browser,
+        is_display_available,
+    )
 
-    is_headed = has_active_headed_browser(row.id)
-    if not browser_url:
-        encoded_url = quote(payload.start_url, safe="")
-        browser_url = f"/api/v1/generators/recorder/sessions/{row.id}/browse?url={encoded_url}&workspaceId={ctx.workspace_id}"
+    is_headed = has_active_headed_browser(row.id) or (
+        payload.mcp_provider in ("playwright-headed", "headed", "playwright-mcp", "")
+        and is_display_available()
+    )
 
     await session.commit()
     return RecorderSessionStartResponse(
@@ -611,6 +543,14 @@ async def get_recorder_session(
     encoded_url = quote(row.start_url, safe="")
     browser_url = f"/api/v1/generators/recorder/sessions/{row.id}/browse?url={encoded_url}&workspaceId={ctx.workspace_id}"
 
+    from suitest_agent.generators.browser_launcher import (
+        has_active_headed_browser,
+        was_hud_finished,
+    )
+
+    is_headed_active = has_active_headed_browser(row.id)
+    hud_finished = was_hud_finished(row.id)
+
     return RecorderSessionDetailResponse(
         id=row.id,
         workspace_id=row.workspace_id,
@@ -619,6 +559,8 @@ async def get_recorder_session(
         status=row.status,
         ws_room=row.ws_room,
         browser_url=browser_url,
+        is_headed_active=is_headed_active,
+        hud_finished=hud_finished,
         captured_events_count=len(row.captured_events_json or []),
         captured_events=row.captured_events_json or [],
         expires_at=row.expires_at,
@@ -626,189 +568,54 @@ async def get_recorder_session(
     )
 
 
-def _is_restricted_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    return (
-        ip.is_private
-        or ip.is_loopback
-        or ip.is_link_local
-        or ip.is_reserved
-        or ip.is_multicast
-        or ip.is_unspecified
-    )
-
-
-def _validate_target_url(url: str) -> str:
-    """Validate that target_url uses http(s) and does not point to private/loopback addresses."""
-    target_url = url.strip()
-    if not target_url.startswith(("http://", "https://")):
-        target_url = "https://" + target_url
-
-    parsed = urlparse(target_url)
-    if parsed.scheme not in ("http", "https"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only http and https schemes are permitted",
-        )
-    hostname = parsed.hostname or ""
-    if not hostname:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid URL target host",
-        )
-    if hostname.lower() in ("localhost", "127.0.0.1", "0.0.0.0", "::1"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Target host not allowed",
-        )
-    try:
-        ip = ipaddress.ip_address(hostname)
-        if _is_restricted_ip(ip):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Private network addresses are not allowed",
-            )
-    except ValueError:
-        import socket
-
-        try:
-            addr_info = socket.getaddrinfo(hostname, None)
-            for _, _, _, _, sockaddr in addr_info:
-                ip_addr = ipaddress.ip_address(sockaddr[0])
-                if _is_restricted_ip(ip_addr):
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Target resolves to a restricted private/internal address",
-                    )
-        except socket.gaierror as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Could not resolve target hostname: {hostname}",
-            ) from exc
-
-    return target_url
-
-
-def _check_browse_session(rec_session: Any) -> Response | None:
-    """Verify recording session exists, is active, and is not expired."""
-    if rec_session is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="recorder session not found"
-        )
-    if rec_session.status != "active":
-        return HTMLResponse(
-            f"<html><body style='font-family: sans-serif; padding: 40px; text-align: center; background: #0f172a; color: #f8fafc;'>"
-            f"<h2>Session {rec_session.status}</h2>"
-            f"<p>This recorder session is no longer active ({rec_session.status}).</p>"
-            f"</body></html>",
-            status_code=status.HTTP_410_GONE,
-        )
-
-    expires_at = rec_session.expires_at
-    if expires_at is not None:
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=UTC)
-        if expires_at < datetime.now(tz=UTC):
-            return HTMLResponse(
-                "<html><body style='font-family: sans-serif; padding: 40px; text-align: center; background: #0f172a; color: #f8fafc;'>"
-                "<h2>Session Expired</h2>"
-                "<p>This recorder session has expired.</p>"
-                "</body></html>",
-                status_code=status.HTTP_410_GONE,
-            )
-    return None
-
-
-@router.api_route(
-    "/generators/recorder/sessions/{session_id}/browse",
-    methods=["GET", "HEAD"],
-    include_in_schema=False,
-)
-async def browse_recorder_session(
-    session_id: str,
-    url: str,
-    request: Request,
-    session: AsyncSession = Depends(get_async_session),
-) -> Response:
-    """Interactive zero-install web recorder proxy endpoint.
-
-    Fetches the requested target URL, strips blocking CSP/frame headers, injects
-    the recorder_agent.js script + <base> tag, and renders the page in the caller's browser.
-    Authorized via the unguessable active session_id so standard browser tab navigations
-    and page refreshes function seamlessly without custom HTTP headers.
-    """
-    repo = RecorderSessionRepo(session)
-    rec_session = await repo.get_by_id(session_id)
-    if rec_session is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="recorder session not found"
-        )
-    session_err = _check_browse_session(rec_session)
-    if session_err is not None:
-        return session_err
-
-    target_url = _validate_target_url(url)
-
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-        ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=25.0, follow_redirects=False, verify=True) as client:
-            curr_url = target_url
-            for _ in range(5):
-                resp = await client.request(request.method, curr_url, headers=headers)
-                if resp.is_redirect and "location" in resp.headers:
-                    next_url = str(resp.url.join(resp.headers["location"]))
-                    curr_url = _validate_target_url(next_url)
-                    continue
-                break
-    except HTTPException:
-        raise
-    except Exception as exc:
-        return HTMLResponse(
-            f"<html><body style='font-family: sans-serif; padding: 40px; background: #0f172a; color: #f8fafc;'>"
-            f"<h2 style='color: #ef4444;'>Unable to load target site</h2>"
-            f"<p>Could not connect to: <code>{target_url}</code></p>"
-            f"<p style='color: #94a3b8;'>Error: {exc}</p>"
-            f"<a href='javascript:location.reload()' style='color: #38bdf8;'>Retry</a>"
-            f"</body></html>",
-            status_code=status.HTTP_502_BAD_GATEWAY,
-        )
-
-    content_type = resp.headers.get("content-type", "")
-    if "text/html" in content_type:
-        html = resp.text
-        modified_html = _inject_recorder_script(
-            html, session_id, workspace_id=rec_session.workspace_id, target_url=str(resp.url)
-        )
-        return HTMLResponse(content=modified_html, status_code=resp.status_code)
-
-    return Response(
-        content=resp.content,
-        status_code=resp.status_code,
-        media_type=content_type,
-    )
-
-
 @router.options("/generators/recorder/sessions/{session_id}/events")
 async def options_recorder_session_event(session_id: str, request: Request) -> Response:
-    """CORS preflight for recorder events from proxy, bookmarklet, or external origins."""
+    """CORS preflight for recorder events."""
     origin = request.headers.get("origin") or "*"
     return Response(
         status_code=status.HTTP_204_NO_CONTENT,
         headers={
             "Access-Control-Allow-Origin": origin,
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
             "Access-Control-Allow-Headers": "*",
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Allow-Private-Network": "true",
         },
     )
+
+
+@router.get(
+    "/generators/recorder/sessions/{session_id}/events",
+    response_model=dict[str, Any],
+)
+async def get_recorder_session_events(
+    session_id: str,
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(get_async_session),
+) -> dict[str, Any]:
+    """Retrieve captured events for an active recording session via session token."""
+    repo = RecorderSessionRepo(session)
+    rec_session = await repo.get_by_id(session_id)
+    if rec_session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
+
+    ws_header = request.headers.get("x-workspace-id") or request.query_params.get("workspaceId")
+    if ws_header and ws_header.strip() != rec_session.workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="session not found in specified workspace",
+        )
+
+    origin = request.headers.get("origin") or "*"
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Private-Network"] = "true"
+    return {
+        "ok": True,
+        "count": len(rec_session.captured_events_json or []),
+        "events": rec_session.captured_events_json or [],
+    }
 
 
 @router.post(
@@ -826,7 +633,7 @@ async def append_recorder_session_event(
 
     Authorizes via the active recording session token: looks up the unguessable session_id,
     verifies it is active and not expired, and appends the event. Sets CORS headers so
-    recording works across origins (in-browser proxy, bookmarklet, intranet tabs).
+    recording works across origins.
     """
     repo = RecorderSessionRepo(session)
     rec_session = await repo.get_by_id(session_id)
@@ -868,6 +675,74 @@ async def append_recorder_session_event(
     return {"ok": True, "count": len(rec_session.captured_events_json or [])}
 
 
+@router.options("/generators/recorder/sessions/{session_id}/sync")
+async def options_recorder_session_sync(session_id: str, request: Request) -> Response:
+    """CORS preflight for recorder events sync."""
+    origin = request.headers.get("origin") or "*"
+    return Response(
+        status_code=status.HTTP_204_NO_CONTENT,
+        headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Methods": "PUT, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Private-Network": "true",
+        },
+    )
+
+
+@router.put(
+    "/generators/recorder/sessions/{session_id}/sync",
+    response_model=dict[str, Any],
+)
+async def sync_recorder_session_events(
+    session_id: str,
+    payload: RecorderSyncRequest,
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(get_async_session),
+) -> dict[str, Any]:
+    """Replace all captured events for an active recording session."""
+    repo = RecorderSessionRepo(session)
+    rec_session = await repo.get_by_id(session_id)
+    if rec_session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
+    if rec_session.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail=f"session is {rec_session.status}",
+        )
+    expires_at = rec_session.expires_at
+    if expires_at is not None:
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        if expires_at < datetime.now(tz=UTC):
+            raise HTTPException(status_code=status.HTTP_410_GONE, detail="session has expired")
+
+    ws_header = request.headers.get("x-workspace-id") or request.query_params.get("workspaceId")
+    if ws_header and ws_header.strip() != rec_session.workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="session not found in specified workspace",
+        )
+
+    invoker = _build_mcp_invoker(rec_session.workspace_id, request)
+    manager = RecorderSessionManager(invoker, repo, getattr(request.app.state, "ws_redis", None))
+    try:
+        await manager.sync_events(session_id, rec_session.workspace_id, payload.events)
+    except RecorderSessionNotFound as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except RecorderSessionExpired as exc:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail=str(exc)) from exc
+
+    await session.commit()
+    origin = request.headers.get("origin") or "*"
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Private-Network"] = "true"
+    return {"ok": True, "count": len(payload.events)}
+
+
 @router.post(
     "/generators/recorder/sessions/{session_id}/finalize",
     response_model=TestCaseDetail,
@@ -891,8 +766,21 @@ async def finalize_recorder_session(
         ProjectRepo(session),
         http_client,
     )
-    if not await svc.suite_in_scope(payload.target_suite_id, ctx.workspace_id):
+    target_suite_id = payload.target_suite_id
+    if not target_suite_id:
+        rec_session = await RecorderSessionRepo(session).get_by_id(
+            session_id, workspace_id=ctx.workspace_id
+        )
+        if rec_session:
+            suites = await SuiteRepo(session).list_by_project(rec_session.project_id)
+            if suites:
+                target_suite_id = suites[0].id
+
+    if not target_suite_id or not await svc.suite_in_scope(target_suite_id, ctx.workspace_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="suite not found")
+
+    if not payload.name:
+        payload.name = f"Recorded Test ({session_id[:8]})"
 
     invoker = _build_mcp_invoker(ctx.workspace_id, request)
     manager = RecorderSessionManager(
@@ -906,11 +794,65 @@ async def finalize_recorder_session(
         raise HTTPException(status_code=status.HTTP_410_GONE, detail=str(exc)) from exc
 
     case_id = await svc.persist_recorder_case(
-        draft, suite_id=payload.target_suite_id, workspace_id=ctx.workspace_id
+        draft, suite_id=target_suite_id, workspace_id=ctx.workspace_id
     )
     await manager.mark_finalized(session_id, ctx.workspace_id, case_id)
+    with contextlib.suppress(Exception):
+        from suitest_agent.generators.browser_launcher import close_headed_browser
+
+        await close_headed_browser(session_id, cleanup_storage=True)
     await session.commit()
     return await _detail_with_steps(request, session, ctx.workspace_id, case_id)
+
+
+@router.post(
+    "/generators/recorder/sessions/{session_id}/resume",
+    response_model=RecorderSessionStartResponse,
+)
+async def resume_recorder_session(
+    session_id: str,
+    request: Request,
+    ctx: TenantContext = Depends(require_role(_WRITER_ROLES)),
+    session: AsyncSession = Depends(get_async_session),
+) -> RecorderSessionStartResponse:
+    """Resume an active recording session (e.g. after accidental browser close)."""
+    repo = RecorderSessionRepo(session)
+    sess_row = await repo.get_by_id(session_id, workspace_id=ctx.workspace_id)
+    if sess_row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
+
+    invoker = _build_mcp_invoker(ctx.workspace_id, request)
+    api_base_url = str(request.base_url).rstrip("/") + "/api/v1"
+    manager = RecorderSessionManager(
+        invoker,
+        repo,
+        getattr(request.app.state, "ws_redis", None),
+        api_base_url=api_base_url,
+    )
+    try:
+        row, browser_url = await manager.resume(session_id, ctx.workspace_id, ctx.user_id)
+    except RecorderSessionNotFound as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except RecorderSessionExpired as exc:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail=str(exc)) from exc
+
+    from suitest_agent.generators.browser_launcher import (
+        has_active_headed_browser,
+        is_display_available,
+    )
+
+    is_headed = has_active_headed_browser(row.id) or (
+        sess_row.mcp_provider in ("playwright-headed", "headed", "playwright-mcp", "")
+        and is_display_available()
+    )
+    return RecorderSessionStartResponse(
+        session_id=row.id,
+        ws_room=row.ws_room,
+        browser_url=browser_url,
+        is_headed=is_headed,
+        workspace_id=ctx.workspace_id,
+        expires_at=row.expires_at,
+    )
 
 
 @router.delete(

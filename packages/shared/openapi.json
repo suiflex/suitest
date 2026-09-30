@@ -3294,6 +3294,75 @@
         "title": "FileUploadResult",
         "type": "object"
       },
+      "FixtureUploadItem": {
+        "properties": {
+          "base64": {
+            "title": "Base64",
+            "type": "string"
+          },
+          "contentType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contenttype"
+          },
+          "fileName": {
+            "title": "Filename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fileName",
+          "base64"
+        ],
+        "title": "FixtureUploadItem",
+        "type": "object"
+      },
+      "FixtureUploadRequest": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FixtureUploadItem"
+            },
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "FixtureUploadRequest",
+        "type": "object"
+      },
+      "FixtureUploadResponse": {
+        "properties": {
+          "fileNames": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Filenames",
+            "type": "array"
+          },
+          "fixturePaths": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fixturepaths",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fixturePaths",
+          "fileNames"
+        ],
+        "title": "FixtureUploadResponse",
+        "type": "object"
+      },
       "FlakyCaseOut": {
         "properties": {
           "caseId": {
@@ -7241,6 +7310,29 @@
             ],
             "title": "Assertion"
           },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "frame_selector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame Selector"
+          },
           "kind": {
             "$ref": "#/components/schemas/RecorderEventKind"
           },
@@ -7313,7 +7405,9 @@
           "click",
           "type",
           "assert",
-          "network"
+          "network",
+          "select",
+          "upload"
         ],
         "title": "RecorderEventKind",
         "type": "string"
@@ -7348,10 +7442,15 @@
             "title": "Events"
           },
           "name": {
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
           "priority": {
             "default": "P2",
@@ -7365,15 +7464,17 @@
             "type": "string"
           },
           "target_suite_id": {
-            "minLength": 1,
-            "title": "Target Suite Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Suite Id"
           }
         },
-        "required": [
-          "target_suite_id",
-          "name"
-        ],
         "title": "RecorderFinalizeRequest",
         "type": "object"
       },
@@ -7408,9 +7509,19 @@
             "title": "Expires At",
             "type": "string"
           },
+          "hud_finished": {
+            "default": false,
+            "title": "Hud Finished",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "is_headed_active": {
+            "default": false,
+            "title": "Is Headed Active",
+            "type": "boolean"
           },
           "project_id": {
             "title": "Project Id",
@@ -7523,6 +7634,21 @@
           "expires_at"
         ],
         "title": "RecorderSessionStartResponse",
+        "type": "object"
+      },
+      "RecorderSyncRequest": {
+        "description": "Body for ``PUT .../sync`` \u2014 replaces captured events with filtered/coalesced events.",
+        "properties": {
+          "events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "title": "RecorderSyncRequest",
         "type": "object"
       },
       "ReporterInfo": {
@@ -14310,6 +14436,90 @@
         ]
       }
     },
+    "/api/v1/fixtures/upload": {
+      "post": {
+        "description": "Save one or more base64-encoded fixtures into workspace storage for test steps.",
+        "operationId": "upload_fixtures_api_v1_fixtures_upload_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FixtureUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixtureUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Upload Fixtures",
+        "tags": [
+          "files"
+        ]
+      }
+    },
     "/api/v1/generators/classify": {
       "post": {
         "description": "Classify a generation input into a target kind + recommended strategy/MCP.",
@@ -14904,8 +15114,51 @@
       }
     },
     "/api/v1/generators/recorder/sessions/{session_id}/events": {
+      "get": {
+        "description": "Retrieve captured events for an active recording session via session token.",
+        "operationId": "get_recorder_session_events_api_v1_generators_recorder_sessions__session_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Recorder Session Events Api V1 Generators Recorder Sessions  Session Id  Events Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Recorder Session Events",
+        "tags": [
+          "generators"
+        ]
+      },
       "options": {
-        "description": "CORS preflight for recorder events from proxy, bookmarklet, or external origins.",
+        "description": "CORS preflight for recorder events.",
         "operationId": "options_recorder_session_event_api_v1_generators_recorder_sessions__session_id__events_options",
         "parameters": [
           {
@@ -14944,7 +15197,7 @@
         ]
       },
       "post": {
-        "description": "Append one captured interaction event to an active recording session.\n\nAuthorizes via the active recording session token: looks up the unguessable session_id,\nverifies it is active and not expired, and appends the event. Sets CORS headers so\nrecording works across origins (in-browser proxy, bookmarklet, intranet tabs).",
+        "description": "Append one captured interaction event to an active recording session.\n\nAuthorizes via the active recording session token: looks up the unguessable session_id,\nverifies it is active and not expired, and appends the event. Sets CORS headers so\nrecording works across origins.",
         "operationId": "append_recorder_session_event_api_v1_generators_recorder_sessions__session_id__events_post",
         "parameters": [
           {
@@ -15069,6 +15322,167 @@
           }
         ],
         "summary": "Finalize Recorder Session",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
+    "/api/v1/generators/recorder/sessions/{session_id}/resume": {
+      "post": {
+        "description": "Resume an active recording session (e.g. after accidental browser close).",
+        "operationId": "resume_recorder_session_api_v1_generators_recorder_sessions__session_id__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecorderSessionStartResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Resume Recorder Session",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
+    "/api/v1/generators/recorder/sessions/{session_id}/sync": {
+      "options": {
+        "description": "CORS preflight for recorder events sync.",
+        "operationId": "options_recorder_session_sync_api_v1_generators_recorder_sessions__session_id__sync_options",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Options Recorder Session Sync",
+        "tags": [
+          "generators"
+        ]
+      },
+      "put": {
+        "description": "Replace all captured events for an active recording session.",
+        "operationId": "sync_recorder_session_events_api_v1_generators_recorder_sessions__session_id__sync_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecorderSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Sync Recorder Session Events Api V1 Generators Recorder Sessions  Session Id  Sync Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sync Recorder Session Events",
         "tags": [
           "generators"
         ]

@@ -98,6 +98,17 @@ class RecorderSessionRepo(
         await self.session.flush()
         return row
 
+    async def set_events(
+        self, id: str, events: list[dict[str, Any]], *, workspace_id: str | None = None
+    ) -> RecorderSession | None:
+        """Replace all captured events in ``captured_events_json``."""
+        row = await self.get_by_id(id, workspace_id=workspace_id)
+        if row is None:
+            return None
+        row.captured_events_json = list(events)
+        await self.session.flush()
+        return row
+
     async def mark_finalized(
         self,
         id: str,

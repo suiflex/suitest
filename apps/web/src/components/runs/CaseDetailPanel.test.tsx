@@ -1026,7 +1026,3 @@ describe("<CaseDetailPanel>", () => {
     });
   });
 });
-
-
-
-

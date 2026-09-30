@@ -23,3 +23,18 @@ class FileSignedUrl(_Camel):
 
     url: str
     expires_in_seconds: int = Field(alias="expiresInSeconds")
+
+
+class FixtureUploadItem(_Camel):
+    file_name: str = Field(alias="fileName")
+    base64: str
+    content_type: str | None = Field(default=None, alias="contentType")
+
+
+class FixtureUploadRequest(_Camel):
+    files: list[FixtureUploadItem]
+
+
+class FixtureUploadResponse(_Camel):
+    fixture_paths: list[str] = Field(alias="fixturePaths")
+    file_names: list[str] = Field(alias="fileNames")

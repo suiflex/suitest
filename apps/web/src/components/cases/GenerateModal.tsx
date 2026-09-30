@@ -1,22 +1,25 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   Check,
   CheckCircle2,
   CircleDot,
   Compass,
-  ExternalLink,
   FileJson,
   Keyboard,
   Link2,
+  ListFilter,
   Loader2,
   MousePointerClick,
   Pencil,
+  Play,
   Plus,
   RefreshCw,
   Sparkles,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -35,11 +38,14 @@ import type { McpProvidersPage } from "@/hooks/use-integrations";
 import { api, ApiError } from "@/lib/api-client";
 import type { components } from "@/lib/api-types";
 import {
+  cancelRecorderSession,
   finalizeRecorderSession,
   generateCrawler,
   generateOpenApi,
   getRecorderSession,
+  resumeRecorderSession,
   startRecorderSession,
+  syncRecorderSession,
   type GeneratorCaseEvent,
   type RecorderCapturedEvent,
   type RecorderSessionStartResponse,
@@ -47,6 +53,15 @@ import {
 import { cn } from "@/lib/utils";
 
 type Suite = components["schemas"]["SuitePublic"];
+
+const EMAIL_PATTERN = /@/;
+function toDynamicVariableTemplate(text: string): string {
+  if (EMAIL_PATTERN.test(text)) {
+    return "{{email}}";
+  }
+  const clean = text.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 16);
+  return `{{${clean || "var"}}}`;
+}
 
 /** The three deterministic generators (M2-1..M2-3). All run in ZERO. */
 export type GeneratorStrategy = "openapi" | "crawler" | "recorder";
@@ -166,6 +181,12 @@ export function GenerateModal({
 
   const meta = useMemo(() => STRATEGIES.find((s) => s.id === strategy) ?? null, [strategy]);
 
+  const activeSessionIdRef = useRef<string | null>(null);
+  activeSessionIdRef.current = recorderSession?.session_id ?? null;
+
+  const statusRef = useRef<RunStatus>(status);
+  statusRef.current = status;
+
   const resetRun = useCallback(() => {
     setStatus("idle");
     setPhase(null);
@@ -178,8 +199,25 @@ export function GenerateModal({
   const handleClose = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
+    if (activeSessionIdRef.current && statusRef.current !== "done") {
+      const sid = activeSessionIdRef.current;
+      activeSessionIdRef.current = null;
+      void cancelRecorderSession(sid).catch((err) => {
+        console.debug("Failed to cancel recorder session:", err);
+      });
+    }
     onClose();
   }, [onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (activeSessionIdRef.current && statusRef.current !== "done") {
+        const sid = activeSessionIdRef.current;
+        activeSessionIdRef.current = null;
+        void cancelRecorderSession(sid).catch(() => {});
+      }
+    };
+  }, []);
 
   const invalidateCases = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["test-cases"] });
@@ -279,13 +317,6 @@ export function GenerateModal({
       });
       setRecorderSession(session);
       setStatus("idle");
-      if (!session.is_headed && session.browser_url) {
-        try {
-          window.open(session.browser_url, "_blank");
-        } catch {
-          // Ignore in environments without window.open support (e.g. jsdom)
-        }
-      }
     } catch (err) {
       setStatus("error");
       setErrorMsg(err instanceof ApiError ? err.message : "Could not start recorder");
@@ -337,9 +368,9 @@ export function GenerateModal({
     >
       <DialogContent
         data-testid="generate-modal"
-        className="border border-border bg-bg-elev-1 sm:max-w-230"
+        className="border border-border bg-bg-elev-1 sm:max-w-230 max-h-[90vh] flex flex-col overflow-hidden"
       >
-        <DialogHeader>
+        <DialogHeader className="shrink-0">
           <div className="flex items-center justify-between gap-3 pr-6">
             <DialogTitle className="text-fg-1">Generate test cases</DialogTitle>
             <span className="font-mono text-[11px] text-fg-4" data-testid="gen-step-indicator">
@@ -354,7 +385,7 @@ export function GenerateModal({
 
         {/* Step 1: pick a strategy */}
         {step === "select" ? (
-          <div className="flex flex-col gap-3" data-testid="gen-select-step">
+          <div className="flex flex-col gap-3 flex-1 overflow-y-auto min-h-0 pr-1" data-testid="gen-select-step">
             <div className="grid grid-cols-3 gap-2">
               {STRATEGIES.map((s) => {
                 const Icon = s.icon;
@@ -407,7 +438,7 @@ export function GenerateModal({
 
         {/* Step 2: configure source */}
         {step === "configure" && meta ? (
-          <div className="flex flex-col gap-3" data-testid="gen-configure-step">
+          <div className="flex flex-col gap-3 flex-1 overflow-y-auto min-h-0 pr-1" data-testid="gen-configure-step">
             <div className="flex items-center gap-2 text-[12px] text-fg-3">
               <meta.icon className="h-4 w-4 text-fg-1" aria-hidden="true" />
               <span className="font-medium text-fg-1">{meta.label}</span>
@@ -543,32 +574,44 @@ export function GenerateModal({
             ) : null}
 
             {strategy === "recorder" ? (
-              <div className="flex flex-col gap-2">
-                <Input
-                  data-testid="gen-recorder-url"
-                  placeholder="https://app.example.com/login"
-                  value={startUrl}
-                  onChange={(e) => {
-                    setStartUrl(e.target.value);
-                  }}
-                />
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="gen-recorder-url" className="text-[11px] text-fg-4">
+                    Target application URL
+                  </Label>
+                  <Input
+                    id="gen-recorder-url"
+                    data-testid="gen-recorder-url"
+                    placeholder="https://app.example.com/login"
+                    value={startUrl}
+                    onChange={(e) => {
+                      setStartUrl(e.target.value);
+                    }}
+                  />
+                  <span className="text-[10.5px] text-fg-4">
+                    Initial web address opened in the browser when recording starts.
+                  </span>
+                </div>
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="gen-name" className="text-[11px] text-fg-4">
-                    Case name
+                    Test case name
                   </Label>
                   <Input
                     id="gen-name"
                     data-testid="gen-recorder-name"
-                    placeholder="Login happy path"
+                    placeholder="e.g. Login with valid credentials"
                     value={caseName}
                     onChange={(e) => {
                       setCaseName(e.target.value);
                     }}
                   />
+                  <span className="text-[10.5px] text-fg-4">
+                    Name for the test case saved in your test suite upon finalization.
+                  </span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="gen-recorder-mcp" className="text-[11px] text-fg-4">
-                    Browser MCP Provider
+                    Browser recording mode / provider
                   </Label>
                   <select
                     id="gen-recorder-mcp"
@@ -577,25 +620,24 @@ export function GenerateModal({
                     onChange={(e) => {
                       setMcpProvider(e.target.value);
                     }}
-                    className="h-9 rounded-md border border-border bg-bg-elev-1 px-2 text-[12.5px] text-fg-1 focus:outline-none focus:ring-1 focus:ring-accent/40"
+                    className="h-9 rounded-md border border-border bg-bg-elev-1 px-2.5 text-[12.5px] text-fg-1 focus:outline-none focus:ring-1 focus:ring-accent/40"
                   >
                     {browserProviders.length === 0 ? (
-                      <>
-                        <option value="playwright-mcp">Native Headed Chrome (Recommended)</option>
-                        <option value="playwright-proxy">In-Browser Proxy Tab</option>
-                      </>
+                      <option value="playwright-mcp">Native Headed Chrome (Desktop Window)</option>
                     ) : (
                       <>
-                        <option value="playwright-mcp">Native Headed Chrome (Recommended)</option>
+                        <option value="playwright-mcp">Native Headed Chrome (Desktop Window)</option>
                         {browserProviders.map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.name} ({p.id})
                           </option>
                         ))}
-                        <option value="playwright-proxy">In-Browser Proxy Tab</option>
                       </>
                     )}
                   </select>
+                  <span className="text-[10.5px] text-fg-4">
+                    Native Chrome opens directly on your desktop with zero proxy lag and full CDP event capture.
+                  </span>
                 </div>
                 {projectId === null ? (
                   <p className="text-[11px] text-amber">
@@ -609,7 +651,7 @@ export function GenerateModal({
 
         {/* Step 3: run / review */}
         {step === "run" && meta ? (
-          <div className="flex flex-col gap-3" data-testid="gen-run-step">
+          <div className="flex flex-col gap-3 flex-1 overflow-y-auto min-h-0 pr-1" data-testid="gen-run-step">
             {strategy === "recorder" ? (
               <RecorderRunPanel
                 session={recorderSession}
@@ -618,6 +660,7 @@ export function GenerateModal({
                 startUrl={startUrl}
                 completed={completeCount !== null}
                 errorMsg={errorMsg}
+                mcpProvider={mcpProvider}
                 onStart={() => void runRecorderStart()}
                 onFinalize={(customEvents) => void runRecorderFinalize(customEvents)}
               />
@@ -681,7 +724,7 @@ export function GenerateModal({
         ) : null}
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+        <div className="flex items-center justify-between gap-2 border-t border-border pt-3 shrink-0 mt-auto">
           <div>
             {step !== "select" && status !== "running" ? (
               <Button
@@ -691,6 +734,11 @@ export function GenerateModal({
                 data-testid="gen-back"
                 onClick={() => {
                   if (step === "run") {
+                    if (activeSessionIdRef.current && statusRef.current !== "done") {
+                      const sid = activeSessionIdRef.current;
+                      activeSessionIdRef.current = null;
+                      void cancelRecorderSession(sid).catch(() => {});
+                    }
                     resetRun();
                     setStep("configure");
                   } else {
@@ -748,6 +796,56 @@ export function GenerateModal({
   );
 }
 
+// Helper to coalesce consecutive redundant actions (e.g. duplicate navigations, rapid clicks, typing or click+type on same selector)
+function coalesceEvents(eventList: RecorderCapturedEvent[]): RecorderCapturedEvent[] {
+  const coalesced: RecorderCapturedEvent[] = [];
+  for (const evt of eventList) {
+    if (evt.kind === "type" && (!evt.text || evt.text.trim() === "")) {
+      continue;
+    }
+    // Filter accidental background clicks on root body or html
+    if (evt.kind === "click" && (evt.selector === "body" || evt.selector === "html")) {
+      continue;
+    }
+    if (!coalesced.length) {
+      coalesced.push(evt);
+      continue;
+    }
+    const prev = coalesced[coalesced.length - 1];
+    // Deduplicate consecutive navigations to identical URL
+    if (prev && prev.kind === "navigate" && evt.kind === "navigate" && prev.url === evt.url) {
+      continue;
+    }
+    // Drop redundant navigate event that immediately follows a click on link/button or select
+    if (prev && (prev.kind === "click" || prev.kind === "select") && evt.kind === "navigate") {
+      continue;
+    }
+    // Deduplicate consecutive duplicate clicks on same selector only within micro-debounce (< 200ms)
+    // to filter hardware double-click bounce without dropping intentional rapid clicks
+    if (
+      prev &&
+      prev.kind === "click" &&
+      evt.kind === "click" &&
+      prev.selector === evt.selector
+    ) {
+      if (prev.timestamp && evt.timestamp) {
+        const diff = Math.abs(new Date(evt.timestamp).getTime() - new Date(prev.timestamp).getTime());
+        if (diff < 200) continue;
+      }
+    }
+    if (prev && prev.kind === "type" && evt.kind === "type" && prev.selector === evt.selector) {
+      coalesced[coalesced.length - 1] = evt;
+      continue;
+    }
+    if (prev && prev.kind === "click" && evt.kind === "type" && prev.selector === evt.selector) {
+      coalesced[coalesced.length - 1] = evt;
+      continue;
+    }
+    coalesced.push(evt);
+  }
+  return coalesced;
+}
+
 // ---------------------------------------------------------------------------
 // Recorder sub-panel — start → live session → finalize.
 // ---------------------------------------------------------------------------
@@ -768,6 +866,7 @@ function RecorderRunPanel({
   startUrl: string;
   completed: boolean;
   errorMsg?: string | null;
+  mcpProvider?: string;
   onStart: () => void;
   onFinalize: (customEvents: RecorderCapturedEvent[]) => void;
 }): React.ReactElement {
@@ -775,55 +874,88 @@ function RecorderRunPanel({
   const [userHasEdited, setUserHasEdited] = useState(false);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState<RecorderCapturedEvent | null>(null);
-  const [copiedBookmarklet, setCopiedBookmarklet] = useState(false);
+  const [browserClosed, setBrowserClosed] = useState(false);
+  const [hudFinished, setHudFinished] = useState(false);
+  const [resuming, setResuming] = useState(false);
+
+  // Track the number of events received from the server to allow incremental merging
+  // even after the user edits, deletes, or reorders recorded steps.
+  const lastServerCountRef = useRef(0);
+  const userHasEditedRef = useRef(userHasEdited);
+  userHasEditedRef.current = userHasEdited;
 
   useEffect(() => {
-    if (!session || completed || status === "error" || userHasEdited) return;
+    // Keep polling active even when userHasEdited is true so new actions captured
+    // by the browser continue to stream into the steps list without interruption.
+    if (!session || completed || status === "error") return;
 
     let cancelled = false;
     const fetchEvents = async () => {
       try {
         const detail = await getRecorderSession(session.session_id);
-        if (!cancelled && detail.captured_events) {
-          const rawEvents = detail.captured_events ?? [];
-          const firstEvent = rawEvents[0];
-          const hasNav =
-            Boolean(firstEvent &&
-            firstEvent.kind === "navigate" &&
-            firstEvent.url &&
-            !firstEvent.url.startsWith("about:"));
-          const targetUrl = startUrl.startsWith("http") ? startUrl : `https://${startUrl}`;
-          const initialEvents =
-            !hasNav && startUrl
-              ? [
-                  {
-                    kind: "navigate" as const,
-                    url: targetUrl,
-                    timestamp: new Date().toISOString(),
-                  },
-                  ...rawEvents,
-                ]
-              : rawEvents;
+        if (cancelled) return;
 
-          const coalesced: RecorderCapturedEvent[] = [];
-          for (const evt of initialEvents) {
-            if (!coalesced.length) {
-              coalesced.push(evt);
-              continue;
-            }
-            const prev = coalesced[coalesced.length - 1];
-            if (prev && prev.kind === "type" && evt.kind === "type" && prev.selector === evt.selector) {
-              coalesced[coalesced.length - 1] = evt;
-              continue;
-            }
-            if (prev && prev.kind === "click" && evt.kind === "type" && prev.selector === evt.selector) {
-              coalesced[coalesced.length - 1] = evt;
-              continue;
-            }
-            coalesced.push(evt);
+        // If session was finalized directly from backend
+        if (detail.status === "finalized" && !completed) {
+          onFinalize(detail.captured_events ?? []);
+          return;
+        }
+
+        // Detect headed browser window closure or HUD finalization
+        if (detail.status === "active") {
+          if (detail.hud_finished) {
+            setBrowserClosed(true);
+            setHudFinished(true);
+          } else if (detail.is_headed_active === false) {
+            setBrowserClosed(true);
+          } else if (detail.is_headed_active === true) {
+            setBrowserClosed(false);
+            setHudFinished(false);
           }
+        }
 
-          setEvents(coalesced);
+        if (detail.captured_events) {
+          const rawEvents = detail.captured_events ?? [];
+          const currentServerCount = rawEvents.length;
+
+          if (detail.hud_finished) {
+            // When HUD has finalized, server's captured_events are the finalized, edited steps from the HUD!
+            // We sync them directly without re-inserting navigations or running destructive coalescing.
+            lastServerCountRef.current = currentServerCount;
+            setEvents(rawEvents);
+          } else if (!userHasEditedRef.current) {
+            // Full sync from server
+            const firstEvent = rawEvents[0];
+            const hasNav = Boolean(
+              firstEvent &&
+                firstEvent.kind === "navigate" &&
+                firstEvent.url &&
+                !firstEvent.url.startsWith("about:"),
+            );
+            const targetUrl = startUrl.startsWith("http") ? startUrl : `https://${startUrl}`;
+            const initialEvents =
+              !hasNav && startUrl
+                ? [
+                    {
+                      kind: "navigate" as const,
+                      url: targetUrl,
+                      timestamp: new Date().toISOString(),
+                    },
+                    ...rawEvents,
+                  ]
+                : rawEvents;
+
+            lastServerCountRef.current = currentServerCount;
+            setEvents(coalesceEvents(initialEvents));
+          } else {
+            // User has modified steps. If new actions have arrived from the browser,
+            // incrementally append and coalesce only the newly recorded events.
+            if (currentServerCount > lastServerCountRef.current) {
+              const newRaw = rawEvents.slice(lastServerCountRef.current);
+              lastServerCountRef.current = currentServerCount;
+              setEvents((prev) => coalesceEvents([...prev, ...newRaw]));
+            }
+          }
         }
       } catch {
         // Silently tolerate polling errors during recording
@@ -831,17 +963,45 @@ function RecorderRunPanel({
     };
 
     void fetchEvents();
-    const interval = setInterval(fetchEvents, 1500);
+    const interval = setInterval(fetchEvents, 500);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [session, completed, status, userHasEdited, startUrl]);
+  }, [session, completed, status, startUrl, onFinalize]);
+
+  const handleResumeBrowser = async () => {
+    if (!session || resuming) return;
+    setResuming(true);
+    try {
+      await resumeRecorderSession(session.session_id);
+      setBrowserClosed(false);
+      setHudFinished(false);
+    } catch (err) {
+      console.error("Failed to resume browser session:", err);
+    } finally {
+      setResuming(false);
+    }
+  };
+
+  const markUserEdited = () => {
+    setUserHasEdited(true);
+    userHasEditedRef.current = true;
+  };
 
   const handleDeleteStep = (idx: number) => {
-    setUserHasEdited(true);
-    setEvents((prev) => prev.filter((_, i) => i !== idx));
+    markUserEdited();
+    setEvents((prev) => {
+      const nextEvents = prev.filter((_, i) => i !== idx);
+      lastServerCountRef.current = nextEvents.length;
+      if (session) {
+        void syncRecorderSession(session.session_id, nextEvents).catch((err) => {
+          console.debug("Failed to sync deleted step to server:", err);
+        });
+      }
+      return nextEvents;
+    });
     if (editingIdx === idx) {
       setEditingIdx(null);
       setEditDraft(null);
@@ -859,10 +1019,15 @@ function RecorderRunPanel({
 
   const handleSaveEdit = (idx: number) => {
     if (!editDraft) return;
-    setUserHasEdited(true);
+    markUserEdited();
     setEvents((prev) => {
       const next = [...prev];
       next[idx] = editDraft;
+      if (session) {
+        void syncRecorderSession(session.session_id, next).catch((err) => {
+          console.debug("Failed to sync edited step to server:", err);
+        });
+      }
       return next;
     });
     setEditingIdx(null);
@@ -877,13 +1042,18 @@ function RecorderRunPanel({
   const handleMoveStep = (idx: number, direction: "up" | "down") => {
     const targetIdx = direction === "up" ? idx - 1 : idx + 1;
     if (targetIdx < 0 || targetIdx >= events.length) return;
-    setUserHasEdited(true);
+    markUserEdited();
     setEvents((prev) => {
       const next = [...prev];
       const moved = next[idx];
       if (!moved) return prev;
       next.splice(idx, 1);
       next.splice(targetIdx, 0, moved);
+      if (session) {
+        void syncRecorderSession(session.session_id, next).catch((err) => {
+          console.debug("Failed to sync moved step to server:", err);
+        });
+      }
       return next;
     });
     if (editingIdx === idx) {
@@ -892,7 +1062,7 @@ function RecorderRunPanel({
   };
 
   const handleAddStep = () => {
-    setUserHasEdited(true);
+    markUserEdited();
     const newStep: RecorderCapturedEvent = {
       kind: "click",
       selector: "",
@@ -904,20 +1074,38 @@ function RecorderRunPanel({
     setEditDraft(newStep);
   };
 
+  const handleCleanNoise = () => {
+    if (events.length <= 1) return;
+    const cleaned = coalesceEvents(events);
+    userHasEditedRef.current = true;
+    setUserHasEdited(true);
+    setEvents(cleaned);
+    lastServerCountRef.current = cleaned.length;
+    if (session) {
+      void syncRecorderSession(session.session_id, cleaned).catch((err) => {
+        console.debug("Failed to sync cleaned events to server:", err);
+      });
+    }
+  };
+
   const handleResetToBrowser = async () => {
     if (!session) return;
     setUserHasEdited(false);
+    userHasEditedRef.current = false;
+    lastServerCountRef.current = 0;
     setEditingIdx(null);
     setEditDraft(null);
     try {
       const detail = await getRecorderSession(session.session_id);
       const rawEvents = detail.captured_events ?? [];
+      lastServerCountRef.current = rawEvents.length;
       const firstEvent = rawEvents[0];
-      const hasNav =
-        Boolean(firstEvent &&
-        firstEvent.kind === "navigate" &&
-        firstEvent.url &&
-        !firstEvent.url.startsWith("about:"));
+      const hasNav = Boolean(
+        firstEvent &&
+          firstEvent.kind === "navigate" &&
+          firstEvent.url &&
+          !firstEvent.url.startsWith("about:"),
+      );
       const targetUrl = startUrl.startsWith("http") ? startUrl : `https://${startUrl}`;
       const initialEvents =
         !hasNav && startUrl
@@ -930,7 +1118,7 @@ function RecorderRunPanel({
               ...rawEvents,
             ]
           : rawEvents;
-      setEvents(initialEvents);
+      setEvents(coalesceEvents(initialEvents));
     } catch {
       // ignore
     }
@@ -950,11 +1138,26 @@ function RecorderRunPanel({
 
   if (session === null) {
     return (
-      <div className="flex flex-col gap-2" data-testid="gen-recorder-start-panel">
-        <p className="text-[12px] text-fg-3">
-          Opens a live browser session. Interact with the page (click, type, navigate), review and edit captured
-          steps if needed, then finalize into a test case.
-        </p>
+      <div className="flex flex-col gap-3" data-testid="gen-recorder-start-panel">
+        {status === "running" ? (
+          <div
+            data-testid="gen-recorder-loading"
+            className="flex items-center gap-3 rounded-md border border-accent/30 bg-accent/10 p-3 text-[12px] text-fg-1"
+          >
+            <Loader2 className="h-4 w-4 animate-spin text-accent shrink-0" aria-hidden="true" />
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium text-fg-1">Summoning browser session…</span>
+              <span className="text-[11px] text-fg-3">
+                Launching Chrome with native CDP event bridge. The browser window will appear shortly.
+              </span>
+            </div>
+          </div>
+        ) : (
+          <p className="text-[12px] text-fg-3">
+            Opens a live browser session. Interact with the page (click, type, navigate), review and edit captured
+            steps if needed, then finalize into a test case.
+          </p>
+        )}
         <Button
           type="button"
           size="sm"
@@ -974,16 +1177,9 @@ function RecorderRunPanel({
     );
   }
 
-  const fullBrowserUrl = session.browser_url
-    ? session.browser_url.startsWith("http")
-      ? session.browser_url
-      : `${window.location.origin}${session.browser_url}`
-    : null;
-
-  const bookmarkletCode = `javascript:(function(){if(window.__SUITEST_RECORDER_INITIALIZED__)return;window.__SUITEST_SESSION_ID__="${session.session_id}";window.__SUITEST_WORKSPACE_ID__="${session.workspace_id || ""}";window.__SUITEST_API_URL__="${window.location.origin}/api/v1";var s=document.createElement('script');s.src="${window.location.origin}/api/v1/generators/recorder/agent.js";s.dataset.sessionId="${session.session_id}";document.head.appendChild(s);})();`;
 
   return (
-    <div className="flex flex-col gap-3" data-testid="gen-recorder-live-panel">
+    <div className="flex flex-col gap-3 min-w-0" data-testid="gen-recorder-live-panel">
       <div className="flex items-center justify-between text-[12px] text-fg-3">
         <div className="flex items-center gap-2">
           <CircleDot className="h-3.5 w-3.5 animate-pulse text-red" aria-hidden="true" />
@@ -997,18 +1193,96 @@ function RecorderRunPanel({
         </span>
       </div>
 
-      {session.is_headed ? (
+      {browserClosed ? (
+        hudFinished ? (
+          <div
+            data-testid="gen-recorder-resume-banner"
+            className="flex flex-col gap-2.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-[12px] text-emerald-200"
+          >
+            <div className="flex items-center gap-2 font-medium text-emerald-300">
+              <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
+              <span>Recording Completed from Browser — Ready for Review</span>
+            </div>
+            <p className="text-[11px] text-fg-3">
+              {events.length} step{events.length === 1 ? "" : "s"} captured and safely saved. Review or edit your test steps below.
+              You can finalize directly into a test case, or resume recording if you need to capture additional actions.
+            </p>
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <Button
+                type="button"
+                size="sm"
+                data-testid="recorder-finalize-btn"
+                onClick={() => onFinalize(events)}
+                className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
+              >
+                <Check className="h-3.5 w-3.5" />
+                Finalize → Create Case ({events.length})
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid="recorder-resume-btn"
+                disabled={resuming}
+                onClick={() => void handleResumeBrowser()}
+                className="gap-1.5 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10"
+              >
+                {resuming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                {resuming ? "Re-opening browser…" : "+ Resume Recording"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div
+            data-testid="gen-recorder-resume-banner"
+            className="flex flex-col gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-[12px] text-amber-200"
+          >
+            <div className="flex items-center gap-2 font-medium text-amber-300">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
+              <span>Browser Window Disconnected / Closed</span>
+            </div>
+            <p className="text-[11px] text-fg-3">
+              {events.length} action{events.length === 1 ? "" : "s"} captured so far are safely preserved.
+              You can re-open the browser to continue recording from the last page, or finalize into a test case now.
+            </p>
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <Button
+                type="button"
+                size="sm"
+                data-testid="recorder-resume-btn"
+                disabled={resuming}
+                onClick={() => void handleResumeBrowser()}
+                className="gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-medium"
+              >
+                {resuming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                {resuming ? "Re-opening browser…" : "Re-open & Resume Browser"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid="recorder-finalize-btn"
+                onClick={() => onFinalize(events)}
+                className="gap-1.5"
+              >
+                <Check className="h-3.5 w-3.5 text-accent" />
+                Finalize Now ({events.length})
+              </Button>
+            </div>
+          </div>
+        )
+      ) : session.is_headed ? (
         <div
           data-testid="gen-recorder-headed-banner"
-          className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-400"
+          className="flex items-center gap-2.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[12px] text-emerald-400"
         >
-          <span className="relative flex h-2 w-2">
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
           </span>
-          <span>
+          <div className="flex-1">
             <strong>Native Browser Window Active:</strong> Interact directly with the target site in the opened Chrome window. Clicks, typing, and navigations are captured live below.
-          </span>
+          </div>
         </div>
       ) : (
         <p className="text-[11px] text-fg-4">
@@ -1017,30 +1291,6 @@ function RecorderRunPanel({
       )}
 
       <div className="flex items-center gap-2 flex-wrap">
-        {fullBrowserUrl ? (
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              data-testid="gen-recorder-launch-btn"
-              onClick={() => window.open(fullBrowserUrl, "_blank")}
-              className="h-8 gap-1.5 text-[12px]"
-            >
-              <ExternalLink className="h-3.5 w-3.5 text-accent" />
-              Open Recorder Tab
-            </Button>
-            <a
-              href={fullBrowserUrl}
-              target="_blank"
-              rel="noreferrer"
-              data-testid="gen-recorder-browser-link"
-              className="text-[12px] text-accent underline"
-            >
-              Direct Link ↗
-            </a>
-          </>
-        ) : null}
         {startUrl ? (
           <a
             href={startUrl.startsWith("http") ? startUrl : `https://${startUrl}`}
@@ -1056,22 +1306,36 @@ function RecorderRunPanel({
       </div>
 
       {/* Captured steps list with pre-finalize editor */}
-      <div className="flex flex-col gap-2 rounded-md border border-edge-subtle bg-bg-2 p-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-medium text-fg-4 uppercase tracking-wider">
+      <div className="flex flex-col gap-2 rounded-md border border-edge-subtle bg-bg-2 p-2.5 min-w-0">
+        <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[11px] font-medium text-fg-4 uppercase tracking-wider shrink-0">
               Captured Steps ({events.length})
             </span>
             {userHasEdited ? (
               <span
                 data-testid="gen-recorder-customized-badge"
-                className="rounded border border-amber/40 bg-amber/10 px-1.5 py-0.5 text-[10px] text-amber font-mono"
+                className="rounded border border-amber/40 bg-amber/10 px-1.5 py-0.5 text-[10px] text-amber font-mono shrink-0"
               >
-                Customized (sync paused)
+                Customized (live sync active)
               </span>
             ) : null}
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+            {events.length > 2 ? (
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                data-testid="gen-recorder-clean-noise"
+                onClick={handleCleanNoise}
+                className="h-6 gap-1 text-[11px] text-fg-3 hover:text-accent"
+                title="Deduplicate rapid clicks and clicks preceding input typing"
+              >
+                <Sparkles className="h-3 w-3 text-accent" />
+                Clean noise
+              </Button>
+            ) : null}
             {userHasEdited ? (
               <Button
                 type="button"
@@ -1100,17 +1364,23 @@ function RecorderRunPanel({
         </div>
 
         {events.length === 0 ? (
-          <p className="py-2.5 text-center text-[12px] text-fg-4 italic">
-            Waiting for actions… Click or type on elements in the opened tab to record them.
-          </p>
+          <div className="flex flex-col items-center justify-center py-6 text-center gap-1.5">
+            <div className="flex items-center gap-2 text-fg-3">
+              <Compass className="h-4 w-4 animate-spin text-accent/80" />
+              <span className="text-[12px] font-medium text-fg-2">Listening for browser interactions…</span>
+            </div>
+            <p className="text-[11px] text-fg-4 max-w-sm">
+              Navigate, click elements, or type into form inputs in the browser window. Captured events will appear here in real time.
+            </p>
+          </div>
         ) : (
-          <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1 font-mono text-[11px]">
+          <div className="max-h-72 overflow-y-auto overflow-x-hidden space-y-1.5 pr-1 font-mono text-[11px]">
             {events.map((evt, idx) =>
               editingIdx === idx && editDraft ? (
                 <div
-                  key={idx}
+                  key={`rec-edit-${idx}`}
                   data-testid={`gen-recorder-step-edit-${idx}`}
-                  className="flex flex-col gap-2 rounded bg-bg-elev-2 p-2.5 border border-accent/40 text-fg-1"
+                  className="flex flex-col gap-2 rounded bg-bg-elev-2 p-2.5 border border-accent/40 text-fg-1 min-w-0"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -1123,7 +1393,7 @@ function RecorderRunPanel({
                         onChange={(e) =>
                           setEditDraft({
                             ...editDraft,
-                            kind: e.target.value as "navigate" | "click" | "type" | "assert",
+                            kind: e.target.value as "navigate" | "click" | "type" | "assert" | "select" | "upload",
                           })
                         }
                         className="h-6 rounded border border-border bg-bg-elev-1 px-1.5 font-mono text-[11px] text-fg-1 focus:outline-none focus:ring-1 focus:ring-accent/40"
@@ -1131,6 +1401,8 @@ function RecorderRunPanel({
                         <option value="navigate">NAVIGATE</option>
                         <option value="click">CLICK</option>
                         <option value="type">TYPE</option>
+                        <option value="select">SELECT</option>
+                        <option value="upload">UPLOAD</option>
                         <option value="assert">ASSERT</option>
                       </select>
                     </div>
@@ -1149,7 +1421,7 @@ function RecorderRunPanel({
                     </div>
                   ) : null}
 
-                  {editDraft.kind === "click" || editDraft.kind === "type" ? (
+                  {editDraft.kind === "click" || editDraft.kind === "type" || editDraft.kind === "select" || editDraft.kind === "upload" ? (
                     <div className="flex flex-col gap-1">
                       <Label className="text-[10.5px] text-fg-4">CSS / Attribute Selector</Label>
                       <Input
@@ -1163,9 +1435,25 @@ function RecorderRunPanel({
                   ) : null}
 
                   {editDraft.kind === "type" ? (
-                    <div className="grid grid-cols-3 gap-2 items-center">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
                       <div className="col-span-2 flex flex-col gap-1">
-                        <Label className="text-[10.5px] text-fg-4">Input Text</Label>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[10.5px] text-fg-4">Input Text</Label>
+                          <button
+                            type="button"
+                            data-testid="gen-step-make-variable"
+                            onClick={() => {
+                              const curr = editDraft.text ?? "";
+                              if (curr) {
+                                setEditDraft({ ...editDraft, text: toDynamicVariableTemplate(curr) });
+                              }
+                            }}
+                            className="text-[10px] text-accent hover:underline flex items-center gap-0.5"
+                          >
+                            <Sparkles className="h-2.5 w-2.5" />
+                            Make variable
+                          </button>
+                        </div>
                         <Input
                           data-testid="gen-step-edit-text"
                           value={editDraft.text ?? ""}
@@ -1184,6 +1472,37 @@ function RecorderRunPanel({
                         />
                         <span>Mask secret</span>
                       </label>
+                      <div className="col-span-3">
+                        <span className="text-[10px] text-fg-4">
+                          {editDraft.masked
+                            ? "Masked secrets are stored as {{password}} and resolved via SUITEST_PASSWORD env var during execution. Uncheck to store plaintext credentials."
+                            : "Plaintext input is stored directly in the test case and used during execution."}
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {editDraft.kind === "select" ? (
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-[10.5px] text-fg-4">Selected Option Value</Label>
+                      <Input
+                        value={editDraft.text ?? ""}
+                        placeholder="Option value"
+                        onChange={(e) => setEditDraft({ ...editDraft, text: e.target.value })}
+                        className="h-7 text-[11.5px]"
+                      />
+                    </div>
+                  ) : null}
+
+                  {editDraft.kind === "upload" ? (
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-[10.5px] text-fg-4">File Name / Fixture</Label>
+                      <Input
+                        value={editDraft.text ?? ""}
+                        placeholder="e.g. document.pdf"
+                        onChange={(e) => setEditDraft({ ...editDraft, text: e.target.value })}
+                        className="h-7 text-[11.5px]"
+                      />
                     </div>
                   ) : null}
 
@@ -1228,17 +1547,17 @@ function RecorderRunPanel({
                 </div>
               ) : (
                 <div
-                  key={idx}
+                  key={`rec-step-${idx}-${evt.kind}-${evt.timestamp ?? idx}`}
                   data-testid={`gen-recorder-step-${idx}`}
-                  className="group flex items-center justify-between gap-2 rounded bg-bg-1 px-2 py-1.5 border border-edge-subtle text-fg-2 hover:border-fg-4/30 transition-colors"
+                  className="group flex items-center justify-between gap-2 rounded bg-bg-1 px-2 py-1.5 border border-edge-subtle text-fg-2 hover:border-fg-4/30 transition-colors min-w-0"
                 >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
                     <span className="text-[10px] text-fg-4 w-4 shrink-0 text-right">{idx + 1}</span>
                     {evt.kind === "navigate" ? (
                       <>
                         <Compass className="h-3.5 w-3.5 shrink-0 text-cyan-400" />
                         <span className="text-cyan-400 font-semibold text-[10px] shrink-0">NAV</span>
-                        <span className="truncate text-fg-3 text-[11px]" title={evt.url ?? ""}>
+                        <span className="truncate text-fg-3 text-[11px] min-w-0" title={evt.url ?? ""}>
                           {evt.url}
                         </span>
                       </>
@@ -1246,7 +1565,7 @@ function RecorderRunPanel({
                       <>
                         <MousePointerClick className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
                         <span className="text-emerald-400 font-semibold text-[10px] shrink-0">CLICK</span>
-                        <span className="truncate text-fg-3 text-[11px]" title={evt.selector ?? ""}>
+                        <span className="truncate text-fg-3 text-[11px] min-w-0" title={evt.selector ?? ""}>
                           {evt.selector}
                         </span>
                       </>
@@ -1254,8 +1573,24 @@ function RecorderRunPanel({
                       <>
                         <Keyboard className="h-3.5 w-3.5 shrink-0 text-amber-400" />
                         <span className="text-amber-400 font-semibold text-[10px] shrink-0">TYPE</span>
-                        <span className="truncate text-fg-3 text-[11px]">
+                        <span className="truncate text-fg-3 text-[11px] min-w-0" title={`${evt.selector ?? ""} = ${evt.masked ? "••••••" : evt.text ?? ""}`}>
                           {evt.selector} = {evt.masked ? "••••••" : evt.text}
+                        </span>
+                      </>
+                    ) : evt.kind === "select" ? (
+                      <>
+                        <ListFilter className="h-3.5 w-3.5 shrink-0 text-sky-400" />
+                        <span className="text-sky-400 font-semibold text-[10px] shrink-0">SELECT</span>
+                        <span className="truncate text-fg-3 text-[11px] min-w-0" title={`${evt.selector ?? ""} → ${String(evt.assertion?.label ?? evt.text ?? "")}`}>
+                          {evt.selector} → {String(evt.assertion?.label ?? evt.text ?? "")}
+                        </span>
+                      </>
+                    ) : evt.kind === "upload" ? (
+                      <>
+                        <Upload className="h-3.5 w-3.5 shrink-0 text-pink-400" />
+                        <span className="text-pink-400 font-semibold text-[10px] shrink-0">UPLOAD</span>
+                        <span className="truncate text-fg-3 text-[11px] min-w-0" title={`${evt.selector ?? ""} ← ${evt.text || String((evt as { data?: { file_name?: string } }).data?.file_name ?? "file")}`}>
+                          {evt.selector} ← {evt.text || String((evt as { data?: { file_name?: string } }).data?.file_name ?? "file")}
                         </span>
                       </>
                     ) : (
@@ -1264,8 +1599,8 @@ function RecorderRunPanel({
                         <span className="text-purple-400 font-semibold text-[10px] shrink-0">
                           {evt.kind.toUpperCase()}
                         </span>
-                        <span className="truncate text-fg-3 text-[11px]">
-                          {String(evt.assertion?.expected ?? "")}
+                        <span className="truncate text-fg-3 text-[11px] min-w-0" title={String(evt.assertion?.description ?? evt.assertion?.expected ?? evt.selector ?? "")}>
+                          {String(evt.assertion?.description ?? evt.assertion?.expected ?? evt.selector ?? "")}
                         </span>
                       </>
                     )}
@@ -1330,23 +1665,6 @@ function RecorderRunPanel({
         >
           {status === "running" ? "Finalizing…" : "Finalize → create case"}
         </Button>
-        <div className="flex items-center gap-2 text-[11px] text-fg-4">
-          <span>Need intranet / external tab?</span>
-          <a
-            href={bookmarkletCode}
-            data-testid="gen-recorder-bookmarklet"
-            onClick={(e) => {
-              e.preventDefault();
-              void navigator.clipboard?.writeText(bookmarkletCode);
-              setCopiedBookmarklet(true);
-              setTimeout(() => setCopiedBookmarklet(false), 2500);
-            }}
-            className="rounded border border-edge-subtle bg-bg-2 px-2 py-0.5 text-accent font-mono text-[10px] hover:bg-bg-3 cursor-pointer"
-            title="Drag to your Bookmarks Bar, or click to copy JavaScript snippet"
-          >
-            {copiedBookmarklet ? "✓ Copied Bookmarklet!" : "Bookmarklet"}
-          </a>
-        </div>
       </div>
 
       {status === "error" ? (

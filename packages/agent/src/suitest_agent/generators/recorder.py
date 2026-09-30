@@ -30,6 +30,7 @@ Conversion rules (:meth:`_convert_events_to_case`):
 
 from __future__ import annotations
 
+import base64
 import contextlib
 import json
 import logging
@@ -140,11 +141,12 @@ class RecorderSessionManager:
             )
         )
         row.ws_room = f"recorder:{row.id}"
+        if hasattr(self._repo, "session") and hasattr(self._repo.session, "commit"):
+            await self._repo.session.commit()
 
         # If native headed mode is requested or in desktop environments, launch a real browser window
         should_headed = (
             request.mcp_provider in ("playwright-headed", "headed", "playwright-mcp", "")
-            and request.mcp_provider != "playwright-proxy"
             and is_display_available()
         )
         if should_headed:
@@ -208,6 +210,11 @@ class RecorderSessionManager:
         if session.status != "active":
             raise RecorderSessionExpired(session_id, session.status)
 
+        if event.kind is RecorderEventKind.UPLOAD and isinstance(event.data, dict):
+            from suitest_agent.generators.browser_launcher import _save_upload_fixture
+
+            _save_upload_fixture(event.data, workspace_id)
+
         payload = event.model_dump(mode="json")
         await self._repo.append_event(session_id, payload, workspace_id=workspace_id)
         await self._publish(session.ws_room, payload)
@@ -224,6 +231,18 @@ class RecorderSessionManager:
         message = json.dumps({"event": "generator.recorder.step", "data": event}, default=str)
         with contextlib.suppress(Exception):
             await self._redis.publish(ws_room, message)
+
+    async def sync_events(
+        self, session_id: str, workspace_id: str, events: list[dict[str, Any]]
+    ) -> RecorderSession:
+        """Replace session's captured events with cleaned/edited events list."""
+        session = await self._repo.get_by_id(session_id, workspace_id=workspace_id)
+        if session is None:
+            raise RecorderSessionNotFound(session_id)
+        if session.status != "active":
+            raise RecorderSessionExpired(session_id, session.status)
+        await self._repo.set_events(session_id, events, workspace_id=workspace_id)
+        return session
 
     # ------------------------------------------------------------------
 
@@ -249,7 +268,7 @@ class RecorderSessionManager:
 
         from suitest_agent.generators.browser_launcher import close_headed_browser
 
-        await close_headed_browser(session_id)
+        await close_headed_browser(session_id, cleanup_storage=True)
         if request.events is not None:
             events = request.events
         else:
@@ -257,8 +276,67 @@ class RecorderSessionManager:
                 workspace_id, user_id, session_id, session.mcp_provider
             )
             events = [*session.captured_events_json, *trace_events]
+
+        for ev in events or []:
+            if isinstance(ev, dict) and ev.get("kind") == "upload":
+                ev_data = ev.get("data")
+                if isinstance(ev_data, dict):
+                    from suitest_agent.generators.browser_launcher import _save_upload_fixture
+
+                    _save_upload_fixture(ev_data, workspace_id)
+
         draft = self._convert_events_to_case(events, session.start_url, session_id, request)
         return session, draft
+
+    async def resume(
+        self,
+        session_id: str,
+        workspace_id: str,
+        user_id: str | None = None,
+    ) -> tuple[RecorderSession, str | None]:
+        """Resume an active session by re-launching the browser on the last visited URL."""
+        from urllib.parse import quote
+
+        session = await self._repo.get_by_id(session_id, workspace_id=workspace_id)
+        if session is None:
+            raise RecorderSessionNotFound(session_id)
+        if session.status == "cancelled":
+            updated = await self._repo.update_status(
+                session_id, "active", workspace_id=workspace_id
+            )
+            if updated is not None:
+                session = updated
+        elif session.status != "active":
+            raise RecorderSessionExpired(session_id, session.status)
+
+        from suitest_agent.generators.browser_launcher import (
+            is_display_available,
+            launch_headed_browser,
+        )
+
+        last_url = session.start_url
+        for evt in reversed(session.captured_events_json or []):
+            if not isinstance(evt, dict):
+                continue
+            if evt.get("frame_selector") or evt.get("frameSelector"):
+                continue
+            evt_url = evt.get("url")
+            if evt_url and not str(evt_url).startswith("about:"):
+                last_url = str(evt_url)
+                break
+
+        if is_display_available():
+            api_url = self._api_base_url or "http://localhost:8000/api/v1"
+            await launch_headed_browser(
+                session_id=session.id,
+                start_url=last_url,
+                api_url=api_url,
+                workspace_id=workspace_id,
+            )
+
+        encoded_url = quote(last_url, safe="")
+        browser_url = f"/api/v1/generators/recorder/sessions/{session.id}/browse?url={encoded_url}&workspaceId={workspace_id}"
+        return session, browser_url
 
     async def mark_finalized(self, session_id: str, workspace_id: str, case_id: str) -> None:
         """Transition the session to ``finalized`` + stamp the produced case id."""
@@ -278,7 +356,7 @@ class RecorderSessionManager:
             raise RecorderSessionExpired(session_id, session.status)
         from suitest_agent.generators.browser_launcher import close_headed_browser
 
-        await close_headed_browser(session_id)
+        await close_headed_browser(session_id, cleanup_storage=True)
         await self._stop_recording(workspace_id, None, session_id, session.mcp_provider)
         updated = await self._repo.update_status(session_id, "cancelled", workspace_id=workspace_id)
         return updated if updated is not None else session
@@ -346,6 +424,13 @@ class RecorderSessionManager:
         for raw in events:
             if not isinstance(raw, dict):
                 continue
+            kind = raw.get("kind")
+            text = str(raw.get("text") or "")
+            # Filter out redundant fakepath typing events emitted by browser file inputs
+            if kind == "type" and (
+                "fakepath" in text.lower() or text.startswith(("C:\\fakepath\\", "fakepath/"))
+            ):
+                continue
             if not coalesced_events:
                 coalesced_events.append(raw)
                 continue
@@ -358,6 +443,21 @@ class RecorderSessionManager:
             ):
                 coalesced_events[-1] = raw
                 continue
+            # If upload event follows a type event on same selector (e.g. from file dialog), replace it
+            if (
+                prev.get("kind") == "type"
+                and raw.get("kind") == "upload"
+                and prev.get("selector") == raw.get("selector")
+            ):
+                coalesced_events[-1] = raw
+                continue
+            # If type event immediately follows an upload event on same selector, drop it
+            if (
+                prev.get("kind") == "upload"
+                and raw.get("kind") == "type"
+                and prev.get("selector") == raw.get("selector")
+            ):
+                continue
             # Coalesce click on input immediately preceding typing into the same selector
             if (
                 prev.get("kind") == "click"
@@ -365,6 +465,17 @@ class RecorderSessionManager:
                 and prev.get("selector") == raw.get("selector")
             ):
                 coalesced_events[-1] = raw
+                continue
+            # Coalesce consecutive select events on the same selector
+            if (
+                prev.get("kind") == "select"
+                and raw.get("kind") == "select"
+                and prev.get("selector") == raw.get("selector")
+            ):
+                coalesced_events[-1] = raw
+                continue
+            # Drop redundant navigate event that immediately follows a click on link/button
+            if prev.get("kind") == "click" and raw.get("kind") == "navigate":
                 continue
             coalesced_events.append(raw)
 
@@ -433,61 +544,210 @@ class RecorderSessionManager:
             )
         if event.kind is RecorderEventKind.CLICK:
             selector = event.selector or ""
+            step_args: dict[str, Any] = {"target": selector, "selector": selector}
+            step_data: dict[str, Any] = {"selector": selector}
+            if event.frame_selector:
+                step_args["frame_selector"] = event.frame_selector
+                step_data["frame_selector"] = event.frame_selector
+            action_desc = f"Click {selector}"
+            if event.frame_selector:
+                action_desc += f" in frame {event.frame_selector}"
             return TestStepDraft(
                 order=order,
-                action=f"Click {selector}",
+                action=action_desc,
                 expected="Element responds to click",
                 code=json.dumps(
                     {
                         "tool": "browser_click",
-                        "arguments": {"target": selector, "selector": selector},
+                        "arguments": step_args,
                     }
                 ),
                 mcp_provider=_PROVIDER,
                 target_kind=TargetKind.FE_WEB,
-                data={"selector": selector},
+                data=step_data,
             )
         if event.kind is RecorderEventKind.TYPE:
             return self._type_step(event, order)
-        if event.kind is RecorderEventKind.ASSERT:
-            assertion = event.assertion or {}
+        if event.kind is RecorderEventKind.SELECT:
+            selector = event.selector or ""
+            val = event.text or ""
+            label = val
+            data_dict = event.data or {}
+            values = data_dict.get("values")
+            if not isinstance(values, list) or not values:
+                values = [val] if val else []
+
+            if event.assertion and isinstance(event.assertion, dict):
+                label = str(event.assertion.get("label") or val)
+            action_desc = f"Select option '{label}' in {selector}"
+            if event.frame_selector:
+                action_desc += f" in frame {event.frame_selector}"
+            step_args = {
+                "target": selector,
+                "values": [str(v) for v in values],
+            }
+            step_data = {
+                "selector": selector,
+                "value": val,
+                "values": values,
+                "label": label,
+            }
+            if event.frame_selector:
+                step_args["frame_selector"] = event.frame_selector
+                step_data["frame_selector"] = event.frame_selector
             return TestStepDraft(
                 order=order,
-                action="Assert condition",
-                expected=str(assertion.get("expected", "condition holds")),
+                action=action_desc,
+                expected=f"Option '{label}' is selected",
                 code=json.dumps(
                     {
-                        "tool": "browser_evaluate",
-                        "arguments": {"function": str(assertion.get("code", "() => true"))},
+                        "tool": "browser_select_option",
+                        "arguments": step_args,
                     }
                 ),
                 mcp_provider=_PROVIDER,
                 target_kind=TargetKind.FE_WEB,
-                data={"assertion": assertion},
+                data=step_data,
             )
+        if event.kind is RecorderEventKind.UPLOAD:
+            return self._upload_step(event, order)
+        if event.kind is RecorderEventKind.ASSERT:
+            return self._assert_step(event, order)
         if event.kind is RecorderEventKind.NETWORK:
             return self._network_step(event, order)
         return None
+
+    def _upload_step(self, event: RecorderEvent, order: int) -> TestStepDraft:
+        selector = event.selector or ""
+        data = event.data or {}
+        fixture_paths: list[str] = []
+        raw_paths = data.get("fixture_paths")
+        if isinstance(raw_paths, list) and raw_paths:
+            fixture_paths = [str(p) for p in raw_paths]
+        elif data.get("fixture_path"):
+            fixture_paths = [str(data["fixture_path"])]
+
+        file_names = data.get("file_names")
+        if not isinstance(file_names, list) or not file_names:
+            file_name = str(data.get("file_name") or event.text or "sample.txt")
+            file_names = [file_name]
+
+        if not fixture_paths:
+            fixture_paths = [f"fixtures/{name}" for name in file_names]
+
+        if len(file_names) > 1:
+            action_desc = f"Upload {len(file_names)} files ({', '.join(file_names)}) to {selector}"
+            expected_desc = f"{len(file_names)} files are attached"
+        else:
+            action_desc = f"Upload file '{file_names[0]}' to {selector}"
+            expected_desc = f"File '{file_names[0]}' is attached"
+
+        return TestStepDraft(
+            order=order,
+            action=action_desc,
+            expected=expected_desc,
+            code=json.dumps(
+                {
+                    "tool": "browser_upload_file",
+                    "arguments": {
+                        "target": selector,
+                        "selector": selector,
+                        "file": fixture_paths[0],
+                        "files": fixture_paths,
+                    },
+                }
+            ),
+            mcp_provider=_PROVIDER,
+            target_kind=TargetKind.FE_WEB,
+            data={
+                "selector": selector,
+                "file_name": file_names[0],
+                "file_names": file_names,
+                "fixture_path": fixture_paths[0],
+                "fixture_paths": fixture_paths,
+            },
+        )
+
+    def _assert_step(self, event: RecorderEvent, order: int) -> TestStepDraft:
+        assertion = event.assertion or {}
+        action_desc = str(
+            assertion.get("description")
+            or (
+                f"Assert text of {event.selector}"
+                if event.text
+                else f"Assert element {event.selector or ''}"
+            )
+        )
+        if event.frame_selector:
+            action_desc += f" in frame {event.frame_selector}"
+        expected_desc = str(assertion.get("expected", "condition holds"))
+        func = str(assertion.get("code") or "")
+        if not func:
+            if event.selector and event.text:
+                func = f"() => (document.querySelector({json.dumps(event.selector)})?.textContent || '').includes({json.dumps(event.text)})"
+            elif event.selector:
+                func = f"() => document.querySelector({json.dumps(event.selector)}) !== null"
+            else:
+                func = "() => true"
+        step_args: dict[str, Any] = {"function": func}
+        step_data: dict[str, Any] = {
+            "assertion": assertion,
+            "selector": event.selector,
+            "text": event.text,
+        }
+        if event.frame_selector:
+            step_args["frame_selector"] = event.frame_selector
+            step_args["selector"] = event.selector
+            step_args["target"] = event.selector
+            if event.text:
+                step_args["text"] = event.text
+            step_data["frame_selector"] = event.frame_selector
+        return TestStepDraft(
+            order=order,
+            action=action_desc,
+            expected=expected_desc,
+            code=json.dumps(
+                {
+                    "tool": "browser_evaluate",
+                    "arguments": step_args,
+                }
+            ),
+            mcp_provider=_PROVIDER,
+            target_kind=TargetKind.FE_WEB,
+            data=step_data,
+        )
 
     def _type_step(self, event: RecorderEvent, order: int) -> TestStepDraft:
         """Render a ``type`` event; masked (secret) values use the placeholder."""
         selector = event.selector or ""
         value = _PASSWORD_PLACEHOLDER if event.masked else (event.text or "")
+        step_args: dict[str, Any] = {
+            "target": selector,
+            "selector": selector,
+            "text": value,
+        }
         step_data: dict[str, Any] = {"selector": selector, "masked": event.masked}
-        if event.text and not event.masked:
-            step_data["raw_value"] = event.text
+        if event.frame_selector:
+            step_args["frame_selector"] = event.frame_selector
+            step_data["frame_selector"] = event.frame_selector
+        action_desc = f"Type into {selector}"
+        if event.frame_selector:
+            action_desc += f" in frame {event.frame_selector}"
+        if event.text:
+            if event.masked:
+                step_data["encoded_value"] = base64.b64encode(event.text.encode("utf-8")).decode(
+                    "ascii"
+                )
+            else:
+                step_data["raw_value"] = event.text
         return TestStepDraft(
             order=order,
-            action=f"Type into {selector}",
+            action=action_desc,
             expected="Field accepts input",
             code=json.dumps(
                 {
                     "tool": "browser_type",
-                    "arguments": {
-                        "target": selector,
-                        "selector": selector,
-                        "text": value,
-                    },
+                    "arguments": step_args,
                 }
             ),
             mcp_provider=_PROVIDER,
