@@ -20,6 +20,47 @@ in the git tags (`launcher-v*`, `mcp-v*`, `lifecycle-v*`, `tssdk-v*`,
 stood in those tags' trees. The milestone tags that predate package-level
 versioning:
 
+## [0.16.0](https://github.com/suiflex/suitest/compare/v0.15.0...v0.16.0) (2026-09-30)
+
+
+### Features
+
+* **fixtures:** consolidate PR [#247](https://github.com/suiflex/suitest/issues/247) fixture upload router, step editor UI, and contracts ([3b60199](https://github.com/suiflex/suitest/commit/3b601996ad2dabdca6d104abab0874cb48915621))
+* **recorder,runner:** recorder improvements and test fixtures upload (closes [#244](https://github.com/suiflex/suitest/issues/244), closes [#245](https://github.com/suiflex/suitest/issues/245)) ([85498be](https://github.com/suiflex/suitest/commit/85498be9162f406e84dc6f4837f8ebb332606f61))
+* **recorder:** auto-abort cleanup, navigate deduplication, and cross-frame iframe assertions (closes [#245](https://github.com/suiflex/suitest/issues/245)) ([c424b50](https://github.com/suiflex/suitest/commit/c424b50cdbd5a71fa63308c89943a1ebf268b65e))
+* **recorder:** native headed browser recording, step editing, password resolution, and coalescing (closes [#234](https://github.com/suiflex/suitest/issues/234)) ([61a8dc4](https://github.com/suiflex/suitest/commit/61a8dc44b015b51d98b4e92a301935db0ebed021))
+* **recorder:** native headed browser recording, step editing, password resolution, and coalescing (closes [#234](https://github.com/suiflex/suitest/issues/234)) ([9ab520c](https://github.com/suiflex/suitest/commit/9ab520cdd5389422de8fdf190485e185f89c1a68))
+* **runs:** dual-phase visual evidence with element highlight and lightbox navigator (closes [#243](https://github.com/suiflex/suitest/issues/243)) ([ea162e2](https://github.com/suiflex/suitest/commit/ea162e28b83a51356392bab675e1973c9ba9c4e4))
+* **runs:** dual-phase visual evidence with element highlight and lightbox navigator (closes [#243](https://github.com/suiflex/suitest/issues/243)) ([386b681](https://github.com/suiflex/suitest/commit/386b681c2753d1aff8c05eb2db0b9a4863a12855))
+
+
+### Bug Fixes
+
+* **agent:** fail closed when the workspace LLM is not ready ([572248f](https://github.com/suiflex/suitest/commit/572248f839824b4b52469f8103f6e8d3d32b4690))
+* **agent:** report truncated generation output instead of zero drafts ([d12c4e6](https://github.com/suiflex/suitest/commit/d12c4e6698c7561b920254ca036866d16d70baae))
+* **ci:** fix web Dockerfile pnpm frozen lockfile and switch minio to cgr.dev ([163f797](https://github.com/suiflex/suitest/commit/163f7970106b2859f07ba83867889739ec797803))
+* **ci:** fix web Dockerfile pnpm frozen lockfile and switch minio to cgr.dev ([7badc7a](https://github.com/suiflex/suitest/commit/7badc7ad40a34ccac265fe80a83861d624f90f1d))
+* **ci:** restore dogfood boot and platform image builds ([d2668bf](https://github.com/suiflex/suitest/commit/d2668bf75f64c815a5ce9c9872f3551a7ffde0e9))
+* **ci:** restore public ECR registry for MinIO to resolve pull unauthorized failure ([e023694](https://github.com/suiflex/suitest/commit/e023694fdcbb2182bfec0b400837ce25d182fd96))
+* **ci:** restore public ECR registry for MinIO to resolve pull unauthorized failure ([65dfa0e](https://github.com/suiflex/suitest/commit/65dfa0e27f2c20ca0d388bc4a048f3c5efb094a3))
+* **ci:** switch minio images to public ECR chainguard registry ([532c3de](https://github.com/suiflex/suitest/commit/532c3dec911838e202c71a71de02f002177c5546))
+* **docker:** allow docs-site package.json through dockerignore ([2ce7056](https://github.com/suiflex/suitest/commit/2ce705689df1356326ac4471171c762ce2219e98))
+* **docker:** copy docs-site package.json and un-ignore for pnpm frozen lockfile ([21a8d5e](https://github.com/suiflex/suitest/commit/21a8d5e54cdae8b7943cb17468d87c370c56ce48))
+* **docker:** switch MinIO image registry from public.ecr.aws to cgr.dev ([2d452d2](https://github.com/suiflex/suitest/commit/2d452d2d25efb96290e76d7fdd6d0a5f6d4a856a))
+* **docker:** un-ignore docs-site/package.json for pnpm lockfile parity ([6ffd1df](https://github.com/suiflex/suitest/commit/6ffd1dfb249021920850a307c8f6b21dbf08d265))
+* **docker:** un-ignore docs-site/package.json for pnpm lockfile parity ([f8fce6b](https://github.com/suiflex/suitest/commit/f8fce6b684c4a29845de4a0a3fdd776dfd05ad30))
+* **infra:** remove broken curl healthcheck on distroless minio and wait in minio-init ([69118f0](https://github.com/suiflex/suitest/commit/69118f0771382dfd1e396339140f2d4ab0665c52))
+* **infra:** remove broken curl healthcheck on distroless minio and wait in minio-init ([d063b48](https://github.com/suiflex/suitest/commit/d063b48d2625376212a0ce905c9550d0bdb14924))
+* **infra:** use public ECR MinIO images with wget healthcheck for CI smoke ([c33a33e](https://github.com/suiflex/suitest/commit/c33a33e39f1cf01b9981021715c57330045de109))
+* **runs:** address PR review comments across infra, db, schemas, and web ([fcf8e5f](https://github.com/suiflex/suitest/commit/fcf8e5ffb14415bac9819f237df9117778fac474))
+* **web:** keep selected-case actions usable on narrow screens ([a489543](https://github.com/suiflex/suitest/commit/a489543f9c2f2b9328148767fd6e86cbfedf6eea))
+* **web:** keep selected-case actions usable on narrow screens ([8ed372e](https://github.com/suiflex/suitest/commit/8ed372e685c81dc282f7820845165ab3b959b447))
+
+
+### Reverts
+
+* **ci:** keep PR scoped to frontend without docker triggers ([06d2aa0](https://github.com/suiflex/suitest/commit/06d2aa064e8c478d96f1ee434c21ab20dcb2bba3))
+
 ## [0.15.0](https://github.com/suiflex/suitest/compare/v0.14.0...v0.15.0) (2026-09-22)
 
 
