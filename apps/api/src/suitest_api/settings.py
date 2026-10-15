@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     superadmin_workspace_name: str = Field(default="Default Workspace")
     invite_ttl_hours: int = Field(default=168)
 
+    # Transactional Mailer (Resend API)
+    resend_api_key: str = Field(default="", repr=False)
+    mail_from: str = Field(default="Suitest <sui@keton.id>")
+
     # Session cookie security. ``False`` for local dev over plain HTTP; production
     # behind HTTPS MUST set ``SUITEST_COOKIE_SECURE=true`` so the cookie is only
     # sent over TLS. Read by :mod:`suitest_api.auth.manager` when constructing
