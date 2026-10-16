@@ -34,10 +34,23 @@ class HeadedSessionHandle:
     session_id: str
     task: asyncio.Task[None]
     close_event: asyncio.Event
+    page: Any = None
 
 
 _ACTIVE_HEADED_SESSIONS: dict[str, HeadedSessionHandle] = {}
 _HUD_FINISHED_SESSIONS: set[str] = set()
+
+
+def get_headed_session_page(session_id: str) -> Any | None:
+    """Return active Playwright Page for headed session if available and open."""
+    handle = _ACTIVE_HEADED_SESSIONS.get(session_id)
+    if handle is not None and handle.page is not None:
+        try:
+            if not handle.page.is_closed():
+                return handle.page
+        except Exception:
+            return None
+    return None
 
 
 def was_hud_finished(session_id: str) -> bool:
@@ -304,6 +317,9 @@ async def _run_headed_browser_loop(
         await context.add_init_script(agent_script)
 
         page = await context.new_page()
+        handle = _ACTIVE_HEADED_SESSIONS.get(session_id)
+        if handle is not None:
+            handle.page = page
 
         # Handle user manually closing the browser window (only when all tabs are closed)
         def _on_page_close(_p: object) -> None:

@@ -25,7 +25,9 @@ export function stepTitle(
 /** Small tag label for a step's type (action/assertion/navigation/wait/api). */
 export function stepTypeLabel(type: string | null | undefined): string {
   const t = type?.trim();
-  return t && t.length > 0 ? t : "step";
+  if (!t) return "step";
+  if (t === "solve_captcha") return "captcha";
+  return t;
 }
 
 /** One test case's rolled-up view over the run's steps + artifacts. */

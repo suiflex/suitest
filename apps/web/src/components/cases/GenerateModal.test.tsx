@@ -816,6 +816,89 @@ describe("GenerateModal", () => {
       expect(screen.queryByText(/https:\/\/app.example.com\/dashboard/i)).not.toBeInTheDocument();
     });
   });
+
+  it("recorder: renders CAPTCHA step with badge and coalesces redundant captcha events", async () => {
+    server.use(
+      http.post("*/api/v1/generators/recorder/sessions", () => {
+        return HttpResponse.json({
+          session_id: "rec_stub_captcha",
+          workspace_id: "ws_demo",
+          status: "active",
+          hud_finished: false,
+          start_url: "https://app.example.com/login",
+          browser_url: null,
+          is_headed: true,
+          is_headed_active: true,
+          captured_events_count: 4,
+          captured_events: [
+            { kind: "navigate", url: "https://app.example.com/login", timestamp: "2026-06-01T10:00:00.000Z" },
+            {
+              kind: "solve_captcha",
+              selector: "#img-captcha",
+              data: { input_selector: "#captcha" },
+              timestamp: "2026-06-01T10:00:01.000Z",
+            },
+            { kind: "click", selector: "#img-captcha", timestamp: "2026-06-01T10:00:02.000Z" },
+            {
+              kind: "solve_captcha",
+              selector: "#img-captcha",
+              data: { input_selector: "#captcha" },
+              timestamp: "2026-06-01T10:00:02.500Z",
+            },
+          ],
+          expires_at: "2099-06-01T10:30:00Z",
+          started_at: "2026-06-01T10:00:00Z",
+        });
+      }),
+      http.get("*/api/v1/generators/recorder/sessions/:id", () => {
+        return HttpResponse.json({
+          session_id: "rec_stub_captcha",
+          workspace_id: "ws_demo",
+          status: "active",
+          hud_finished: false,
+          start_url: "https://app.example.com/login",
+          browser_url: null,
+          is_headed: true,
+          is_headed_active: true,
+          captured_events_count: 4,
+          captured_events: [
+            { kind: "navigate", url: "https://app.example.com/login", timestamp: "2026-06-01T10:00:00.000Z" },
+            {
+              kind: "solve_captcha",
+              selector: "#img-captcha",
+              data: { input_selector: "#captcha" },
+              timestamp: "2026-06-01T10:00:01.000Z",
+            },
+            { kind: "click", selector: "#img-captcha", timestamp: "2026-06-01T10:00:02.000Z" },
+            {
+              kind: "solve_captcha",
+              selector: "#img-captcha",
+              data: { input_selector: "#captcha" },
+              timestamp: "2026-06-01T10:00:02.500Z",
+            },
+          ],
+          expires_at: "2099-06-01T10:30:00Z",
+          started_at: "2026-06-01T10:00:00Z",
+        });
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderModal({ initialStrategy: "recorder" });
+
+    await user.type(screen.getByTestId("gen-recorder-url"), "https://app.example.com/login");
+    await user.type(screen.getByTestId("gen-recorder-name"), "Captcha Test");
+    await user.click(screen.getByTestId("gen-run-btn"));
+
+    // Verify coalesced to 2 steps and CAPTCHA badge is rendered
+    await waitFor(() => {
+      expect(screen.getByText("CAPTCHA")).toBeInTheDocument();
+      expect(screen.getByText("#img-captcha → #captcha")).toBeInTheDocument();
+      expect(screen.getByTestId("gen-recorder-step-0")).toBeInTheDocument();
+      expect(screen.getByTestId("gen-recorder-step-1")).toBeInTheDocument();
+      expect(screen.queryByTestId("gen-recorder-step-2")).not.toBeInTheDocument();
+    });
+  });
 });
 
 

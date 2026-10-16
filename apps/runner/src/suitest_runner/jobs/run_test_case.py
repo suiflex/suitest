@@ -60,7 +60,12 @@ from suitest_mcp.providers.builtin_specs import build_playwright_provider
 from suitest_mcp.registry import McpRegistry
 from suitest_shared.domain.enums import AutonomyLevel, RunStatus, StepOutcome, TargetKind
 
-from suitest_runner.executors.step_executor import StepResult, StepTranslator, execute_step
+from suitest_runner.executors.step_executor import (
+    CaptchaSolver,
+    StepResult,
+    StepTranslator,
+    execute_step,
+)
 from suitest_runner.handlers.step_handler import on_run_step_failed
 from suitest_runner.observability import get_tracer
 from suitest_runner.settings import RunnerSettings
@@ -179,6 +184,59 @@ async def _build_translator(session: object, *, workspace_id: str) -> StepTransl
     return _translate
 
 
+async def _build_captcha_solver(session: object, *, workspace_id: str) -> CaptchaSolver | None:
+    """Bind the workspace's active LLM into a multimodal vision captcha solver."""
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from suitest_agent.generators.captcha_solver import solve_captcha_image
+
+    if not isinstance(session, AsyncSession):
+        return None
+    repo = LLMConfigRepo(session)
+    llm = await repo.get_active(workspace_id)
+    if llm is None or llm.last_validated_at is None:
+        log.warning(
+            "runner.captcha_solver.llm_not_configured",
+            workspace_id=workspace_id,
+            reason="Workspace has no validated active Vision LLM configured. Configure LLM in Workspace Settings to enable automated CAPTCHA solving.",
+        )
+        return None
+    async with httpx.AsyncClient(timeout=_LLM_REFRESH_TIMEOUT) as client:
+        credential, persist = await resolve_credential(
+            client,
+            provider=llm.provider,
+            api_key=llm.api_key_encrypted,
+            base_url=llm.base_url,
+            oauth_tokens_json=llm.oauth_tokens_encrypted,
+            config=dict(llm.config_json or {}),
+        )
+    if persist is not None:
+        await repo.update(llm.id, LLMConfigUpdate(oauth_tokens_encrypted=persist))
+        await session.commit()
+    provider = get_provider(
+        credential.provider,
+        api_key=credential.api_key,
+        base_url=credential.base_url,
+        extra_headers=credential.extra_headers or None,
+        extra_body=credential.extra_body or None,
+    )
+    model = llm.model
+
+    async def _solve(
+        image_bytes: bytes,
+        force_uppercase: bool = False,
+        captcha_type: str = "auto",
+    ) -> str:
+        return await solve_captcha_image(
+            image_bytes,
+            llm_router=provider,
+            model=model,
+            force_uppercase=force_uppercase,
+            captcha_type=captcha_type,  # type: ignore[arg-type]
+        )
+
+    return _solve
+
+
 def _auto_self_heal_enabled(capability: WorkspaceCapability | None) -> bool:
     """Full self-heal is a hard `auto` rail even when lower-level overrides say true."""
     if capability is None or capability.autonomy_level is not AutonomyLevel.AUTO:
@@ -287,6 +345,118 @@ async def _persist_auto_self_heal(
         )
         return False
     return True
+
+
+async def _persist_captcha_self_heal(
+    *,
+    factory: object,
+    case_id: str,
+    step_id: str,
+    image_selector: str,
+    input_selector: str,
+    refresh_target: str | None = None,
+) -> bool:
+    """Upgrade an existing browser_type step into a clean browser_solve_captcha step in the database."""
+    if not callable(factory):
+        return False
+    from suitest_db.models.case import TestStep
+
+    try:
+        async with factory() as session:
+            step = await session.get(TestStep, step_id)
+            if step is None:
+                return False
+            step_args: dict[str, object] = {
+                "image_selector": image_selector,
+                "input_selector": input_selector,
+                "max_retries": 3,
+            }
+            if refresh_target:
+                step_args["refresh_target"] = refresh_target
+            step.code = json.dumps(
+                {
+                    "tool": "browser_solve_captcha",
+                    "arguments": step_args,
+                },
+                indent=2,
+            )
+            step.action = f"Solve CAPTCHA on {image_selector} into {input_selector}"
+            step.expected = "CAPTCHA code is recognized and filled"
+            await session.commit()
+            log.info("runner.captcha_self_heal.persisted", case_id=case_id, step_id=step_id)
+            return True
+    except Exception as exc:
+        log.warning(
+            "runner.captcha_self_heal.persist_failed",
+            case_id=case_id,
+            step_id=step_id,
+            error=str(exc),
+        )
+        return False
+
+
+async def _inject_pre_submit_captcha_step(
+    *,
+    factory: object,
+    case_id: str,
+    submit_step_order: int,
+    image_selector: str,
+    input_selector: str,
+    refresh_target: str | None = None,
+) -> bool:
+    """Insert a new browser_solve_captcha step before the submit step and re-index following steps."""
+    if not callable(factory):
+        return False
+    from sqlalchemy import select
+    from suitest_db.models.case import TestStep
+    from suitest_shared.domain.enums import TargetKind
+
+    try:
+        async with factory() as session:
+            stmt = (
+                select(TestStep).where(TestStep.case_id == case_id).order_by(TestStep.order.asc())
+            )
+            res = await session.execute(stmt)
+            steps = list(res.scalars().all())
+
+            for s in steps:
+                if s.order >= submit_step_order:
+                    s.order += 1
+
+            step_args: dict[str, object] = {
+                "image_selector": image_selector,
+                "input_selector": input_selector,
+                "max_retries": 3,
+            }
+            if refresh_target:
+                step_args["refresh_target"] = refresh_target
+
+            new_step = TestStep(
+                case_id=case_id,
+                order=submit_step_order,
+                action=f"Solve CAPTCHA on {image_selector} into {input_selector}",
+                expected="CAPTCHA code is recognized and filled",
+                code=json.dumps(
+                    {
+                        "tool": "browser_solve_captcha",
+                        "arguments": step_args,
+                    },
+                    indent=2,
+                ),
+                mcp_provider="playwright-mcp",
+                target_kind=TargetKind.FE_WEB,
+            )
+            session.add(new_step)
+            await session.commit()
+            log.info(
+                "runner.pre_submit_captcha.injected",
+                case_id=case_id,
+                injected_order=submit_step_order,
+            )
+            return True
+    except Exception as exc:
+        log.warning("runner.pre_submit_captcha.inject_failed", case_id=case_id, error=str(exc))
+        return False
 
 
 def _build_highlight_script(selector: str) -> str:
@@ -966,6 +1136,7 @@ async def _init_run_record(
         str,
         dict[str, object] | None,
         StepTranslator | None,
+        CaptchaSolver | None,
         bool,
         str | None,
     ]
@@ -1010,6 +1181,7 @@ async def _init_run_record(
         )
         triggered_by = run.triggered_by
         translator = await _build_translator(session, workspace_id=workspace_id)
+        captcha_solver = await _build_captcha_solver(session, workspace_id=workspace_id)
 
         total_planned_steps = len(selection)
         await run_repo.update_status(
@@ -1029,6 +1201,7 @@ async def _init_run_record(
         workspace_id,
         overrides,
         translator,
+        captcha_solver,
         auto_self_heal,
         triggered_by,
     )
@@ -1044,6 +1217,7 @@ async def _execute_and_heal_step(
     triggered_by: str | None,
     overrides: dict[str, object] | None,
     translator: StepTranslator | None,
+    captcha_solver: CaptchaSolver | None = None,
     auto_self_heal: bool,
     factory: Any,
     highlight_applied: bool,
@@ -1075,6 +1249,7 @@ async def _execute_and_heal_step(
             actor_user_id=triggered_by,
             routing_overrides=overrides,
             translator=translator,
+            captcha_solver=captcha_solver,
         )
         if pre_artifacts:
             if result.mcp_result is None:
@@ -1118,6 +1293,7 @@ async def _execute_and_heal_step(
                     actor_user_id=triggered_by,
                     routing_overrides=overrides,
                     translator=translator,
+                    captcha_solver=captcha_solver,
                 )
                 self_heal_state["originalError"] = original_error or ""
                 self_heal_state["retryOutcome"] = result.outcome.value
@@ -1132,6 +1308,43 @@ async def _execute_and_heal_step(
                     if result.outcome == StepOutcome.PASS
                     else False
                 )
+
+        if (
+            auto_self_heal
+            and result.outcome == StepOutcome.PASS
+            and result.mcp_result
+            and result.mcp_result.output
+        ):
+            out_data = result.mcp_result.output
+            if out_data.get("auto_healed_captcha"):
+                persisted = await _persist_captcha_self_heal(
+                    factory=factory,
+                    case_id=case_id,
+                    step_id=test_step.id,
+                    image_selector=str(out_data.get("image_selector") or "img"),
+                    input_selector=str(out_data.get("input_selector") or ""),
+                    refresh_target=out_data.get("refresh_target"),
+                )
+                self_heal_state = {
+                    "failureKind": "captcha_auto_converted",
+                    "stepId": test_step.id,
+                    "persisted": persisted,
+                }
+            elif out_data.get("pre_submit_injected_captcha"):
+                inj_info = out_data["pre_submit_injected_captcha"]
+                persisted = await _inject_pre_submit_captcha_step(
+                    factory=factory,
+                    case_id=case_id,
+                    submit_step_order=test_step.order,
+                    image_selector=str(inj_info.get("image_selector") or "img"),
+                    input_selector=str(inj_info.get("input_selector") or ""),
+                    refresh_target=inj_info.get("refresh_target"),
+                )
+                self_heal_state = {
+                    "failureKind": "pre_submit_captcha_injected",
+                    "submitStepOrder": test_step.order,
+                    "persisted": persisted,
+                }
 
         if highlight_applied and target_sel:
             await highlight_mgr.reapply(test_step.id, test_step.target_kind, target_sel)
@@ -1487,6 +1700,7 @@ async def _run_test_case_body(ctx: dict[str, object], run_id: str) -> dict[str, 
             workspace_id,
             overrides,
             translator,
+            captcha_solver,
             auto_self_heal,
             triggered_by,
         ) = init_res
@@ -1618,6 +1832,7 @@ async def _run_test_case_body(ctx: dict[str, object], run_id: str) -> dict[str, 
                         triggered_by=triggered_by,
                         overrides=overrides,
                         translator=translator,
+                        captcha_solver=captcha_solver,
                         auto_self_heal=auto_self_heal,
                         factory=factory,
                         highlight_applied=highlight_applied,

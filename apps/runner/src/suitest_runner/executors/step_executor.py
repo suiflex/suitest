@@ -28,6 +28,7 @@ queueing, execution fails closed.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import os
@@ -45,6 +46,16 @@ from suitest_mcp.invoker import InvokeContext
 from suitest_mcp.models import McpToolResult
 from suitest_shared.domain.enums import StepOutcome, TargetKind
 
+from suitest_runner.executors.captcha_detector import (
+    build_detect_captcha_script,
+    is_submit_action,
+)
+from suitest_runner.executors.tiny_ocr import (
+    build_tiny_ocr_solve_script,
+    clean_and_decode_base64,
+    parse_browser_eval_result,
+)
+
 if TYPE_CHECKING:
     from suitest_db.models.case import TestStep as TestStepRow
     from suitest_mcp.invoker import McpInvoker
@@ -53,6 +64,7 @@ if TYPE_CHECKING:
 # ``None`` when it cannot be expressed as one tool call (M3-10). The runner binds
 # the workspace's LLM provider/model into this closure before per-step dispatch.
 StepTranslator = Callable[[str], Awaitable[dict[str, object] | None]]
+CaptchaSolver = Callable[..., Awaitable[str]]
 
 
 log = structlog.get_logger(__name__)
@@ -67,6 +79,7 @@ _LEGACY_TOOL_ALIASES: dict[str, str] = {
     "browser.wait_for": "browser_wait_for",
     "browser.assert_text": "browser.assert_text",
     "browser.upload_file": "browser_upload_file",
+    "browser.solve_captcha": "browser_solve_captcha",
 }
 
 
@@ -278,6 +291,211 @@ async def _handle_frame_operation(
     )
 
 
+def _extract_b64_screenshot(snap_result: McpToolResult, image_selector: str) -> bytes:
+    raw_val: object = None
+
+    # 1. Direct structured output dict (mock/unit tests or JSON-RPC result)
+    if isinstance(snap_result.output, dict) and "result" in snap_result.output:
+        raw_val = snap_result.output["result"]
+
+    # 2. Parse from stdout (Playwright MCP format)
+    if raw_val is None and snap_result.stdout:
+        stdout = snap_result.stdout.strip()
+        # Playwright MCP markdown format: '### Result\n<value>\n### Ran Playwright code...'
+        m = re.search(r"^### Result\s*\n(.*?)(?=\n###|\Z)", stdout, re.MULTILINE | re.DOTALL)
+        candidate = m.group(1).strip() if m else stdout
+
+        try:
+            parsed = json.loads(candidate)
+            if isinstance(parsed, dict) and "result" in parsed:
+                raw_val = parsed["result"]
+            else:
+                raw_val = parsed
+        except (json.JSONDecodeError, ValueError) as exc:
+            log.debug("step_executor.parse_stdout_fallback", error=str(exc))
+            raw_val = candidate
+
+    try:
+        image_bytes = clean_and_decode_base64(str(raw_val or ""), image_selector)
+    except ValueError as exc:
+        raise McpToolFailed(f"Failed to decode CAPTCHA screenshot: {exc}") from exc
+
+    if not image_bytes:
+        raise McpToolFailed(f"Empty screenshot buffer captured for CAPTCHA target {image_selector}")
+
+    return image_bytes
+
+
+async def _invoke_captcha_solver(
+    captcha_solver: CaptchaSolver,
+    image_bytes: bytes,
+    force_uppercase: bool,
+    captcha_type: str | None,
+) -> str:
+    if captcha_type:
+        try:
+            return await captcha_solver(
+                image_bytes,
+                force_uppercase,
+                captcha_type=captcha_type,
+            )
+        except TypeError as exc:
+            log.debug("step_executor.captcha_solver.keyword_arg_fallback", error=str(exc))
+    return await captcha_solver(image_bytes, force_uppercase)
+
+
+async def _handle_solve_captcha_operation(
+    *,
+    invoker: McpInvoker,
+    explicit_provider: str | None,
+    arguments: dict[str, object],
+    ctx: InvokeContext,
+    captcha_solver: CaptchaSolver | None = None,
+) -> McpToolResult:
+    if captcha_solver is None:
+        raise McpToolFailed("LLM_NOT_READY: Vision model solver is required to solve CAPTCHA")
+
+    image_selector = str(
+        arguments.get("image_selector")
+        or arguments.get("selector")
+        or arguments.get("target")
+        or "img"
+    )
+    input_selector = str(
+        arguments.get("input_selector") or arguments.get("value") or arguments.get("input") or ""
+    )
+    force_uppercase = bool(arguments.get("force_uppercase", False))
+    max_retries = int(str(arguments.get("max_retries") or 1))
+    captcha_type = str(arguments["captcha_type"]) if "captcha_type" in arguments else None
+    refresh_target = str(arguments.get("refresh_target") or "")
+    frame_selector = str(arguments.get("frame_selector") or arguments.get("frameSelector") or "")
+
+    frame_chain = _build_frame_chain_js(frame_selector) if frame_selector else "page"
+    snap_code = build_tiny_ocr_solve_script(image_selector, frame_chain)
+
+    attempts = max(1, max_retries)
+    last_snap_duration: int = 10
+    last_error: Exception | None = None
+    engine_used: str = "tiny_ocr"
+
+    for attempt in range(attempts):
+        try:
+            snap_result = await invoker.invoke(
+                explicit_provider=explicit_provider,
+                tool="browser_run_code_unsafe",
+                arguments={"code": snap_code},
+                ctx=ctx,
+            )
+            last_snap_duration = snap_result.duration_ms
+            fast_text, image_bytes = parse_browser_eval_result(snap_result, image_selector)
+
+            if fast_text:
+                engine_used = "tiny_ocr"
+                solved_text = fast_text.upper() if force_uppercase else fast_text
+                log.info(
+                    "solve_captcha.fast_path_solved",
+                    text=solved_text,
+                    attempt=attempt,
+                    duration_ms=last_snap_duration,
+                )
+            else:
+                engine_used = "vision_llm"
+                if not image_bytes:
+                    image_bytes = _extract_b64_screenshot(snap_result, image_selector)
+                solved_text = await _invoke_captcha_solver(
+                    captcha_solver,
+                    image_bytes,
+                    force_uppercase,
+                    captcha_type,
+                )
+        except Exception as exc:
+            last_error = exc
+            log.warning(
+                "solve_captcha.attempt_failed",
+                attempt=attempt,
+                max_retries=attempts,
+                error=str(exc),
+            )
+            if attempt < attempts - 1:
+                if refresh_target:
+                    refresh_args: dict[str, object] = {"target": refresh_target}
+                    if frame_selector:
+                        refresh_args["frame_selector"] = frame_selector
+                    try:
+                        await _invoke_tool(
+                            invoker=invoker,
+                            explicit_provider=explicit_provider,
+                            tool="browser_click",
+                            arguments=refresh_args,
+                            ctx=ctx,
+                            captcha_solver=captcha_solver,
+                        )
+                    except Exception as click_err:
+                        log.debug("solve_captcha.refresh_click_failed", error=str(click_err))
+                await asyncio.sleep(1.0)
+                continue
+            raise McpToolFailed(f"CAPTCHA solver failed after {attempts} attempts: {exc}") from exc
+
+        if not solved_text:
+            if refresh_target and attempt < attempts - 1:
+                log.info("solve_captcha.empty_result_retrying", attempt=attempt)
+                refresh_args = {"target": refresh_target}
+                if frame_selector:
+                    refresh_args["frame_selector"] = frame_selector
+                try:
+                    await _invoke_tool(
+                        invoker=invoker,
+                        explicit_provider=explicit_provider,
+                        tool="browser_click",
+                        arguments=refresh_args,
+                        ctx=ctx,
+                        captcha_solver=captcha_solver,
+                    )
+                except Exception as click_err:
+                    log.debug("solve_captcha.refresh_click_failed", error=str(click_err))
+                await asyncio.sleep(1.0)
+                continue
+            if attempt < attempts - 1:
+                await asyncio.sleep(1.0)
+                continue
+            raise McpToolFailed(f"CAPTCHA solver produced empty result for {image_selector}")
+
+        if input_selector:
+            type_args: dict[str, object] = {
+                "target": input_selector,
+                "text": solved_text,
+                "_skip_captcha_detect": True,
+            }
+            if frame_selector:
+                type_args["frame_selector"] = frame_selector
+            await _invoke_tool(
+                invoker=invoker,
+                explicit_provider=explicit_provider,
+                tool="browser_type",
+                arguments=type_args,
+                ctx=ctx,
+                captcha_solver=captcha_solver,
+            )
+
+        return McpToolResult(
+            ok=True,
+            output={
+                "solved_text": solved_text,
+                "image_selector": image_selector,
+                "input_selector": input_selector,
+                "engine": engine_used,
+            },
+            stdout=f"Successfully solved CAPTCHA {solved_text!r} into {input_selector or 'none'} (engine: {engine_used})",
+            duration_ms=last_snap_duration,
+        )
+
+    if last_error:
+        raise McpToolFailed(
+            f"Failed to solve CAPTCHA after {attempts} attempts: {last_error}"
+        ) from last_error
+    raise McpToolFailed(f"Failed to solve CAPTCHA after {attempts} attempts")
+
+
 async def _invoke_tool(
     *,
     invoker: McpInvoker,
@@ -285,8 +503,18 @@ async def _invoke_tool(
     tool: str,
     arguments: dict[str, object],
     ctx: InvokeContext,
+    captcha_solver: CaptchaSolver | None = None,
 ) -> McpToolResult:
     normalized_tool = _normalize_tool_name(tool)
+    if normalized_tool in ("browser_solve_captcha", "browser.solve_captcha"):
+        return await _handle_solve_captcha_operation(
+            invoker=invoker,
+            explicit_provider=explicit_provider,
+            arguments=arguments,
+            ctx=ctx,
+            captcha_solver=captcha_solver,
+        )
+
     if normalized_tool == "browser.assert_text":
         snapshot = await invoker.invoke(
             explicit_provider=explicit_provider,
@@ -357,10 +585,138 @@ async def _invoke_tool(
                 duration_ms=1,
             )
 
+        if captcha_solver is not None and not arguments.get("_skip_captcha_detect"):
+            target = str(arguments.get("target") or arguments.get("selector") or "")
+            frame_selector = str(
+                arguments.get("frame_selector") or arguments.get("frameSelector") or ""
+            )
+            frame_chain = _build_frame_chain_js(frame_selector) if frame_selector else "page"
+            detect_code = build_detect_captcha_script(
+                target_input_selector=target, frame_chain=frame_chain
+            )
+            try:
+                detect_res = await invoker.invoke(
+                    explicit_provider=explicit_provider,
+                    tool="browser_run_code_unsafe",
+                    arguments={"code": detect_code},
+                    ctx=ctx,
+                )
+                detection = (detect_res.output or {}).get("result") or {}
+                if isinstance(detection, dict) and detection.get("is_captcha"):
+                    img_sel = detection.get("image_selector") or "img"
+                    refresh_tgt = detection.get("refresh_target")
+                    log.info(
+                        "step_executor.captcha.intercept_type",
+                        target=target,
+                        image_selector=img_sel,
+                    )
+                    solve_args: dict[str, Any] = {
+                        "image_selector": img_sel,
+                        "input_selector": target,
+                        "max_retries": 3,
+                    }
+                    if refresh_tgt:
+                        solve_args["refresh_target"] = refresh_tgt
+                    if frame_selector:
+                        solve_args["frame_selector"] = frame_selector
+
+                    solve_res = await _handle_solve_captcha_operation(
+                        invoker=invoker,
+                        explicit_provider=explicit_provider,
+                        arguments=solve_args,
+                        ctx=ctx,
+                        captcha_solver=captcha_solver,
+                    )
+                    if solve_res.ok:
+                        out = dict(solve_res.output or {})
+                        out["auto_healed_captcha"] = True
+                        out["original_tool"] = "browser_type"
+                        out["image_selector"] = img_sel
+                        out["input_selector"] = target
+                        if refresh_tgt:
+                            out["refresh_target"] = refresh_tgt
+                        solve_res.output = out
+                        return solve_res
+            except Exception as det_err:
+                log.debug("step_executor.captcha_detect_failed", error=str(det_err))
+
+    if normalized_tool in ("browser_click", "browser.click") and captcha_solver is not None:
+        target = str(arguments.get("target") or arguments.get("selector") or "")
+        if is_submit_action(target, normalized_tool):
+            frame_selector = str(
+                arguments.get("frame_selector") or arguments.get("frameSelector") or ""
+            )
+            frame_chain = _build_frame_chain_js(frame_selector) if frame_selector else "page"
+            detect_code = build_detect_captcha_script(
+                target_input_selector=None, frame_chain=frame_chain
+            )
+            try:
+                detect_res = await invoker.invoke(
+                    explicit_provider=explicit_provider,
+                    tool="browser_run_code_unsafe",
+                    arguments={"code": detect_code},
+                    ctx=ctx,
+                )
+                detection = (detect_res.output or {}).get("result") or {}
+                if (
+                    isinstance(detection, dict)
+                    and detection.get("is_captcha")
+                    and detection.get("is_empty")
+                ):
+                    inp_sel = detection.get("input_selector") or "#captcha"
+                    img_sel = detection.get("image_selector") or "img"
+                    refresh_tgt = detection.get("refresh_target")
+                    log.info(
+                        "step_executor.captcha.pre_submit_intercept",
+                        submit_target=target,
+                        input_selector=inp_sel,
+                        image_selector=img_sel,
+                    )
+                    solve_args = {
+                        "image_selector": img_sel,
+                        "input_selector": inp_sel,
+                        "max_retries": 3,
+                    }
+                    if refresh_tgt:
+                        solve_args["refresh_target"] = refresh_tgt
+                    if frame_selector:
+                        solve_args["frame_selector"] = frame_selector
+
+                    solve_res = await _handle_solve_captcha_operation(
+                        invoker=invoker,
+                        explicit_provider=explicit_provider,
+                        arguments=solve_args,
+                        ctx=ctx,
+                        captcha_solver=captcha_solver,
+                    )
+                    solved_text = (solve_res.output or {}).get("solved_text", "")
+                    click_res = await invoker.invoke(
+                        explicit_provider=explicit_provider,
+                        tool=normalized_tool,
+                        arguments=arguments,
+                        ctx=ctx,
+                    )
+                    out = dict(click_res.output or {})
+                    out["pre_submit_injected_captcha"] = {
+                        "image_selector": img_sel,
+                        "input_selector": inp_sel,
+                        "refresh_target": refresh_tgt,
+                        "solved_text": solved_text,
+                    }
+                    click_res.output = out
+                    return click_res
+            except Exception as det_err:
+                log.debug("step_executor.pre_submit_captcha_detect_failed", error=str(det_err))
+
+    clean_invoke_args = (
+        {k: v for k, v in arguments.items() if k != "_skip_captcha_detect"}
+        if "_skip_captcha_detect" in arguments
+        else arguments
+    )
     return await invoker.invoke(
         explicit_provider=explicit_provider,
         tool=normalized_tool,
-        arguments=arguments,
+        arguments=clean_invoke_args,
         ctx=ctx,
     )
 
@@ -477,6 +833,7 @@ async def execute_step(
     actor_user_id: str | None,
     routing_overrides: dict[str, object] | None,
     translator: StepTranslator | None = None,
+    captcha_solver: CaptchaSolver | None = None,
 ) -> StepResult:
     """Dispatch one :class:`TestStep` via the MCP invoker and return its outcome.
 
@@ -573,6 +930,7 @@ async def execute_step(
             tool=tool,
             arguments=arguments,
             ctx=ctx,
+            captcha_solver=captcha_solver,
         )
         await _run_assertions(
             invoker=invoker,

@@ -16,6 +16,7 @@ silently degrading the run record.
 
 from __future__ import annotations
 
+import base64
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -23,7 +24,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from suitest_mcp.errors import McpToolFailed
 from suitest_mcp.models import McpToolResult
-from suitest_runner.executors.step_executor import execute_step
+from suitest_runner.executors.step_executor import _extract_b64_screenshot, execute_step
 from suitest_shared.domain.enums import StepOutcome, TargetKind
 
 pytestmark = pytest.mark.asyncio
@@ -782,3 +783,483 @@ async def test_execute_step_with_nested_chained_frame_selector() -> None:
     assert 'page.frameLocator("iframe#outer-frame").frameLocator("iframe#inner-frame")' in code
     assert 'locator("button#nested-submit")' in code
     assert "Submit Nested" in code
+
+
+@pytest.mark.asyncio
+async def test_execute_step_solve_captcha_success() -> None:
+    test_image_bytes = b"fake-png-data"
+    b64_image = base64.b64encode(test_image_bytes).decode("ascii")
+
+    inv = MagicMock()
+
+    async def _invoke(
+        *, tool: str, arguments: dict[str, object], **kwargs: object
+    ) -> McpToolResult:
+        if tool == "browser_run_code_unsafe":
+            return McpToolResult(ok=True, output={"result": b64_image}, stdout="", duration_ms=20)
+        if tool == "browser_type":
+            return McpToolResult(ok=True, output={}, stdout="Typed text", duration_ms=10)
+        return McpToolResult(ok=True, output={}, stdout="", duration_ms=5)
+
+    inv.invoke = AsyncMock(side_effect=_invoke)
+    mock_solver = AsyncMock(return_value="PRINGSEWU")
+
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_solve_captcha",
+                "arguments": {
+                    "image_selector": "img#captcha-img",
+                    "input_selector": "input#captcha-input",
+                    "force_uppercase": True,
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+        captcha_solver=mock_solver,
+    )
+    assert result.outcome == StepOutcome.PASS
+    assert mock_solver.await_count == 1
+    mock_solver.assert_awaited_with(test_image_bytes, True)
+    assert inv.invoke.await_count == 2
+    # Verify snapshot call
+    snap_call = inv.invoke.await_args_list[0].kwargs
+    assert snap_call["tool"] == "browser_run_code_unsafe"
+    assert 'locator("img#captcha-img")' in snap_call["arguments"]["code"]
+    assert "screenshot" in snap_call["arguments"]["code"]
+    # Verify typing call
+    type_call = inv.invoke.await_args_list[1].kwargs
+    assert type_call["tool"] == "browser_type"
+    assert type_call["arguments"]["target"] == "input#captcha-input"
+    assert type_call["arguments"]["text"] == "PRINGSEWU"
+
+
+@pytest.mark.asyncio
+async def test_execute_step_solve_captcha_fast_path_tiny_ocr() -> None:
+    inv = MagicMock()
+
+    async def _invoke(
+        *, tool: str, arguments: dict[str, object], **kwargs: object
+    ) -> McpToolResult:
+        if tool == "browser_run_code_unsafe":
+            return McpToolResult(
+                ok=True,
+                output={"status": "solved", "text": "KAPUAS", "source": "tiny_ocr"},
+                stdout="",
+                duration_ms=12,
+            )
+        if tool == "browser_type":
+            return McpToolResult(ok=True, output={}, stdout="Typed text", duration_ms=5)
+        return McpToolResult(ok=True, output={}, stdout="", duration_ms=5)
+
+    inv.invoke = AsyncMock(side_effect=_invoke)
+    mock_solver = AsyncMock(return_value="SHOULD_NOT_BE_CALLED")
+
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_solve_captcha",
+                "arguments": {
+                    "image_selector": "img#captcha-img",
+                    "input_selector": "input#captcha-input",
+                    "force_uppercase": True,
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+        captcha_solver=mock_solver,
+    )
+    assert result.outcome == StepOutcome.PASS
+    # Vision LLM must NOT be called for clean fast-path OCR
+    assert mock_solver.await_count == 0
+    assert inv.invoke.await_count == 2
+    type_call = inv.invoke.await_args_list[1].kwargs
+    assert type_call["tool"] == "browser_type"
+    assert type_call["arguments"]["text"] == "KAPUAS"
+
+
+@pytest.mark.asyncio
+async def test_execute_step_solve_captcha_math_fast_path() -> None:
+    inv = MagicMock()
+
+    async def _invoke(
+        *, tool: str, arguments: dict[str, object], **kwargs: object
+    ) -> McpToolResult:
+        if tool == "browser_run_code_unsafe":
+            return McpToolResult(
+                ok=True,
+                output={"status": "solved", "text": "42", "source": "local_math"},
+                stdout="",
+                duration_ms=10,
+            )
+        if tool == "browser_type":
+            return McpToolResult(ok=True, output={}, stdout="Typed text", duration_ms=5)
+        return McpToolResult(ok=True, output={}, stdout="", duration_ms=5)
+
+    inv.invoke = AsyncMock(side_effect=_invoke)
+    mock_solver = AsyncMock(return_value="SHOULD_NOT_BE_CALLED")
+
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_solve_captcha",
+                "arguments": {
+                    "image_selector": "img#math-captcha",
+                    "input_selector": "input#answer",
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+        captcha_solver=mock_solver,
+    )
+    assert result.outcome == StepOutcome.PASS
+    assert mock_solver.await_count == 0
+    type_call = inv.invoke.await_args_list[1].kwargs
+    assert type_call["arguments"]["text"] == "42"
+
+
+@pytest.mark.asyncio
+async def test_execute_step_solve_captcha_legacy_alias() -> None:
+    test_image_bytes = b"sample-bytes"
+    b64_image = base64.b64encode(test_image_bytes).decode("ascii")
+
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={"result": b64_image}, stdout="", duration_ms=15)
+    )
+    mock_solver = AsyncMock(return_value="KODECAP")
+
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser.solve_captcha",
+                "arguments": {
+                    "image_selector": "img.captcha",
+                    "input_selector": "input.captcha",
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+        captcha_solver=mock_solver,
+    )
+    assert result.outcome == StepOutcome.PASS
+    mock_solver.assert_awaited_once_with(test_image_bytes, False)
+
+
+@pytest.mark.asyncio
+async def test_execute_step_solve_captcha_no_llm_fails() -> None:
+    inv = MagicMock()
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_solve_captcha",
+                "arguments": {
+                    "image_selector": "img#captcha",
+                    "input_selector": "input#captcha",
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+        captcha_solver=None,
+    )
+    assert result.outcome == StepOutcome.FAIL
+    assert "LLM_NOT_READY" in (result.error_message or "")
+
+
+@pytest.mark.asyncio
+async def test_execute_step_solve_captcha_with_frame_selector() -> None:
+    test_image_bytes = b"framed-captcha"
+    b64_image = base64.b64encode(test_image_bytes).decode("ascii")
+
+    inv = MagicMock()
+
+    async def _invoke(
+        *, tool: str, arguments: dict[str, object], **kwargs: object
+    ) -> McpToolResult:
+        if tool == "browser_run_code_unsafe":
+            return McpToolResult(ok=True, output={"result": b64_image}, stdout="", duration_ms=20)
+        return McpToolResult(ok=True, output={}, stdout="ok", duration_ms=10)
+
+    inv.invoke = AsyncMock(side_effect=_invoke)
+    mock_solver = AsyncMock(return_value="FRAMED1")
+
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_solve_captcha",
+                "arguments": {
+                    "image_selector": "img#modal-captcha",
+                    "input_selector": "input#modal-code",
+                    "frame_selector": "iframe#modal-frame",
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+        captcha_solver=mock_solver,
+    )
+    assert result.outcome == StepOutcome.PASS
+    # Verify frame chain in snapshot code
+    snap_call = inv.invoke.await_args_list[0].kwargs
+    assert 'frameLocator("iframe#modal-frame")' in snap_call["arguments"]["code"]
+    # Verify frame chain in typing code via _handle_frame_operation
+    type_call = inv.invoke.await_args_list[1].kwargs
+    assert type_call["tool"] == "browser_run_code_unsafe"
+    assert 'frameLocator("iframe#modal-frame")' in type_call["arguments"]["code"]
+    assert 'locator("input#modal-code")' in type_call["arguments"]["code"]
+    assert 'fill("FRAMED1")' in type_call["arguments"]["code"]
+
+
+@pytest.mark.asyncio
+async def test_execute_step_solve_captcha_retry_on_empty() -> None:
+    test_image_bytes = b"captcha-retry-bytes"
+    b64_image = base64.b64encode(test_image_bytes).decode("ascii")
+
+    inv = MagicMock()
+    calls: list[str] = []
+
+    async def _invoke(
+        *, tool: str, arguments: dict[str, object], **kwargs: object
+    ) -> McpToolResult:
+        calls.append(tool)
+        if tool == "browser_run_code_unsafe":
+            return McpToolResult(ok=True, output={"result": b64_image}, stdout="", duration_ms=20)
+        return McpToolResult(ok=True, output={}, stdout="ok", duration_ms=10)
+
+    inv.invoke = AsyncMock(side_effect=_invoke)
+    mock_solver = AsyncMock(side_effect=["", "SOLVED2"])
+
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_solve_captcha",
+                "arguments": {
+                    "image_selector": "img#captcha",
+                    "input_selector": "input#code",
+                    "refresh_target": "button#reload-captcha",
+                    "max_retries": 2,
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+        captcha_solver=mock_solver,
+    )
+    assert result.outcome == StepOutcome.PASS
+    assert mock_solver.await_count == 2
+    assert "browser_click" in calls
+
+
+@pytest.mark.asyncio
+async def test_execute_step_solve_captcha_with_captcha_type() -> None:
+    test_image_bytes = b"sample-math-bytes"
+    b64_image = base64.b64encode(test_image_bytes).decode("ascii")
+
+    inv = MagicMock()
+    inv.invoke = AsyncMock(
+        return_value=McpToolResult(ok=True, output={"result": b64_image}, stdout="", duration_ms=10)
+    )
+    mock_solver = AsyncMock(return_value="12")
+
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_solve_captcha",
+                "arguments": {
+                    "image_selector": "img#math-captcha",
+                    "input_selector": "input#math-result",
+                    "captcha_type": "math",
+                    "force_uppercase": False,
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+        captcha_solver=mock_solver,
+    )
+    assert result.outcome == StepOutcome.PASS
+    assert mock_solver.await_count == 1
+    mock_solver.assert_awaited_with(test_image_bytes, False, captcha_type="math")
+
+    type_call = inv.invoke.await_args_list[1].kwargs
+    assert type_call["tool"] == "browser_type"
+    assert type_call["arguments"]["target"] == "input#math-result"
+    assert type_call["arguments"]["text"] == "12"
+
+
+@pytest.mark.asyncio
+async def test_execute_step_solve_captcha_retry_on_transient_exception() -> None:
+    test_image_bytes = b"flaky-captcha-bytes"
+    b64_snap = base64.b64encode(test_image_bytes).decode("ascii")
+
+    inv = MagicMock()
+
+    async def _invoke(
+        *, tool: str, arguments: dict[str, object], **kwargs: object
+    ) -> McpToolResult:
+        if tool == "browser_run_code_unsafe":
+            return McpToolResult(ok=True, output={"result": b64_snap}, stdout="", duration_ms=20)
+        return McpToolResult(ok=True, output={}, stdout="ok", duration_ms=5)
+
+    inv.invoke = AsyncMock(side_effect=_invoke)
+
+    mock_solver = AsyncMock(
+        side_effect=[
+            RuntimeError("Unable to process input image. Please retry"),
+            "RECOVERED",
+        ]
+    )
+
+    step = _step(
+        json.dumps(
+            {
+                "tool": "browser_solve_captcha",
+                "arguments": {
+                    "image_selector": "img#captcha",
+                    "input_selector": "input#captcha",
+                    "refresh_target": "button#reload",
+                    "max_retries": 2,
+                },
+            }
+        ),
+        provider="playwright-mcp",
+        target=TargetKind.FE_WEB,
+    )
+    result = await execute_step(
+        invoker=inv,
+        test_step=step,
+        run_id="r",
+        workspace_id="w",
+        actor_user_id="u",
+        routing_overrides=None,
+        captcha_solver=mock_solver,
+    )
+    assert result.outcome == StepOutcome.PASS
+    assert mock_solver.await_count == 2
+    assert result.mcp_result is not None
+    assert result.mcp_result.output["solved_text"] == "RECOVERED"
+
+
+async def test_extract_b64_screenshot_playwright_mcp_markdown() -> None:
+    test_bytes = b"real-png-bytes-123456"
+    b64_raw = base64.b64encode(test_bytes).decode("ascii")
+
+    # Playwright MCP markdown format with JS snippet containing commas and "base64"
+    stdout = f"""### Result
+"{b64_raw}"
+### Ran Playwright code
+```js
+await (async (page) => {{
+    const target = page.locator("#img-captcha");
+    img.addEventListener("load", () => resolve(true), {{ once: true }});
+    const buf = await target.screenshot({{ type: "png" }});
+    return buf.toString("base64");
+}})(page);
+```"""
+    res = McpToolResult(ok=True, output={}, stdout=stdout, duration_ms=10)
+    assert _extract_b64_screenshot(res, "#img-captcha") == test_bytes
+
+
+async def test_extract_b64_screenshot_playwright_mcp_data_url() -> None:
+    test_bytes = b"real-canvas-bytes-789"
+    b64_raw = base64.b64encode(test_bytes).decode("ascii")
+    b64_data_url = f"data:image/png;base64,{b64_raw}"
+
+    stdout = f"""### Result
+"{b64_data_url}"
+### Ran Playwright code
+```js
+await (async (page) => {{ return "base64,sample"; }})(page);
+```"""
+    res = McpToolResult(ok=True, output={}, stdout=stdout, duration_ms=10)
+    assert _extract_b64_screenshot(res, "#img-captcha") == test_bytes
+
+
+async def test_extract_b64_screenshot_structured_output() -> None:
+    test_bytes = b"direct-output-bytes"
+    b64_raw = base64.b64encode(test_bytes).decode("ascii")
+    res = McpToolResult(ok=True, output={"result": b64_raw}, stdout="", duration_ms=10)
+    assert _extract_b64_screenshot(res, "#img-captcha") == test_bytes
+
+
+async def test_extract_b64_screenshot_invalid_base64_raises() -> None:
+    res = McpToolResult(
+        ok=True, output={}, stdout='### Result\n"not-valid-base64-$$$"\n', duration_ms=10
+    )
+    with pytest.raises(McpToolFailed, match="Failed to decode CAPTCHA screenshot"):
+        _extract_b64_screenshot(res, "#img-captcha")
+
+
+async def test_extract_b64_screenshot_empty_raises() -> None:
+    res = McpToolResult(ok=True, output={"result": ""}, stdout="", duration_ms=10)
+    with pytest.raises(McpToolFailed, match="Empty screenshot buffer captured"):
+        _extract_b64_screenshot(res, "#img-captcha")

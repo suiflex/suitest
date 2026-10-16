@@ -17,6 +17,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  ScanText,
   Sparkles,
   Trash2,
   Upload,
@@ -841,6 +842,35 @@ function coalesceEvents(eventList: RecorderCapturedEvent[]): RecorderCapturedEve
       coalesced[coalesced.length - 1] = evt;
       continue;
     }
+    // Deduplicate consecutive solve_captcha on the same selector
+    if (
+      prev &&
+      prev.kind === "solve_captcha" &&
+      evt.kind === "solve_captcha" &&
+      prev.selector === evt.selector
+    ) {
+      coalesced[coalesced.length - 1] = evt;
+      continue;
+    }
+    // Drop click on captcha image immediately after solve_captcha (refresh attempt)
+    if (
+      prev &&
+      prev.kind === "solve_captcha" &&
+      evt.kind === "click" &&
+      prev.selector === evt.selector
+    ) {
+      continue;
+    }
+    // Drop click on captcha image that immediately precedes solve_captcha (refresh before solve)
+    if (
+      prev &&
+      prev.kind === "click" &&
+      evt.kind === "solve_captcha" &&
+      prev.selector === evt.selector
+    ) {
+      coalesced[coalesced.length - 1] = evt;
+      continue;
+    }
     coalesced.push(evt);
   }
   return coalesced;
@@ -1403,6 +1433,7 @@ function RecorderRunPanel({
                         <option value="type">TYPE</option>
                         <option value="select">SELECT</option>
                         <option value="upload">UPLOAD</option>
+                        <option value="solve_captcha">CAPTCHA</option>
                         <option value="assert">ASSERT</option>
                       </select>
                     </div>
@@ -1506,6 +1537,39 @@ function RecorderRunPanel({
                     </div>
                   ) : null}
 
+                  {editDraft.kind === "solve_captcha" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1">
+                        <Label className="text-[10.5px] text-fg-4">CAPTCHA Image Selector</Label>
+                        <Input
+                          data-testid="gen-step-edit-captcha-image"
+                          value={editDraft.selector ?? ""}
+                          placeholder="#img-captcha or img.captcha"
+                          onChange={(e) => setEditDraft({ ...editDraft, selector: e.target.value })}
+                          className="h-7 font-mono text-[11px]"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <Label className="text-[10.5px] text-fg-4">CAPTCHA Input Selector</Label>
+                        <Input
+                          data-testid="gen-step-edit-captcha-input"
+                          value={String((editDraft.data as { input_selector?: string })?.input_selector ?? "")}
+                          placeholder="#captcha or input[name='captcha']"
+                          onChange={(e) =>
+                            setEditDraft({
+                              ...editDraft,
+                              data: {
+                                ...((editDraft.data as Record<string, unknown>) ?? {}),
+                                input_selector: e.target.value,
+                              },
+                            })
+                          }
+                          className="h-7 font-mono text-[11px]"
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
                   {editDraft.kind === "assert" ? (
                     <div className="flex flex-col gap-1">
                       <Label className="text-[10.5px] text-fg-4">Expected Condition</Label>
@@ -1591,6 +1655,17 @@ function RecorderRunPanel({
                         <span className="text-pink-400 font-semibold text-[10px] shrink-0">UPLOAD</span>
                         <span className="truncate text-fg-3 text-[11px] min-w-0" title={`${evt.selector ?? ""} ← ${evt.text || String((evt as { data?: { file_name?: string } }).data?.file_name ?? "file")}`}>
                           {evt.selector} ← {evt.text || String((evt as { data?: { file_name?: string } }).data?.file_name ?? "file")}
+                        </span>
+                      </>
+                    ) : evt.kind === "solve_captcha" ? (
+                      <>
+                        <ScanText className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+                        <span className="text-purple-400 font-semibold text-[10px] shrink-0">CAPTCHA</span>
+                        <span
+                          className="truncate text-fg-3 text-[11px] min-w-0"
+                          title={`${evt.selector ?? "captcha"} → ${(evt.data as { input_selector?: string })?.input_selector ?? "input"}`}
+                        >
+                          {evt.selector ?? "captcha"} → {(evt.data as { input_selector?: string })?.input_selector ?? "input"}
                         </span>
                       </>
                     ) : (
