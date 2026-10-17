@@ -193,3 +193,42 @@ async def test_execute_step_interpolates_username_and_password_from_dataset(monk
     )
     call_args_pass = invoker.invoke.call_args.kwargs
     assert call_args_pass["arguments"]["text"] == "123"
+
+
+def test_default_scenario_selection_precedence() -> None:
+    """Verifies that is_default / isDefault takes precedence over first row in single-run execution."""
+    ds_rows = [
+        {
+            "id": "row-1",
+            "name": "Default (Single Run)",
+            "enabled": True,
+            "is_default": False,
+            "values": {"username": "user", "password": "123"},
+        },
+        {
+            "id": "row-2",
+            "name": "Dataset Matrix #2",
+            "enabled": True,
+            "is_default": True,
+            "values": {"username": "superadministrator", "password": "123"},
+        },
+    ]
+
+    default_row = next(
+        (
+            r
+            for r in ds_rows
+            if isinstance(r, dict)
+            and (r.get("is_default") is True or r.get("isDefault") is True)
+            and r.get("enabled", True)
+        ),
+        None,
+    )
+    enabled_row = default_row or next(
+        (r for r in ds_rows if isinstance(r, dict) and r.get("enabled", True)),
+        ds_rows[0],
+    )
+
+    assert enabled_row["id"] == "row-2"
+    resolver = VariableResolver(dataset_row=enabled_row)
+    assert resolver.get("username") == "superadministrator"

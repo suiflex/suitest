@@ -342,20 +342,23 @@ export function QuickEditInputsDialog({
   }, [propDatasetRows, caseData?.dataset_rows, caseData?.datasetRows]);
 
   const [selectedRowIndex, setSelectedRowIndex] = useState<number>(0);
+  const hasInitializedRowRef = useRef(false);
 
   useEffect(() => {
-    if (open) {
-      if (parsedDatasetRows.length > 0) {
-        const defaultIdx = parsedDatasetRows.findIndex(
-          (r) =>
-            Boolean((r as { is_default?: boolean; isDefault?: boolean }).is_default) ||
-            Boolean((r as { is_default?: boolean; isDefault?: boolean }).isDefault),
-        );
-        const firstEnabled = parsedDatasetRows.findIndex((r) => r.enabled !== false);
-        setSelectedRowIndex(defaultIdx !== -1 ? defaultIdx : firstEnabled !== -1 ? firstEnabled : 0);
-      } else {
-        setSelectedRowIndex(0);
-      }
+    if (!open) {
+      hasInitializedRowRef.current = false;
+      return;
+    }
+
+    if (!hasInitializedRowRef.current && parsedDatasetRows.length > 0) {
+      const defaultIdx = parsedDatasetRows.findIndex(
+        (r) =>
+          Boolean((r as { is_default?: boolean; isDefault?: boolean }).is_default) ||
+          Boolean((r as { is_default?: boolean; isDefault?: boolean }).isDefault),
+      );
+      const firstEnabled = parsedDatasetRows.findIndex((r) => r.enabled !== false);
+      setSelectedRowIndex(defaultIdx !== -1 ? defaultIdx : firstEnabled !== -1 ? firstEnabled : 0);
+      hasInitializedRowRef.current = true;
     }
   }, [open, parsedDatasetRows]);
 

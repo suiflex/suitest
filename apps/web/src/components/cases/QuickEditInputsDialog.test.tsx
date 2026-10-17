@@ -336,4 +336,69 @@ describe("<QuickEditInputsDialog>", () => {
 
     expect(screen.getByTestId("ddt-scenario-banner")).toHaveTextContent("Active Scenario: Dataset Matrix #2");
   });
+
+  it("persists selected dataset row as default (is_default: true) when switching row and applying changes", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.patch).mockResolvedValue({ data: {} } as never);
+
+    const datasetRows = [
+      {
+        id: "row-1",
+        name: "Default (Single Run)",
+        enabled: true,
+        is_default: true,
+        values: { username: "user", password: "123" },
+      },
+      {
+        id: "row-2",
+        name: "Dataset Matrix #2",
+        enabled: true,
+        is_default: false,
+        values: { username: "superadministrator", password: "123" },
+      },
+    ];
+
+    renderComponent({
+      steps: [
+        {
+          id: "step-2",
+          order: 2,
+          action: "Type username",
+          expected: "Typed",
+          code: JSON.stringify({
+            tool: "browser_type",
+            arguments: { target: "#username", text: "{{username}}" },
+          }),
+          mcp_provider: "playwright-mcp",
+          target_kind: "FE_WEB",
+        },
+      ],
+      datasetRows,
+      datasetSchema: ["username", "password"],
+    });
+
+    const scenarioSelect = screen.getByTestId("ddt-scenario-select");
+    await user.selectOptions(scenarioSelect, "1");
+
+    const applyBtn = screen.getByTestId("quick-edit-apply-btn");
+    await user.click(applyBtn);
+
+    await waitFor(() => {
+      expect(api.patch).toHaveBeenCalledWith(
+        "/test-cases/TC-101",
+        expect.objectContaining({
+          datasetRows: [
+            expect.objectContaining({
+              id: "row-1",
+              is_default: false,
+            }),
+            expect.objectContaining({
+              id: "row-2",
+              is_default: true,
+            }),
+          ],
+        }),
+      );
+    });
+  });
 });
