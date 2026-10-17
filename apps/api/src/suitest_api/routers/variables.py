@@ -81,7 +81,9 @@ async def create_workspace_variable(
     if ctx.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     service = VariableService(session)
-    return await service.create_workspace_variable(workspace_id, body)
+    result = await service.create_workspace_variable(workspace_id, body)
+    await session.commit()
+    return result
 
 
 @router.patch(
@@ -102,6 +104,7 @@ async def update_workspace_variable(
     updated = await service.update_workspace_variable(workspace_id, var_id, body)
     if updated is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variable not found")
+    await session.commit()
     return updated
 
 
@@ -122,6 +125,7 @@ async def delete_workspace_variable(
     deleted = await service.delete_workspace_variable(workspace_id, var_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variable not found")
+    await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -181,7 +185,9 @@ async def create_suite_variable(
     if ctx.workspace_id != ws_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     service = VariableService(session)
-    return await service.create_suite_variable(suite_id, body)
+    result = await service.create_suite_variable(suite_id, body)
+    await session.commit()
+    return result
 
 
 @router.patch(
@@ -203,6 +209,7 @@ async def update_suite_variable(
     updated = await service.update_suite_variable(suite_id, var_id, body)
     if updated is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variable not found")
+    await session.commit()
     return updated
 
 
@@ -224,6 +231,7 @@ async def delete_suite_variable(
     deleted = await service.delete_suite_variable(suite_id, var_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variable not found")
+    await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
