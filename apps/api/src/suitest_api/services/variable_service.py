@@ -56,6 +56,7 @@ class VariableService:
                 description=dto.description,
             )
         )
+        await self._session.refresh(row)
         return VariablePublic(
             id=row.id,
             key=row.key,
@@ -83,6 +84,8 @@ class VariableService:
         updated = await self._ws_repo.update(var_id, update_dto)
         if updated is None:
             return None
+
+        await self._session.refresh(updated)
 
         return VariablePublic(
             id=updated.id,
@@ -129,6 +132,7 @@ class VariableService:
                 description=dto.description,
             )
         )
+        await self._session.refresh(row)
         return VariablePublic(
             id=row.id,
             key=row.key,
@@ -156,6 +160,8 @@ class VariableService:
         updated = await self._suite_repo.update(var_id, update_dto)
         if updated is None:
             return None
+
+        await self._session.refresh(updated)
 
         return VariablePublic(
             id=updated.id,

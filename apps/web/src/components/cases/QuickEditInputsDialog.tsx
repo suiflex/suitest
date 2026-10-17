@@ -346,8 +346,13 @@ export function QuickEditInputsDialog({
   useEffect(() => {
     if (open) {
       if (parsedDatasetRows.length > 0) {
+        const defaultIdx = parsedDatasetRows.findIndex(
+          (r) =>
+            Boolean((r as { is_default?: boolean; isDefault?: boolean }).is_default) ||
+            Boolean((r as { is_default?: boolean; isDefault?: boolean }).isDefault),
+        );
         const firstEnabled = parsedDatasetRows.findIndex((r) => r.enabled !== false);
-        setSelectedRowIndex(firstEnabled !== -1 ? firstEnabled : 0);
+        setSelectedRowIndex(defaultIdx !== -1 ? defaultIdx : firstEnabled !== -1 ? firstEnabled : 0);
       } else {
         setSelectedRowIndex(0);
       }
@@ -572,7 +577,7 @@ export function QuickEditInputsDialog({
 
       await api.patch(`/test-cases/${caseId}/steps`, payload);
 
-      // 3. Optional: Save as DDT Dataset row
+      // 3. Persist dataset row selection or save new DDT scenario
       if (saveAsDdtRow) {
         const rowValues: Record<string, string> = {};
         const schemaCols = new Set<string>();
@@ -599,16 +604,32 @@ export function QuickEditInputsDialog({
         const existingRows = parsedDatasetRows;
 
         const updatedSchema = Array.from(new Set([...existingSchema, ...schemaCols]));
+        const updatedExisting = existingRows.map((r) => ({
+          ...r,
+          is_default: false,
+          isDefault: false,
+        }));
         const newRow = {
           id: `row-${Date.now()}`,
           name: ddtRowName.trim() || `Scenario ${existingRows.length + 1}`,
           enabled: true,
+          is_default: true,
+          isDefault: true,
           values: rowValues,
         };
 
         await api.patch(`/test-cases/${caseId}`, {
           datasetSchema: updatedSchema,
-          datasetRows: [...existingRows, newRow],
+          datasetRows: [...updatedExisting, newRow],
+        });
+      } else if (parsedDatasetRows.length > 0) {
+        const updatedRows = parsedDatasetRows.map((r, idx) => ({
+          ...r,
+          is_default: idx === selectedRowIndex,
+          isDefault: idx === selectedRowIndex,
+        }));
+        await api.patch(`/test-cases/${caseId}`, {
+          datasetRows: updatedRows,
         });
       }
 

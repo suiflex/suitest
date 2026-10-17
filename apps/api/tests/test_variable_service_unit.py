@@ -20,7 +20,7 @@ from suitest_api.schemas.test_case import (
     _BulkBatchBindVariablePayload,
     _BulkBatchReplaceDataPayload,
 )
-from suitest_api.schemas.variable import VariableCreate
+from suitest_api.schemas.variable import VariableCreate, VariableUpdate
 from suitest_api.services.test_case_service import TestCaseService
 from suitest_api.services.variable_service import VariableService
 from suitest_db.bootstrap import create_local_schema
@@ -121,6 +121,22 @@ async def test_variable_service_resolution(db_session: AsyncSession) -> None:
     resolved_runner = await svc.resolve_hierarchy(ws.id, suite.id, include_secrets=True)
     runner_map = {item.key: item for item in resolved_runner}
     assert runner_map["api_key"].value == "secret-xyz"
+
+    # 5. Update workspace variable (verifies refresh and updated_at access)
+    updated_ws = await svc.update_workspace_variable(
+        ws.id, w_sec.id, VariableUpdate(description="Updated token description")
+    )
+    assert updated_ws is not None
+    assert updated_ws.description == "Updated token description"
+    assert updated_ws.updated_at is not None
+
+    # 6. Update suite variable
+    updated_suite = await svc.update_suite_variable(
+        suite.id, s_plain.id, VariableUpdate(value="https://suite-updated.test")
+    )
+    assert updated_suite is not None
+    assert updated_suite.value == "https://suite-updated.test"
+    assert updated_suite.updated_at is not None
 
 
 @pytest.mark.asyncio

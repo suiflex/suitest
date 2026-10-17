@@ -1007,7 +1007,17 @@ async def _init_run_record(
                         except Exception:
                             ds_rows = None
                     if ds_rows and isinstance(ds_rows, list) and len(ds_rows) > 0:
-                        enabled_row = next(
+                        default_row = next(
+                            (
+                                r
+                                for r in ds_rows
+                                if isinstance(r, dict)
+                                and (r.get("is_default") is True or r.get("isDefault") is True)
+                                and r.get("enabled", True)
+                            ),
+                            None,
+                        )
+                        enabled_row = default_row or next(
                             (r for r in ds_rows if isinstance(r, dict) and r.get("enabled", True)),
                             ds_rows[0],
                         )
