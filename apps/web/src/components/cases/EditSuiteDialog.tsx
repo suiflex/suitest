@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { VariablesTable } from "@/components/settings/VariablesTable";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -89,7 +90,7 @@ export function EditSuiteDialog({ open, onClose, suite }: EditSuiteDialogProps):
         if (!next) handleClose();
       }}
     >
-      <DialogContent data-testid="edit-suite-dialog">
+      <DialogContent data-testid="edit-suite-dialog" className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>Edit suite</DialogTitle>
@@ -163,6 +164,12 @@ export function EditSuiteDialog({ open, onClose, suite }: EditSuiteDialogProps):
                   <option value="WHITE_BOX">White-box — internal tests and coverage</option>
                 </select>
               </div>
+
+              {suite && (
+                <div className="pt-4 border-t border-border">
+                  <VariablesTable scope="suite" suiteId={suite.id} />
+                </div>
+              )}
             </>
           )}
 

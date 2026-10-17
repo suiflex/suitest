@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   Code2,
+  Database,
   Download,
   FileDown,
   FileText,
@@ -19,6 +20,7 @@ import {
   ScrollText,
   Search,
   Settings2,
+  SlidersHorizontal,
   Trash2,
   Video,
   X,
@@ -27,6 +29,8 @@ import {
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { BatchEditDataDialog } from "@/components/cases/BatchEditDataDialog";
+import { QuickEditInputsDialog } from "@/components/cases/QuickEditInputsDialog";
 import { ConfirmBulkRunDialog } from "@/components/cases/ConfirmBulkRunDialog";
 import { ImageLightboxModal, type LightboxImage } from "@/components/runs/ImageLightboxModal";
 import { VideoPlayerModal } from "@/components/runs/VideoPlayerModal";
@@ -43,6 +47,7 @@ import { CasesSkeleton } from "@/components/cases/skeleton";
 import { StepEditor } from "@/components/cases/StepEditor";
 import type { DraftStep } from "@/components/cases/StepEditor";
 import { StepList } from "@/components/cases/StepList";
+import { TestCaseDataSheet } from "@/components/cases/TestCaseDataSheet";
 import { TestingApproachBadge } from "@/components/cases/TestingApproachBadge";
 import { TestStrategyDialog } from "@/components/cases/TestStrategyDialog";
 import { BrowserPreview } from "@/components/runs/BrowserPreview";
@@ -315,6 +320,8 @@ function BulkActionBar({
   const bulkUpdate = useBulkUpdate();
   const { canWriteTests } = usePermissions();
   const [confirmRunOpen, setConfirmRunOpen] = useState(false);
+  const [batchDataOpen, setBatchDataOpen] = useState(false);
+  const [quickEditOpen, setQuickEditOpen] = useState(false);
 
   const ids = [...selectedIds];
   const count = ids.length;
@@ -439,6 +446,34 @@ function BulkActionBar({
             Run ({count})
           </Button>
 
+          {count === 1 ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              data-testid="bulk-quick-edit-inputs-btn"
+              disabled={overLimit || bulkUpdate.isPending}
+              className="shrink-0 gap-1.5 text-fg-3 hover:text-fg-1"
+              onClick={() => setQuickEditOpen(true)}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
+              Edit Inputs
+            </Button>
+          ) : null}
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            data-testid="bulk-batch-data-btn"
+            disabled={overLimit || bulkUpdate.isPending}
+            className="shrink-0 gap-1.5 text-fg-3 hover:text-fg-1"
+            onClick={() => setBatchDataOpen(true)}
+          >
+            <Database className="h-3.5 w-3.5" aria-hidden="true" />
+            {count === 1 ? "Find & Replace" : "Batch Find & Replace"}
+          </Button>
+
           <Button
             type="button"
             size="sm"
@@ -509,6 +544,25 @@ function BulkActionBar({
         onConfirm={handleConfirmRun}
         isPending={createRun.isPending}
       />
+      {batchDataOpen ? (
+        <BatchEditDataDialog
+          open={batchDataOpen}
+          onOpenChange={setBatchDataOpen}
+          selectedIds={ids}
+          cases={cases}
+          onSuccess={onClear}
+        />
+      ) : null}
+      {singleCase && quickEditOpen ? (
+        <QuickEditInputsDialog
+          open={quickEditOpen}
+          onOpenChange={setQuickEditOpen}
+          caseId={singleCase.public_id || singleCase.id}
+          caseName={singleCase.name || singleCase.title}
+          suiteId={singleCase.suite_id || (singleCase as unknown as { suiteId?: string }).suiteId}
+          canWrite={canWriteTests}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1148,6 +1202,9 @@ function CaseDetailPanel({
           <TabsTrigger value="steps" className="text-[12.5px]" data-testid="case-tab-steps">
             Steps
           </TabsTrigger>
+          <TabsTrigger value="data" className="text-[12.5px]" data-testid="case-tab-data">
+            Test Data {detail.dataset_rows && detail.dataset_rows.length > 1 ? `(${detail.dataset_rows.length})` : ""}
+          </TabsTrigger>
           <TabsTrigger value="preview" className="text-[12.5px]" data-testid="case-tab-preview">
             Video / Preview
           </TabsTrigger>
@@ -1178,6 +1235,7 @@ function CaseDetailPanel({
           <StepEditor
             key={detail.public_id}
             caseId={detail.public_id}
+            suiteId={detail.suite_id}
             steps={stepsToShow}
             onStepsChange={handleStepsChange}
             outcomeByOrder={outcomeByOrder}
@@ -1192,6 +1250,14 @@ function CaseDetailPanel({
               />
             </Gated>
           ) : null}
+        </TabsContent>
+
+        <TabsContent value="data" className="flex flex-col gap-4">
+          <TestCaseDataSheet
+            testCase={detail}
+            steps={stepsToShow}
+            canWrite={canWriteTests}
+          />
         </TabsContent>
 
         <TabsContent value="preview">

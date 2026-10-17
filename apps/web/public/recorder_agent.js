@@ -251,12 +251,38 @@
       }
     }
 
-    // Priority 4: Form name or input placeholder
+    // Priority 4: Form name or input placeholder (uniqueness-verified)
     if (el.getAttribute("name")) {
-      return `${tag}[name="${el.getAttribute("name")}"]`;
+      var nameSel = `${tag}[name="${el.getAttribute("name")}"]`;
+      if (document.querySelectorAll(nameSel).length === 1) {
+        return nameSel;
+      }
+      var parentForm = el.closest("form");
+      if (parentForm) {
+        var formId = parentForm.id && !/^[0-9]|^ember|^react-|^vue-|:[a-z0-9]+:/i.test(parentForm.id) ? `#${CSS.escape(parentForm.id)}` : "";
+        if (formId) {
+          var scopedFormIdSel = `${formId} ${nameSel}`;
+          if (document.querySelectorAll(scopedFormIdSel).length === 1) {
+            return scopedFormIdSel;
+          }
+        }
+      }
     }
     if (el.getAttribute("placeholder")) {
-      return `${tag}[placeholder="${el.getAttribute("placeholder")}"]`;
+      var phSel = `${tag}[placeholder="${el.getAttribute("placeholder")}"]`;
+      if (document.querySelectorAll(phSel).length === 1) {
+        return phSel;
+      }
+      var parentFormPh = el.closest("form");
+      if (parentFormPh) {
+        var formIdPh = parentFormPh.id && !/^[0-9]|^ember|^react-|^vue-|:[a-z0-9]+:/i.test(parentFormPh.id) ? `#${CSS.escape(parentFormPh.id)}` : "";
+        if (formIdPh) {
+          var scopedFormIdPhSel = `${formIdPh} ${phSel}`;
+          if (document.querySelectorAll(scopedFormIdPhSel).length === 1) {
+            return scopedFormIdPhSel;
+          }
+        }
+      }
     }
 
     // Priority 5: ARIA role with clean text (combobox, option, menuitem, tab)
@@ -2420,6 +2446,25 @@
       "submit",
       function (e) {
         lastUserInteractionTime = Date.now();
+        var form = e.target;
+        if (!form) return;
+        var submitBtn = e.submitter || form.querySelector('button[type="submit"], input[type="submit"], button:not([type="button"])');
+        if (submitBtn) {
+          var btnSel = getSelector(submitBtn);
+          var alreadyRecorded =
+            capturedSteps.length > 0 &&
+            capturedSteps[capturedSteps.length - 1].kind === "click" &&
+            capturedSteps[capturedSteps.length - 1].selector === btnSel;
+          if (!alreadyRecorded) {
+            postEvent({
+              kind: "click",
+              timestamp: new Date().toISOString(),
+              selector: btnSel,
+              url: getCurrentVirtualUrl(),
+            });
+            flushBeforeUnload();
+          }
+        }
       },
       true
     );

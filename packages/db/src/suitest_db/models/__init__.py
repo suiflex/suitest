@@ -33,6 +33,7 @@ import suitest_db.models.tenancy as _tenancy  # noqa: F401
 import suitest_db.models.test_strategy as _test_strategy  # noqa: F401
 import suitest_db.models.user as _user  # noqa: F401
 import suitest_db.models.user_budget as _user_budget  # noqa: F401
+import suitest_db.models.variable as _variable  # noqa: F401
 import suitest_db.models.webhook_dispatch as _webhook_dispatch  # noqa: F401
 import suitest_db.models.workspace as _workspace  # noqa: F401
 import suitest_db.models.workspace_capability as _workspace_capability  # noqa: F401

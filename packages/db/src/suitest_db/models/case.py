@@ -141,6 +141,10 @@ class TestCase(Base, TimestampMixin):
     # default (`DEFAULT_PIXEL_THRESHOLD` in screenshot-diff.ts). 0-255 range
     # is enforced at the API layer (schemas/test_case.py `TestCaseUpdate`).
     diff_threshold: Mapped[int | None] = mapped_column(Integer)
+    # Data-Driven Testing (DDT): parameter keys defined for the test case
+    dataset_schema: Mapped[list[str] | None] = mapped_column(PortableJSON)
+    # Data-Driven Testing (DDT): list of scenario/role parameter rows
+    dataset_rows: Mapped[list[dict[str, Any]] | None] = mapped_column(PortableJSON)
 
     suite: Mapped[Suite] = relationship("Suite")
     steps: Mapped[list[TestStep]] = relationship(

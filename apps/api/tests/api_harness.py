@@ -160,11 +160,11 @@ class ApiDb:
             await session.commit()
 
     async def member_workspace(
-        self, user: User, *, slug: str, name: str | None = None
+        self, user: User, *, slug: str, name: str | None = None, role: Role = Role.QA
     ) -> Workspace:
         """Create a workspace + a membership for ``user`` in one call."""
         ws = await self.seed_workspace(slug=slug, name=name or slug)
-        await self.seed_membership(workspace_id=ws.id, user_id=user.id)
+        await self.seed_membership(workspace_id=ws.id, user_id=user.id, role=role)
         return ws
 
     async def add_all(self, rows: Sequence[Base]) -> None:

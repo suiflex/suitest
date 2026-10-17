@@ -9,6 +9,7 @@ import { ExperimentsPanel } from "@/components/settings/ExperimentsPanel";
 import { LlmSettingsPanel } from "@/components/settings/LlmSettingsPanel";
 import { MembersPanel } from "@/components/settings/MembersPanel";
 import { PromptsPanel } from "@/components/settings/PromptsPanel";
+import { VariablesTable } from "@/components/settings/VariablesTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { ApiError, changeOwnPassword } from "@/lib/api-client";
@@ -66,6 +67,7 @@ function SettingsScreen(): React.ReactElement {
           {showMembers ? <TabsTrigger value="members">Members</TabsTrigger> : null}
           {workspaceId ? <TabsTrigger value="llm">LLM</TabsTrigger> : null}
           {workspaceId ? <TabsTrigger value="automation">Automation</TabsTrigger> : null}
+          {workspaceId ? <TabsTrigger value="variables">Variables & Secrets</TabsTrigger> : null}
           {workspaceId ? <TabsTrigger value="api-keys">API Keys</TabsTrigger> : null}
         </TabsList>
 
@@ -91,6 +93,12 @@ function SettingsScreen(): React.ReactElement {
         {workspaceId ? (
           <TabsContent value="automation" className="pt-4">
             <AutomationPanel workspaceId={workspaceId} canWrite={showMembers} />
+          </TabsContent>
+        ) : null}
+
+        {workspaceId ? (
+          <TabsContent value="variables" className="pt-4">
+            <VariablesTable scope="workspace" workspaceId={workspaceId} />
           </TabsContent>
         ) : null}
 

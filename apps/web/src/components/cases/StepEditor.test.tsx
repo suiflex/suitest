@@ -425,5 +425,26 @@ describe("StepEditor", () => {
       "fixtures/ws_test/new2.png",
     ]);
   });
+
+  it("renders Quick Edit Inputs button and opens dialog when clicked", async () => {
+    const user = userEvent.setup();
+    const steps = [
+      mkStep({
+        id: "stp_input_1",
+        action: "Type username",
+        code: JSON.stringify({
+          tool: "browser_type",
+          arguments: { target: "#user", text: "budi" },
+        }),
+      }),
+    ];
+
+    renderEditor(steps);
+    const quickEditBtn = screen.getByTestId("quick-edit-inputs-btn");
+    expect(quickEditBtn).toBeInTheDocument();
+
+    await user.click(quickEditBtn);
+    expect(await screen.findByTestId("quick-edit-inputs-dialog")).toBeInTheDocument();
+  });
 });
 

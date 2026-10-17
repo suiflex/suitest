@@ -8012,6 +8012,12 @@ export interface components {
             description?: string | null;
             /** Diff Threshold */
             diff_threshold?: number | null;
+            /** Dataset Schema */
+            dataset_schema?: string[] | null;
+            /** Dataset Rows */
+            dataset_rows?: Record<string, unknown>[] | null;
+            datasetSchema?: string[] | null;
+            datasetRows?: Record<string, unknown>[] | null;
             /** @default BLACK_BOX */
             effective_testing_approach: components["schemas"]["TestingApproach"];
             /** Framework */

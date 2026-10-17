@@ -61,6 +61,7 @@ from suitest_mcp.registry import McpRegistry
 from suitest_shared.domain.enums import AutonomyLevel, RunStatus, StepOutcome, TargetKind
 
 from suitest_runner.executors.step_executor import StepResult, StepTranslator, execute_step
+from suitest_runner.executors.variable_resolver import VariableResolver
 from suitest_runner.handlers.step_handler import on_run_step_failed
 from suitest_runner.observability import get_tracer
 from suitest_runner.settings import RunnerSettings
@@ -968,6 +969,7 @@ async def _init_run_record(
         StepTranslator | None,
         bool,
         str | None,
+        dict[str, VariableResolver],
     ]
     | dict[str, object]
 ):
@@ -980,14 +982,36 @@ async def _init_run_record(
 
         case_ids = {case_id for case_id, _, _ in selection}
         case_public_ids: dict[str, str] = {}
+        case_suite_map: dict[str, str] = {}
+        case_datasets: dict[str, dict[str, Any]] = {}
+        suite_vars_by_suite: dict[str, dict[str, str]] = {}
+        ws_vars: dict[str, str] = {}
+
         if case_ids and hasattr(session, "execute"):
             try:
-                cases_stmt = select(TestCase.id, TestCase.public_id).where(
-                    TestCase.id.in_(case_ids)
-                )
-                case_public_ids = dict(
-                    (str(r[0]), str(r[1])) for r in (await session.execute(cases_stmt)).all()
-                )
+                cases_stmt = select(
+                    TestCase.id, TestCase.public_id, TestCase.suite_id, TestCase.dataset_rows
+                ).where(TestCase.id.in_(case_ids))
+                case_rows = (await session.execute(cases_stmt)).all()
+                for row in case_rows:
+                    c_id = str(row[0])
+                    p_id = str(row[1])
+                    s_id = str(row[2]) if len(row) > 2 and row[2] else None
+                    ds_rows = row[3] if len(row) > 3 else None
+                    case_public_ids[c_id] = p_id
+                    if s_id:
+                        case_suite_map[c_id] = s_id
+                    if isinstance(ds_rows, str):
+                        try:
+                            ds_rows = json.loads(ds_rows)
+                        except Exception:
+                            ds_rows = None
+                    if ds_rows and isinstance(ds_rows, list) and len(ds_rows) > 0:
+                        enabled_row = next(
+                            (r for r in ds_rows if isinstance(r, dict) and r.get("enabled", True)),
+                            ds_rows[0],
+                        )
+                        case_datasets[c_id] = enabled_row if isinstance(enabled_row, dict) else {}
             except Exception as exc:
                 log.debug("runner.case_public_ids.query_failed", error=str(exc))
 
@@ -998,6 +1022,40 @@ async def _init_run_record(
             await run_repo.update_status(run_id, RunStatus.FAIL)
             await session.commit()
             return {"error": "RUN_PROJECT_MISSING", "run_id": run_id}
+
+        try:
+            from suitest_db.models.variable import SuiteVariable, WorkspaceVariable
+
+            if hasattr(session, "scalars"):
+                ws_var_rows = (
+                    await session.scalars(
+                        select(WorkspaceVariable).where(
+                            WorkspaceVariable.workspace_id == workspace_id
+                        )
+                    )
+                ).all()
+                for wv in ws_var_rows:
+                    ws_vars[wv.key] = wv.value or ""
+
+                for s_id in set(case_suite_map.values()):
+                    s_var_rows = (
+                        await session.scalars(
+                            select(SuiteVariable).where(SuiteVariable.suite_id == s_id)
+                        )
+                    ).all()
+                    suite_vars_by_suite[s_id] = {r.key: r.value or "" for r in s_var_rows}
+        except Exception as exc:
+            log.debug("runner.variables.load_failed", error=str(exc))
+
+        resolvers_by_case: dict[str, VariableResolver] = {}
+        for c_id in case_ids:
+            s_id = case_suite_map.get(c_id, "")
+            resolvers_by_case[c_id] = VariableResolver(
+                dataset_row=case_datasets.get(c_id),
+                suite_variables=suite_vars_by_suite.get(s_id),
+                workspace_variables=ws_vars,
+                env_fallback=True,
+            )
 
         if workspace_id not in registry._by_workspace:
             await registry.load_for_workspace(session, workspace_id)
@@ -1031,6 +1089,7 @@ async def _init_run_record(
         translator,
         auto_self_heal,
         triggered_by,
+        resolvers_by_case,
     )
 
 
@@ -1044,6 +1103,7 @@ async def _execute_and_heal_step(
     triggered_by: str | None,
     overrides: dict[str, object] | None,
     translator: StepTranslator | None,
+    variable_resolver: VariableResolver | None = None,
     auto_self_heal: bool,
     factory: Any,
     highlight_applied: bool,
@@ -1075,6 +1135,7 @@ async def _execute_and_heal_step(
             actor_user_id=triggered_by,
             routing_overrides=overrides,
             translator=translator,
+            variable_resolver=variable_resolver,
         )
         if pre_artifacts:
             if result.mcp_result is None:
@@ -1118,6 +1179,7 @@ async def _execute_and_heal_step(
                     actor_user_id=triggered_by,
                     routing_overrides=overrides,
                     translator=translator,
+                    variable_resolver=variable_resolver,
                 )
                 self_heal_state["originalError"] = original_error or ""
                 self_heal_state["retryOutcome"] = result.outcome.value
@@ -1489,6 +1551,7 @@ async def _run_test_case_body(ctx: dict[str, object], run_id: str) -> dict[str, 
             translator,
             auto_self_heal,
             triggered_by,
+            resolvers_by_case,
         ) = init_res
 
         await _publish(
@@ -1618,6 +1681,7 @@ async def _run_test_case_body(ctx: dict[str, object], run_id: str) -> dict[str, 
                         triggered_by=triggered_by,
                         overrides=overrides,
                         translator=translator,
+                        variable_resolver=resolvers_by_case.get(case_id),
                         auto_self_heal=auto_self_heal,
                         factory=factory,
                         highlight_applied=highlight_applied,

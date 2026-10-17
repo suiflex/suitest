@@ -20,9 +20,10 @@ rolled-back write.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from sqlalchemy import select
 from suitest_db.audit import coerce_user_id, write_audit
@@ -273,8 +274,11 @@ class TestCaseService:
         """
         await self._session.refresh(case)
         steps = await self._repo.get_steps(case.id)
+        dump = TestCaseOut.model_validate(case).model_dump()
+        dump["dataset_schema"] = case.dataset_schema
+        dump["dataset_rows"] = case.dataset_rows
         detail = TestCaseDetailOut(
-            **TestCaseOut.model_validate(case).model_dump(),
+            **dump,
             steps=[TestStepOut.model_validate(step) for step in steps],
         )
         return detail
@@ -316,6 +320,8 @@ class TestCaseService:
             test_level=body.test_level,
             framework=body.framework,
             strategy_id=body.strategy_id,
+            dataset_schema=body.dataset_schema,
+            dataset_rows=body.dataset_rows,
         )
         set_workspace_id(case, self._ctx.workspace_id)
         self._session.add(case)
@@ -411,6 +417,8 @@ class TestCaseService:
             "framework",
             "strategy_id",
             "diff_threshold",
+            "dataset_schema",
+            "dataset_rows",
         ):
             if field in payload:
                 setattr(case, field, payload[field])
@@ -809,6 +817,8 @@ class TestCaseService:
             BULK_LIMIT,
             BulkAction,
             BulkAddTagsRequest,
+            BulkBatchBindVariableRequest,
+            BulkBatchReplaceDataRequest,
             BulkDeleteRequest,
             BulkMoveToSuiteRequest,
             BulkRemoveTagsRequest,
@@ -899,6 +909,167 @@ class TestCaseService:
             audit_action = "test_case.bulk_tags_removed"
             ws_event = "case.updated"
             extra_payload = {"tags": list(body.payload.tags)}
+        elif action is BulkAction.BATCH_REPLACE_DATA:
+            assert isinstance(body, BulkBatchReplaceDataRequest)
+            find_text = body.payload.find_text
+            replace_with = body.payload.replace_with
+            target_field = body.payload.target_field
+            affected_ids = []
+
+            for c in cases:
+                modified = False
+                for step in c.steps:
+                    # 1. Action text
+                    if target_field in ("all", "text") and find_text in step.action:
+                        step.action = step.action.replace(find_text, replace_with)
+                        modified = True
+                    # 1b. Expected assertion text
+                    if (
+                        target_field in ("all", "text")
+                        and step.expected
+                        and find_text in step.expected
+                    ):
+                        step.expected = step.expected.replace(find_text, replace_with)
+                        modified = True
+                    # 2. Step code
+                    if step.code and find_text in step.code:
+                        step.code = step.code.replace(find_text, replace_with)
+                        modified = True
+                    # 3. Step data payload
+                    if step.data and isinstance(step.data, dict):
+                        data_str = json.dumps(step.data)
+                        if find_text in data_str:
+                            step.data = json.loads(data_str.replace(find_text, replace_with))
+                            modified = True
+
+                # 4. Check dataset_rows if present
+                if c.dataset_rows and isinstance(c.dataset_rows, list):
+                    ds_str = json.dumps(c.dataset_rows)
+                    if find_text in ds_str:
+                        c.dataset_rows = json.loads(ds_str.replace(find_text, replace_with))
+                        modified = True
+
+                if modified:
+                    affected_ids.append(c.id)
+
+            audit_action = "test_case.bulk_batch_replace_data"
+            ws_event = "case.updated"
+            extra_payload = {
+                "findText": find_text,
+                "replaceWith": replace_with,
+                "targetField": target_field,
+            }
+        elif action is BulkAction.BATCH_BIND_VARIABLE:
+            assert isinstance(body, BulkBatchBindVariableRequest)
+            bind_target_field = body.payload.target_field
+            var_key = body.payload.variable_key
+            var_token = f"{{{{{var_key}}}}}"
+            affected_ids = []
+
+            for c in cases:
+                modified = False
+                for step in c.steps:
+                    step_data: dict[str, Any] = step.data if isinstance(step.data, dict) else {}
+                    code_dict: dict[str, Any] = {}
+                    if step.code:
+                        try:
+                            parsed_code = json.loads(step.code)
+                            if isinstance(parsed_code, dict):
+                                code_dict = parsed_code
+                        except Exception:
+                            code_dict = {}
+                    args_obj = code_dict.get("arguments")
+                    args: dict[str, Any] = args_obj if isinstance(args_obj, dict) else {}
+
+                    should_bind = False
+                    tool_name = str(code_dict.get("tool", "")).lower()
+                    target_sel = str(args.get("target") or step_data.get("selector") or "")
+
+                    if bind_target_field == "password":
+                        if (
+                            step_data.get("masked")
+                            or "password" in step.action.lower()
+                            or "password" in target_sel.lower()
+                        ):
+                            should_bind = True
+                    elif bind_target_field == "username":
+                        if (
+                            "username" in step.action.lower()
+                            or "email" in step.action.lower()
+                            or "user" in step.action.lower()
+                            or "username" in target_sel.lower()
+                            or "email" in target_sel.lower()
+                        ):
+                            should_bind = True
+                    elif (
+                        bind_target_field == "url"
+                        and (
+                            "navigate" in tool_name
+                            or "navigate" in step.action.lower()
+                            or "url" in args
+                        )
+                    ) or (
+                        bind_target_field == "text"
+                        and ("type" in tool_name or "type" in step.action.lower() or "text" in args)
+                    ):
+                        should_bind = True
+
+                    if should_bind:
+                        old_val: object = None
+                        # Update code arguments
+                        if isinstance(args, dict):
+                            if (
+                                bind_target_field in ("password", "username", "text")
+                                and "text" in args
+                            ):
+                                old_val = args["text"]
+                                args["text"] = var_token
+                                code_dict["arguments"] = args
+                                step.code = json.dumps(code_dict)
+                                modified = True
+                            elif bind_target_field == "url" and "url" in args:
+                                old_val = args["url"]
+                                args["url"] = var_token
+                                code_dict["arguments"] = args
+                                step.code = json.dumps(code_dict)
+                                modified = True
+
+                        # Update step action description gracefully
+                        if old_val and isinstance(old_val, str) and old_val in step.action:
+                            step.action = step.action.replace(old_val, var_token)
+                            modified = True
+                        elif bind_target_field == "password":
+                            step.action = f"Type into {target_sel or 'password input'}"
+                            modified = True
+                        elif bind_target_field == "username":
+                            if "wait" in tool_name or "wait" in step.action.lower():
+                                step.action = f"Wait for user to show {var_token}"
+                            else:
+                                step.action = f"Type into {target_sel or 'username input'}"
+                            modified = True
+                        elif bind_target_field == "url":
+                            step.action = f"Navigate to {var_token}"
+                            modified = True
+
+                        # Update expected if old_val present
+                        if (
+                            old_val
+                            and isinstance(old_val, str)
+                            and step.expected
+                            and old_val in step.expected
+                        ):
+                            step.expected = step.expected.replace(old_val, var_token)
+                            modified = True
+
+                if modified:
+                    affected_ids.append(c.id)
+
+            audit_action = "test_case.bulk_batch_bind_variable"
+            ws_event = "case.updated"
+            extra_payload = {
+                "targetField": bind_target_field,
+                "variableKey": var_key,
+            }
         else:
             raise TypeError(f"unsupported bulk action: {action!r}")
 

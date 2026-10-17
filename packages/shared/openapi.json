@@ -1043,6 +1043,62 @@
         "title": "BulkAddTagsRequest",
         "type": "object"
       },
+      "BulkBatchBindVariableRequest": {
+        "additionalProperties": false,
+        "description": "``action = \"batch_bind_variable\"`` variant.",
+        "properties": {
+          "action": {
+            "const": "batch_bind_variable",
+            "title": "Action",
+            "type": "string"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ids",
+            "type": "array"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/_BulkBatchBindVariablePayload"
+          }
+        },
+        "required": [
+          "action",
+          "ids",
+          "payload"
+        ],
+        "title": "BulkBatchBindVariableRequest",
+        "type": "object"
+      },
+      "BulkBatchReplaceDataRequest": {
+        "additionalProperties": false,
+        "description": "``action = \"batch_replace_data\"`` variant.",
+        "properties": {
+          "action": {
+            "const": "batch_replace_data",
+            "title": "Action",
+            "type": "string"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ids",
+            "type": "array"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/_BulkBatchReplaceDataPayload"
+          }
+        },
+        "required": [
+          "action",
+          "ids",
+          "payload"
+        ],
+        "title": "BulkBatchReplaceDataRequest",
+        "type": "object"
+      },
       "BulkDeleteRequest": {
         "additionalProperties": false,
         "description": "``action = \"delete\"`` variant.",
@@ -8057,6 +8113,62 @@
         "title": "ResolveProjectResult",
         "type": "object"
       },
+      "ResolvedVariableItem": {
+        "description": "Resolved variable payload used by runner, step preview, and UI hover tooltip.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "hasValue": {
+            "title": "Hasvalue",
+            "type": "boolean"
+          },
+          "isSecret": {
+            "title": "Issecret",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "sourceId": {
+            "title": "Sourceid",
+            "type": "string"
+          },
+          "sourceScope": {
+            "title": "Sourcescope",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "isSecret",
+          "hasValue",
+          "sourceScope",
+          "sourceId"
+        ],
+        "title": "ResolvedVariableItem",
+        "type": "object"
+      },
       "Role": {
         "enum": [
           "OWNER",
@@ -9856,6 +9968,35 @@
         "additionalProperties": false,
         "description": "Body for ``POST /test-cases`` (docs/API.md \u00a73.3 \u2014 sample request).",
         "properties": {
+          "datasetRows": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datasetrows"
+          },
+          "datasetSchema": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datasetschema"
+          },
           "description": {
             "anyOf": [
               {
@@ -9996,6 +10137,35 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "datasetRows": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datasetrows"
+          },
+          "datasetSchema": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datasetschema"
           },
           "description": {
             "anyOf": [
@@ -10390,6 +10560,35 @@
         "additionalProperties": false,
         "description": "Body for ``PATCH /test-cases/:id`` \u2014 metadata + tag replace.\n\nAll fields optional; only ``model_dump(exclude_unset=True)`` keys are\napplied. Tags, if provided, replace the existing set in full.",
         "properties": {
+          "datasetRows": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datasetrows"
+          },
+          "datasetSchema": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datasetschema"
+          },
           "description": {
             "anyOf": [
               {
@@ -11177,6 +11376,164 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VariableCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "isSecret": {
+            "default": false,
+            "title": "Issecret",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "VariableCreate",
+        "type": "object"
+      },
+      "VariablePublic": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "hasValue": {
+            "title": "Hasvalue",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "isSecret": {
+            "title": "Issecret",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "isSecret",
+          "hasValue",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "VariablePublic",
+        "type": "object"
+      },
+      "VariableUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "isSecret": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issecret"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "VariableUpdate",
+        "type": "object"
+      },
       "WebhookEnqueuedResponse": {
         "description": "202 response when the webhook successfully enqueues a gating run.",
         "properties": {
@@ -11541,6 +11898,64 @@
           "updated_at"
         ],
         "title": "WorkspacePublic",
+        "type": "object"
+      },
+      "_BulkBatchBindVariablePayload": {
+        "additionalProperties": false,
+        "description": "``batch_bind_variable`` action payload \u2014 bind placeholder to target fields.",
+        "properties": {
+          "targetField": {
+            "enum": [
+              "password",
+              "username",
+              "url",
+              "text"
+            ],
+            "title": "Targetfield",
+            "type": "string"
+          },
+          "variableKey": {
+            "minLength": 1,
+            "title": "Variablekey",
+            "type": "string"
+          }
+        },
+        "required": [
+          "targetField",
+          "variableKey"
+        ],
+        "title": "_BulkBatchBindVariablePayload",
+        "type": "object"
+      },
+      "_BulkBatchReplaceDataPayload": {
+        "additionalProperties": false,
+        "description": "``batch_replace_data`` action payload \u2014 find string and replacement.",
+        "properties": {
+          "findText": {
+            "minLength": 1,
+            "title": "Findtext",
+            "type": "string"
+          },
+          "replaceWith": {
+            "title": "Replacewith",
+            "type": "string"
+          },
+          "targetField": {
+            "default": "all",
+            "enum": [
+              "all",
+              "text",
+              "url"
+            ],
+            "title": "Targetfield",
+            "type": "string"
+          }
+        },
+        "required": [
+          "findText",
+          "replaceWith"
+        ],
+        "title": "_BulkBatchReplaceDataPayload",
         "type": "object"
       },
       "_BulkDeletePayload": {
@@ -21207,6 +21622,371 @@
         ]
       }
     },
+    "/api/v1/suites/{suite_id}/variables": {
+      "get": {
+        "operationId": "list_suite_variables_api_v1_suites__suite_id__variables_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "title": "Suite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VariablePublic"
+                  },
+                  "title": "Response List Suite Variables Api V1 Suites  Suite Id  Variables Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Suite Variables",
+        "tags": [
+          "variables"
+        ]
+      },
+      "post": {
+        "operationId": "create_suite_variable_api_v1_suites__suite_id__variables_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "title": "Suite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariableCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariablePublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Suite Variable",
+        "tags": [
+          "variables"
+        ]
+      }
+    },
+    "/api/v1/suites/{suite_id}/variables/resolved": {
+      "get": {
+        "operationId": "get_resolved_suite_variables_api_v1_suites__suite_id__variables_resolved_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "title": "Suite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ResolvedVariableItem"
+                  },
+                  "title": "Response Get Resolved Suite Variables Api V1 Suites  Suite Id  Variables Resolved Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Resolved Suite Variables",
+        "tags": [
+          "variables"
+        ]
+      }
+    },
+    "/api/v1/suites/{suite_id}/variables/{var_id}": {
+      "delete": {
+        "operationId": "delete_suite_variable_api_v1_suites__suite_id__variables__var_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "title": "Suite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "var_id",
+            "required": true,
+            "schema": {
+              "title": "Var Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete Suite Variable",
+        "tags": [
+          "variables"
+        ]
+      },
+      "patch": {
+        "operationId": "update_suite_variable_api_v1_suites__suite_id__variables__var_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "suite_id",
+            "required": true,
+            "schema": {
+              "title": "Suite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "var_id",
+            "required": true,
+            "schema": {
+              "title": "Var Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariableUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariablePublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Suite Variable",
+        "tags": [
+          "variables"
+        ]
+      }
+    },
     "/api/v1/test-cases": {
       "get": {
         "description": "List cases by suite (filtered, paginated) or by project (all suites).\n\nPass exactly one of ``suiteId`` or ``projectId``. The per-suite path applies\nthe full filter/keyset-pagination contract; the per-project path returns\nevery non-deleted case across the project's suites (used by the Cases tree\nwhich groups cases under their suites). Both 404 when the target is\ncross-workspace.\n\n``?includeDeleted=true`` surfaces tombstoned rows. Per ``docs/API.md \u00a73.3``\nthat capability is ADMIN/OWNER only \u2014 QA + VIEWER asking for it get 403.\nDefault behaviour (no query param / ``false``) hides every soft-deleted row\nso VIEWER reads remain safe.",
@@ -21622,6 +22402,12 @@
                   },
                   {
                     "$ref": "#/components/schemas/BulkRemoveTagsRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BulkBatchReplaceDataRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BulkBatchBindVariableRequest"
                   }
                 ],
                 "title": "Body"
@@ -25915,6 +26701,387 @@
         "summary": "Change Workspace Member Role",
         "tags": [
           "workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/variables": {
+      "get": {
+        "operationId": "list_workspace_variables_api_v1_workspaces__workspace_id__variables_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VariablePublic"
+                  },
+                  "title": "Response List Workspace Variables Api V1 Workspaces  Workspace Id  Variables Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "List Workspace Variables",
+        "tags": [
+          "variables"
+        ]
+      },
+      "post": {
+        "operationId": "create_workspace_variable_api_v1_workspaces__workspace_id__variables_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariableCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariablePublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Create Workspace Variable",
+        "tags": [
+          "variables"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/variables/resolved": {
+      "get": {
+        "operationId": "get_resolved_workspace_variables_api_v1_workspaces__workspace_id__variables_resolved_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "suite_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Suite Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ResolvedVariableItem"
+                  },
+                  "title": "Response Get Resolved Workspace Variables Api V1 Workspaces  Workspace Id  Variables Resolved Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Get Resolved Workspace Variables",
+        "tags": [
+          "variables"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/variables/{var_id}": {
+      "delete": {
+        "operationId": "delete_workspace_variable_api_v1_workspaces__workspace_id__variables__var_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "var_id",
+            "required": true,
+            "schema": {
+              "title": "Var Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Delete Workspace Variable",
+        "tags": [
+          "variables"
+        ]
+      },
+      "patch": {
+        "operationId": "update_workspace_variable_api_v1_workspaces__workspace_id__variables__var_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "var_id",
+            "required": true,
+            "schema": {
+              "title": "Var Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Workspace-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariableUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariablePublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          },
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Workspace Variable",
+        "tags": [
+          "variables"
         ]
       }
     },

@@ -272,6 +272,9 @@ async def _detail_with_steps(
         last_run_result=case.last_run_result,
         last_run_at=case.last_run_at,
         last_duration_ms=case.last_duration_ms,
+        diff_threshold=case.diff_threshold,
+        dataset_schema=case.dataset_schema,
+        dataset_rows=case.dataset_rows,
     )
 
 
@@ -528,6 +531,9 @@ async def get_test_case(
         last_run_result=last_run_result,
         last_run_at=last_run_at,
         last_duration_ms=last_duration_ms,
+        diff_threshold=case.diff_threshold,
+        dataset_schema=case.dataset_schema,
+        dataset_rows=case.dataset_rows,
     )
 
 
