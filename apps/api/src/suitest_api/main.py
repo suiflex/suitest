@@ -175,6 +175,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from suitest_api.routers.suites import router as suites_router
     from suitest_api.routers.test_cases import router as test_cases_router
     from suitest_api.routers.test_strategies import router as test_strategies_router
+    from suitest_api.routers.variables import router as variables_router
     from suitest_api.routers.webhooks import router as webhooks_router
     from suitest_api.routers.workspaces import router as workspaces_router
     from suitest_api.routers.ws import router as ws_router
@@ -274,6 +275,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(agent_plugins_router)
     app.include_router(plugins_router)
     app.include_router(webhooks_router)
+    app.include_router(variables_router)
     # WebSocket gateway — mounted at root (NOT /api/v1) so the path stays
     # ``GET /ws?token=...``. CORS preflight does not apply to WebSocket upgrades;
     # cross-origin enforcement lives in the JWT check (Task 14).
@@ -300,9 +302,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # OPTIONS preflights then short-circuit before SlowAPIMiddleware sees them —
     # otherwise every preflight would burn one slot in the anonymous IP bucket
     # (Issue I2).
+    cors_origins = [resolved.web_url]
+    if resolved.mode == "local" or os.environ.get("ENV") != "production":
+        for dev_origin in (
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ):
+            if dev_origin not in cors_origins:
+                cors_origins.append(dev_origin)
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[resolved.web_url],
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

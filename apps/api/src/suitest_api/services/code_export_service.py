@@ -13,6 +13,7 @@ API contract: docs/API.md §3.18. No LLM required.
 
 from __future__ import annotations
 
+import json
 import re
 import uuid
 
@@ -91,41 +92,104 @@ def _slugify(name: str) -> str:
 
 
 def _playwright(case: TestCase, steps: list[TestStep]) -> str:
+    dataset_rows = getattr(case, "dataset_rows", None)
+    if isinstance(dataset_rows, str):
+        try:
+            dataset_rows = json.loads(dataset_rows)
+        except Exception:
+            dataset_rows = None
     lines: list[str] = [
         "import { test, expect } from '@playwright/test';",
         "",
-        f"test({_js_str(case.name)}, async ({{ page }}) => {{",
     ]
-    for step in steps:
-        lines.append(f"  // {step.action}")
-        if step.expected:
-            lines.append(f"  // Expected: {step.expected}")
-        if step.code:
-            for code_line in step.code.splitlines():
-                lines.append(f"  {code_line}")
-        else:
-            lines.append("  // TODO: no code defined for this step")
+    if dataset_rows and isinstance(dataset_rows, list) and len(dataset_rows) > 0:
+        active_rows = [
+            r for r in dataset_rows if r.get("__enabled", True) and r.get("enabled", True)
+        ] or dataset_rows
+        clean_rows = []
+        for r in active_rows:
+            raw_vals = (r.get("values") if isinstance(r.get("values"), dict) else r) or {}
+            clean_rows.append({k: v for k, v in raw_vals.items() if not k.startswith("__")})
+        lines.append(f"const dataset = {json.dumps(clean_rows, indent=2)};")
         lines.append("")
-    lines.append("});")
+        lines.append("dataset.forEach((data, index) => {")
+        escaped_title = _js_str(case.name)[1:-1]
+        lines.append(f"  test(`{escaped_title} [row ${{index + 1}}]`, async ({{ page }}) => {{")
+        for step in steps:
+            lines.append(f"    // {step.action}")
+            if step.expected:
+                lines.append(f"    // Expected: {step.expected}")
+            if step.code:
+                for code_line in step.code.splitlines():
+                    lines.append(f"    {code_line}")
+            else:
+                lines.append("    // TODO: no code defined for this step")
+            lines.append("")
+        lines.append("  });")
+        lines.append("});")
+    else:
+        lines.append(f"test({_js_str(case.name)}, async ({{ page }}) => {{")
+        for step in steps:
+            lines.append(f"  // {step.action}")
+            if step.expected:
+                lines.append(f"  // Expected: {step.expected}")
+            if step.code:
+                for code_line in step.code.splitlines():
+                    lines.append(f"  {code_line}")
+            else:
+                lines.append("  // TODO: no code defined for this step")
+            lines.append("")
+        lines.append("});")
     return "\n".join(lines) + "\n"
 
 
 def _cypress(case: TestCase, steps: list[TestStep]) -> str:
+    dataset_rows = getattr(case, "dataset_rows", None)
+    if isinstance(dataset_rows, str):
+        try:
+            dataset_rows = json.loads(dataset_rows)
+        except Exception:
+            dataset_rows = None
     lines: list[str] = [
         f"describe({_js_str(case.name)}, () => {{",
-        "  it('should execute all steps', () => {",
     ]
-    for step in steps:
-        lines.append(f"    // {step.action}")
-        if step.expected:
-            lines.append(f"    // Expected: {step.expected}")
-        if step.code:
-            for code_line in step.code.splitlines():
-                lines.append(f"    {code_line}")
-        else:
-            lines.append("    // TODO: no code defined for this step")
+    if dataset_rows and isinstance(dataset_rows, list) and len(dataset_rows) > 0:
+        active_rows = [
+            r for r in dataset_rows if r.get("__enabled", True) and r.get("enabled", True)
+        ] or dataset_rows
+        clean_rows = []
+        for r in active_rows:
+            raw_vals = (r.get("values") if isinstance(r.get("values"), dict) else r) or {}
+            clean_rows.append({k: v for k, v in raw_vals.items() if not k.startswith("__")})
+        lines.append(f"  const dataset = {json.dumps(clean_rows, indent=2)};")
         lines.append("")
-    lines.append("  });")
+        lines.append("  dataset.forEach((data, index) => {")
+        lines.append("    it(`should execute all steps [row ${index + 1}]`, () => {")
+        for step in steps:
+            lines.append(f"      // {step.action}")
+            if step.expected:
+                lines.append(f"      // Expected: {step.expected}")
+            if step.code:
+                for code_line in step.code.splitlines():
+                    lines.append(f"      {code_line}")
+            else:
+                lines.append("      // TODO: no code defined for this step")
+            lines.append("")
+        lines.append("    });")
+        lines.append("  });")
+    else:
+        lines.append("  it('should execute all steps', () => {")
+        for step in steps:
+            lines.append(f"    // {step.action}")
+            if step.expected:
+                lines.append(f"    // Expected: {step.expected}")
+            if step.code:
+                for code_line in step.code.splitlines():
+                    lines.append(f"    {code_line}")
+            else:
+                lines.append("    // TODO: no code defined for this step")
+            lines.append("")
+        lines.append("  });")
     lines.append("});")
     return "\n".join(lines) + "\n"
 
@@ -138,11 +202,48 @@ def _selenium(case: TestCase, steps: list[TestStep]) -> str:
         "from selenium.webdriver.common.by import By",
         "",
         "",
-        f"def test_{slug}():",
-        f'    """{case.name} ({case.public_id})"""',
-        "    driver = webdriver.Chrome()",
-        "    try:",
     ]
+    dataset_rows = getattr(case, "dataset_rows", None)
+    dataset_schema = getattr(case, "dataset_schema", None)
+    if isinstance(dataset_rows, str):
+        try:
+            dataset_rows = json.loads(dataset_rows)
+        except Exception:
+            dataset_rows = None
+    if isinstance(dataset_schema, str):
+        try:
+            dataset_schema = json.loads(dataset_schema)
+        except Exception:
+            dataset_schema = None
+    if dataset_rows and isinstance(dataset_rows, list) and len(dataset_rows) > 0:
+        active_rows = [
+            r for r in dataset_rows if r.get("__enabled", True) and r.get("enabled", True)
+        ] or dataset_rows
+        keys = [
+            k
+            for k in (dataset_schema or list(dataset_rows[0].keys()))
+            if not k.startswith("__") and k not in ("id", "name", "enabled")
+        ]
+        if keys:
+            argnames = ", ".join(keys)
+            param_values = []
+            for r in active_rows:
+                r_vals = (r.get("values") if isinstance(r.get("values"), dict) else r) or {}
+                vals = [r_vals.get(k) for k in keys]
+                param_values.append(tuple(vals) if len(keys) > 1 else vals[0])
+            lines.append(f'@pytest.mark.parametrize("{argnames}", {param_values!r})')
+            lines.append(f"def test_{slug}({argnames}):")
+        else:
+            lines.append(f"def test_{slug}():")
+    else:
+        lines.append(f"def test_{slug}():")
+    lines.extend(
+        [
+            f'    """{case.name} ({case.public_id})"""',
+            "    driver = webdriver.Chrome()",
+            "    try:",
+        ]
+    )
     for step in steps:
         lines.append(f"        # {step.action}")
         if step.expected:

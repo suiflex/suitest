@@ -108,6 +108,9 @@ class TestCaseOut(DomainModel):
     strategy_id: str | None = None
     created_at: datetime
     updated_at: datetime
+    diff_threshold: int | None = None
+    dataset_schema: list[str] | None = None
+    dataset_rows: list[dict[str, Any]] | None = None
 
 
 class TestCaseDetailOut(TestCaseOut):

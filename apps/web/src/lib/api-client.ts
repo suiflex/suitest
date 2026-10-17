@@ -1096,7 +1096,24 @@ type BulkUpdateRequest =
   | components["schemas"]["BulkMoveToSuiteRequest"]
   | components["schemas"]["BulkSetPriorityRequest"]
   | components["schemas"]["BulkAddTagsRequest"]
-  | components["schemas"]["BulkRemoveTagsRequest"];
+  | components["schemas"]["BulkRemoveTagsRequest"]
+  | {
+      action: "batch_replace_data";
+      ids: string[];
+      payload: {
+        findText: string;
+        replaceWith: string;
+        targetField?: "all" | "text" | "url";
+      };
+    }
+  | {
+      action: "batch_bind_variable";
+      ids: string[];
+      payload: {
+        variableKey: string;
+        targetField: "password" | "username" | "url" | "text";
+      };
+    };
 type BulkUpdateResponse = components["schemas"]["BulkUpdateResponse"];
 
 export type { BulkUpdateRequest, BulkUpdateResponse };

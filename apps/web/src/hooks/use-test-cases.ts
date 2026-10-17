@@ -194,6 +194,35 @@ export function useUpdateTestingMetadata(
   });
 }
 
+export function useUpdateTestCase(
+  caseId: string,
+): UseMutationResult<
+  CaseDetail,
+  Error,
+  {
+    name?: string;
+    description?: string;
+    priority?: string;
+    testingApproach?: TestingApproach | null;
+    testLevel?: TestLevel | null;
+    datasetSchema?: string[] | null;
+    datasetRows?: Array<Record<string, unknown>> | null;
+    dataset_schema?: string[] | null;
+    dataset_rows?: Array<Record<string, unknown>> | null;
+  }
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body) => (await api.patch<CaseDetail>(`/test-cases/${caseId}`, body)).data,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["test-cases", caseId] }),
+        queryClient.invalidateQueries({ queryKey: ["test-cases"] }),
+      ]);
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Write mutations — M1-12 step editor
 // ---------------------------------------------------------------------------

@@ -226,6 +226,8 @@ function buildBaseRouteTable(overrides: RouteEntry[] = []): RouteEntry[] {
     // non-empty so beforeLoad seeds an active project (see PROJECT above).
     { match: (u) => /\/api\/v1\/projects\/[^/]+/.test(u), handler: (r) => fulfillJson(r, PROJECT) },
     { match: (u) => u.includes("/api/v1/projects"), handler: (r) => fulfillJson(r, PROJECTS_PAGE) },
+    // Variables
+    { match: (u) => u.includes("/variables"), handler: (r) => fulfillJson(r, []) },
     { match: (u) => u.includes("/api/v1/workspaces"), handler: (r) => fulfillJson(r, EMPTY_ITEMS) },
   ];
 }

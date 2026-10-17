@@ -42,6 +42,7 @@ import {
   Loader2,
   Paperclip,
   Plus,
+  SlidersHorizontal,
   Trash2,
   Wrench,
 } from "lucide-react";
@@ -49,6 +50,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { QuickEditInputsDialog } from "@/components/cases/QuickEditInputsDialog";
 import { SelectorRepairDialog } from "@/components/cases/SelectorRepairDialog";
 import { Gated } from "@/components/gating/Gated";
 import { Button } from "@/components/ui/button";
@@ -136,6 +138,7 @@ function isPersisted(id: string): boolean {
 // ---------------------------------------------------------------------------
 interface StepEditorProps {
   caseId: string;
+  suiteId?: string | null;
   /** Current steps (drafts allowed — ids prefixed "__new__"). */
   steps: DraftStep[];
   onStepsChange: (steps: DraftStep[]) => void;
@@ -146,6 +149,7 @@ interface StepEditorProps {
 }
 export function StepEditor({
   caseId,
+  suiteId,
   steps,
   onStepsChange,
   outcomeByOrder,
@@ -155,6 +159,7 @@ export function StepEditor({
   const queryClient = useQueryClient();
   const [error, setError] = useState<StepEditorError | null>(null);
   const [repairStep, setRepairStep] = useState<DraftStep | null>(null);
+  const [quickEditOpen, setQuickEditOpen] = useState(false);
 
   const prevCanWriteRef = useRef(canWrite);
   const lastPersistedStepsRef = useRef<DraftStep[]>(steps.filter((s) => isPersisted(s.id)));
@@ -444,6 +449,18 @@ export function StepEditor({
               type="button"
               size="sm"
               variant="outline"
+              data-testid="quick-edit-inputs-btn"
+              disabled={saving || steps.length === 0}
+              onClick={() => setQuickEditOpen(true)}
+              className="gap-1.5 text-fg-3 hover:text-fg-1"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
+              Quick Edit Inputs
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
               data-testid="step-save-btn"
               disabled={saving}
               onClick={handleSave}
@@ -539,6 +556,19 @@ export function StepEditor({
           }}
         />
       ) : null}
+      {quickEditOpen ? (
+        <QuickEditInputsDialog
+          open={quickEditOpen}
+          onOpenChange={setQuickEditOpen}
+          caseId={caseId}
+          suiteId={suiteId}
+          steps={steps}
+          onStepsUpdated={(updated) => {
+            onStepsChange(updated);
+          }}
+          canWrite={canWrite}
+        />
+      ) : null}
     </section>
   );
 }
@@ -557,19 +587,25 @@ function parseUploadStep(code: string | null): UploadStepInfo | null {
   if (!code) return null;
   try {
     const parsed = JSON.parse(code);
-    const tool = parsed.tool || "";
+    const tool = (parsed.tool || "").toLowerCase();
     const isUploadTool =
       tool === "browser_upload_file" ||
       tool === "browser.upload_file" ||
+      tool === "browser_file_upload" ||
+      tool === "browser.file_upload" ||
       (tool === "browser_type" &&
-        (parsed.arguments?.file || parsed.arguments?.files) &&
+        (parsed.arguments?.file || parsed.arguments?.files || parsed.arguments?.paths || parsed.arguments?.path) &&
         !parsed.arguments?.text);
     if (!isUploadTool) return null;
     const files: string[] = [];
     if (Array.isArray(parsed.arguments?.files)) {
       files.push(...parsed.arguments.files.map(String));
+    } else if (Array.isArray(parsed.arguments?.paths)) {
+      files.push(...parsed.arguments.paths.map(String));
     } else if (parsed.arguments?.file) {
       files.push(String(parsed.arguments.file));
+    } else if (parsed.arguments?.path) {
+      files.push(String(parsed.arguments.path));
     }
     const selector = String(parsed.arguments?.target || parsed.arguments?.selector || "");
     return { isUpload: true, files, selector };

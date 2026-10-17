@@ -52,7 +52,7 @@ class TestCaseListItem(BaseModel):
 
     __test__ = False  # not a pytest test class
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: str
     suite_id: str
@@ -97,6 +97,8 @@ class TestCaseDetail(TestCaseListItem):
     # M12-3: per-case pixel-diff threshold override (0-255). NULL = the
     # ScreenshotDiffViewer falls back to its client-side default.
     diff_threshold: int | None = None
+    dataset_schema: list[str] | None = Field(default=None, alias="datasetSchema")
+    dataset_rows: list[dict[str, Any]] | None = Field(default=None, alias="datasetRows")
 
 
 # ---------------------------------------------------------------------------
@@ -172,6 +174,8 @@ class TestCaseCreate(BaseModel):
     strategy_id: str | None = Field(default=None, alias="strategyId")
     steps: list[StepCreate] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
+    dataset_schema: list[str] | None = Field(default=None, alias="datasetSchema")
+    dataset_rows: list[dict[str, Any]] | None = Field(default=None, alias="datasetRows")
 
 
 class TestCaseUpdate(BaseModel):
@@ -202,6 +206,8 @@ class TestCaseUpdate(BaseModel):
     diff_threshold: Annotated[int, Field(ge=0, le=255)] | None = Field(
         default=None, alias="diffThreshold"
     )
+    dataset_schema: list[str] | None = Field(default=None, alias="datasetSchema")
+    dataset_rows: list[dict[str, Any]] | None = Field(default=None, alias="datasetRows")
 
 
 class StepReplace(BaseModel):
@@ -250,6 +256,8 @@ class BulkAction(StrEnum):
     SET_PRIORITY = "set_priority"
     ADD_TAGS = "add_tags"
     REMOVE_TAGS = "remove_tags"
+    BATCH_REPLACE_DATA = "batch_replace_data"
+    BATCH_BIND_VARIABLE = "batch_bind_variable"
 
 
 # Hard cap from docs/API.md §3.3. Single source of truth — the router
@@ -285,6 +293,29 @@ class _BulkTagsPayload(BaseModel):
     model_config = _WRITE_CONFIG
 
     tags: list[Annotated[str, Field(min_length=1, max_length=64)]]
+
+
+class _BulkBatchReplaceDataPayload(BaseModel):
+    """``batch_replace_data`` action payload — find string and replacement."""
+
+    model_config = _WRITE_CONFIG
+
+    find_text: Annotated[str, Field(min_length=1, alias="findText")]
+    replace_with: Annotated[str, Field(alias="replaceWith")]
+    target_field: Literal["all", "text", "url"] = Field(default="all", alias="targetField")
+
+
+class _BulkBatchBindVariablePayload(BaseModel):
+    """``batch_bind_variable`` action payload — bind placeholder to target fields."""
+
+    model_config = _WRITE_CONFIG
+
+    target_field: Literal["password", "username", "url", "text"] = Field(alias="targetField")
+    variable_key: Annotated[str, Field(min_length=1, alias="variableKey")]
+
+
+BulkBatchReplaceDataPayload = _BulkBatchReplaceDataPayload
+BulkBatchBindVariablePayload = _BulkBatchBindVariablePayload
 
 
 class BulkDeleteRequest(BaseModel):
@@ -337,6 +368,26 @@ class BulkRemoveTagsRequest(BaseModel):
     payload: _BulkTagsPayload
 
 
+class BulkBatchReplaceDataRequest(BaseModel):
+    """``action = "batch_replace_data"`` variant."""
+
+    model_config = _WRITE_CONFIG
+
+    action: Literal[BulkAction.BATCH_REPLACE_DATA]
+    ids: list[str]
+    payload: _BulkBatchReplaceDataPayload
+
+
+class BulkBatchBindVariableRequest(BaseModel):
+    """``action = "batch_bind_variable"`` variant."""
+
+    model_config = _WRITE_CONFIG
+
+    action: Literal[BulkAction.BATCH_BIND_VARIABLE]
+    ids: list[str]
+    payload: _BulkBatchBindVariablePayload
+
+
 def _bulk_discriminator(value: object) -> str | None:
     """Return the ``action`` field so Pydantic can pick the right variant.
 
@@ -355,7 +406,9 @@ BulkUpdateRequest = Annotated[
     | Annotated[BulkMoveToSuiteRequest, Tag(BulkAction.MOVE_TO_SUITE.value)]
     | Annotated[BulkSetPriorityRequest, Tag(BulkAction.SET_PRIORITY.value)]
     | Annotated[BulkAddTagsRequest, Tag(BulkAction.ADD_TAGS.value)]
-    | Annotated[BulkRemoveTagsRequest, Tag(BulkAction.REMOVE_TAGS.value)],
+    | Annotated[BulkRemoveTagsRequest, Tag(BulkAction.REMOVE_TAGS.value)]
+    | Annotated[BulkBatchReplaceDataRequest, Tag(BulkAction.BATCH_REPLACE_DATA.value)]
+    | Annotated[BulkBatchBindVariableRequest, Tag(BulkAction.BATCH_BIND_VARIABLE.value)],
     Discriminator(_bulk_discriminator),
 ]
 

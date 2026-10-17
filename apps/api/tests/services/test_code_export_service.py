@@ -209,3 +209,44 @@ def test_export_filename_selenium() -> None:
 def test_export_filename_unknown_falls_back_to_txt() -> None:
     case = _case(public_id="TC-102")
     assert export_filename(case, "unknown") == "TC-102.txt"
+
+
+# ---------------------------------------------------------------------------
+# Data-Driven Testing (DDT) parametrization exports
+# ---------------------------------------------------------------------------
+
+
+def test_selenium_ddt_parametrize() -> None:
+    case = _case(name="Role Matrix Login", public_id="TC-DDT-1")
+    case.dataset_schema = ["username", "role"]
+    case.dataset_rows = [
+        {"username": "admin@suitest.dev", "role": "admin", "__enabled": True},
+        {"username": "staff@suitest.dev", "role": "staff", "__enabled": True},
+    ]
+    steps = [_step(0, "Login as role", code="driver.find_element(By.ID, 'u').send_keys(username)")]
+    row = generate_export(case, steps, "selenium")
+    text = row.exported_code_text
+
+    assert '@pytest.mark.parametrize("username, role"' in text
+    assert "('admin@suitest.dev', 'admin')" in text
+    assert "('staff@suitest.dev', 'staff')" in text
+    assert "def test_role_matrix_login(username, role):" in text
+    assert "driver.find_element(By.ID, 'u').send_keys(username)" in text
+
+
+def test_playwright_ddt_dataset_loop() -> None:
+    case = _case(name="Multi Tenant Navigation", public_id="TC-DDT-2")
+    case.dataset_schema = ["tenant_url"]
+    case.dataset_rows = [
+        {"tenant_url": "https://tenant1.dev", "__enabled": True},
+        {"tenant_url": "https://tenant2.dev", "__enabled": True},
+    ]
+    steps = [_step(0, "Navigate", code="await page.goto(data.tenant_url);")]
+    row = generate_export(case, steps, "playwright")
+    text = row.exported_code_text
+
+    assert "const dataset = [" in text
+    assert '"tenant_url": "https://tenant1.dev"' in text
+    assert "dataset.forEach((data, index) => {" in text
+    assert "Multi Tenant Navigation [row ${index + 1}]" in text
+    assert "await page.goto(data.tenant_url);" in text

@@ -124,21 +124,28 @@ async def _run_headed_browser_loop(
     close_event: asyncio.Event,
     on_event: Any = None,
 ) -> None:
-    """Manage the Playwright headed browser lifecycle until close_event is set."""
-    from playwright.async_api import async_playwright
+    browser = None
+    context = None
+    playwright_cm = None
+    storage_path = Path(tempfile.gettempdir()) / f"suitest_storage_{session_id}.json"
+    try:
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError as err:
+            log.error(
+                "Playwright is not installed in the active Python environment. "
+                "Headed browser recording requires playwright (`uv pip install playwright`): %s",
+                err,
+            )
+            return
 
-    bootstrap_js = f"""
+        bootstrap_js = f"""
     window.__SUITEST_SESSION_ID__ = "{session_id}";
     window.__SUITEST_WORKSPACE_ID__ = "{workspace_id}";
     window.__SUITEST_API_URL__ = "{api_url}";
     window.__SUITEST_HEADED_MODE__ = true;
     """
 
-    browser = None
-    context = None
-    playwright_cm = None
-    storage_path = Path(tempfile.gettempdir()) / f"suitest_storage_{session_id}.json"
-    try:
         playwright_cm = async_playwright()
         p = await playwright_cm.start()
 
@@ -388,6 +395,16 @@ async def launch_headed_browser(
     """
     if not is_display_available():
         log.info("Display is not available; headed browser launch skipped")
+        return False
+
+    try:
+        import playwright  # noqa: F401
+    except ImportError:
+        log.error(
+            "Playwright is not installed in the active Python environment. "
+            "Cannot launch headed browser session %s (`uv pip install playwright`)",
+            session_id,
+        )
         return False
 
     # Close any pre-existing instance for this session (preserving storage state)

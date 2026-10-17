@@ -625,6 +625,46 @@ describe("Test Cases screen", () => {
     });
   });
 
+  it("shows Batch Edit Data button in bulk bar and opens BatchEditDataDialog", async () => {
+    const user = userEvent.setup();
+
+    renderCases();
+    await screen.findByTestId("cases-tree", undefined, { timeout: 3000 });
+
+    const checkboxes = screen.getAllByTestId("case-row-checkbox");
+    await user.click(checkboxes[0] as HTMLElement);
+
+    const batchDataBtn = await screen.findByTestId("bulk-batch-data-btn");
+    expect(batchDataBtn).toBeInTheDocument();
+    await user.click(batchDataBtn);
+
+    const dialog = await screen.findByTestId("batch-edit-data-dialog");
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(/Batch Edit Test Data/i);
+    expect(screen.getByTestId("tab-replace")).toBeInTheDocument();
+    expect(screen.getByTestId("tab-bind")).toBeInTheDocument();
+  });
+
+  it("shows Edit Inputs button when 1 case is selected and opens QuickEditInputsDialog", async () => {
+    const user = userEvent.setup();
+
+    renderCases();
+    await screen.findByTestId("cases-tree", undefined, { timeout: 3000 });
+
+    const checkboxes = screen.getAllByTestId("case-row-checkbox");
+    await user.click(checkboxes[0] as HTMLElement);
+
+    const editInputsBtn = await screen.findByTestId("bulk-quick-edit-inputs-btn");
+    expect(editInputsBtn).toBeInTheDocument();
+    expect(editInputsBtn).toHaveTextContent("Edit Inputs");
+
+    const batchDataBtn = screen.getByTestId("bulk-batch-data-btn");
+    expect(batchDataBtn).toHaveTextContent("Find & Replace");
+
+    await user.click(editInputsBtn);
+    expect(await screen.findByTestId("quick-edit-inputs-dialog")).toBeInTheDocument();
+  });
+
   it("renders informative historical audit state in Artifacts tab when last run had media capture disabled", async () => {
     const user = userEvent.setup();
 

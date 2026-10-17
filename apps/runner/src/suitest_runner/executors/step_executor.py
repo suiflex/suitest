@@ -49,6 +49,8 @@ if TYPE_CHECKING:
     from suitest_db.models.case import TestStep as TestStepRow
     from suitest_mcp.invoker import McpInvoker
 
+    from suitest_runner.executors.variable_resolver import VariableResolver
+
 # Translates a prose ``action`` into a ``{"tool", "arguments"}`` envelope, or
 # ``None`` when it cannot be expressed as one tool call (M3-10). The runner binds
 # the workspace's LLM provider/model into this closure before per-step dispatch.
@@ -66,7 +68,8 @@ _LEGACY_TOOL_ALIASES: dict[str, str] = {
     "browser.evaluate": "browser_evaluate",
     "browser.wait_for": "browser_wait_for",
     "browser.assert_text": "browser.assert_text",
-    "browser.upload_file": "browser_upload_file",
+    "browser_file_upload": "browser_upload_file",
+    "browser.file_upload": "browser_upload_file",
 }
 
 
@@ -163,15 +166,20 @@ async def _handle_upload_operation(
     ctx: InvokeContext,
 ) -> McpToolResult:
     target = str(
-        arguments.get("target") or arguments.get("selector") or arguments.get("element") or ""
+        arguments.get("target")
+        or arguments.get("selector")
+        or arguments.get("element")
+        or "input[type='file']"
     )
-    raw_files = arguments.get("files")
+    raw_files = arguments.get("files") or arguments.get("paths")
     if isinstance(raw_files, list) and raw_files:
         file_candidates = [str(f) for f in raw_files]
     elif arguments.get("file"):
         file_candidates = [str(arguments["file"])]
+    elif arguments.get("path"):
+        file_candidates = [str(arguments["path"])]
     else:
-        raise McpToolFailed(f"{normalized_tool}: missing 'file' or 'files' in arguments")
+        raise McpToolFailed(f"{normalized_tool}: missing 'file', 'files', or 'paths' in arguments")
 
     resolved_files: list[str] = []
     for raw_path in file_candidates:
@@ -301,7 +309,12 @@ async def _invoke_tool(
 
     is_upload = normalized_tool in ("browser_upload_file", "browser.upload_file") or (
         normalized_tool == "browser_type"
-        and ("file" in arguments or "files" in arguments)
+        and (
+            "file" in arguments
+            or "files" in arguments
+            or "path" in arguments
+            or "paths" in arguments
+        )
         and "text" not in arguments
     )
     if is_upload:
@@ -477,6 +490,7 @@ async def execute_step(
     actor_user_id: str | None,
     routing_overrides: dict[str, object] | None,
     translator: StepTranslator | None = None,
+    variable_resolver: VariableResolver | None = None,
 ) -> StepResult:
     """Dispatch one :class:`TestStep` via the MCP invoker and return its outcome.
 
@@ -530,6 +544,10 @@ async def execute_step(
     raw_args = parsed.get("arguments", {})
     arguments: dict[str, object] = dict(raw_args) if isinstance(raw_args, dict) else {}
 
+    # Interpolate variables across all arguments if resolver provided
+    if variable_resolver is not None:
+        arguments = variable_resolver.interpolate_data(arguments)
+
     # Resolve placeholder variables like {{password}}
     raw_text = arguments.get("text")
     if isinstance(raw_text, str) and (
@@ -556,6 +574,8 @@ async def execute_step(
         if isinstance(raw_assertions, list)
         else []
     )
+    if variable_resolver is not None:
+        assertions = [variable_resolver.interpolate_data(a) for a in assertions]
 
     ctx = InvokeContext(
         workspace_id=workspace_id,

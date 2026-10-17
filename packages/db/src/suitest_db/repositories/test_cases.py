@@ -332,7 +332,11 @@ class TestCaseRepo(AsyncRepository[TestCase, TestCaseCreate, TestCaseUpdate]):
         """
         if not ids:
             return []
-        stmt = select(TestCase).where(TestCase.id.in_(list(ids)), TestCase.deleted_at.is_(None))
+        stmt = (
+            select(TestCase)
+            .options(selectinload(TestCase.steps))
+            .where(TestCase.id.in_(list(ids)), TestCase.deleted_at.is_(None))
+        )
         return list((await self.session.scalars(stmt)).all())
 
     async def workspace_ids_for(self, ids: Sequence[str]) -> dict[str, str]:
