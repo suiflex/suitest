@@ -1,36 +1,46 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import path from "node:path";
 
-const backendPort = process.env.VITE_BACKEND_PORT || process.env.SUITEST_API_PORT || "4000";
-const backendTarget = `http://localhost:${backendPort}`;
-const wsTarget = `ws://localhost:${backendPort}`;
+export default defineConfig(({ mode }) => {
+  const rootDir = path.resolve(__dirname, "../../");
+  const env = loadEnv(mode, rootDir, "");
+  const backendPort =
+    process.env.VITE_BACKEND_PORT ||
+    env.VITE_BACKEND_PORT ||
+    process.env.SUITEST_API_PORT ||
+    env.SUITEST_API_PORT ||
+    "4000";
+  const backendTarget = `http://localhost:${backendPort}`;
+  const wsTarget = `ws://localhost:${backendPort}`;
 
-export default defineConfig({
-  plugins: [TanStackRouterVite(), react(), tailwindcss()],
-  resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
-  },
-  server: {
-    port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT, 10) : 3000,
-    host: "0.0.0.0",
-    strictPort: true,
-    proxy: {
-      // Backend mounts these paths at the application root (NOT under /api/v1).
-      // Add all root-mounted paths here so dev requests are forwarded to the
-      // FastAPI server instead of falling through to Vite's SPA index.html.
-      "/api": { target: backendTarget, changeOrigin: true },
-      "/auth": { target: backendTarget, changeOrigin: true },
-      "/capabilities": { target: backendTarget, changeOrigin: true },
-      "/health": { target: backendTarget, changeOrigin: true },
-      "/metrics": { target: backendTarget, changeOrigin: true },
-      "/openapi.json": { target: backendTarget, changeOrigin: true },
-      "/ws": { target: wsTarget, ws: true },
+  return {
+    envDir: rootDir,
+    plugins: [TanStackRouterVite(), react(), tailwindcss()],
+    resolve: {
+      alias: { "@": path.resolve(__dirname, "./src") },
     },
-  },
-  preview: { port: 3000 },
+    server: {
+      port: process.env.VITE_PORT
+        ? parseInt(process.env.VITE_PORT, 10)
+        : env.VITE_PORT
+          ? parseInt(env.VITE_PORT, 10)
+          : 3000,
+      host: "0.0.0.0",
+      strictPort: true,
+      proxy: {
+        "/api": { target: backendTarget, changeOrigin: true },
+        "/auth": { target: backendTarget, changeOrigin: true },
+        "/capabilities": { target: backendTarget, changeOrigin: true },
+        "/health": { target: backendTarget, changeOrigin: true },
+        "/metrics": { target: backendTarget, changeOrigin: true },
+        "/openapi.json": { target: backendTarget, changeOrigin: true },
+        "/ws": { target: wsTarget, ws: true },
+      },
+    },
+    preview: { port: 3000 },
   // Pin the dep pre-bundler to the same modern target as the build. Vite's
   // default optimizer target ("chrome87"/"es2020"…) can trip esbuild into a
   // spurious "Transforming destructuring … is not supported yet" on some deps
@@ -57,4 +67,6 @@ export default defineConfig({
       },
     },
   },
+  };
 });
+

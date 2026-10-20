@@ -89,12 +89,25 @@ class RecorderSessionRepo(
         """Append one captured event to ``captured_events_json``.
 
         Reassigns the list so the JSONB column is marked dirty (in-place
-        ``.append`` would not be tracked).
+        ``.append`` would not be tracked). Coalesces consecutive solve_captcha
+        events on the same selector to avoid duplicate steps.
         """
         row = await self.get_by_id(id, workspace_id=workspace_id)
         if row is None:
             return None
-        row.captured_events_json = [*row.captured_events_json, event]
+        events = list(row.captured_events_json)
+        if events:
+            last = events[-1]
+            if (
+                last.get("kind") == "solve_captcha"
+                and event.get("kind") == "solve_captcha"
+                and last.get("selector") == event.get("selector")
+            ):
+                events[-1] = event
+                row.captured_events_json = events
+                await self.session.flush()
+                return row
+        row.captured_events_json = [*events, event]
         await self.session.flush()
         return row
 

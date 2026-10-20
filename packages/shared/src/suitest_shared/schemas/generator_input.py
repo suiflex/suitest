@@ -306,6 +306,7 @@ class RecorderEventKind(StrEnum):
     NETWORK = "network"
     SELECT = "select"
     UPLOAD = "upload"
+    SOLVE_CAPTCHA = "solve_captcha"
 
 
 class RecorderEvent(BaseModel):

@@ -52,3 +52,9 @@ def test_step_executable_with_code_does_not_require_llm() -> None:
 def test_step_executable_action_only_with_llm_is_true() -> None:
     step = TestStep(id="s1", case_id="c1", order=1, action="click login", expected="ok")
     assert step.executable(True) is True
+
+
+def test_recorder_event_kind_includes_solve_captcha() -> None:
+    from suitest_shared.schemas.generator_input import RecorderEventKind
+
+    assert RecorderEventKind.SOLVE_CAPTCHA == "solve_captcha"

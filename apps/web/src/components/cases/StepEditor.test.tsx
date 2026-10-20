@@ -425,5 +425,77 @@ describe("StepEditor", () => {
       "fixtures/ws_test/new2.png",
     ]);
   });
+
+  it("renders captcha configuration bar when step is solve_captcha", () => {
+    const captchaStep = mkStep({
+      id: "stp_captcha_1",
+      action: "Solve visual CAPTCHA",
+      code: JSON.stringify({
+        tool: "browser_solve_captcha",
+        arguments: {
+          image_selector: "img#captcha-img",
+          input_selector: "input#captcha-input",
+          force_uppercase: true,
+          max_retries: 2,
+        },
+      }),
+    });
+
+    renderEditor([captchaStep]);
+
+    expect(screen.getByTestId("step-captcha-config-bar")).toBeInTheDocument();
+    expect(screen.getByTestId("step-captcha-image-input")).toHaveValue("img#captcha-img");
+    expect(screen.getByTestId("step-captcha-target-input")).toHaveValue("input#captcha-input");
+    expect(screen.getByTestId("step-captcha-force-uppercase")).toBeChecked();
+    expect(screen.getByTestId("step-captcha-max-retries")).toHaveValue("2");
+    expect(screen.getByTestId("step-captcha-type-select")).toHaveValue("auto");
+  });
+
+  it("updates step code when changing captcha configuration controls", async () => {
+    const captchaStep = mkStep({
+      id: "stp_captcha_2",
+      action: "Solve visual CAPTCHA",
+      code: JSON.stringify({
+        tool: "browser_solve_captcha",
+        arguments: {
+          image_selector: "img#captcha-img",
+          input_selector: "input#captcha-input",
+          captcha_type: "auto",
+          force_uppercase: false,
+          max_retries: 1,
+        },
+      }),
+    });
+
+    const user = userEvent.setup();
+    const { onStepsChange } = renderEditor([captchaStep]);
+
+    const checkbox = screen.getByTestId("step-captcha-force-uppercase");
+    await user.click(checkbox);
+
+    await waitFor(() => {
+      expect(onStepsChange).toHaveBeenCalled();
+    });
+
+    const updatedSteps = onStepsChange.mock.calls[0]?.[0] as DraftStep[];
+    const updated = updatedSteps.find((s) => s.id === "stp_captcha_2");
+    expect(updated).toBeDefined();
+    const parsed = JSON.parse(updated!.code!);
+    expect(parsed.arguments.force_uppercase).toBe(true);
+    expect(parsed.arguments.captcha_type).toBe("auto");
+
+    const typeSelect = screen.getByTestId("step-captcha-type-select");
+    await user.selectOptions(typeSelect, "math");
+
+    await waitFor(() => {
+      expect(onStepsChange).toHaveBeenCalledTimes(2);
+    });
+    const secondCall = onStepsChange.mock.calls[1]?.[0] as DraftStep[];
+    const secondUpdated = secondCall.find((s) => s.id === "stp_captcha_2");
+    expect(secondUpdated).toBeDefined();
+    const parsedSecond = JSON.parse(secondUpdated!.code!);
+    expect(parsedSecond.arguments.captcha_type).toBe("math");
+  });
 });
+
 

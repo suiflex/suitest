@@ -42,6 +42,7 @@ import {
   Loader2,
   Paperclip,
   Plus,
+  ScanText,
   Trash2,
   Wrench,
 } from "lucide-react";
@@ -578,6 +579,41 @@ function parseUploadStep(code: string | null): UploadStepInfo | null {
   }
 }
 
+interface CaptchaStepInfo {
+  isCaptcha: boolean;
+  imageSelector: string;
+  inputSelector: string;
+  forceUppercase: boolean;
+  maxRetries: number;
+  captchaType: string;
+  refreshTarget?: string | undefined;
+}
+
+function parseCaptchaStep(code: string | null): CaptchaStepInfo | null {
+  if (!code) return null;
+  try {
+    const parsed = JSON.parse(code);
+    const tool = parsed.tool || "";
+    const isCaptchaTool =
+      tool === "browser_solve_captcha" ||
+      tool === "browser.solve_captcha" ||
+      parsed.action === "solve_captcha";
+    if (!isCaptchaTool) return null;
+    const args = parsed.arguments || {};
+    return {
+      isCaptcha: true,
+      imageSelector: String(args.image_selector || args.selector || args.target || "img"),
+      inputSelector: String(args.input_selector || args.value || args.input || ""),
+      forceUppercase: Boolean(args.force_uppercase),
+      maxRetries: typeof args.max_retries === "number" ? args.max_retries : 1,
+      captchaType: String(args.captcha_type || "auto"),
+      ...(args.refresh_target ? { refreshTarget: String(args.refresh_target) } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
 interface StepRowProps {
   step: DraftStep;
   index: number;
@@ -604,6 +640,7 @@ function StepRow({
   onRepair,
 }: StepRowProps): React.ReactElement {
   const uploadInfo = parseUploadStep(step.code);
+  const captchaInfo = parseCaptchaStep(step.code);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -903,6 +940,177 @@ function StepRow({
                 </>
               )}
             </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* CAPTCHA Configuration Bar (for solve_captcha steps) */}
+      {captchaInfo ? (
+        <div
+          data-testid="step-captcha-config-bar"
+          className="mb-2 flex flex-col gap-2 rounded-md border border-purple-500/30 bg-purple-500/[0.04] p-2.5"
+        >
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-400">
+            <ScanText className="h-3.5 w-3.5 text-purple-400" />
+            <span>CAPTCHA Vision OCR Configuration</span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-fg-5">Image Selector (CAPTCHA)</span>
+              <Input
+                data-testid="step-captcha-image-input"
+                className="h-7 border-border bg-bg-elev-2 font-mono text-[11px] text-fg-2"
+                placeholder="img#captcha-img or canvas"
+                value={captchaInfo.imageSelector}
+                disabled={disabled || !canWrite}
+                onChange={(e) => {
+                  const updatedCode = JSON.stringify(
+                    {
+                      tool: "browser_solve_captcha",
+                      arguments: {
+                        image_selector: e.target.value,
+                        input_selector: captchaInfo.inputSelector,
+                        captcha_type: captchaInfo.captchaType,
+                        force_uppercase: captchaInfo.forceUppercase,
+                        max_retries: captchaInfo.maxRetries,
+                        ...(captchaInfo.refreshTarget ? { refresh_target: captchaInfo.refreshTarget } : {}),
+                      },
+                    },
+                    null,
+                    2,
+                  );
+                  onFieldChange(step.id, "code", updatedCode);
+                }}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-fg-5">Target Input Field</span>
+              <Input
+                data-testid="step-captcha-target-input"
+                className="h-7 border-border bg-bg-elev-2 font-mono text-[11px] text-fg-2"
+                placeholder="input#captcha-input"
+                value={captchaInfo.inputSelector}
+                disabled={disabled || !canWrite}
+                onChange={(e) => {
+                  const updatedCode = JSON.stringify(
+                    {
+                      tool: "browser_solve_captcha",
+                      arguments: {
+                        image_selector: captchaInfo.imageSelector,
+                        input_selector: e.target.value,
+                        captcha_type: captchaInfo.captchaType,
+                        force_uppercase: captchaInfo.forceUppercase,
+                        max_retries: captchaInfo.maxRetries,
+                        ...(captchaInfo.refreshTarget ? { refresh_target: captchaInfo.refreshTarget } : {}),
+                      },
+                    },
+                    null,
+                    2,
+                  );
+                  onFieldChange(step.id, "code", updatedCode);
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-purple-500/20 pt-1.5">
+            <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-fg-3">
+              <input
+                type="checkbox"
+                data-testid="step-captcha-force-uppercase"
+                checked={captchaInfo.forceUppercase}
+                disabled={disabled || !canWrite}
+                onChange={(e) => {
+                  const updatedCode = JSON.stringify(
+                    {
+                      tool: "browser_solve_captcha",
+                      arguments: {
+                        image_selector: captchaInfo.imageSelector,
+                        input_selector: captchaInfo.inputSelector,
+                        captcha_type: captchaInfo.captchaType,
+                        force_uppercase: e.target.checked,
+                        max_retries: captchaInfo.maxRetries,
+                        ...(captchaInfo.refreshTarget ? { refresh_target: captchaInfo.refreshTarget } : {}),
+                      },
+                    },
+                    null,
+                    2,
+                  );
+                  onFieldChange(step.id, "code", updatedCode);
+                }}
+                className="rounded border-border text-accent focus:ring-accent"
+              />
+              <span>Force Uppercase (e.g. PRINGSEWU)</span>
+            </label>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 text-[11px] text-fg-4">
+                <span>Type:</span>
+                <select
+                  data-testid="step-captcha-type-select"
+                  value={captchaInfo.captchaType}
+                  disabled={disabled || !canWrite}
+                  onChange={(e) => {
+                    const updatedCode = JSON.stringify(
+                      {
+                        tool: "browser_solve_captcha",
+                        arguments: {
+                          image_selector: captchaInfo.imageSelector,
+                          input_selector: captchaInfo.inputSelector,
+                          captcha_type: e.target.value,
+                          force_uppercase: captchaInfo.forceUppercase,
+                          max_retries: captchaInfo.maxRetries,
+                          ...(captchaInfo.refreshTarget ? { refresh_target: captchaInfo.refreshTarget } : {}),
+                        },
+                      },
+                      null,
+                      2,
+                    );
+                    onFieldChange(step.id, "code", updatedCode);
+                  }}
+                  className="h-6 rounded border border-border bg-bg-elev-2 px-1.5 font-mono text-[10.5px] text-fg-2"
+                >
+                  <option value="auto">Auto (Text / Clear Word / Math)</option>
+                  <option value="alphanumeric">Alphanumeric Text</option>
+                  <option value="math">Math Arithmetic (e.g. 7+5=12)</option>
+                  <option value="numeric">Numeric Digits Only</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-[11px] text-fg-4">
+                <span>Max Retries:</span>
+                <select
+                  data-testid="step-captcha-max-retries"
+                  value={captchaInfo.maxRetries}
+                  disabled={disabled || !canWrite}
+                  onChange={(e) => {
+                    const updatedCode = JSON.stringify(
+                      {
+                        tool: "browser_solve_captcha",
+                        arguments: {
+                          image_selector: captchaInfo.imageSelector,
+                          input_selector: captchaInfo.inputSelector,
+                          captcha_type: captchaInfo.captchaType,
+                          force_uppercase: captchaInfo.forceUppercase,
+                          max_retries: Number(e.target.value),
+                          ...(captchaInfo.refreshTarget ? { refresh_target: captchaInfo.refreshTarget } : {}),
+                        },
+                      },
+                      null,
+                      2,
+                    );
+                    onFieldChange(step.id, "code", updatedCode);
+                  }}
+                  className="h-6 rounded border border-border bg-bg-elev-2 px-1.5 font-mono text-[10.5px] text-fg-2"
+                >
+                  <option value="1">1 attempt</option>
+                  <option value="2">2 attempts</option>
+                  <option value="3">3 attempts</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}

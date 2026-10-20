@@ -7407,7 +7407,8 @@
           "assert",
           "network",
           "select",
-          "upload"
+          "upload",
+          "solve_captcha"
         ],
         "title": "RecorderEventKind",
         "type": "string"
@@ -9300,6 +9301,77 @@
         ],
         "title": "Severity",
         "type": "string"
+      },
+      "SolveCaptchaRequest": {
+        "properties": {
+          "captcha_type": {
+            "default": "auto",
+            "title": "Captcha Type",
+            "type": "string"
+          },
+          "force_uppercase": {
+            "default": false,
+            "title": "Force Uppercase",
+            "type": "boolean"
+          },
+          "image_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Base64"
+          },
+          "image_selector": {
+            "default": "img",
+            "title": "Image Selector",
+            "type": "string"
+          },
+          "input_selector": {
+            "default": "input",
+            "title": "Input Selector",
+            "type": "string"
+          }
+        },
+        "title": "SolveCaptchaRequest",
+        "type": "object"
+      },
+      "SolveCaptchaResponse": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "text",
+          "source"
+        ],
+        "title": "SolveCaptchaResponse",
+        "type": "object"
       },
       "StateChangePublic": {
         "description": "One key-level state change at a replay step (M5-1).",
@@ -15389,6 +15461,98 @@
           }
         ],
         "summary": "Resume Recorder Session",
+        "tags": [
+          "generators"
+        ]
+      }
+    },
+    "/api/v1/generators/recorder/sessions/{session_id}/solve-captcha": {
+      "options": {
+        "description": "CORS preflight for recorder solve-captcha.",
+        "operationId": "options_recorder_solve_captcha_api_v1_generators_recorder_sessions__session_id__solve_captcha_options",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Options Recorder Solve Captcha",
+        "tags": [
+          "generators"
+        ]
+      },
+      "post": {
+        "description": "Solve a CAPTCHA image during a live recording session using Vision LLM.",
+        "operationId": "solve_recorder_session_captcha_api_v1_generators_recorder_sessions__session_id__solve_captcha_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolveCaptchaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolveCaptchaResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Solve Recorder Session Captcha",
         "tags": [
           "generators"
         ]

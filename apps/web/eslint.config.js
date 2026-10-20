@@ -22,6 +22,7 @@ export default [
       "*.config.ts",
       "*.config.js",
       "src/routeTree.gen.ts",
+      "public/vendor/**",
     ],
   },
   {

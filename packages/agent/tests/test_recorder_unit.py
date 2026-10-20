@@ -755,3 +755,38 @@ async def test_resume_keeps_main_page_url_ignoring_subframe_events() -> None:
     # Must resume at main page URL (/frames), NOT the subframe URL (/nested-frame-src)
     assert "nested-frame-src" not in (browser_url or "")
     assert "https%3A%2F%2Fapp.example.com%2Fframes" in (browser_url or "")
+
+
+def test_recorder_finalize_solve_captcha_event() -> None:
+    fake_invoker = MagicMock()
+    mgr = RecorderSessionManager(fake_invoker, _FakeRecorderRepo())  # type: ignore[arg-type]
+
+    now = datetime.now(tz=UTC).isoformat()
+    raw_events = [
+        {
+            "kind": "solve_captcha",
+            "timestamp": now,
+            "selector": "img#captcha_img",
+            "data": {
+                "input_selector": "input#captcha_code",
+                "force_uppercase": True,
+            },
+        }
+    ]
+
+    req = RecorderFinalizeRequest(name="Captcha Case")
+    case = mgr._convert_events_to_case(
+        raw_events,
+        start_url="https://app.example.com",
+        session_id="rec_sess_1",
+        request=req,
+    )
+    assert len(case.steps) == 2
+    assert "Navigate to" in case.steps[0].action
+    step = case.steps[1]
+    assert "Solve CAPTCHA on img#captcha_img" in step.action
+    code_obj = json.loads(step.code or "{}")
+    assert code_obj["tool"] == "browser_solve_captcha"
+    assert code_obj["arguments"]["image_selector"] == "img#captcha_img"
+    assert code_obj["arguments"]["input_selector"] == "input#captcha_code"
+    assert code_obj["arguments"]["force_uppercase"] is True

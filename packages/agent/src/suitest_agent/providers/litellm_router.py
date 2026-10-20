@@ -298,6 +298,27 @@ class LiteLLMProvider:
         except Exception as exc:
             raise ProviderError("PROVIDER_CALL_FAILED", str(exc)) from exc
 
+    async def acompletion(self, **kwargs: object) -> object:
+        """Direct async completion delegating to LiteLLM with provider credentials."""
+        self._ensure_configured()
+        import litellm
+
+        call_kwargs = dict(kwargs)
+        if call_kwargs.get("model"):
+            call_kwargs["model"] = to_litellm_model(self.name, str(call_kwargs["model"]))
+        if "timeout" not in call_kwargs:
+            call_kwargs["timeout"] = self._timeout
+        if self._api_key and "api_key" not in call_kwargs:
+            call_kwargs["api_key"] = self._api_key
+        elif self.name in _OPENAI_SHIM and "api_key" not in call_kwargs:
+            call_kwargs["api_key"] = "none"
+        if self._base_url and "api_base" not in call_kwargs:
+            call_kwargs["api_base"] = self._base_url
+        if self._extra_headers and "extra_headers" not in call_kwargs:
+            call_kwargs["extra_headers"] = self._extra_headers
+
+        return await litellm.acompletion(**call_kwargs)
+
     def _normalize(self, resp: object, call: ModelCall) -> CompletionResult:
         import litellm
 

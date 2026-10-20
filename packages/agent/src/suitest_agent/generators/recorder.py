@@ -198,7 +198,9 @@ class RecorderSessionManager:
 
     # ------------------------------------------------------------------
 
-    async def append_event(self, session_id: str, workspace_id: str, event: RecorderEvent) -> None:
+    async def append_event(
+        self, session_id: str, workspace_id: str, event: RecorderEvent
+    ) -> RecorderSession | None:
         """Persist one captured event + publish it to the WS room.
 
         Raises :class:`RecorderSessionNotFound` for an unknown / cross-workspace
@@ -216,8 +218,9 @@ class RecorderSessionManager:
             _save_upload_fixture(event.data, workspace_id)
 
         payload = event.model_dump(mode="json")
-        await self._repo.append_event(session_id, payload, workspace_id=workspace_id)
+        updated = await self._repo.append_event(session_id, payload, workspace_id=workspace_id)
         await self._publish(session.ws_room, payload)
+        return updated
 
     async def _publish(self, ws_room: str, event: dict[str, Any]) -> None:
         """Publish one event on the ``recorder:<id>`` channel for WS fan-out.
@@ -611,11 +614,64 @@ class RecorderSessionManager:
             )
         if event.kind is RecorderEventKind.UPLOAD:
             return self._upload_step(event, order)
+        if event.kind is RecorderEventKind.SOLVE_CAPTCHA:
+            return self._captcha_step(event, order)
         if event.kind is RecorderEventKind.ASSERT:
             return self._assert_step(event, order)
         if event.kind is RecorderEventKind.NETWORK:
             return self._network_step(event, order)
         return None
+
+    def _captcha_step(self, event: RecorderEvent, order: int) -> TestStepDraft:
+        image_selector = event.selector or "img"
+        data = event.data or {}
+        input_selector = str(data.get("input_selector") or "")
+        force_uppercase = bool(data.get("force_uppercase", False))
+        max_retries = int(str(data.get("max_retries") or 1))
+        captcha_type = str(data.get("captcha_type") or "auto")
+
+        action_desc = f"Solve CAPTCHA on {image_selector} into {input_selector or 'input'}"
+        expected_desc = "CAPTCHA code is recognized and filled"
+
+        step_args: dict[str, Any] = {
+            "image_selector": image_selector,
+            "input_selector": input_selector,
+            "captcha_type": captcha_type,
+            "force_uppercase": force_uppercase,
+            "max_retries": max_retries,
+        }
+        if data.get("refresh_target"):
+            step_args["refresh_target"] = str(data["refresh_target"])
+        if event.frame_selector:
+            step_args["frame_selector"] = event.frame_selector
+
+        step_data: dict[str, Any] = {
+            "action": "solve_captcha",
+            "image_selector": image_selector,
+            "input_selector": input_selector,
+            "captcha_type": captcha_type,
+            "force_uppercase": force_uppercase,
+            "max_retries": max_retries,
+        }
+        if "refresh_target" in step_args:
+            step_data["refresh_target"] = step_args["refresh_target"]
+        if event.frame_selector:
+            step_data["frame_selector"] = event.frame_selector
+
+        return TestStepDraft(
+            order=order,
+            action=action_desc,
+            expected=expected_desc,
+            code=json.dumps(
+                {
+                    "tool": "browser_solve_captcha",
+                    "arguments": step_args,
+                }
+            ),
+            mcp_provider=_PROVIDER,
+            target_kind=TargetKind.FE_WEB,
+            data=step_data,
+        )
 
     def _upload_step(self, event: RecorderEvent, order: int) -> TestStepDraft:
         selector = event.selector or ""

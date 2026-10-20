@@ -242,7 +242,15 @@ export type WorkspaceEvent =
  * schema. The gateway wraps each in a `generator.recorder.step` envelope.
  */
 export interface RecorderLiveEvent {
-  kind: "navigate" | "click" | "type" | "assert" | "network" | "select" | "upload";
+  kind:
+    | "navigate"
+    | "click"
+    | "type"
+    | "assert"
+    | "network"
+    | "select"
+    | "upload"
+    | "solve_captcha";
   timestamp?: string;
   url?: string | null;
   selector?: string | null;

@@ -457,6 +457,21 @@ class RecorderSessionDetailResponse(BaseModel):
     started_at: datetime
 
 
+class SolveCaptchaRequest(BaseModel):
+    image_base64: str | None = None
+    image_selector: str = "img"
+    input_selector: str = "input"
+    captcha_type: str = "auto"
+    force_uppercase: bool = False
+
+
+class SolveCaptchaResponse(BaseModel):
+    status: str
+    text: str
+    source: str
+    error: str | None = None
+
+
 _AGENT_JS_PATH = (
     Path(__file__).resolve().parents[5] / "apps" / "web" / "public" / "recorder_agent.js"
 )
@@ -661,7 +676,7 @@ async def append_recorder_session_event(
     invoker = _build_mcp_invoker(rec_session.workspace_id, request)
     manager = RecorderSessionManager(invoker, repo, getattr(request.app.state, "ws_redis", None))
     try:
-        await manager.append_event(session_id, rec_session.workspace_id, payload)
+        updated_session = await manager.append_event(session_id, rec_session.workspace_id, payload)
     except RecorderSessionNotFound as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except RecorderSessionExpired as exc:
@@ -672,7 +687,12 @@ async def append_recorder_session_event(
     response.headers["Access-Control-Allow-Origin"] = origin
     response.headers["Access-Control-Allow-Credentials"] = "true"
     response.headers["Access-Control-Allow-Private-Network"] = "true"
-    return {"ok": True, "count": len(rec_session.captured_events_json or [])}
+    current_count = (
+        len(updated_session.captured_events_json)
+        if updated_session and updated_session.captured_events_json
+        else len(rec_session.captured_events_json or [])
+    )
+    return {"ok": True, "count": current_count}
 
 
 @router.options("/generators/recorder/sessions/{session_id}/sync")
@@ -741,6 +761,147 @@ async def sync_recorder_session_events(
     response.headers["Access-Control-Allow-Credentials"] = "true"
     response.headers["Access-Control-Allow-Private-Network"] = "true"
     return {"ok": True, "count": len(payload.events)}
+
+
+@router.options("/generators/recorder/sessions/{session_id}/solve-captcha")
+async def options_recorder_solve_captcha(session_id: str, request: Request) -> Response:
+    """CORS preflight for recorder solve-captcha."""
+    origin = request.headers.get("origin") or "*"
+    return Response(
+        status_code=status.HTTP_204_NO_CONTENT,
+        headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Private-Network": "true",
+        },
+    )
+
+
+@router.post(
+    "/generators/recorder/sessions/{session_id}/solve-captcha",
+    response_model=SolveCaptchaResponse,
+)
+async def solve_recorder_session_captcha(
+    session_id: str,
+    payload: SolveCaptchaRequest,
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(get_async_session),
+) -> SolveCaptchaResponse:
+    """Solve a CAPTCHA image during a live recording session using Vision LLM."""
+    origin = request.headers.get("origin") or "*"
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Private-Network"] = "true"
+
+    repo = RecorderSessionRepo(session)
+    rec_session = await repo.get_by_id(session_id)
+    if rec_session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session not found")
+
+    image_bytes: bytes | None = None
+    source = "client_canvas"
+
+    # 1. Try client base64 first
+    if payload.image_base64:
+        raw_b64 = payload.image_base64
+        if "," in raw_b64:
+            raw_b64 = raw_b64.split(",", 1)[1]
+        try:
+            import base64
+
+            image_bytes = base64.b64decode(raw_b64)
+        except Exception as e:
+            log.warning("recorder.solve_captcha.invalid_base64: %s", e)
+
+    # 2. Hybrid fallback: Playwright CDP screenshot from active headed browser session
+    if not image_bytes:
+        from suitest_agent.generators.browser_launcher import get_headed_session_page
+
+        page = get_headed_session_page(session_id)
+        if page:
+            try:
+                locator = page.locator(payload.image_selector).first
+                await locator.wait_for(state="visible", timeout=5000)
+                await locator.evaluate(
+                    """async (img) => {
+                        if (img && img.tagName && img.tagName.toLowerCase() === "img") {
+                            if (img.complete && img.naturalWidth > 0) return true;
+                            return new Promise((resolve) => {
+                                img.addEventListener("load", () => resolve(true), { once: true });
+                                img.addEventListener("error", () => resolve(false), { once: true });
+                                setTimeout(() => resolve(img.complete && img.naturalWidth > 0), 4000);
+                            });
+                        }
+                        return true;
+                    }"""
+                )
+                image_bytes = await locator.screenshot(type="png")
+                source = "playwright_snapshot"
+            except Exception as e:
+                log.error("recorder.solve_captcha.playwright_snapshot_failed: %s", e)
+                return SolveCaptchaResponse(
+                    status="error",
+                    text="",
+                    source="playwright_snapshot",
+                    error=f"Failed to capture element screenshot: {e}",
+                )
+
+    if not image_bytes:
+        return SolveCaptchaResponse(
+            status="error",
+            text="",
+            source="none",
+            error="No image data provided and headed browser snapshot unavailable",
+        )
+
+    # 3. Resolve LLM Provider and call Vision Solver
+    from suitest_agent.generators.captcha_solver import solve_captcha_image
+    from suitest_agent.providers.litellm_router import get_provider
+
+    llm_repo = LLMConfigRepo(session)
+    config = await llm_repo.get_active(rec_session.workspace_id)
+    if config is None:
+        return SolveCaptchaResponse(
+            status="error",
+            text="",
+            source="none",
+            error="Workspace has no active LLM configured for vision fallback",
+        )
+
+    credential = await resolve_for_config(session, config)
+    provider = get_provider(
+        credential.provider,
+        api_key=credential.api_key,
+        base_url=credential.base_url,
+        extra_headers=credential.extra_headers or None,
+        extra_body=credential.extra_body or None,
+    )
+    model = config.model
+
+    try:
+        resolved_text = await solve_captcha_image(
+            image_bytes,
+            llm_router=provider,
+            model=model,
+            force_uppercase=payload.force_uppercase,
+            captcha_type=payload.captcha_type,  # type: ignore[arg-type]
+        )
+        return SolveCaptchaResponse(
+            status="success",
+            text=resolved_text,
+            source=source,
+        )
+    except Exception as e:
+        log.exception("recorder.solve_captcha.error: %s", e)
+        return SolveCaptchaResponse(
+            status="error",
+            text="",
+            source=source,
+            error=str(e),
+        )
 
 
 @router.post(
