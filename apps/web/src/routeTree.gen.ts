@@ -9,7 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -29,9 +31,19 @@ import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppRunsRunIdRouteImport } from './routes/_app/runs_.$runId'
 import { Route as AppRunsRunIdReplayRouteImport } from './routes/_app/runs_.$runId.replay'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AcceptInviteRoute = AcceptInviteRouteImport.update({
@@ -127,7 +139,9 @@ const AppRunsRunIdReplayRoute = AppRunsRunIdReplayRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AppAdminRoute
   '/analytics': typeof AppAnalyticsRoute
   '/cases': typeof AppCasesRoute
@@ -147,7 +161,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AppAdminRoute
   '/analytics': typeof AppAnalyticsRoute
   '/cases': typeof AppCasesRoute
@@ -169,7 +185,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/accept-invite': typeof AcceptInviteRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/_app/admin': typeof AppAdminRoute
   '/_app/analytics': typeof AppAnalyticsRoute
   '/_app/cases': typeof AppCasesRoute
@@ -191,7 +209,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/accept-invite'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/admin'
     | '/analytics'
     | '/cases'
@@ -211,7 +231,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/accept-invite'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/admin'
     | '/analytics'
     | '/cases'
@@ -232,7 +254,9 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/accept-invite'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/_app/admin'
     | '/_app/analytics'
     | '/_app/cases'
@@ -254,16 +278,32 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AcceptInviteRoute: typeof AcceptInviteRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accept-invite': {
@@ -447,7 +487,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AcceptInviteRoute: AcceptInviteRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

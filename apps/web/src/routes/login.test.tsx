@@ -93,9 +93,12 @@ describe("<LoginRoute>", () => {
     renderLogin();
     expect(await screen.findByRole("textbox", { name: /email/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /forgot password\?/i })).toHaveAttribute(
+      "href",
+      "/forgot-password",
+    );
     expect(screen.getByRole("button", { name: /^sign in$/i })).toBeInTheDocument();
   });
-
   it("renders the Google button only when OAuth is configured", async () => {
     mockOAuth(true);
     renderLogin();
