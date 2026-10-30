@@ -50,4 +50,4 @@ if (fs.existsSync(ROOT_LICENSE)) {
 }
 const count = fs.readdirSync(DEST).length;
 process.stdout.write(`sync-python: bundled suitest_lifecycle (${count} top-level entries)\n`);
-// Trigger CI bundler sync on packages/lifecycle updates
+// Trigger CI bundler sync on packages/lifecycle updates (TCM authoring & runner hardening sync)

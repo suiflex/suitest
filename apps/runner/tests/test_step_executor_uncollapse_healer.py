@@ -16,9 +16,8 @@ async def test_auto_heal_uncollapse_clicks_parent_toggle_and_retries_target() ->
 
     # Call 1: initial click throws element not visible
     # Call 2: browser_run_code_unsafe returns found=True, toggleSelector='.kt-menu__toggle'
-    # Call 3: toggle_script (JS click)
-    # Call 4: browser_click on toggle
-    # Call 5: retry target click -> success
+    # Call 3: browser_click on toggle (single-click)
+    # Call 4: retry target click -> success
     invoker.invoke = AsyncMock(
         side_effect=[
             McpToolFailed(
@@ -35,7 +34,6 @@ async def test_auto_heal_uncollapse_clicks_parent_toggle_and_retries_target() ->
                 ok=True,
             ),
             McpToolResult(output={}, ok=True),
-            McpToolResult(output={}, ok=True),
             McpToolResult(stdout="Clicked Submenu", output={"status": "clicked"}, ok=True),
         ]
     )
@@ -50,7 +48,7 @@ async def test_auto_heal_uncollapse_clicks_parent_toggle_and_retries_target() ->
 
     assert res.ok is True
     assert res.stdout == "Clicked Submenu"
-    assert invoker.invoke.call_count == 5
+    assert invoker.invoke.call_count == 4
 
 
 @pytest.mark.asyncio

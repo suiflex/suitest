@@ -245,6 +245,23 @@ class SuitestClient:
         result = self._request("GET", path)
         return result if isinstance(result, list) else []
 
+    def create_suite(
+        self,
+        project_id: str,
+        name: str,
+        description: str = "",
+    ) -> JSONDict:
+        result = self._request(
+            "POST",
+            "/api/v1/suites",
+            json_body={
+                "projectId": project_id,
+                "name": name,
+                "description": description or None,
+            },
+        )
+        return result if isinstance(result, dict) else {}
+
     def list_cases(self, *, project_id: str = "", suite_id: str = "") -> list[JSONDict]:
         params: list[str] = []
         if project_id:
