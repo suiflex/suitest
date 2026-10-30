@@ -21,10 +21,11 @@
 └─────────────────────────────┼─────────┼──────────────────────────┘
                               ▼         ▼
                   ┌──────────────────────────────┐
-                  │     apps/api (FastAPI)       │
+                  | `apps/api` (FastAPI)       │
                   │  • REST + Pydantic v2 schemas│
                   │  • WS / SSE gateway          │
                   │  • Auth (FastAPI-Users)      │
+                  │  • Transactional Mailer (Resend)│
                   │  • Capability resolver       │
                   └──────────────┬───────────────┘
                                  │

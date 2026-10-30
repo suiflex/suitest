@@ -19,6 +19,7 @@ from suitest_db.repositories.password_reset_requests import PasswordResetRequest
 
 from suitest_api.auth.db import get_user_db
 from suitest_api.services.invitation_service import hash_token
+from suitest_api.services.mailer_service import send_password_reset_email
 from suitest_api.settings import get_settings
 
 _settings = get_settings()
@@ -51,8 +52,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         # Only persist the link when it can be encrypted at rest. Without a key,
         # store the token hash alone (link stays NULL). Never plaintext.
         reset_link_encrypted: str | None = None
+        reset_url = f"{_settings.web_url}/reset-password?token={token}"
         if crypto.is_configured():
-            reset_link_encrypted = f"{_settings.web_url}/reset-password?token={token}"
+            reset_link_encrypted = reset_url
         await PasswordResetRequestRepository(session).create(
             email=user.email,
             token_hash=hash_token(token),
@@ -60,6 +62,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             expires_at=datetime.now(tz=UTC) + timedelta(hours=1),
         )
         await session.commit()
+
+        # Dispatch reset email if mailer service (e.g. Resend) is configured
+        await send_password_reset_email(to_email=user.email, reset_url=reset_url)
         return None
 
 
