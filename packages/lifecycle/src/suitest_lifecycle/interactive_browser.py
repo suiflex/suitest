@@ -15,11 +15,13 @@ import concurrent.futures
 import contextlib
 import json
 import logging
+import os
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 try:
     from suitest_shared.ocr import (
@@ -33,6 +35,40 @@ except ImportError:
 from suitest_lifecycle.tool_result import envelope as _envelope
 
 logger = logging.getLogger(__name__)
+
+_SENSITIVE_INPUT_RE = re.compile(
+    r"(?:"
+    r"type=[\"']password[\"']|"
+    r"autocomplete=[\"'](?:current-|new-)?password[\"']|"
+    r"password|"
+    r"passwd|"
+    r"(?<![a-zA-Z])pass(?![a-zA-Z])|"
+    r"(?<![a-zA-Z])pwd(?![a-zA-Z])|"
+    r"pin|"
+    r"cvv|"
+    r"secret|"
+    r"token|"
+    r"api[-_]?key|"
+    r"auth[-_]?token"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _is_sensitive_input(
+    target: str = "",
+    extra: dict[str, Any] | None = None,
+    value: str = "",
+) -> bool:
+    """Determine whether an input represents sensitive data (e.g. password/credentials)."""
+    if extra and (
+        extra.get("is_secret")
+        or str(extra.get("input_type") or "").lower() == "password"
+        or str(extra.get("type") or "").lower() == "password"
+    ):
+        return True
+    t_lower = (target or "").lower()
+    return bool(_SENSITIVE_INPUT_RE.search(t_lower))
 
 
 @dataclass
@@ -113,6 +149,115 @@ class InteractiveSession:
             self.browser.close()
 
 
+def _extract_session_target_url(
+    session: InteractiveSession | None,
+    actions: list[dict[str, Any]],
+    default_url: str = "",
+) -> str:
+    """Extract recorded target URL from active session or navigation history."""
+    if default_url:
+        return default_url
+    if session and getattr(session, "page", None):
+        with contextlib.suppress(Exception):
+            p_url = str(session.page.url or "")
+            if p_url and p_url.startswith(("http://", "https://")):
+                return p_url
+    for a in actions:
+        if a.get("action") == "navigate":
+            cand = str(
+                a.get("value") or a.get("target") or (a.get("extra") or {}).get("current_url") or ""
+            )
+            if cand and cand.startswith(("http://", "https://")):
+                return cand
+    return ""
+
+
+def _save_session_case_file(
+    session_id: str,
+    created_at: float,
+    actions: list[dict[str, Any]],
+    output_dir: str,
+) -> str:
+    """Persist session action trace into disk JSON case file."""
+    if not actions:
+        return ""
+    out_path = Path(output_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+    case_file = str(out_path / f"{session_id}.case.json")
+    sanitized_steps = []
+    for a in actions:
+        val = a.get("value", "")
+        if (
+            a.get("action") == "type"
+            and _is_sensitive_input(a.get("target", ""), extra=a.get("extra"), value=val)
+            and not (isinstance(val, str) and val.startswith("{{") and val.endswith("}}"))
+        ):
+            t_low = str(a.get("target", "")).lower()
+            val = "{{password}}" if ("pass" in t_low or "pwd" in t_low) else "{{secret}}"
+        sanitized_steps.append(
+            {
+                "order": a["order"],
+                "action": a["action"],
+                "target": a.get("target", ""),
+                "value": val,
+            }
+        )
+    payload = {
+        "session_id": session_id,
+        "recorded_at": created_at,
+        "steps": sanitized_steps,
+    }
+    Path(case_file).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return case_file
+
+
+def _auto_publish_session(
+    session_id: str,
+    steps: list[dict[str, Any]],
+    case_name: str = "",
+    target_url: str = "",
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Auto-publish formatted steps to TCM web platform and return metadata."""
+    from suitest_lifecycle.tools import create_test_case
+
+    tc_name = case_name or f"Interactive Test {session_id[:8]}"
+    create_kwargs = dict(kwargs)
+    if target_url and "target_url" not in create_kwargs:
+        create_kwargs["target_url"] = target_url
+
+    try:
+        tc_res = create_test_case(name=tc_name, steps=steps, **create_kwargs)
+        if isinstance(tc_res, dict) and tc_res.get("success"):
+            raw_data = tc_res.get("data")
+            data_obj = raw_data if isinstance(raw_data, dict) else {}
+            pub_id = str(data_obj.get("public_id") or data_obj.get("publicId") or "TC")
+            web_base = (
+                (
+                    os.environ.get("SUITEST_WEB_URL")
+                    or os.environ.get("SUITEST_API_URL")
+                    or "http://localhost:5173"
+                )
+                .replace(":8000", ":5173")
+                .rstrip("/")
+            )
+            return {
+                "auto_publish": True,
+                "case_id": pub_id,
+                "dashboard_url": f"{web_base}/cases/{pub_id}",
+            }
+        err_msg = str(
+            (tc_res.get("summary") if isinstance(tc_res, dict) else "")
+            or "Failed to auto-publish test case to TCM"
+        )
+        errors = (
+            tc_res.get("errors") if isinstance(tc_res, dict) and tc_res.get("errors") else [err_msg]
+        )
+        return {"auto_publish": False, "publish_error": err_msg, "errors": errors}
+    except Exception as exc:
+        return {"auto_publish": False, "publish_error": str(exc), "errors": [str(exc)]}
+
+
 class InteractiveSessionManager:
     """Manages active interactive browser sessions with concurrency cap and TTL reaper."""
 
@@ -183,7 +328,9 @@ class InteractiveSessionManager:
         viewport: dict[str, int] | None = None,
         storage_state_path: str = "",
     ) -> str:
-        return self._run(self._open_session_impl, headless, viewport, storage_state_path)
+        return cast(
+            "str", self._run(self._open_session_impl, headless, viewport, storage_state_path)
+        )
 
     def run_on_session(self, session_id: str, fn: Any) -> Any:
         def _wrapper() -> Any:
@@ -202,48 +349,139 @@ class InteractiveSessionManager:
         session.touch()
         return session
 
+    @staticmethod
+    def _format_steps(actions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Translate recorded interactive browser actions into standard TCM step definitions."""
+        steps: list[dict[str, Any]] = []
+        for idx, act in enumerate(actions, start=1):
+            action_type = act.get("action", "")
+            target = act.get("target", "")
+            val = act.get("value", "")
+            extra = act.get("extra") or {}
+
+            tool_name = "browser_click"
+            tool_args: dict[str, Any] = {}
+            step_action = f"Step {idx}: {action_type}"
+            step_expected = f"Successfully executed {action_type}"
+
+            if action_type == "navigate":
+                tool_name = "browser_navigate"
+                url = target or val
+                tool_args = {"url": url}
+                step_action = f"Navigate to {url}"
+                step_expected = "Page loads successfully"
+            elif action_type == "click":
+                tool_name = "browser_click"
+                tool_args = {"target": target}
+                step_action = f"Click element '{target}'"
+                step_expected = f"Element '{target}' is clicked"
+            elif action_type == "type":
+                tool_name = "browser_type"
+                if _is_sensitive_input(target, extra=extra, value=val):
+                    t_lower = target.lower()
+                    var_name = "password" if ("pass" in t_lower or "pwd" in t_lower) else "secret"
+                    secret_ref = (
+                        val
+                        if (isinstance(val, str) and val.startswith("{{") and val.endswith("}}"))
+                        else f"{{{{{var_name}}}}}"
+                    )
+                    tool_args = {"target": target, "text": secret_ref}
+                    step_action = f"Type secret into '{target}'"
+                    step_expected = "Sensitive input populated via secret reference"
+                else:
+                    tool_args = {"target": target, "text": val}
+                    step_action = f"Type into '{target}'"
+                    step_expected = "Input value populated"
+            elif action_type == "select":
+                tool_name = "browser_select_option"
+                tool_args = {"target": target, "values": [str(val)]}
+                step_action = f"Select option '{val}' in '{target}'"
+                step_expected = f"Option '{val}' selected"
+            elif action_type == "solve_captcha":
+                tool_name = "browser_solve_captcha"
+                tool_args = {
+                    "image_selector": extra.get("image_selector", target),
+                    "input_selector": extra.get("input_selector", val),
+                }
+                step_action = "Solve CAPTCHA challenge"
+                step_expected = "CAPTCHA resolved"
+
+            steps.append(
+                {
+                    "action": step_action,
+                    "expected": step_expected,
+                    "code": {"tool": tool_name, "arguments": tool_args},
+                    "mcp_provider": "playwright-mcp",
+                    "target_kind": "FE_WEB",
+                    "order": idx,
+                }
+            )
+        return steps
+
     def _close_session_impl(
         self,
         session_id: str,
         save_as_case: bool = False,
         output_dir: str = "suitest-output/cases",
-    ) -> tuple[list[dict[str, Any]], str]:
+        auto_publish: bool = False,
+        case_name: str = "",
+        **kwargs: Any,
+    ) -> tuple[list[dict[str, Any]], str, dict[str, Any]]:
         session = self._sessions.pop(session_id, None)
         if not session:
-            return [], ""
+            raise ValueError(
+                f"Browser session '{session_id}' not found or has expired (TTL {int(self.DEFAULT_TTL)}s)."
+            )
 
         actions = [a.to_json() for a in session.action_history]
+        target_url = _extract_session_target_url(
+            session=session,
+            actions=actions,
+            default_url=str(kwargs.get("target_url") or ""),
+        )
+        created_at = session.created_at
         session.close()
 
-        case_file = ""
-        if save_as_case and actions:
-            out_path = Path(output_dir)
-            out_path.mkdir(parents=True, exist_ok=True)
-            case_file = str(out_path / f"{session_id}.case.json")
-            payload = {
-                "session_id": session_id,
-                "recorded_at": session.created_at,
-                "steps": [
-                    {
-                        "order": a["order"],
-                        "action": a["action"],
-                        "target": a.get("target", ""),
-                        "value": a.get("value", ""),
-                    }
-                    for a in actions
-                ],
-            }
-            Path(case_file).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        case_file = (
+            _save_session_case_file(session_id, created_at, actions, output_dir)
+            if save_as_case
+            else ""
+        )
 
-        return actions, case_file
+        meta: dict[str, Any] = {"session_id": session_id, "steps_count": len(actions)}
+        if auto_publish and actions:
+            pub_meta = _auto_publish_session(
+                session_id=session_id,
+                steps=self._format_steps(actions),
+                case_name=case_name,
+                target_url=target_url,
+                **kwargs,
+            )
+            meta.update(pub_meta)
+
+        return actions, case_file, meta
 
     def close_session(
         self,
         session_id: str,
         save_as_case: bool = False,
         output_dir: str = "suitest-output/cases",
-    ) -> tuple[list[dict[str, Any]], str]:
-        return self._run(self._close_session_impl, session_id, save_as_case, output_dir)
+        auto_publish: bool = False,
+        case_name: str = "",
+        **kwargs: Any,
+    ) -> tuple[list[dict[str, Any]], str, dict[str, Any]]:
+        return cast(
+            "tuple[list[dict[str, Any]], str, dict[str, Any]]",
+            self._run(
+                self._close_session_impl,
+                session_id,
+                save_as_case,
+                output_dir,
+                auto_publish,
+                case_name,
+                **kwargs,
+            ),
+        )
 
     def _close_all_impl(self) -> None:
         for sess in self._sessions.values():
@@ -271,9 +509,19 @@ def suitest_browser_open(
     headless: bool = True,
     viewport: dict[str, int] | None = None,
     storage_state_path: str = "",
+    require_auth: bool = False,
+    credentials: dict[str, str] | None = None,
     **_: Any,
 ) -> dict[str, Any]:
-    """Open a new stateful interactive browser session."""
+    """Open a new stateful interactive browser session with pre-flight auth check."""
+    if require_auth and not credentials and not storage_state_path:
+        return {
+            "success": False,
+            "status": "NEEDS_CLARIFICATION",
+            "summary": "Target authentication credentials required before opening browser session. Provide credentials or storage_state_path to avoid Inactivity TTL Reaper expiration.",
+            "data": {"pending_fields": ["username", "password"]},
+            "errors": ["missing_credentials"],
+        }
     try:
         session_id = _GLOBAL_MANAGER.open_session(
             headless=headless,
@@ -376,29 +624,54 @@ def suitest_browser_click(
                             .accordion-collapse:not(.show),
                             [aria-expanded="false"],
                             details:not([open]),
-                            [data-state="closed"]
+                            [data-state="closed"],
+                            .tab-pane:not(.active),
+                            [data-ktwizard-type="step-content"]:not([data-ktwizard-state="current"])
                         `);
                         if (!container) return null;
-                        const parent = container.parentElement;
-                        const toggle = parent ? parent.querySelector(`
-                            .kt-menu__toggle,
-                            [data-bs-toggle="collapse"],
-                            [data-toggle="collapse"],
-                            .accordion-button.collapsed,
-                            summary,
-                            [aria-expanded="false"]
-                        `) : null;
-                        if (!toggle) return null;
+
                         let toggleSel = '';
-                        if (toggle.id) toggleSel = '#' + toggle.id;
-                        else if (toggle.className && typeof toggle.className === 'string') {
-                            const c = Array.from(toggle.classList).filter(x => !x.includes(':')).join('.');
-                            if (c) toggleSel = toggle.tagName.toLowerCase() + '.' + c;
+                        if (container.getAttribute('data-ktwizard-type') === 'step-content') {
+                            const allPanes = Array.from(document.querySelectorAll('[data-ktwizard-type="step-content"]'));
+                            const stepIdx = allPanes.indexOf(container);
+                            const allNavs = Array.from(document.querySelectorAll('[data-ktwizard-type="step"]'));
+                            if (stepIdx >= 0 && allNavs[stepIdx]) {
+                                const navEl = allNavs[stepIdx];
+                                const txt = (navEl.innerText || '').trim().slice(0, 30);
+                                toggleSel = '[data-ktwizard-type="step"]:has-text("' + txt + '")';
+                            }
                         }
-                        if (!toggleSel) toggleSel = toggle.tagName.toLowerCase();
-                        const txt = (toggle.innerText || '').trim().slice(0, 30);
-                        if (txt) toggleSel += ':has-text("' + txt + '")';
-                        return { toggleSelector: toggleSel };
+                        if (!toggleSel && container.classList.contains('tab-pane') && container.id) {
+                            const tabNav = document.querySelector('a[href="#' + container.id + '"], [data-bs-target="#' + container.id + '"], [data-target="#' + container.id + '"]');
+                            if (tabNav) {
+                                if (tabNav.id) toggleSel = '#' + tabNav.id;
+                                else if (tabNav.getAttribute('data-bs-target')) toggleSel = `[data-bs-target="${tabNav.getAttribute('data-bs-target')}"]`;
+                                else if (tabNav.getAttribute('data-target')) toggleSel = `[data-target="${tabNav.getAttribute('data-target')}"]`;
+                                else if (tabNav.getAttribute('href')) toggleSel = `a[href="${tabNav.getAttribute('href')}"]`;
+                                else toggleSel = '#' + container.id + '-tab, a[href="#' + container.id + '"]';
+                            }
+                        }
+                        if (!toggleSel) {
+                            const parent = container.parentElement;
+                            const toggle = parent ? parent.querySelector(`
+                                .kt-menu__toggle,
+                                [data-bs-toggle="collapse"],
+                                [data-toggle="collapse"],
+                                .accordion-button.collapsed,
+                                summary,
+                                [aria-expanded="false"]
+                            `) : null;
+                            if (!toggle) return null;
+                            if (toggle.id) toggleSel = '#' + toggle.id;
+                            else if (toggle.className && typeof toggle.className === 'string') {
+                                const c = Array.from(toggle.classList).filter(x => !x.includes(':')).join('.');
+                                if (c) toggleSel = toggle.tagName.toLowerCase() + '.' + c;
+                            }
+                            if (!toggleSel) toggleSel = toggle.tagName.toLowerCase();
+                            const txt = (toggle.innerText || '').trim().slice(0, 30);
+                            if (txt) toggleSel += ':has-text("' + txt + '")';
+                        }
+                        return toggleSel ? { toggleSelector: toggleSel } : null;
                     }""",
                     target,
                 )
@@ -475,8 +748,23 @@ def suitest_browser_type(
             if hasattr(loc, "first"):
                 loc = loc.first
             loc.wait_for(state="visible", timeout=timeout_ms)
+            inp_type = ""
+            with contextlib.suppress(Exception):
+                inp_type = str(loc.get_attribute("type") or "")
             loc.fill(text)
-            sess.record_action("type", target=target, value=text)
+            extra_info: dict[str, Any] = {"input_type": inp_type}
+            if _is_sensitive_input(target, extra=extra_info, value=text):
+                t_lower = target.lower()
+                var_name = "password" if ("pass" in t_lower or "pwd" in t_lower) else "secret"
+                stored_val = (
+                    text
+                    if (isinstance(text, str) and text.startswith("{{") and text.endswith("}}"))
+                    else f"{{{{{var_name}}}}}"
+                )
+                extra_info["is_secret"] = True
+                sess.record_action("type", target=target, value=stored_val, **extra_info)
+            else:
+                sess.record_action("type", target=target, value=text, **extra_info)
 
         _GLOBAL_MANAGER.run_on_session(session_id, _type)
         return _envelope(
@@ -655,22 +943,37 @@ def suitest_browser_close(
     session_id: str = "",
     save_as_case: bool = False,
     output_dir: str = "suitest-output/cases",
-    **_: Any,
+    auto_publish: bool = False,
+    case_name: str = "",
+    **kwargs: Any,
 ) -> dict[str, Any]:
-    """Close an active interactive browser session, optionally saving action trace."""
+    """Close an active interactive browser session, optionally saving action trace or auto-publishing to TCM."""
     if not session_id:
         return _envelope(False, "session_id is required", errors=["missing session_id"])
     try:
-        actions, case_file = _GLOBAL_MANAGER.close_session(
+        actions, case_file, meta = _GLOBAL_MANAGER.close_session(
             session_id,
             save_as_case=save_as_case,
             output_dir=output_dir,
+            auto_publish=auto_publish,
+            case_name=case_name,
+            **kwargs,
         )
         artifacts = [case_file] if case_file else []
+        if auto_publish and not meta.get("auto_publish", False):
+            err_msg = meta.get("publish_error", "Failed to auto-publish test case to TCM")
+            errors = meta.get("errors") or [err_msg]
+            return _envelope(
+                success=False,
+                summary=f"Closed browser session '{session_id}' but auto-publish failed: {err_msg}",
+                data={"session_id": session_id, "actions_count": len(actions), **meta},
+                errors=errors,
+                artifacts=artifacts,
+            )
         return _envelope(
             success=True,
             summary=f"Closed browser session '{session_id}' (recorded {len(actions)} actions)",
-            data={"session_id": session_id, "actions_count": len(actions)},
+            data={"session_id": session_id, "actions_count": len(actions), **meta},
             artifacts=artifacts,
         )
     except Exception as exc:
