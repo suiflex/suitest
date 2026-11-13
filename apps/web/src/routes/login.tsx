@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -138,9 +138,17 @@ function Login(): React.ReactElement {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="password" className="text-[12.5px] font-medium text-fg-1">
-            Password
-          </label>
+          <div className="flex items-center justify-between">
+            <label htmlFor="password" className="text-[12.5px] font-medium text-fg-1">
+              Password
+            </label>
+            <Link
+              to="/forgot-password"
+              className="text-[12px] text-fg-3 hover:text-accent transition-colors"
+            >
+              {t("auth.forgotPassword", "Forgot password?")}
+            </Link>
+          </div>
           <input
             id="password"
             name="password"
