@@ -70,6 +70,24 @@ def is_destructive(el: ElementInfo) -> bool:
     return any(h in _blob(el) for h in _DESTRUCTIVE_HINTS)
 
 
+_SELECT_DOC_HINTS = (
+    "pilih",
+    "select",
+    "choose",
+    "attach",
+    "lampirkan",
+    "gunakan",
+    "pakai",
+    "apply",
+)
+
+
+def is_document_selection_action(element: ElementInfo) -> bool:
+    """Check if an interactive element represents choosing a document from a table or library."""
+    blob = f"{_blob(element)} {element.css} {element.role}".lower()
+    return any(h in blob for h in _SELECT_DOC_HINTS)
+
+
 def classify_button_intent(el: ElementInfo) -> str:
     """Classify the user intent of a button, including icon-only controls.
 
@@ -94,6 +112,8 @@ def classify_button_intent(el: ElementInfo) -> str:
         return "UPLOAD"
     if any(k in blob for k in ("calendar", "icon:calendar", "kalender", "date", "jadwal")):
         return "CALENDAR"
+    if is_document_selection_action(el):
+        return "SELECT_DOCUMENT"
     return "CUSTOM"
 
 

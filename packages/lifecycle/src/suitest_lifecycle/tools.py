@@ -22,7 +22,10 @@ from typing import Any
 from suitest_lifecycle.blackbox.mcp import BLACKBOX_TOOLS
 from suitest_lifecycle.config import Config, ConfigError, load_config
 from suitest_lifecycle.fixture_generator import suitest_create_dummy_file
-from suitest_lifecycle.interactive_browser import INTERACTIVE_BROWSER_TOOLS
+from suitest_lifecycle.interactive_browser import (
+    INTERACTIVE_BROWSER_TOOLS,
+    _is_sensitive_input,
+)
 from suitest_lifecycle.models import Mode
 from suitest_lifecycle.orchestrator import LifecycleResult, generate_only, run_lifecycle
 from suitest_lifecycle.paths import build_paths
@@ -843,6 +846,283 @@ def get_test_case(
         return _envelope(False, f"failed to get test case: {exc}", errors=[str(exc)])
 
 
+def _resolve_suite_and_project(
+    client: Any,
+    project_id: str = "",
+    suite_id: str = "",
+    target_url: str = "",
+) -> tuple[str, str]:
+    """Resolve or auto-create project_id and suite_id if missing, guarding against empty query params."""
+    p_id = project_id.strip()
+    s_id = suite_id.strip()
+
+    if not p_id:
+        host = (target_url or "general-web").split("//")[-1].split("/")[0].removeprefix("www.")
+        slug = re.sub(r"[^a-z0-9]+", "-", host.lower()).strip("-")[:64] or "general-web"
+        proj = client.resolve_project(project_slug=slug, project_name=host or "General Web")
+        p_id = str(proj.get("id") or "") if isinstance(proj, dict) else ""
+    if not p_id:
+        return "", ""
+
+    if not s_id:
+        existing_suites = client.list_suites(project_id=p_id)
+        if (
+            existing_suites
+            and isinstance(existing_suites, list)
+            and isinstance(existing_suites[0], dict)
+        ):
+            s_id = str(existing_suites[0].get("id") or "")
+        else:
+            if hasattr(client, "create_suite"):
+                new_suite = client.create_suite(project_id=p_id, name="General Discovered Suite")
+            else:
+                new_suite = client.post(
+                    "/api/v1/suites",
+                    json_body={"projectId": p_id, "name": "General Discovered Suite"},
+                )
+            s_id = str(new_suite.get("id") or "") if isinstance(new_suite, dict) else ""
+
+    return p_id, s_id
+
+
+_PROVEN_TOGGLE_RE = re.compile(
+    r"(?:"
+    r"accordion|"
+    r"collapse|"
+    r"toggle|"
+    r"\[aria-expanded|"
+    r"\[aria-haspopup|"
+    r"\[data-(?:bs-)?toggle|"
+    r"\[data-(?:bs-)?target|"
+    r"\[data-ktwizard-type|"
+    r"\[data-state=[\"'](?:open|closed)[\"']|"
+    r"kt-menu__toggle|"
+    r"\bsummary\b|"
+    r"\bdetails\b|"
+    r"\[role=[\"'](?:tab|switch|checkbox|menuitemcheckbox)[\"']|"
+    r"input\[type=[\"']checkbox[\"']"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _is_proven_redundant_toggle(target: str) -> bool:
+    """Return True only if the target is a proven collapsible/accordion/toggle control."""
+    if not target:
+        return False
+    return bool(_PROVEN_TOGGLE_RE.search(target))
+
+
+def _prune_redundant_step_toggles(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Prune immediate back-to-back clicks on identical targets that cause toggle re-collapse."""
+    cleaned: list[dict[str, Any]] = []
+    prev_tool = ""
+    prev_target = ""
+
+    for s in steps:
+        cd = s.get("code")
+        parsed: dict[str, Any] = {}
+        if isinstance(cd, dict):
+            parsed = cd
+        elif isinstance(cd, str) and cd.strip():
+            try:
+                loaded = json.loads(cd)
+                if isinstance(loaded, dict):
+                    parsed = loaded
+            except Exception:
+                parsed = {}
+
+        t = str(parsed.get("tool") or "")
+        args = parsed.get("arguments")
+        args_dict = args if isinstance(args, dict) else {}
+        target = str(args_dict.get("target") or args_dict.get("selector") or "").strip()
+        if (
+            t in ("browser_click", "browser.click")
+            and prev_tool in ("browser_click", "browser.click")
+            and target
+            and target == prev_target
+            and _is_proven_redundant_toggle(target)
+        ):
+            # Skip consecutive duplicate click that re-collapses state on a proven toggle,
+            # and reset tracker to prevent trailing absorption of subsequent clicks
+            prev_tool = ""
+            prev_target = ""
+            continue
+
+        cleaned.append(s)
+        prev_tool = t or ""
+        prev_target = target
+
+    for idx, s in enumerate(cleaned, start=1):
+        if "order" in s and isinstance(s["order"], int):
+            s["order"] = idx
+
+    return cleaned
+
+
+def _extract_step_target_url(steps: list[dict[str, Any]]) -> str:
+    """Extract navigation URL from steps if available."""
+    for s in steps:
+        cd = s.get("code")
+        if isinstance(cd, str):
+            try:
+                cd = json.loads(cd)
+            except Exception:
+                cd = {}
+        if isinstance(cd, dict) and cd.get("tool") in ("browser_navigate", "browser.navigate"):
+            cand = str((cd.get("arguments") or {}).get("url") or "")
+            if cand.startswith(("http://", "https://")):
+                return cand
+    return ""
+
+
+def _render_step_code_line(tool: str, args: dict[str, Any]) -> str:
+    """Render a single step Playwright Python action line."""
+    if tool in ("browser_navigate", "browser.navigate"):
+        return f'    await page.goto({args.get("url", "")!r}, wait_until="domcontentloaded")'
+    if tool in ("browser_type", "browser.type"):
+        tgt = args.get("target") or args.get("selector") or ""
+        txt = args.get("text", "")
+        if _is_sensitive_input(tgt, value=txt) and not (
+            isinstance(txt, str) and txt.startswith("{{") and txt.endswith("}}")
+        ):
+            t_low = str(tgt).lower()
+            var_name = "password" if ("pass" in t_low or "pwd" in t_low) else "secret"
+            txt = f"{{{{{var_name}}}}}"
+        return f"    await page.locator({tgt!r}).fill({txt!r})"
+    if tool in ("browser_click", "browser.click"):
+        tgt = args.get("target") or args.get("selector") or ""
+        return f"    await page.locator({tgt!r}).click()"
+    if tool in ("browser_solve_captcha", "browser.solve_captcha"):
+        img_s = args.get("image_selector", "#img-captcha")
+        inp_s = args.get("input_selector", "#captcha")
+        return (
+            f"    await _bb_solve_captcha(page, image_selector={img_s!r}, input_selector={inp_s!r})"
+        )
+    if tool in (
+        "browser_select",
+        "browser.select",
+        "browser_select_option",
+        "browser.select_option",
+    ):
+        tgt = args.get("target") or args.get("selector") or ""
+        raw_val = args.get("value") or (
+            args.get("values", [""])[0] if isinstance(args.get("values"), list) else ""
+        )
+        return f"    await page.locator({tgt!r}).select_option({str(raw_val)!r})"
+    if tool in ("browser_upload_file", "browser.upload_file", "browser_file_upload"):
+        tgt = args.get("target") or args.get("selector") or ""
+        f_path = (
+            args.get("file")
+            or args.get("path")
+            or (args.get("files", [""])[0] if isinstance(args.get("files"), list) else "")
+        )
+        return f"    await page.locator({tgt!r}).set_input_files({str(f_path)!r})"
+    return ""
+
+
+def _write_python_mirror_file(
+    out_dir_path: Path,
+    trimmed_name: str,
+    description: str,
+    case_steps: list[dict[str, Any]],
+) -> Path | None:
+    """Write local Python Playwright test mirror file."""
+    try:
+        out_dir_path.mkdir(parents=True, exist_ok=True)
+        slug = re.sub(r"[^a-zA-Z0-9_]+", "_", trimmed_name.lower()).strip("_")
+        created_file = out_dir_path / f"TC_{slug}.py"
+        step_body_lines: list[str] = []
+        for idx, s in enumerate(case_steps, start=1):
+            act = s.get("action", f"Step {idx}")
+            cd = s.get("code") or "{}"
+            step_body_lines.append(f'    _begin("action", {act!r})')
+            try:
+                parsed_c = json.loads(cd) if isinstance(cd, str) else cd
+                t = str(parsed_c.get("tool") or "") if isinstance(parsed_c, dict) else ""
+                args = parsed_c.get("arguments", {}) if isinstance(parsed_c, dict) else {}
+                code_line = _render_step_code_line(t, args)
+                if code_line:
+                    step_body_lines.append(code_line)
+            except (json.JSONDecodeError, TypeError, KeyError) as parse_err:
+                logger.debug("create_test_case.step_code_parse_failed: %s", parse_err)
+            step_body_lines.append("    await _ok(page)")
+
+        helper_defs = (
+            "def _begin(step_type, description):\n"
+            "    pass\n\n"
+            "async def _ok(page):\n"
+            "    pass\n\n"
+            "async def _bb_solve_captcha(page, image_selector='#img-captcha', input_selector='#captcha'):\n"
+            "    pass\n\n"
+        )
+        py_content = (
+            f"# {trimmed_name}\n"
+            f"# Description: {description or 'None'}\n"
+            "import os, pytest\n"
+            "from playwright.async_api import async_playwright, expect\n\n"
+            + helper_defs
+            + "async def _body(page):\n"
+            + ("\n".join(step_body_lines) if step_body_lines else "    pass\n")
+        )
+        created_file.write_text(py_content, encoding="utf-8")
+        return created_file
+    except Exception as exc:
+        logger.debug("create_test_case.file_write_failed: %s", exc)
+        return None
+
+
+def _normalize_steps_for_tcm(case_steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Format and normalize case steps for the TCM API payload."""
+    formatted_steps = []
+    for idx, s in enumerate(case_steps):
+        cd = s.get("code")
+        if isinstance(cd, dict):
+            tool_name = cd.get("tool", "")
+            if tool_name in ("browser_select", "browser.select", "browser.select_option"):
+                cd["tool"] = "browser_select_option"
+                c_args = cd.setdefault("arguments", {})
+                if "value" in c_args and "values" not in c_args:
+                    val = c_args.pop("value")
+                    c_args["values"] = (
+                        [str(val)] if not isinstance(val, list) else list(map(str, val))
+                    )
+                if "selector" in c_args and "target" not in c_args:
+                    c_args["target"] = c_args.pop("selector")
+            elif tool_name in (
+                "browser_upload_file",
+                "browser.upload_file",
+                "browser_file_upload",
+            ):
+                cd["tool"] = "browser_upload_file"
+                c_args = cd.setdefault("arguments", {})
+                if "path" in c_args and "file" not in c_args:
+                    c_args["file"] = c_args.pop("path")
+                if "selector" in c_args and "target" not in c_args:
+                    c_args["target"] = c_args.pop("selector")
+            elif tool_name in ("browser_type", "browser.type"):
+                c_args = cd.setdefault("arguments", {})
+                tgt = c_args.get("target") or c_args.get("selector") or ""
+                txt = c_args.get("text", "")
+                if _is_sensitive_input(tgt, value=txt) and not (
+                    isinstance(txt, str) and txt.startswith("{{") and txt.endswith("}}")
+                ):
+                    t_low = str(tgt).lower()
+                    var_name = "password" if ("pass" in t_low or "pwd" in t_low) else "secret"
+                    c_args["text"] = f"{{{{{var_name}}}}}"
+        formatted_steps.append(
+            {
+                "action": s.get("action", f"Step {idx + 1}"),
+                "expected": s.get("expected", ""),
+                "code": json.dumps(cd) if isinstance(cd, dict) else (cd or "{}"),
+                "mcp_provider": s.get("mcp_provider") or s.get("mcpProvider") or "playwright-mcp",
+                "target_kind": s.get("target_kind") or s.get("targetKind") or "FE_WEB",
+                "order": s.get("order", idx),
+            }
+        )
+    return formatted_steps
+
+
 def create_test_case(
     suite_id: str = "",
     name: str = "",
@@ -865,136 +1145,26 @@ def create_test_case(
     trimmed_name = (name or "").strip()
     if not trimmed_name:
         return _envelope(False, "name is required")
-    if not suite_id:
-        return _envelope(False, "suite_id is required")
+    target_url = str(kwargs.get("target_url") or "") or _extract_step_target_url(steps or [])
+    project_id = str(kwargs.get("project_id") or "")
+    resolved_suite_id = (suite_id or "").strip()
 
-    case_steps = steps or []
+    case_steps = _prune_redundant_step_toggles(steps or [])
     out_dir_path = Path(output_dir or "suitest-output/frontend").resolve()
-    created_file: Path | None = None
-    try:
-        out_dir_path.mkdir(parents=True, exist_ok=True)
-        slug = re.sub(r"[^a-zA-Z0-9_]+", "_", trimmed_name.lower()).strip("_")
-        created_file = out_dir_path / f"TC_{slug}.py"
-        step_body_lines: list[str] = []
-        for idx, s in enumerate(case_steps, start=1):
-            act = s.get("action", f"Step {idx}")
-            cd = s.get("code") or "{}"
-            step_body_lines.append(f'    _begin("action", {act!r})')
-            try:
-                parsed_c = json.loads(cd) if isinstance(cd, str) else cd
-                t = parsed_c.get("tool")
-                args = parsed_c.get("arguments", {})
-                if t in ("browser_navigate", "browser.navigate"):
-                    nav_url = args.get("url", "")
-                    step_body_lines.append(
-                        f'    await page.goto({nav_url!r}, wait_until="domcontentloaded")'
-                    )
-                elif t in ("browser_type", "browser.type"):
-                    tgt = args.get("target") or args.get("selector") or ""
-                    txt = args.get("text", "")
-                    step_body_lines.append(f"    await page.locator({tgt!r}).fill({txt!r})")
-                elif t in ("browser_click", "browser.click"):
-                    tgt = args.get("target") or args.get("selector") or ""
-                    step_body_lines.append(f"    await page.locator({tgt!r}).click()")
-                elif t in ("browser_solve_captcha", "browser.solve_captcha"):
-                    img_s = args.get("image_selector", "#img-captcha")
-                    inp_s = args.get("input_selector", "#captcha")
-                    step_body_lines.append(
-                        f"    await _bb_solve_captcha(page, image_selector={img_s!r}, input_selector={inp_s!r})"
-                    )
-                elif t in (
-                    "browser_select",
-                    "browser.select",
-                    "browser_select_option",
-                    "browser.select_option",
-                ):
-                    tgt = args.get("target") or args.get("selector") or ""
-                    raw_val = args.get("value") or (
-                        args.get("values", [""])[0] if isinstance(args.get("values"), list) else ""
-                    )
-                    step_body_lines.append(
-                        f"    await page.locator({tgt!r}).select_option({str(raw_val)!r})"
-                    )
-                elif t in ("browser_upload_file", "browser.upload_file", "browser_file_upload"):
-                    tgt = args.get("target") or args.get("selector") or ""
-                    f_path = (
-                        args.get("file")
-                        or args.get("path")
-                        or (
-                            args.get("files", [""])[0]
-                            if isinstance(args.get("files"), list)
-                            else ""
-                        )
-                    )
-                    step_body_lines.append(
-                        f"    await page.locator({tgt!r}).set_input_files({str(f_path)!r})"
-                    )
-            except (json.JSONDecodeError, TypeError, KeyError) as parse_err:
-                logger.debug("create_test_case.step_code_parse_failed: %s", parse_err)
-            step_body_lines.append("    await _ok(page)")
-        helper_defs = (
-            "def _begin(step_type, description):\n"
-            "    pass\n\n"
-            "async def _ok(page):\n"
-            "    pass\n\n"
-            "async def _bb_solve_captcha(page, image_selector='#img-captcha', input_selector='#captcha'):\n"
-            "    pass\n\n"
-        )
-        py_content = (
-            f"# {trimmed_name}\n"
-            f"# Description: {description or 'None'}\n"
-            "import os, pytest\n"
-            "from playwright.async_api import async_playwright, expect\n\n"
-            + helper_defs
-            + "async def _body(page):\n"
-            + ("\n".join(step_body_lines) if step_body_lines else "    pass\n")
-        )
-        created_file.write_text(py_content, encoding="utf-8")
-    except Exception as exc:
-        logger.debug("create_test_case.file_write_failed: %s", exc)
+    created_file = _write_python_mirror_file(out_dir_path, trimmed_name, description, case_steps)
 
     try:
         with SuitestClient(api_url, token=api_key) as client:
-            formatted_steps = []
-            for idx, s in enumerate(case_steps):
-                cd = s.get("code")
-                if isinstance(cd, dict):
-                    tool_name = cd.get("tool", "")
-                    if tool_name in ("browser_select", "browser.select", "browser.select_option"):
-                        cd["tool"] = "browser_select_option"
-                        c_args = cd.setdefault("arguments", {})
-                        if "value" in c_args and "values" not in c_args:
-                            val = c_args.pop("value")
-                            c_args["values"] = (
-                                [str(val)] if not isinstance(val, list) else [str(x) for x in val]
-                            )
-                        if "selector" in c_args and "target" not in c_args:
-                            c_args["target"] = c_args.pop("selector")
-                    elif tool_name in (
-                        "browser_upload_file",
-                        "browser.upload_file",
-                        "browser_file_upload",
-                    ):
-                        cd["tool"] = "browser_upload_file"
-                        c_args = cd.setdefault("arguments", {})
-                        if "path" in c_args and "file" not in c_args:
-                            c_args["file"] = c_args.pop("path")
-                        if "selector" in c_args and "target" not in c_args:
-                            c_args["target"] = c_args.pop("selector")
-                formatted_steps.append(
-                    {
-                        "action": s.get("action", f"Step {idx + 1}"),
-                        "expected": s.get("expected", ""),
-                        "code": json.dumps(cd) if isinstance(cd, dict) else (cd or "{}"),
-                        "mcp_provider": s.get("mcp_provider")
-                        or s.get("mcpProvider")
-                        or "playwright-mcp",
-                        "target_kind": s.get("target_kind") or s.get("targetKind") or "FE_WEB",
-                        "order": s.get("order", idx),
-                    }
+            if not resolved_suite_id:
+                _, resolved_suite_id = _resolve_suite_and_project(
+                    client, project_id=project_id, suite_id="", target_url=target_url
                 )
+                if not resolved_suite_id:
+                    return _envelope(False, "unable to resolve or create suite_id")
+
+            formatted_steps = _normalize_steps_for_tcm(case_steps)
             payload: dict[str, Any] = {
-                "suiteId": suite_id,
+                "suiteId": resolved_suite_id,
                 "name": trimmed_name,
                 "description": description or None,
                 "preconditions": preconditions or None,
@@ -1003,7 +1173,11 @@ def create_test_case(
                 "tags": tags or [],
             }
             res = client.create_case(payload)
-            public_id = res.get("public_id") or res.get("publicId") or res.get("id") or "TC"
+            public_id = (
+                (res.get("public_id") or res.get("publicId") or res.get("id") or "TC")
+                if isinstance(res, dict)
+                else "TC"
+            )
             artifacts = [str(created_file)] if created_file and created_file.exists() else []
             return _envelope(
                 True,

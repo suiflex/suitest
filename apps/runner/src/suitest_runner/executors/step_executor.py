@@ -561,6 +561,49 @@ async def _preflight_tcp_probe(
     return False, last_err
 
 
+_OVERLAY_CHECK_SCRIPT = """async (page) => {
+    return await page.evaluate(() => {
+        const overlay = document.querySelector(
+            '.blockUI, .blockOverlay, .spinner, .spinner-border, .loading, .modal-backdrop.show, [aria-busy="true"]'
+        );
+        if (!overlay) return { overlayActive: false };
+        const style = window.getComputedStyle(overlay);
+        const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+        return { overlayActive: isVisible };
+    });
+}"""
+
+
+async def _wait_for_transient_overlay(
+    invoker: McpInvoker,
+    explicit_provider: str | None,
+    ctx: InvokeContext,
+    attempts_left: int = 10,
+) -> bool:
+    count = max(0, min(int(attempts_left), 10))
+    if count <= 0:
+        return False
+    prov = (
+        str(explicit_provider).strip()
+        if explicit_provider and isinstance(explicit_provider, str)
+        else None
+    )
+    try:
+        chk = await invoker.invoke(
+            explicit_provider=prov,
+            tool="browser_run_code_unsafe",
+            arguments={"code": _OVERLAY_CHECK_SCRIPT},
+            ctx=ctx,
+        )
+        chk_res = (chk.output or {}).get("result") or {}
+        if isinstance(chk_res, dict) and not chk_res.get("overlayActive"):
+            return True
+    except Exception:
+        return True
+    await asyncio.sleep(0.5)
+    return await _wait_for_transient_overlay(invoker, prov, ctx, count - 1)
+
+
 async def _auto_heal_hidden_or_collapsed_element(
     *,
     invoker: McpInvoker,
@@ -574,6 +617,21 @@ async def _auto_heal_hidden_or_collapsed_element(
     target = str(clean_invoke_args.get("target") or clean_invoke_args.get("selector") or "")
     if not target:
         raise original_exc
+    if "intercepts pointer" in str(original_exc).lower():
+        log.info("step_executor.auto_heal.wait_for_overlay", target=target)
+
+        await _wait_for_transient_overlay(
+            invoker=invoker,
+            explicit_provider=explicit_provider,
+            ctx=ctx,
+            attempts_left=10,
+        )
+        return await invoker.invoke(
+            explicit_provider=explicit_provider,
+            tool=normalized_tool,
+            arguments=clean_invoke_args,
+            ctx=ctx,
+        )
 
     detect_script = f"""async (page) => {{
         return await page.evaluate((rawTarget) => {{
@@ -634,7 +692,17 @@ async def _auto_heal_hidden_or_collapsed_element(
                 if (!toggleSelector && container.classList.contains('tab-pane') && container.id) {{
                     const tabNav = document.querySelector('a[href="#' + container.id + '"], [data-bs-target="#' + container.id + '"], [data-target="#' + container.id + '"]');
                     if (tabNav) {{
-                        toggleSelector = '#' + container.id + '-tab, a[href="#' + container.id + '"]';
+                        if (tabNav.id) {{
+                            toggleSelector = '#' + tabNav.id;
+                        }} else if (tabNav.getAttribute('data-bs-target')) {{
+                            toggleSelector = '[data-bs-target="' + tabNav.getAttribute('data-bs-target') + '"]';
+                        }} else if (tabNav.getAttribute('data-target')) {{
+                            toggleSelector = '[data-target="' + tabNav.getAttribute('data-target') + '"]';
+                        }} else if (tabNav.getAttribute('href')) {{
+                            toggleSelector = 'a[href="' + tabNav.getAttribute('href') + '"]';
+                        }} else {{
+                            toggleSelector = '#' + container.id + '-tab, a[href="#' + container.id + '"]';
+                        }}
                     }}
                 }}
 
@@ -746,24 +814,26 @@ async def _auto_heal_hidden_or_collapsed_element(
                 return {{ clicked: false }};
             }}, {{ toggleSelector: {json.dumps(toggle_sel)} }});
         }}"""
+        # Single click on parent toggle via Playwright browser_click, with JS fallback on failure
         try:
-            await invoker.invoke(
-                explicit_provider=explicit_provider,
-                tool="browser_run_code_unsafe",
-                arguments={"code": toggle_script},
-                ctx=ctx,
-            )
-        except Exception as t_err:
-            log.debug("step_executor.auto_heal.toggle_js_err", error=str(t_err))
-
-        with contextlib.suppress(Exception):
             await invoker.invoke(
                 explicit_provider=explicit_provider,
                 tool="browser_click",
                 arguments={"target": toggle_sel},
                 ctx=ctx,
             )
-        await asyncio.sleep(0.8)
+        except Exception as t_err:
+            log.debug("step_executor.auto_heal.toggle_click_failed", error=str(t_err))
+            try:
+                await invoker.invoke(
+                    explicit_provider=explicit_provider,
+                    tool="browser_run_code_unsafe",
+                    arguments={"code": toggle_script},
+                    ctx=ctx,
+                )
+            except Exception as js_err:
+                log.debug("step_executor.auto_heal.toggle_js_failed", error=str(js_err))
+        await asyncio.sleep(0.5)
 
         # Retry target click with auto-heal for strict mode
         try:
@@ -828,13 +898,6 @@ async def _auto_heal_hidden_or_collapsed_element(
                                 ok=True,
                             )
                         raise
-            if "intercepts pointer" in exc_lower:
-                log.info("step_executor.auto_heal.pointer_intercept_success", target=target)
-                return McpToolResult(
-                    stdout=f"Action completed (overlay intercepted pointer): {target}",
-                    output={"healed": "overlay_intercept_success", "target": target},
-                    ok=True,
-                )
             raise
 
     # If element was found in DOM after polling (e.g. async AJAX rendering finished), retry click directly

@@ -88,7 +88,10 @@ _TOOL_DESCRIPTIONS = {
     "get_test_case": "TCM: Retrieve complete details and executable steps for a test case by case_id.",
     "create_test_case": "TCM: Create a new test case with executable steps, generating a local Playwright script mirror and syncing to TCM.",
     "run_test_case": "TCM: Trigger an immediate ad-hoc test run for a test case by case_id.",
-    "suitest_browser_open": "Interactive: open a new stateful browser session, returning session_id.",
+    "suitest_browser_open": (
+        "Interactive: open a new stateful browser session. "
+        "Important: Perform a pre-flight check for target credentials before opening to avoid Inactivity TTL Reaper timeout."
+    ),
     "suitest_browser_navigate": "Interactive: navigate to URL in active browser session.",
     "suitest_browser_click": "Interactive: click element matching selector in active session.",
     "suitest_browser_type": "Interactive: type/fill text into input element in active session.",
@@ -313,8 +316,16 @@ _SET_VAR_SCHEMA: dict[str, object] = {
 _CREATE_CASE_SCHEMA: dict[str, object] = {
     "type": "object",
     "properties": {
-        "suite_id": {"type": "string", "description": "Target suite ID in TCM (required)"},
+        "suite_id": {
+            "type": "string",
+            "description": "Target suite ID in TCM (optional; auto-resolved if omitted)",
+        },
         "name": {"type": "string", "description": "Test case title / name (required)"},
+        "project_id": {"type": "string", "description": "Optional target project ID in TCM"},
+        "target_url": {
+            "type": "string",
+            "description": "Optional target URL to derive project/suite",
+        },
         "description": {"type": "string", "description": "Optional human description"},
         "preconditions": {
             "type": "string",
@@ -333,7 +344,7 @@ _CREATE_CASE_SCHEMA: dict[str, object] = {
         },
         "config_path": {"type": "string", "description": "Path to suitest.config.json"},
     },
-    "required": ["suite_id", "name"],
+    "required": ["name"],
 }
 
 _RUN_CASE_SCHEMA: dict[str, object] = {
@@ -388,6 +399,15 @@ _BROWSER_OPEN_SCHEMA: dict[str, object] = {
         "storage_state_path": {
             "type": "string",
             "description": "Optional path to storage_state.json",
+        },
+        "require_auth": {
+            "type": "boolean",
+            "default": False,
+            "description": "Enforce pre-flight check for target credentials before opening session",
+        },
+        "credentials": {
+            "type": "object",
+            "description": "Optional dictionary with target username and password",
         },
     },
     "required": [],
@@ -477,7 +497,28 @@ _BROWSER_CLOSE_SCHEMA: dict[str, object] = {
         "save_as_case": {
             "type": "boolean",
             "default": False,
-            "description": "Save action history as a structured TCM test case",
+            "description": "Save action history as a structured TCM test case JSON file on disk",
+        },
+        "auto_publish": {
+            "type": "boolean",
+            "default": False,
+            "description": "Automatically publish recorded steps to Suitest TCM web platform",
+        },
+        "case_name": {
+            "type": "string",
+            "description": "Optional custom name for published test case",
+        },
+        "target_url": {
+            "type": "string",
+            "description": "Optional target URL to resolve project and suite during auto-publish",
+        },
+        "project_id": {
+            "type": "string",
+            "description": "Optional target project ID in TCM",
+        },
+        "suite_id": {
+            "type": "string",
+            "description": "Optional target suite ID in TCM",
         },
         "output_dir": {"type": "string", "default": "suitest-output/cases"},
     },
