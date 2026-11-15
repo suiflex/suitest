@@ -527,11 +527,11 @@ wheels = [
 
 [[package]]
 name = "cuid2"
-version = "2.2.1"
+version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/cd/ab/04c675a9ca6fd9277877de10ae29ada62a10ef895bbc493c08fd7ee86e6b/cuid2-2.2.1.tar.gz", hash = "sha256:f7d183b5988de4be691e4077beaa0e7932a5ee80fe1c4b6288d88381b62b4663", size = 18066, upload-time = "2026-11-04T18:39:10.087Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f6/b4/75e75fdefeb3402ff9e83ca2b59fe07c2af55705f5b37037b19ae63405b5/cuid2-3.0.0.tar.gz", hash = "sha256:e846f3f37162d569e77ddfbe8265cdc33f4c86056b6e9fb2cbf762ad87fc3010", size = 18075, upload-time = "2026-11-09T03:23:07.209Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/77/721b908486cf336df2af390be1e77060a731aac089e86062614ff278ceaf/cuid2-2.2.1-py3-none-any.whl", hash = "sha256:56ecbc592c06cc241d90c8e047755426b825ddaacb32b4999975f893a8684ab5", size = 18773, upload-time = "2026-11-04T18:39:08.856Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/d0/6bf7969686ac56a9fe90952b58ba70b811f75ecfece6777d52fffc5e5478/cuid2-3.0.0-py3-none-any.whl", hash = "sha256:8c49db95269e71e6bb6d04f24a6c08e97969a4def6633a6f6c0cc74b3780ff2b", size = 18825, upload-time = "2026-11-09T03:23:05.62Z" },
 ]
 
 [[package]]
